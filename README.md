@@ -5,9 +5,9 @@
 ===========
 
 <div align=center>
-    <img src="./folia.png">
+    <img src="./tessera.png">
     <br /><br />
-    <p>Fork of <a href="https://github.com/PaperMC/Paper">Paper</a> which adds regionised multithreading to the dedicated server.</p>
+    <p>Fork of <a href="https://github.com/PaperMC/Folia">Folia</a> which adds regionised multithreading to the dedicated server.</p>
 </div>
 
 ## Overview
