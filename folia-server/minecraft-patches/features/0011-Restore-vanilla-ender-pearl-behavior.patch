@@ -1,0 +1,256 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Mon, 27 Jul 2026 16:38:08 +0200
+Subject: [PATCH] Restore vanilla ender pearl behavior
+
+
+diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+index fbe0ef19bfabfc42d9e0e08e17b08159321b3804..d7b22799f656ec68fcaceeb39bb6762c93db951c 100644
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -14,7 +14,6 @@ import com.mojang.serialization.MapCodec;
+ import com.mojang.serialization.codecs.RecordCodecBuilder;
+ import java.net.InetSocketAddress;
+ import java.util.Collection;
+-import java.util.HashSet;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.Optional;
+@@ -22,6 +21,7 @@ import java.util.OptionalInt;
+ import java.util.Set;
+ import java.util.UUID;
+ import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.ConcurrentHashMap;
+ import java.util.stream.Collectors;
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.CrashReport;
+@@ -191,6 +191,7 @@ import net.minecraft.world.level.saveddata.maps.MapId;
+ import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
+ import net.minecraft.world.level.storage.LevelData;
+ import net.minecraft.world.level.storage.TagValueInput;
++import net.minecraft.world.level.storage.TagValueOutput;
+ import net.minecraft.world.level.storage.ValueInput;
+ import net.minecraft.world.level.storage.ValueOutput;
+ import net.minecraft.world.phys.AABB;
+@@ -275,7 +276,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+     private @Nullable BlockPos raidOmenPosition;
+     private Vec3 lastKnownClientMovement = Vec3.ZERO;
+     private Input lastClientInput = Input.EMPTY;
+-    private final Set<ThrownEnderpearl> enderPearls = new HashSet<>();
++    // Tessera start - restore vanilla ender pearl ownership
++    // A pearl and its owner may be ticked by different Folia regions. The set is
++    // therefore concurrent; entity data itself is read through region-owned NBT
++    // snapshots maintained by ThrownEnderpearl.
++    private final Set<ThrownEnderpearl> enderPearls = ConcurrentHashMap.newKeySet();
++    // Tessera end - restore vanilla ender pearl ownership
+     private long timeEntitySatOnShoulder;
+     private CompoundTag shoulderEntityLeft = new CompoundTag();
+     private CompoundTag shoulderEntityRight = new CompoundTag();
+@@ -772,14 +778,26 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+             ValueOutput.ValueOutputList pearlsOutput = playerOutput.childrenList("ender_pearls");
+ 
+             for (ThrownEnderpearl enderPearl : this.enderPearls) {
+-                if (enderPearl.level().paperConfig().misc.legacyEnderPearlBehavior) continue; // Paper - Allow using old ender pearl behavior
+-                if (enderPearl.isRemoved()) {
+-                    LOGGER.warn("Trying to save removed ender pearl, skipping");
++                // Tessera start - restore vanilla ender pearl ownership
++                // Never serialize an entity owned by another region from the
++                // player's tick thread. The snapshot was produced by the pearl.
++                CompoundTag snapshot = enderPearl.tessera$getOwnerSaveData();
++                if (snapshot == null) {
++                    continue;
++                }
++
++                ValueOutput pearlOutput = pearlsOutput.addChild();
++                if (pearlOutput instanceof TagValueOutput tagOutput) {
++                    tagOutput.buildResult().merge(snapshot);
+                 } else {
+-                    ValueOutput pearlTag = pearlsOutput.addChild();
+-                    enderPearl.save(pearlTag);
+-                    pearlTag.store("ender_pearl_dimension", Level.RESOURCE_KEY_CODEC, enderPearl.level().dimension());
++                    LOGGER.warn("Unable to save ender pearl {}: unsupported value output {}", enderPearl.getUUID(), pearlOutput.getClass().getName());
++                    pearlsOutput.discardLast();
+                 }
++                // Tessera end - restore vanilla ender pearl ownership
++            }
++
++            if (pearlsOutput.isEmpty()) {
++                playerOutput.discard("ender_pearls");
+             }
+         }
+     }
+@@ -3442,11 +3460,11 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+     }
+ 
+     public void registerEnderPearl(final ThrownEnderpearl enderPearl) {
+-        //this.enderPearls.add(enderPearl); // Folia - region threading - do not track ender pearls
++        this.enderPearls.add(enderPearl); // Tessera - restore vanilla ender pearl ownership
+     }
+ 
+     public void deregisterEnderPearl(final ThrownEnderpearl enderPearl) {
+-        //this.enderPearls.remove(enderPearl); // Folia - region threading - do not track ender pearls
++        this.enderPearls.remove(enderPearl); // Tessera - restore vanilla ender pearl ownership
+     }
+ 
+     public Set<ThrownEnderpearl> getEnderPearls() {
+diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
+index e7579a9873362317dd82b63306cf650af9472574..c23e15bff7e957da8beef5fc19c7f2ba676df855 100644
+--- a/net/minecraft/server/players/PlayerList.java
++++ b/net/minecraft/server/players/PlayerList.java
+@@ -555,11 +555,11 @@ public abstract class PlayerList {
+         player.unRide();
+ 
+         for (ThrownEnderpearl enderpearl : player.getEnderPearls()) {
+-            // Paper start - Allow using old ender pearl behavior
+-            if (!enderpearl.level().paperConfig().misc.legacyEnderPearlBehavior) {
+-                enderpearl.setRemoved(Entity.RemovalReason.UNLOADED_WITH_PLAYER, org.bukkit.event.entity.EntityRemoveEvent.Cause.PLAYER_QUIT); // CraftBukkit - add Bukkit remove cause
+-            }
+-            // Paper end - Allow using old ender pearl behavior
++            // Tessera start - restore vanilla ender pearl ownership
++            // The pearl can be in a different Folia region. Its own scheduler
++            // performs the configuration check and removal on the correct thread.
++            enderpearl.tessera$unloadWithOwner();
++            // Tessera end - restore vanilla ender pearl ownership
+         }
+ 
+         level.removePlayerImmediately(player, Entity.RemovalReason.UNLOADED_WITH_PLAYER);
+diff --git a/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEnderpearl.java b/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEnderpearl.java
+index 501a0e89cc7bcfce6793f059b080b38666e0fb64..887fcc5db203d572bd3a8a38a33e983481c2370f 100644
+--- a/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEnderpearl.java
++++ b/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEnderpearl.java
+@@ -4,6 +4,7 @@ import java.util.UUID;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.SectionPos;
+ import net.minecraft.core.particles.ParticleTypes;
++import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.sounds.SoundEvents;
+@@ -25,6 +26,8 @@ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.gamerules.GameRules;
+ import net.minecraft.world.level.portal.TeleportTransition;
++import net.minecraft.world.level.storage.TagValueOutput;
++import net.minecraft.world.level.storage.ValueInput;
+ import net.minecraft.world.phys.EntityHitResult;
+ import net.minecraft.world.phys.HitResult;
+ import net.minecraft.world.phys.Vec3;
+@@ -32,6 +35,11 @@ import org.jspecify.annotations.Nullable;
+ 
+ public class ThrownEnderpearl extends ThrowableItemProjectile {
+     private long ticketTimer = 0L;
++    // Tessera start - restore vanilla ender pearl ownership
++    // Written only from the pearl's owning region and copied by the player save
++    // path. This avoids serializing a live entity across Folia region threads.
++    private volatile @Nullable CompoundTag tessera$ownerSaveData;
++    // Tessera end - restore vanilla ender pearl ownership
+ 
+     public ThrownEnderpearl(final EntityType<? extends ThrownEnderpearl> type, final Level level) {
+         super(type, level);
+@@ -54,11 +62,20 @@ public class ThrownEnderpearl extends ThrowableItemProjectile {
+     }
+ 
+     private void deregisterFromCurrentOwner() {
+-        // Folia - region threading - we remove the registration logic, we do not need to fetch the owner
++        // Tessera start - restore vanilla ender pearl ownership
++        if (this.getOwner() instanceof ServerPlayer serverPlayer) {
++            serverPlayer.deregisterEnderPearl(this);
++        }
++        // Tessera end - restore vanilla ender pearl ownership
+     }
+ 
+     private void registerToCurrentOwner() {
+-        // Folia - region threading - we remove the registration logic, we do not need to fetch the owner
++        // Tessera start - restore vanilla ender pearl ownership
++        if (this.getOwner() instanceof ServerPlayer serverPlayer) {
++            serverPlayer.registerEnderPearl(this);
++            this.tessera$updateOwnerSaveData();
++        }
++        // Tessera end - restore vanilla ender pearl ownership
+     }
+ 
+     @Override
+@@ -71,6 +88,62 @@ public class ThrownEnderpearl extends ThrowableItemProjectile {
+         return owner != null ? owner : serverLevel.getServer().getPlayerList().getPlayer(uuid);
+     }
+ 
++    // Tessera start - restore vanilla ender pearl ownership
++    private void tessera$updateOwnerSaveData() {
++        if (!(this.level() instanceof ServerLevel serverLevel)
++            || serverLevel.paperConfig().misc.legacyEnderPearlBehavior
++            || this.isRemoved()) {
++            this.tessera$ownerSaveData = null;
++            return;
++        }
++
++        TagValueOutput output = TagValueOutput.createWithContext(net.minecraft.util.ProblemReporter.DISCARDING, this.registryAccess());
++        if (this.save(output)) {
++            output.store("ender_pearl_dimension", Level.RESOURCE_KEY_CODEC, serverLevel.dimension());
++            this.tessera$ownerSaveData = output.buildResult();
++        }
++    }
++
++    public @Nullable CompoundTag tessera$getOwnerSaveData() {
++        if (this.tessera$ownerSaveData == null && ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this)) {
++            this.tessera$updateOwnerSaveData();
++        }
++
++        CompoundTag snapshot = this.tessera$ownerSaveData;
++        return snapshot == null ? null : snapshot.copy();
++    }
++
++    public void tessera$unloadWithOwner() {
++        if (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this)) {
++            this.getBukkitEntity().taskScheduler.schedule(
++                entity -> ((ThrownEnderpearl)entity).tessera$unloadWithOwner(),
++                null,
++                1L
++            );
++            return;
++        }
++
++        if (!this.level().paperConfig().misc.legacyEnderPearlBehavior && !this.isRemoved()) {
++            this.setRemoved(
++                Entity.RemovalReason.UNLOADED_WITH_PLAYER,
++                org.bukkit.event.entity.EntityRemoveEvent.Cause.PLAYER_QUIT
++            );
++        }
++    }
++
++    @Override
++    protected void readAdditionalSaveData(final ValueInput input) {
++        super.readAdditionalSaveData(input);
++        this.tessera$updateOwnerSaveData();
++    }
++
++    @Override
++    public void shoot(final double xd, final double yd, final double zd, final float pow, final float uncertainty) {
++        super.shoot(xd, yd, zd, pow, uncertainty);
++        this.tessera$updateOwnerSaveData();
++    }
++    // Tessera end - restore vanilla ender pearl ownership
++
+     @Override
+     protected void onHitEntity(final EntityHitResult hitResult) {
+         super.onHitEntity(hitResult);
+@@ -176,9 +249,9 @@ public class ThrownEnderpearl extends ThrowableItemProjectile {
+                 if (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this)) {
+                     throw new IllegalStateException("Must be on tick thread for ticking entity: " + this);
+                 }
+-                Entity entity = this.getOwnerRaw();
++                Entity entity = this.owner != null ? findOwnerIncludingDeadPlayer(level, this.owner.getUUID()) : null; // Tessera - vanilla owner resolution
+                 if (entity != null) {
+-                    attemptTeleport(entity, (ServerLevel)this.level(), this.position());
++                    attemptTeleport(entity, level, this.oldPosition()); // Tessera - restore vanilla impact position
+                 }
+                 this.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.HIT);
+                 return;
+@@ -282,6 +355,8 @@ public class ThrownEnderpearl extends ThrowableItemProjectile {
+                     && owner instanceof ServerPlayer serverPlayer) {
+                     this.ticketTimer = serverPlayer.registerAndUpdateEnderPearlTicket(this);
+                 }
++
++                this.tessera$updateOwnerSaveData(); // Tessera - region-owned player persistence snapshot
+             }
+         } else {
+             super.tick();
