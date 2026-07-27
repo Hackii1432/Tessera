@@ -1,0 +1,503 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Mon, 27 Jul 2026 15:17:31 +0200
+Subject: [PATCH] Implement Folia-compatible tick command
+
+
+diff --git a/io/papermc/paper/threadedregions/RegionizedServer.java b/io/papermc/paper/threadedregions/RegionizedServer.java
+index aa575f3b76ef70ffb9f0410e7e5cfe7af384bfbd..8211b2cd97e5f61ac69c62a074e3b8b676019c96 100644
+--- a/io/papermc/paper/threadedregions/RegionizedServer.java
++++ b/io/papermc/paper/threadedregions/RegionizedServer.java
+@@ -68,7 +68,7 @@ public final class RegionizedServer {
+         new RegionizedServerInitEvent().callEvent();
+ 
+         // now we can schedule
+-        this.tickHandle.setInitialStart(System.nanoTime() + TickRegionScheduler.TIME_BETWEEN_TICKS);
++        this.tickHandle.setInitialStart(System.nanoTime() + TickRegionScheduler.getTargetTickPeriodNanos());
+         TickRegions.getScheduler().scheduleRegion(this.tickHandle);
+         TickRegions.start();
+     }
+@@ -181,8 +181,17 @@ public final class RegionizedServer {
+ 
+         @Override
+         protected void tickRegion(final long tickCount, final long startTime, final long scheduledEnd) {
+-            this.drainTasks();
+-            this.server.globalTick(tickCount);
++            final net.minecraft.server.ServerTickRateManager tickRateManager = MinecraftServer.getServer().tickRateManager();
++            tickRateManager.tick();
++            final boolean sprinting = tickRateManager.isSprinting() && tickRateManager.checkShouldSprintThisTick();
++            try {
++                this.drainTasks();
++                this.server.globalTick(tickCount);
++            } finally {
++                if (sprinting) {
++                    tickRateManager.endTickWork();
++                }
++            }
+         }
+ 
+         private void drainTasks() {
+@@ -241,7 +250,9 @@ public final class RegionizedServer {
+         ((FoliaGlobalRegionScheduler)Bukkit.getGlobalRegionScheduler()).tick();
+ 
+         // clock tick
+-        this.tickClocks();
++        if (MinecraftServer.getServer().tickRateManager().runsNormally()) {
++            this.tickClocks();
++        }
+ 
+         // commands
+         ((DedicatedServer)MinecraftServer.getServer()).handleConsoleInputs();
+@@ -351,23 +362,25 @@ public final class RegionizedServer {
+         // this may not be the case - and thus, only the global tick thread can do anything.
+         world.taskQueueRegionData.drainGlobalChunkTasks();
+ 
+-        // worldborder tick
+-        this.tickWorldBorder(world);
++        if (MinecraftServer.getServer().tickRateManager().runsNormally()) {
++            // worldborder tick
++            this.tickWorldBorder(world);
+ 
+-        // weather cycle
+-        this.advanceWeatherCycle(world);
++            // weather cycle
++            this.advanceWeatherCycle(world);
+ 
+-        // sleep status
+-        this.checkNightSkip(world);
++            // sleep status
++            this.checkNightSkip(world);
+ 
+-        // update raids
+-        this.updateRaids(world);
++            // update raids
++            this.updateRaids(world);
+ 
+-        // sky brightness
+-        this.updateSkyBrightness(world);
++            // sky brightness
++            this.updateSkyBrightness(world);
+ 
+-        // time ticking (TODO API synchronisation?)
+-        this.tickTime(world, tickCount);
++            // time ticking (TODO API synchronisation?)
++            this.tickTime(world, tickCount);
++        }
+ 
+         world.updateTickData();
+ 
+@@ -424,4 +437,4 @@ public final class RegionizedServer {
+     }
+ 
+     public static final record WorldLevelData(ServerLevel world, long nonRedstoneGameTime) {}
+-}
+\ No newline at end of file
++}
+diff --git a/io/papermc/paper/threadedregions/TickRegionScheduler.java b/io/papermc/paper/threadedregions/TickRegionScheduler.java
+index 5a72fa0d72bfdb927293abe921c57f6ae964a6ec..d4dfe527e7c465f0035924a3c951dd4b4407280c 100644
+--- a/io/papermc/paper/threadedregions/TickRegionScheduler.java
++++ b/io/papermc/paper/threadedregions/TickRegionScheduler.java
+@@ -42,6 +42,21 @@ public final class TickRegionScheduler {
+ 
+     public static final int TICK_RATE = 20;
+     public static final long TIME_BETWEEN_TICKS = 1_000_000_000L / TICK_RATE; // ns
++
++    public static long getTargetTickPeriodNanos() {
++        final MinecraftServer server = MinecraftServer.getServer();
++        return server == null ? TIME_BETWEEN_TICKS : server.tickRateManager().nanosecondsPerTick();
++    }
++
++    private static long getSchedulingTickPeriodNanos() {
++        final MinecraftServer server = MinecraftServer.getServer();
++        if (server != null && server.tickRateManager().isSprinting()) {
++            // The scheduler requires a positive period. One nanosecond means
++            // "run as soon as a tick thread is available" for a tick sprint.
++            return 1L;
++        }
++        return getTargetTickPeriodNanos();
++    }
+     // Folia start - watchdog
+     public static final FoliaWatchdogThread WATCHDOG_THREAD = new FoliaWatchdogThread();
+     static {
+@@ -314,6 +329,7 @@ public final class TickRegionScheduler {
+         private final AtomicBoolean cancelled = new AtomicBoolean();
+ 
+         protected final Schedule tickSchedule;
++        protected long scheduledTickPeriod;
+ 
+         private TickRegionScheduler scheduler;
+ 
+@@ -327,8 +343,9 @@ public final class TickRegionScheduler {
+             this.tickTimes15m = new TickData(TimeUnit.MINUTES.toNanos(15L));
+             this.region = region;
+ 
++            this.scheduledTickPeriod = getSchedulingTickPeriodNanos();
+             this.setScheduledStart(firstStart);
+-            this.tickSchedule = new Schedule(firstStart == TimeUtil.DEADLINE_NOT_SET ? firstStart : firstStart - TIME_BETWEEN_TICKS);
++            this.tickSchedule = new Schedule(firstStart == TimeUtil.DEADLINE_NOT_SET ? firstStart : firstStart - this.scheduledTickPeriod);
+         }
+ 
+         /**
+@@ -337,7 +354,7 @@ public final class TickRegionScheduler {
+          */
+         protected final void updateScheduledStart(final long to) {
+             this.setScheduledStart(to);
+-            this.tickSchedule.setLastPeriod(to == TimeUtil.DEADLINE_NOT_SET ? to : to - TIME_BETWEEN_TICKS);
++            this.tickSchedule.setLastPeriod(to == TimeUtil.DEADLINE_NOT_SET ? to : to - this.scheduledTickPeriod);
+         }
+ 
+         public final void markNonSchedulable() {
+@@ -428,9 +445,22 @@ public final class TickRegionScheduler {
+ 
+             final long cpuStart = MEASURE_CPU_TIME ? THREAD_MX_BEAN.getCurrentThreadCpuTime() : 0L;
+             final long tickStart = System.nanoTime();
++            final long tickPeriod = getSchedulingTickPeriodNanos();
++            final boolean sprinting = tickPeriod == 1L;
++
++            if (tickPeriod != this.scheduledTickPeriod) {
++                // A period change cannot reuse the old Schedule base: doing so
++                // would turn a 50ms offset into millions of sprint "catch-up"
++                // ticks. Rebase this handle at the current time instead.
++                this.scheduledTickPeriod = tickPeriod;
++                this.tickSchedule.setLastPeriod(tickStart - tickPeriod);
++                this.setScheduledStart(tickStart);
++            }
+ 
+             // use max(), don't assume that tickStart >= scheduledStart
+-            final long tickCount = Math.max(1L, this.tickSchedule.getPeriodsAhead(TIME_BETWEEN_TICKS, tickStart));
++            // A sprint still advances exactly one game tick per scheduler
++            // invocation. Nanoseconds spent doing work are not skipped ticks.
++            final long tickCount = sprinting ? 1L : Math.max(1L, this.tickSchedule.getPeriodsAhead(tickPeriod, tickStart));
+ 
+             if (!this.tryMarkTicking()) {
+                 if (!this.cancelled.get()) {
+@@ -454,7 +484,7 @@ public final class TickRegionScheduler {
+             this.lastTickStart = tickStart;
+ 
+             final long scheduledStart = this.getScheduledStart();
+-            final long scheduledEnd = scheduledStart + TIME_BETWEEN_TICKS;
++            final long scheduledEnd = scheduledStart + tickPeriod;
+ 
+             final long intermediateTaskTime;
+             final long intermediateTaskTimeCPU;
+@@ -491,8 +521,13 @@ public final class TickRegionScheduler {
+                 // in order to ensure all regions get their chance at scheduling, we have to ensure that regions
+                 // that exceed the max tick time are not always prioritised over everything else. Thus, we use the greatest
+                 // of the current time and "ideal" next tick start.
+-                this.tickSchedule.advanceBy(tickCount, TIME_BETWEEN_TICKS);
+-                this.setScheduledStart(TimeUtil.getGreatestTime(tickEnd, this.tickSchedule.getDeadline(TIME_BETWEEN_TICKS)));
++                if (sprinting) {
++                    this.tickSchedule.setLastPeriod(tickEnd);
++                    this.setScheduledStart(tickEnd + tickPeriod);
++                } else {
++                    this.tickSchedule.advanceBy(tickCount, tickPeriod);
++                    this.setScheduledStart(TimeUtil.getGreatestTime(tickEnd, this.tickSchedule.getDeadline(tickPeriod)));
++                }
+ 
+                 final TickTime time = new TickTime(
+                     lastTickStart, scheduledStart, tickStart, cpuStart, tickEnd, cpuEnd,
+@@ -544,31 +579,31 @@ public final class TickRegionScheduler {
+ 
+         public final TickData.TickReportData getTickReport5s(final long currTime) {
+             synchronized (this) {
+-                return this.tickTimes5s.generateTickReport(this.adjustCurrentTickData(currTime), currTime, TIME_BETWEEN_TICKS);
++                return this.tickTimes5s.generateTickReport(this.adjustCurrentTickData(currTime), currTime, getTargetTickPeriodNanos());
+             }
+         }
+ 
+         public final TickData.TickReportData getTickReport15s(final long currTime) {
+             synchronized (this) {
+-                return this.tickTimes15s.generateTickReport(this.adjustCurrentTickData(currTime), currTime, TIME_BETWEEN_TICKS);
++                return this.tickTimes15s.generateTickReport(this.adjustCurrentTickData(currTime), currTime, getTargetTickPeriodNanos());
+             }
+         }
+ 
+         public final TickData.TickReportData getTickReport1m(final long currTime) {
+             synchronized (this) {
+-                return this.tickTimes1m.generateTickReport(this.adjustCurrentTickData(currTime), currTime, TIME_BETWEEN_TICKS);
++                return this.tickTimes1m.generateTickReport(this.adjustCurrentTickData(currTime), currTime, getTargetTickPeriodNanos());
+             }
+         }
+ 
+         public final TickData.TickReportData getTickReport5m(final long currTime) {
+             synchronized (this) {
+-                return this.tickTimes5m.generateTickReport(this.adjustCurrentTickData(currTime), currTime, TIME_BETWEEN_TICKS);
++                return this.tickTimes5m.generateTickReport(this.adjustCurrentTickData(currTime), currTime, getTargetTickPeriodNanos());
+             }
+         }
+ 
+         public final TickData.TickReportData getTickReport15m(final long currTime) {
+             synchronized (this) {
+-                return this.tickTimes15m.generateTickReport(this.adjustCurrentTickData(currTime), currTime, TIME_BETWEEN_TICKS);
++                return this.tickTimes15m.generateTickReport(this.adjustCurrentTickData(currTime), currTime, getTargetTickPeriodNanos());
+             }
+         }
+ 
+@@ -590,4 +625,4 @@ public final class TickRegionScheduler {
+             this.currentTick = value;
+         }
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/io/papermc/paper/threadedregions/TickRegions.java b/io/papermc/paper/threadedregions/TickRegions.java
+index a6ab9cb01f4f49f5f44b6ed324fa6d51139aabb6..a4182f5420ce018e001025de7d5e0e8e0380d183 100644
+--- a/io/papermc/paper/threadedregions/TickRegions.java
++++ b/io/papermc/paper/threadedregions/TickRegions.java
+@@ -422,6 +422,7 @@ public final class TickRegions implements ThreadedRegionizer.RegionCallbacks<Tic
+ 
+             ret.currentTick = this.currentTick;
+             ret.lastTickStart = this.lastTickStart;
++            ret.scheduledTickPeriod = this.scheduledTickPeriod;
+             ret.tickSchedule.setLastPeriod(this.tickSchedule.getLastPeriod());
+ 
+             return ret;
+@@ -442,6 +443,7 @@ public final class TickRegions implements ThreadedRegionizer.RegionCallbacks<Tic
+ 
+         private void copyDeadlineAndTickCount(final ConcreteRegionTickHandle from) {
+             this.currentTick = from.currentTick;
++            this.scheduledTickPeriod = from.scheduledTickPeriod;
+ 
+             if (from.getScheduledStart() == TimeUtil.DEADLINE_NOT_SET) {
+                 return;
+@@ -453,7 +455,8 @@ public final class TickRegions implements ThreadedRegionizer.RegionCallbacks<Tic
+ 
+         private void checkInitialSchedule() {
+             if (this.getScheduledStart() == TimeUtil.DEADLINE_NOT_SET) {
+-                this.updateScheduledStart(System.nanoTime() + TickRegionScheduler.TIME_BETWEEN_TICKS);
++                this.scheduledTickPeriod = TickRegionScheduler.getTargetTickPeriodNanos();
++                this.updateScheduledStart(System.nanoTime() + this.scheduledTickPeriod);
+             }
+         }
+ 
+diff --git a/io/papermc/paper/threadedregions/commands/CommandProfiler.java b/io/papermc/paper/threadedregions/commands/CommandProfiler.java
+index 8f940ca39da8b3fe4ca925698adb520ae389cd47..29127f21057eb83b8f08c84063ee31ebc6c566f1 100644
+--- a/io/papermc/paper/threadedregions/commands/CommandProfiler.java
++++ b/io/papermc/paper/threadedregions/commands/CommandProfiler.java
+@@ -193,7 +193,7 @@ public final class CommandProfiler extends Command {
+         // write region data
+         for (final RegionizedProfiler.RegionTimings regionTimings : results.timings()) {
+             final File regionProfile = new File(directory, "region-" + regionTimings.regionId() + ".txt");
+-            final TickData.TickReportData tickReport = regionTimings.tickData().generateTickReport(null, regionTimings.endTime(), TickRegionScheduler.TIME_BETWEEN_TICKS);
++            final TickData.TickReportData tickReport = regionTimings.tickData().generateTickReport(null, regionTimings.endTime(), TickRegionScheduler.getTargetTickPeriodNanos());
+ 
+             final List<String> out = new ArrayList<>();
+             out.add("Total time: " + THREE_DECIMAL_PLACES.get().format(1.0E-9 * (regionTimings.endTime() - regionTimings.startTime())) + "s");
+diff --git a/net/minecraft/commands/Commands.java b/net/minecraft/commands/Commands.java
+index bc9f6cc286536b87513de81855ad0b61cf787c84..4c704a441465291ecee2ce401db6ad634303408f 100644
+--- a/net/minecraft/commands/Commands.java
++++ b/net/minecraft/commands/Commands.java
+@@ -257,7 +257,7 @@ public class Commands {
+         TeleportCommand.register(this.dispatcher);
+         TellRawCommand.register(this.dispatcher, context);
+         //TestCommand.register(this.dispatcher, context); // Folia - region threading
+-        //TickCommand.register(this.dispatcher); // Folia - region threading - TODO later
++        TickCommand.register(this.dispatcher); // Tessera - Folia-compatible tick control
+         TimeCommand.register(this.dispatcher, context);
+         TitleCommand.register(this.dispatcher, context);
+         //TriggerCommand.register(this.dispatcher); // Folia - region threading - TODO later
+diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
+index c6a4d52f76e10fcc57b2c49b07fbc2ef9bb90822..1215fb0c0a6dbeb47ab2934ba35d74e8d9e6a65b 100644
+--- a/net/minecraft/server/MinecraftServer.java
++++ b/net/minecraft/server/MinecraftServer.java
+@@ -1814,7 +1814,8 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+     // Folia - region threading - use absolute time instead of this
+ 
+     public void onTickRateChanged() {
+-        // Folia - region threading - use absolute time instead of this
++        // Tessera - each Folia region handle observes the new dynamic period
++        // at the beginning of its next tick and safely rebases its schedule.
+     }
+ 
+     protected abstract SampleLogger getTickTimeLogger();
+diff --git a/net/minecraft/server/ServerTickRateManager.java b/net/minecraft/server/ServerTickRateManager.java
+index eeb2f88723b37bb3cada04bf3098dd46f0ed7316..19d24563e31c89c01976cccddf11cf85a1a357c4 100644
+--- a/net/minecraft/server/ServerTickRateManager.java
++++ b/net/minecraft/server/ServerTickRateManager.java
+@@ -9,13 +9,13 @@ import net.minecraft.util.TimeUtil;
+ import net.minecraft.world.TickRateManager;
+ 
+ public class ServerTickRateManager extends TickRateManager {
+-    private long remainingSprintTicks = 0L;
++    private volatile long remainingSprintTicks = 0L;
+     private long sprintTickStartTime = 0L;
+     private long sprintTimeSpend = 0L;
+-    private long scheduledCurrentSprintTicks = 0L;
++    private volatile long scheduledCurrentSprintTicks = 0L;
+     private boolean previousIsFrozen = false;
+     private final MinecraftServer server;
+-    private boolean silent; // Paper - silence feedback when API requests sprint
++    private volatile boolean silent; // Paper - silence feedback when API requests sprint
+ 
+     public ServerTickRateManager(final MinecraftServer server) {
+         this.server = server;
+@@ -26,7 +26,7 @@ public class ServerTickRateManager extends TickRateManager {
+     }
+ 
+     @Override
+-    public void setFrozen(final boolean frozen) {
++    public synchronized void setFrozen(final boolean frozen) {
+         super.setFrozen(frozen);
+         this.updateStateToClients();
+     }
+@@ -39,7 +39,7 @@ public class ServerTickRateManager extends TickRateManager {
+         this.server.getPlayerList().broadcastAll(ClientboundTickingStepPacket.from(this));
+     }
+ 
+-    public boolean stepGameIfPaused(final int ticks) {
++    public synchronized boolean stepGameIfPaused(final int ticks) {
+         if (!this.isFrozen()) {
+             return false;
+         }
+@@ -49,7 +49,7 @@ public class ServerTickRateManager extends TickRateManager {
+         return true;
+     }
+ 
+-    public boolean stopStepping() {
++    public synchronized boolean stopStepping() {
+         if (this.frozenTicksToRun > 0) {
+             this.frozenTicksToRun = 0;
+             this.updateStepTicks();
+@@ -59,8 +59,8 @@ public class ServerTickRateManager extends TickRateManager {
+         }
+     }
+ 
+-    public boolean stopSprinting() {
+-        if (this.remainingSprintTicks > 0L) {
++    public synchronized boolean stopSprinting() {
++        if (this.isSprinting()) {
+             this.finishTickSprint();
+             return true;
+         } else {
+@@ -68,12 +68,12 @@ public class ServerTickRateManager extends TickRateManager {
+         }
+     }
+ 
+-    public boolean requestGameToSprint(final int time) {
++    public synchronized boolean requestGameToSprint(final int time) {
+         // Paper start - silence feedback when API requests sprint
+         return requestGameToSprint(time, false);
+     }
+ 
+-    public boolean requestGameToSprint(final int time, final boolean silent) {
++    public synchronized boolean requestGameToSprint(final int time, final boolean silent) {
+         if (!isSprinting()) this.silent = silent;
+         // Paper end - silence feedback when API requests sprint
+         boolean interrupted = this.remainingSprintTicks > 0L;
+@@ -105,7 +105,7 @@ public class ServerTickRateManager extends TickRateManager {
+         this.server.onTickRateChanged();
+     }
+ 
+-    public boolean checkShouldSprintThisTick() {
++    public synchronized boolean checkShouldSprintThisTick() {
+         if (!this.runGameElements) {
+             return false;
+         } else if (this.remainingSprintTicks > 0L) {
+@@ -118,12 +118,15 @@ public class ServerTickRateManager extends TickRateManager {
+         }
+     }
+ 
+-    public void endTickWork() {
++    public synchronized void endTickWork() {
+         this.sprintTimeSpend = this.sprintTimeSpend + (System.nanoTime() - this.sprintTickStartTime);
++        if (this.remainingSprintTicks == 0L && this.isSprinting()) {
++            this.finishTickSprint();
++        }
+     }
+ 
+     @Override
+-    public void setTickRate(final float rate) {
++    public synchronized void setTickRate(final float rate) {
+         super.setTickRate(rate);
+         this.server.onTickRateChanged();
+         this.updateStateToClients();
+diff --git a/net/minecraft/server/commands/TickCommand.java b/net/minecraft/server/commands/TickCommand.java
+index e8d6a67143f3f0b4813e51bb273498bc404899b9..1daa55353970060ed725e86f3f97376624d8edb1 100644
+--- a/net/minecraft/server/commands/TickCommand.java
++++ b/net/minecraft/server/commands/TickCommand.java
+@@ -1,10 +1,12 @@
+ package net.minecraft.server.commands;
+ 
++import ca.spottedleaf.common.time.TickData;
+ import com.mojang.brigadier.Command;
+ import com.mojang.brigadier.CommandDispatcher;
+ import com.mojang.brigadier.arguments.FloatArgumentType;
+ import com.mojang.brigadier.arguments.IntegerArgumentType;
+-import java.util.Arrays;
++import io.papermc.paper.threadedregions.RegionizedServer;
++import io.papermc.paper.threadedregions.TickRegionScheduler;
+ import java.util.Locale;
+ import net.minecraft.commands.CommandSourceStack;
+ import net.minecraft.commands.Commands;
+@@ -69,7 +71,13 @@ public class TickCommand {
+ 
+     private static int tickQuery(final CommandSourceStack source) {
+         ServerTickRateManager manager = source.getServer().tickRateManager();
+-        String busyTime = nanosToMilisString(source.getServer().getAverageTickTimeNanos());
++        final TickRegionScheduler.RegionScheduleHandle tickHandle =
++            TickRegionScheduler.getCurrentTickingTask() instanceof TickRegionScheduler.RegionScheduleHandle current
++                ? current
++                : RegionizedServer.getGlobalTickData();
++        final TickData.TickReportData report = tickHandle.getTickReport5s(System.nanoTime());
++        final long averageTickTime = report == null ? 0L : (long)Math.ceil(report.timePerTickData().segmentAll().average());
++        String busyTime = nanosToMilisString(averageTickTime);
+         float tickRate = manager.tickrate();
+         String tickRateString = String.format(Locale.ROOT, "%.1f", tickRate);
+         if (manager.isSprinting()) {
+@@ -78,7 +86,7 @@ public class TickCommand {
+         } else {
+             if (manager.isFrozen()) {
+                 source.sendSuccess(() -> Component.translatable("commands.tick.status.frozen"), false);
+-            } else if (manager.nanosecondsPerTick() < source.getServer().getAverageTickTimeNanos()) {
++            } else if (manager.nanosecondsPerTick() < averageTickTime) {
+                 source.sendSuccess(() -> Component.translatable("commands.tick.status.lagging"), false);
+             } else {
+                 source.sendSuccess(() -> Component.translatable("commands.tick.status.running"), false);
+@@ -88,15 +96,20 @@ public class TickCommand {
+             source.sendSuccess(() -> Component.translatable("commands.tick.query.rate.running", tickRateString, busyTime, milliSecondsPerTickTarget), false);
+         }
+ 
+-        long[] samples = Arrays.copyOf(source.getServer().getTickTimesNanos(), source.getServer().getTickTimesNanos().length);
+-        Arrays.sort(samples);
+-        String p50 = nanosToMilisString(samples[samples.length / 2]);
+-        String p95 = nanosToMilisString(samples[(int)(samples.length * 0.95)]);
+-        String p99 = nanosToMilisString(samples[(int)(samples.length * 0.99)]);
+-        source.sendSuccess(() -> Component.translatable("commands.tick.query.percentiles", p50, p95, p99, samples.length), false);
++        final long[] samples = report == null ? new long[0] : report.timePerTickData().rawData();
++        if (samples.length > 0) {
++            String p50 = nanosToMilisString(samples[percentileIndex(samples.length, 0.50)]);
++            String p95 = nanosToMilisString(samples[percentileIndex(samples.length, 0.95)]);
++            String p99 = nanosToMilisString(samples[percentileIndex(samples.length, 0.99)]);
++            source.sendSuccess(() -> Component.translatable("commands.tick.query.percentiles", p50, p95, p99, samples.length), false);
++        }
+         return (int)tickRate;
+     }
+ 
++    private static int percentileIndex(final int sampleCount, final double percentile) {
++        return Math.min(sampleCount - 1, (int)(sampleCount * percentile));
++    }
++
+     private static int sprint(final CommandSourceStack source, final int time) {
+         boolean interrupted = source.getServer().tickRateManager().requestGameToSprint(time);
+         if (interrupted) {
+diff --git a/net/minecraft/world/TickRateManager.java b/net/minecraft/world/TickRateManager.java
+index fbd04bd1e21fe5930ad02b7527a72281b5784b3a..80f0aa3330b52e09ad13badd3600ecb8963185ec 100644
+--- a/net/minecraft/world/TickRateManager.java
++++ b/net/minecraft/world/TickRateManager.java
+@@ -6,11 +6,11 @@ import net.minecraft.world.entity.player.Player;
+ 
+ public class TickRateManager {
+     public static final float MIN_TICKRATE = 1.0F;
+-    protected float tickrate = 20.0F;
+-    protected long nanosecondsPerTick = TimeUtil.NANOSECONDS_PER_SECOND / 20L;
+-    protected int frozenTicksToRun = 0;
+-    protected boolean runGameElements = true;
+-    protected boolean isFrozen = false;
++    protected volatile float tickrate = 20.0F;
++    protected volatile long nanosecondsPerTick = TimeUtil.NANOSECONDS_PER_SECOND / 20L;
++    protected volatile int frozenTicksToRun = 0;
++    protected volatile boolean runGameElements = true;
++    protected volatile boolean isFrozen = false;
+ 
+     public void setTickRate(final float rate) {
+         this.tickrate = Math.max(rate, 1.0F);

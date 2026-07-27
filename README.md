@@ -5,12 +5,61 @@
 ===========
 
 <div align=center>
-    <img src="./folia.png">
+    <img src="./tessera.png">
     <br /><br />
-    <p>Fork of <a href="https://github.com/PaperMC/Paper">Paper</a> which adds regionised multithreading to the dedicated server.</p>
+    <p>Fork of <a href="https://github.com/PaperMC/folia">Folia</a> which aims to fix some issues and add some features for our servers</p>
 </div>
 
-## Overview
+## Overview of Tessera Features
+
+### GameRules Changes
+- GameRule: allow_entering_nether_using_portals
+  - works now as intended.
+- New GameRule: allow_eyes_of_ender_use
+  - Enables the usage of eyes_of_ender on Blocks and as Projectile
+  - Also on false disables teleportation through the end
+        ```xml
+### Internal Changes
+- FetchSiteAPI has been removed
+- Manifest has been reworked
+- Environment Variables for the gradle builder have been replaced
+
+## <span style="color:orange;">Version Changelog</span>
+
+### <span style="color:lightgreen;">Build 005</span>
+- Added Gamerule: ***allow_eyes_of_ender_use***
+
+  `Default Value: True`
+
+  `Enables throwing of eyes of ender`
+
+  `Enables Teleport through END_PORTAL_BLOCK`
+
+  `Enables Interactaction with END_PORTAL_FRAME_BLOCK`
+
+  
+- Removed FetchingSiteAPI in favor of /about
+
+
+
+### <span style="color:darkgray;">Build 004</span>
+- Fixed GitFetching is causing errors in console.
+
+  ` Manifest is no longer dependent on Paper -> Git`
+
+### <span style="color:darkgray;">Build 003</span>
+- Fixed Gamerule: ***allow_entering_nether_using_portals***
+
+  `works as intended now`
+
+### <span style="color:darkgray;">Build 002</span>
+- Created tessera branding for server engine (still a fork)
+
+### <span style="color:darkgray;">Build 001</span>
+- First Compile to mc-version 26.2
+
+
+## Overview of Folia <--- THIS WILL BE REMOVED
 
 Folia groups nearby loaded chunks to form an "independent region."
 See [the PaperMC documentation](https://docs.papermc.io/folia/reference/region-logic) for exact details on how Folia
@@ -86,23 +135,7 @@ So, have your expectations for compatibility at 0.
 
 ## API plans
 
-Currently, there is a lot of API that relies on the main thread. 
-I expect basically zero plugins that are compatible with Paper to 
-be compatible with Folia. However, there are plans to add API that 
-would allow Folia plugins to be compatible with Paper.
-
-For example, the Bukkit Scheduler. The Bukkit Scheduler inherently
-relies on a single main thread. Folia's RegionScheduler and Folia's
-EntityScheduler allow scheduling of tasks to the "next tick" of whatever
-region "owns" either a location or an entity. These could be implemented
-on regular Paper, except they schedule to the main thread - in both cases,
-the execution of the task will occur on the thread that "owns" the
-location or entity. This concept applies in general, as the current Paper
-(single threaded) can be viewed as one giant "region" that encompasses
-all chunks in all worlds. 
-
-It is not yet decided whether to add this API to Paper itself directly
-or to Paperlib.
+Not planning anything here
 
 ### The new rules
 

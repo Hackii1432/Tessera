@@ -1,0 +1,46 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Mon, 27 Jul 2026 15:08:52 +0200
+Subject: [PATCH] Tessera gamerule API
+
+
+diff --git a/src/main/java/org/bukkit/GameRule.java b/src/main/java/org/bukkit/GameRule.java
+index a9b9b12e4b62deddaf00d1b21f1ea179303bf516..d94cfded6d16f1b337e666e8dc9c219bb0f27d73 100644
+--- a/src/main/java/org/bukkit/GameRule.java
++++ b/src/main/java/org/bukkit/GameRule.java
+@@ -21,6 +21,17 @@ import org.jetbrains.annotations.Nullable;
+ @ApiStatus.NonExtendable
+ public abstract class GameRule<T> implements net.kyori.adventure.translation.Translatable, FeatureDependant, Keyed {
+ 
++    // Tessera start - eyes of ender gamerule
++    /**
++     * Toggles using eyes of ender in portal frames and as projectiles.
++     * This also controls travelling through end portals.
++     *
++     * @deprecated renamed to {@link GameRules#ALLOW_EYES_OF_ENDER_USE}
++     */
++    @Deprecated(forRemoval = true, since = "26.2")
++    public static final GameRule<Boolean> ALLOW_EYES_OF_ENDER_USE = GameRules.ALLOW_EYES_OF_ENDER_USE;
++    // Tessera end - eyes of ender gamerule
++
+     // Boolean rules
+     /**
+      * Toggles the announcing of advancements.
+diff --git a/src/main/java/org/bukkit/GameRules.java b/src/main/java/org/bukkit/GameRules.java
+index fb6de66affb3c1b22632da67f9bb01a098591d6e..8d400b50f41aad400a96f928454a05fb70546021 100644
+--- a/src/main/java/org/bukkit/GameRules.java
++++ b/src/main/java/org/bukkit/GameRules.java
+@@ -11,6 +11,13 @@ import org.jspecify.annotations.NullMarked;
+ @NullMarked
+ public final class GameRules {
+ 
++    // Tessera start - eyes of ender gamerule
++    /**
++     * Controls using eyes of ender and travelling through end portals.
++     */
++    public static final GameRule<Boolean> ALLOW_EYES_OF_ENDER_USE = getRule("allow_eyes_of_ender_use");
++    // Tessera end - eyes of ender gamerule
++
+     // Start generate - GameRules
+     public static final GameRule<Boolean> ADVANCE_TIME = getRule("advance_time");
+ 

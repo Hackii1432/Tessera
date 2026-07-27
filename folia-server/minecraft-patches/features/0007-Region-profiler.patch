@@ -1009,7 +1009,7 @@ index 3910e9fc97f334e5b4d845a754965b6df952c169..849ad46b2941ebba91b428846b3b20d1
      // Paper end - optimise entity tracker
  
 diff --git a/net/minecraft/server/level/ServerChunkCache.java b/net/minecraft/server/level/ServerChunkCache.java
-index 738ea01739132744ad700fe6066b79c476c2ec5b..b71c16640b1a2495e61480e9eb752fafbada7c44 100644
+index 7df9021195d2bd191b17c56c8486e475f8b090b5..7927769cf9bccb892745f4d1390eb83b2861d1bb 100644
 --- a/net/minecraft/server/level/ServerChunkCache.java
 +++ b/net/minecraft/server/level/ServerChunkCache.java
 @@ -158,6 +158,8 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon

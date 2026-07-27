@@ -10748,7 +10748,7 @@ index 3509df9dd423b38d1ca3e4a420d1352ae95d3551..c473bc729c813592f0015aad570b8a9c
              }
          }
 diff --git a/net/minecraft/server/level/ServerChunkCache.java b/net/minecraft/server/level/ServerChunkCache.java
-index c3adbe0753f6a4158f25126ed7443f8a958763d9..738ea01739132744ad700fe6066b79c476c2ec5b 100644
+index 075e294333115738b25b64a390df323276cf39f9..7df9021195d2bd191b17c56c8486e475f8b090b5 100644
 --- a/net/minecraft/server/level/ServerChunkCache.java
 +++ b/net/minecraft/server/level/ServerChunkCache.java
 @@ -64,17 +64,14 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
@@ -10876,7 +10876,7 @@ index c3adbe0753f6a4158f25126ed7443f8a958763d9..738ea01739132744ad700fe6066b79c4
              // Paper end - PlayerNaturallySpawnCreaturesEvent
 -            boolean spawnPersistent = this.level.ticksPerSpawnCategory.getLong(org.bukkit.entity.SpawnCategory.ANIMAL) != 0L && this.level.getGameTime() % this.level.ticksPerSpawnCategory.getLong(org.bukkit.entity.SpawnCategory.ANIMAL) == 0L; // CraftBukkit
 +            boolean spawnPersistent = this.level.ticksPerSpawnCategory.getLong(org.bukkit.entity.SpawnCategory.ANIMAL) != 0L && this.level.getRedstoneGameTime() % this.level.ticksPerSpawnCategory.getLong(org.bukkit.entity.SpawnCategory.ANIMAL) == 0L; // CraftBukkit // Folia - region threading
-             spawningCategories = NaturalSpawner.getFilteredSpawningCategories(spawnCookie, this.spawnFriendlies, this.spawnEnemies, spawnPersistent, this.level); // CraftBukkit // todo snapshot - method lost its spawnFriendlies parameter as mojang is moving away further. We can do what we did prior and reintroduce or re-evaluate. // re-added it for now but let's still re-evaluate later
+             spawningCategories = NaturalSpawner.getFilteredSpawningCategories(spawnCookie, this.spawnFriendlies, this.spawnEnemies, spawnPersistent, this.level); // CraftBukkit
          } else {
              spawningCategories = List.of();
          }
@@ -12923,7 +12923,7 @@ index ebb0923b38a7529e7df531b3947a0421df29d654..0b1f5a85c17c4c5266701aaa7959e95f
  
      public boolean isOldChunkAround(final ChunkPos pos, final int range) {
 diff --git a/net/minecraft/server/network/ServerCommonPacketListenerImpl.java b/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
-index 3f171120604d02ec535f119e1a4a89db0ee99960..d25c3f13a051ce6f2fbde30654eb9cdb8914b0ba 100644
+index 5dbb2849f32ac3418f8fdf76c04022d7e9dc165b..010180899d69d0457dcc9feee4f1c062c5354995 100644
 --- a/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
 @@ -344,24 +344,19 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
@@ -13050,7 +13050,7 @@ index e84e243f35b09691d03e9a9cf3de0c093b1d5cfb..b0e1153d74e6b17b807670667c9bae6b
              }
              // Spigot end
 diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index b4434d534677403c68f1ff657c42736333e2e15e..eda7e765c7c2ffee305edc81e0c7a6b1e5bfa18d 100644
+index f936da2a1ffef5fd84d8d63be3575fd06ac9a7b2..829f304d62c88f215b9d04b662ab79182f034672 100644
 --- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -301,10 +301,10 @@ public class ServerGamePacketListenerImpl

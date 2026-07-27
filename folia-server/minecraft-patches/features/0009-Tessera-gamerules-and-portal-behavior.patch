@@ -1,0 +1,264 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Fri, 10 Jul 2026 16:17:59 +0200
+Subject: [PATCH] Tessera gamerules and portal behavior
+
+
+diff --git a/net/minecraft/world/item/EnderEyeItem.java b/net/minecraft/world/item/EnderEyeItem.java
+index ab0239a9d32bd937fb8eef9696b8b7d32e89406c..78631d0f69dbaa106ce80fbb47cd6b6f8b93e0ba 100644
+--- a/net/minecraft/world/item/EnderEyeItem.java
++++ b/net/minecraft/world/item/EnderEyeItem.java
+@@ -24,6 +24,7 @@ import net.minecraft.world.level.block.LevelEvent;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.block.state.pattern.BlockPattern;
+ import net.minecraft.world.level.gameevent.GameEvent;
++import net.minecraft.world.level.gamerules.GameRules;
+ import net.minecraft.world.phys.BlockHitResult;
+ import net.minecraft.world.phys.HitResult;
+ import net.minecraft.world.phys.Vec3;
+@@ -38,6 +39,12 @@ public class EnderEyeItem extends Item {
+         Level level = context.getLevel();
+         BlockPos pos = context.getClickedPos();
+         BlockState targetState = level.getBlockState(pos);
++
++        // Tessera start - eyes of ender gamerule
++        if (level instanceof ServerLevel serverLevel && !serverLevel.getGameRules().get(GameRules.ALLOW_EYES_OF_ENDER_USE)) {
++            return InteractionResult.FAIL;
++        }
++        // Tessera end - eyes of ender gamerule
+         if (!targetState.is(Blocks.END_PORTAL_FRAME) || targetState.getValue(EndPortalFrameBlock.HAS_EYE)) {
+             return InteractionResult.PASS;
+         }
+@@ -102,6 +109,11 @@ public class EnderEyeItem extends Item {
+ 
+     @Override
+     public InteractionResult use(final Level level, final Player player, final InteractionHand hand) {
++        // Tessera start - eyes of ender gamerule
++        if (level instanceof ServerLevel serverLevel && !serverLevel.getGameRules().get(GameRules.ALLOW_EYES_OF_ENDER_USE)) {
++            return InteractionResult.FAIL;
++        }
++        // Tessera end - eyes of ender gamerule
+         ItemStack itemStack = player.getItemInHand(hand);
+         BlockHitResult hitResult = getPlayerPOVHitResult(level, player, ClipContext.Fluid.NONE);
+         if (hitResult.getType() == HitResult.Type.BLOCK && level.getBlockState(hitResult.getBlockPos()).is(Blocks.END_PORTAL_FRAME)) {
+diff --git a/net/minecraft/world/level/block/EndPortalBlock.java b/net/minecraft/world/level/block/EndPortalBlock.java
+index d42bb2a1721e4ab8c9956e18c3ca418b8d648c59..e2ed9bc4a86a484a5cebece551462f7ca9e2652e 100644
+--- a/net/minecraft/world/level/block/EndPortalBlock.java
++++ b/net/minecraft/world/level/block/EndPortalBlock.java
+@@ -2,13 +2,19 @@ package net.minecraft.world.level.block;
+ 
+ import com.mojang.serialization.MapCodec;
+ import java.util.Set;
++import java.util.UUID;
++import java.util.concurrent.ConcurrentHashMap;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+ import net.minecraft.core.particles.ParticleTypes;
+ import net.minecraft.resources.ResourceKey;
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.sounds.SoundEvents;
++import net.minecraft.sounds.SoundSource;
+ import net.minecraft.util.RandomSource;
++import net.minecraft.world.effect.MobEffectInstance;
++import net.minecraft.world.effect.MobEffects;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.InsideBlockEffectApplier;
+ import net.minecraft.world.entity.Relative;
+@@ -20,6 +26,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
+ import net.minecraft.world.level.block.entity.TheEndPortalBlockEntity;
+ import net.minecraft.world.level.block.state.BlockBehaviour;
+ import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.gamerules.GameRules;
+ import net.minecraft.world.level.levelgen.feature.EndPlatformFeature;
+ import net.minecraft.world.level.material.Fluid;
+ import net.minecraft.world.level.portal.TeleportTransition;
+@@ -27,12 +34,18 @@ import net.minecraft.world.level.storage.LevelData;
+ import net.minecraft.world.phys.Vec3;
+ import net.minecraft.world.phys.shapes.CollisionContext;
+ import net.minecraft.world.phys.shapes.VoxelShape;
++import org.bukkit.Location;
++import org.bukkit.event.player.PlayerTeleportEvent;
+ import org.jspecify.annotations.Nullable;
+ 
+ public class EndPortalBlock extends BaseEntityBlock implements Portal {
+     public static final MapCodec<EndPortalBlock> CODEC = simpleCodec(EndPortalBlock::new);
+     private static final VoxelShape SHAPE = Block.column(16.0, 6.0, 12.0);
+ 
++    // Tessera start - eyes of ender gamerule
++    private static final Set<UUID> END_PORTAL_PUNISHMENT = ConcurrentHashMap.newKeySet();
++    // Tessera end - eyes of ender gamerule
++
+     @Override
+     public MapCodec<EndPortalBlock> codec() {
+         return CODEC;
+@@ -141,10 +154,123 @@ public class EndPortalBlock extends BaseEntityBlock implements Portal {
+             return false;
+         }
+ 
++        // Tessera start - eyes of ender gamerule
++        // Run this after Folia's ownership checks above.
++        if (!sourceWorld.getGameRules().get(GameRules.ALLOW_EYES_OF_ENDER_USE)) {
++            if (portalTarget instanceof ServerPlayer player) {
++                sendToSpawn(player, sourceWorld);
++            }
++
++            return false;
++        }
++        // Tessera end - eyes of ender gamerule
++
+         return portalTarget.endPortalLogicAsync(portalPos);
+     }
+     // Folia end - region threading
+ 
++    // Tessera start - eyes of ender gamerule
++    /**
++     * Returns a player to the source world's spawn when end portal use is disabled.
++     * End-side portals remain disabled without returning the player, allowing the
++     * gamerule to be configured independently in the End.
++     */
++    private static void sendToSpawn(final ServerPlayer player, final ServerLevel world) {
++        if (world.dimension() == Level.END || !END_PORTAL_PUNISHMENT.add(player.getUUID())) {
++            return;
++        }
++
++        // set a portal cooldown, so we won't be portaled through any other means
++        player.setPortalCooldown(60);
++
++        player.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 60, 200, false, false, false));
++        player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 60, 200, false, false, false));
++
++        Location spawn = world.getWorld().getSpawnLocation();
++        spawn.setX(spawn.getBlockX() + 0.50);
++        spawn.setY(spawn.getBlockY() + 1.0);
++        spawn.setZ(spawn.getBlockZ() + 0.50);
++
++        // play the enderman teleport sound at the players location
++        world.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS);
++
++        runTeleportToSpawnAnimationAsync(player, spawn, 0);
++    }
++
++    private static void runTeleportToSpawnAnimationAsync(final ServerPlayer player, final Location spawn, final int phase) {
++        if (player.isRemoved() || !player.isAlive()) {
++            END_PORTAL_PUNISHMENT.remove(player.getUUID());
++            return;
++        }
++
++        // remove the fire ticks,
++        //  hopefully this will keep us alive
++        player.getBukkitEntity().setFireTicks(0);
++
++        // spawn the portal animation
++        spawnPortalAnimation(player, phase);
++
++        if (phase < 3) {
++            player.getBukkitEntity().taskScheduler.schedule(
++                scheduledPlayer -> runTeleportToSpawnAnimationAsync((ServerPlayer)scheduledPlayer, spawn, phase + 1),
++                retired -> END_PORTAL_PUNISHMENT.remove(player.getUUID()),
++                2L
++            );
++            return;
++        }
++
++        ServerLevel currentLevel = (ServerLevel) player.level();
++        currentLevel.playSound(null, player.getX(), player.getY(), player.getZ(),
++                SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.0F, 1.15F
++        );
++
++        // remove portal fall movement
++        player.setDeltaMovement(Vec3.ZERO);
++        player.resetFallDistance();
++
++        player.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 60, 200, false, false, false));
++
++        player.getBukkitEntity().teleportAsync(spawn, PlayerTeleportEvent.TeleportCause.END_PORTAL)
++            .whenComplete((success, throwable) -> player.getBukkitEntity().taskScheduler.schedule(
++                scheduledPlayer -> {
++                    END_PORTAL_PUNISHMENT.remove(scheduledPlayer.getUUID());
++                    scheduledPlayer.getBukkitEntity().setFireTicks(0);
++                },
++                retired -> END_PORTAL_PUNISHMENT.remove(player.getUUID()),
++                1L
++            ));
++    }
++
++    private static void spawnPortalAnimation(final ServerPlayer player, final int phase) {
++        ServerLevel level = (ServerLevel) player.level();
++        double centerX = player.getX();
++        double centerY = player.getY() + 0.10;
++        double centerZ = player.getZ();
++
++        int points = 24;
++
++        // make the spiral become smaller
++        double radius = 1.05D - phase * 0.09D;
++        double rotation = phase * 0.75D;
++
++        for (int i = 0; i < points; i++) {
++            double progress = i / (double) (points - 1);
++            double y = centerY + progress * 2.0D;
++            double angle = progress * Math.PI * 4.0D + rotation;
++
++            // first spiral
++            double x1 = centerX + Math.cos(angle) * radius;
++            double z1 = centerZ + Math.sin(angle) * radius;
++
++            // second spiral
++            double x2 = centerX + Math.cos(angle + Math.PI) * radius;
++            double z2 = centerZ + Math.sin(angle + Math.PI) * radius;
++
++            level.sendParticles(ParticleTypes.PORTAL, x1, y, z1, 1, 0.02D, 0.02D, 0.02D, 0.03D);
++            level.sendParticles(ParticleTypes.REVERSE_PORTAL, x2, y, z2, 1, 0.02D, 0.02D, 0.02D, 0.03D);
++        }
++    }
++    // Tessera end - eyes of ender gamerule
+     @Override
+     public void animateTick(final BlockState state, final Level level, final BlockPos pos, final RandomSource random) {
+         double x = pos.getX() + random.nextDouble();
+diff --git a/net/minecraft/world/level/block/NetherPortalBlock.java b/net/minecraft/world/level/block/NetherPortalBlock.java
+index b0e83c97263f6a3c5bfeb70a180f3d140ffb4e29..b4e7011332b9719b72bf2435361fa3a401ffef82 100644
+--- a/net/minecraft/world/level/block/NetherPortalBlock.java
++++ b/net/minecraft/world/level/block/NetherPortalBlock.java
+@@ -15,6 +15,8 @@ import net.minecraft.util.BlockUtil;
+ import net.minecraft.util.RandomSource;
+ import net.minecraft.world.Difficulty;
+ import net.minecraft.world.attribute.EnvironmentAttributes;
++import net.minecraft.world.effect.MobEffectInstance;
++import net.minecraft.world.effect.MobEffects;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.EntityDimensions;
+ import net.minecraft.world.entity.EntitySpawnReason;
+@@ -191,6 +193,16 @@ public class NetherPortalBlock extends Block implements Portal {
+             return false;
+         }
+ 
++        // Tessera start - enforce the vanilla nether portal gamerule on Folia
++        if (!sourceWorld.getGameRules().get(GameRules.ALLOW_ENTERING_NETHER_USING_PORTALS)) {
++            if (portalTarget instanceof Player player) {
++                player.addEffect(new MobEffectInstance(MobEffects.NAUSEA, 600)); // 30 seconds
++            }
++
++            return false;
++        }
++        // Tessera end - enforce the vanilla nether portal gamerule on Folia
++
+         return portalTarget.netherPortalLogicAsync(portalPos);
+     }
+ 
+diff --git a/net/minecraft/world/level/gamerules/GameRules.java b/net/minecraft/world/level/gamerules/GameRules.java
+index 49801f8b037913de5896d4e31a1e36d7ce597875..e9773d6a52b7122886d2fea390a7ea2f849c6af8 100644
+--- a/net/minecraft/world/level/gamerules/GameRules.java
++++ b/net/minecraft/world/level/gamerules/GameRules.java
+@@ -26,6 +26,11 @@ public class GameRules {
+     public static final GameRule<Boolean> ALLOW_ENTERING_NETHER_USING_PORTALS = registerBoolean(
+         "allow_entering_nether_using_portals", GameRuleCategory.MISC, true
+     );
++    // Tessera start - eyes of ender gamerule
++    public static final GameRule<Boolean> ALLOW_EYES_OF_ENDER_USE = registerBoolean(
++        "allow_eyes_of_ender_use", GameRuleCategory.MISC, true
++    );
++    // Tessera end - eyes of ender gamerule
+     public static final GameRule<Boolean> BLOCK_DROPS = registerBoolean("block_drops", GameRuleCategory.DROPS, true);
+     public static final GameRule<Boolean> BLOCK_EXPLOSION_DROP_DECAY = registerBoolean("block_explosion_drop_decay", GameRuleCategory.DROPS, true);
+     public static final GameRule<Boolean> COMMAND_BLOCKS_WORK = registerBoolean("command_blocks_work", GameRuleCategory.MISC, true);
