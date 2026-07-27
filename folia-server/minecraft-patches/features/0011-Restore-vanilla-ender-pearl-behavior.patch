@@ -5,7 +5,7 @@ Subject: [PATCH] Restore vanilla ender pearl behavior
 
 
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index fbe0ef19bfabfc42d9e0e08e17b08159321b3804..d7b22799f656ec68fcaceeb39bb6762c93db951c 100644
+index fbe0ef19bfabfc42d9e0e08e17b08159321b3804..3e1fb0a76304b7d45b49d2329a01d01c7cba030d 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
 @@ -14,7 +14,6 @@ import com.mojang.serialization.MapCodec;
@@ -79,7 +79,74 @@ index fbe0ef19bfabfc42d9e0e08e17b08159321b3804..d7b22799f656ec68fcaceeb39bb6762c
              }
          }
      }
-@@ -3442,11 +3460,11 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -795,15 +813,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+             if (pearlLevel != null) {
+                 Entity pearl = EntityType.loadEntityRecursive(
+                     pearlInput, pearlLevel, EntitySpawnReason.LOAD, net.minecraft.world.entity.EntityProcessor.NOP); // Folia - region threading - delay world add
+-                if (pearl != null) {
++                if (pearl instanceof ThrownEnderpearl enderPearl) {
+                     // Folia start - region threading
+-                    io.papermc.paper.threadedregions.RegionizedServer.getInstance().taskQueue.queueOrExecuteTickTask(
+-                            pearlLevel, pearl.chunkPosition().x(), pearl.chunkPosition().z(), () -> {
+-                                pearlLevel.addFreshEntityWithPassengers(pearl);
+-                                ServerPlayer.placeEnderPearlTicket(pearlLevel, pearl.chunkPosition());
+-                            }
+-                    );
++                    this.tessera$scheduleLoadedEnderPearl(pearlLevel, enderPearl);
+                     // Folia end - region threading
++                } else if (pearl != null) {
++                    LOGGER.warn("Player ender pearl data contained non-pearl entity {}, skipping", pearl.getType());
+                 } else {
+                     LOGGER.warn("Failed to spawn player ender pearl in level ({}), skipping", pearlLevelKey.get());
+                 }
+@@ -813,6 +828,46 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         }
+     }
+ 
++    // Tessera start - restore vanilla ender pearl ownership
++    private void tessera$scheduleLoadedEnderPearl(final ServerLevel pearlLevel, final ThrownEnderpearl enderPearl) {
++        Runnable queueSpawn = () -> io.papermc.paper.threadedregions.RegionizedServer.getInstance().taskQueue.queueOrExecuteTickTask(
++            pearlLevel,
++            enderPearl.chunkPosition().x(),
++            enderPearl.chunkPosition().z(),
++            () -> this.tessera$addLoadedEnderPearl(pearlLevel, enderPearl)
++        );
++        if (!ThrownEnderpearl.tessera$afterPendingOwnerUnload(enderPearl.getUUID(), queueSpawn)) {
++            queueSpawn.run();
++        }
++    }
++
++    private void tessera$addLoadedEnderPearl(final ServerLevel pearlLevel, final ThrownEnderpearl enderPearl) {
++        if (pearlLevel.tryAddFreshEntityWithPassengers(enderPearl) && enderPearl.valid) {
++            enderPearl.tessera$restoreOwnerRegistration();
++            ServerPlayer.placeEnderPearlTicket(pearlLevel, enderPearl.chunkPosition());
++            return;
++        }
++
++        enderPearl.tessera$detachFailedOwnerLoad();
++        if (ThrownEnderpearl.tessera$afterPendingOwnerUnload(
++            enderPearl.getUUID(),
++            () -> this.tessera$scheduleLoadedEnderPearl(pearlLevel, enderPearl)
++        )) {
++            return;
++        }
++
++        Entity existing = pearlLevel.getEntity(enderPearl.getUUID());
++        if (existing instanceof ThrownEnderpearl existingEnderPearl) {
++            // The saved player copy raced an already-active world copy. Keep
++            // exactly one entity and reconnect that copy to the current player.
++            existingEnderPearl.tessera$restoreOwnerRegistration();
++            LOGGER.debug("Reused already-loaded player ender pearl {}", enderPearl.getUUID());
++        } else {
++            LOGGER.warn("Unable to restore player ender pearl {} because its entity UUID is already in use", enderPearl.getUUID());
++        }
++    }
++    // Tessera end - restore vanilla ender pearl ownership
++
+     public void setExperiencePoints(final int amount) {
+         float limit = this.getXpNeededForNextLevel();
+         float max = (limit - 1.0F) / limit;
+@@ -3442,11 +3497,11 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
      }
  
      public void registerEnderPearl(final ThrownEnderpearl enderPearl) {
@@ -115,10 +182,15 @@ index e7579a9873362317dd82b63306cf650af9472574..c23e15bff7e957da8beef5fc19c7f2ba
  
          level.removePlayerImmediately(player, Entity.RemovalReason.UNLOADED_WITH_PLAYER);
 diff --git a/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEnderpearl.java b/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEnderpearl.java
-index 501a0e89cc7bcfce6793f059b080b38666e0fb64..887fcc5db203d572bd3a8a38a33e983481c2370f 100644
+index 501a0e89cc7bcfce6793f059b080b38666e0fb64..c699d0bf1e09776642be3b3b550ff146b82d7a70 100644
 --- a/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEnderpearl.java
 +++ b/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEnderpearl.java
-@@ -4,6 +4,7 @@ import java.util.UUID;
+@@ -1,9 +1,12 @@
+ package net.minecraft.world.entity.projectile.throwableitemprojectile;
+ 
+ import java.util.UUID;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.ConcurrentHashMap;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.SectionPos;
  import net.minecraft.core.particles.ParticleTypes;
@@ -126,7 +198,7 @@ index 501a0e89cc7bcfce6793f059b080b38666e0fb64..887fcc5db203d572bd3a8a38a33e9834
  import net.minecraft.server.level.ServerLevel;
  import net.minecraft.server.level.ServerPlayer;
  import net.minecraft.sounds.SoundEvents;
-@@ -25,6 +26,8 @@ import net.minecraft.world.level.block.Blocks;
+@@ -25,13 +28,26 @@ import net.minecraft.world.level.block.Blocks;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.gamerules.GameRules;
  import net.minecraft.world.level.portal.TeleportTransition;
@@ -135,9 +207,15 @@ index 501a0e89cc7bcfce6793f059b080b38666e0fb64..887fcc5db203d572bd3a8a38a33e9834
  import net.minecraft.world.phys.EntityHitResult;
  import net.minecraft.world.phys.HitResult;
  import net.minecraft.world.phys.Vec3;
-@@ -32,6 +35,11 @@ import org.jspecify.annotations.Nullable;
+ import org.jspecify.annotations.Nullable;
  
  public class ThrownEnderpearl extends ThrowableItemProjectile {
++    // Tessera start - restore vanilla ender pearl ownership
++    // Vanilla removes a player's pearls synchronously after saving the player.
++    // Folia must perform that removal on the pearl's region, so a reconnect can
++    // otherwise race the old entity and fail on its still-registered UUID.
++    private static final ConcurrentHashMap<UUID, CompletableFuture<Void>> TESSERA_PENDING_OWNER_UNLOADS = new ConcurrentHashMap<>();
++    // Tessera end - restore vanilla ender pearl ownership
      private long ticketTimer = 0L;
 +    // Tessera start - restore vanilla ender pearl ownership
 +    // Written only from the pearl's owning region and copied by the player save
@@ -147,13 +225,14 @@ index 501a0e89cc7bcfce6793f059b080b38666e0fb64..887fcc5db203d572bd3a8a38a33e9834
  
      public ThrownEnderpearl(final EntityType<? extends ThrownEnderpearl> type, final Level level) {
          super(type, level);
-@@ -54,11 +62,20 @@ public class ThrownEnderpearl extends ThrowableItemProjectile {
+@@ -54,11 +70,22 @@ public class ThrownEnderpearl extends ThrowableItemProjectile {
      }
  
      private void deregisterFromCurrentOwner() {
 -        // Folia - region threading - we remove the registration logic, we do not need to fetch the owner
 +        // Tessera start - restore vanilla ender pearl ownership
-+        if (this.getOwner() instanceof ServerPlayer serverPlayer) {
++        ServerPlayer serverPlayer = this.tessera$getPlayerOwnerIncludingTransitions();
++        if (serverPlayer != null) {
 +            serverPlayer.deregisterEnderPearl(this);
 +        }
 +        // Tessera end - restore vanilla ender pearl ownership
@@ -162,7 +241,8 @@ index 501a0e89cc7bcfce6793f059b080b38666e0fb64..887fcc5db203d572bd3a8a38a33e9834
      private void registerToCurrentOwner() {
 -        // Folia - region threading - we remove the registration logic, we do not need to fetch the owner
 +        // Tessera start - restore vanilla ender pearl ownership
-+        if (this.getOwner() instanceof ServerPlayer serverPlayer) {
++        ServerPlayer serverPlayer = this.tessera$getPlayerOwnerIncludingTransitions();
++        if (serverPlayer != null) {
 +            serverPlayer.registerEnderPearl(this);
 +            this.tessera$updateOwnerSaveData();
 +        }
@@ -170,11 +250,21 @@ index 501a0e89cc7bcfce6793f059b080b38666e0fb64..887fcc5db203d572bd3a8a38a33e9834
      }
  
      @Override
-@@ -71,6 +88,62 @@ public class ThrownEnderpearl extends ThrowableItemProjectile {
+@@ -71,6 +98,122 @@ public class ThrownEnderpearl extends ThrowableItemProjectile {
          return owner != null ? owner : serverLevel.getServer().getPlayerList().getPlayer(uuid);
      }
  
 +    // Tessera start - restore vanilla ender pearl ownership
++    private @Nullable ServerPlayer tessera$getPlayerOwnerIncludingTransitions() {
++        if (this.owner != null
++            && this.level() instanceof ServerLevel serverLevel
++            && findOwnerIncludingDeadPlayer(serverLevel, this.owner.getUUID()) instanceof ServerPlayer serverPlayer) {
++            return serverPlayer;
++        }
++
++        return null;
++    }
++
 +    private void tessera$updateOwnerSaveData() {
 +        if (!(this.level() instanceof ServerLevel serverLevel)
 +            || serverLevel.paperConfig().misc.legacyEnderPearlBehavior
@@ -199,21 +289,71 @@ index 501a0e89cc7bcfce6793f059b080b38666e0fb64..887fcc5db203d572bd3a8a38a33e9834
 +        return snapshot == null ? null : snapshot.copy();
 +    }
 +
-+    public void tessera$unloadWithOwner() {
++    public static boolean tessera$afterPendingOwnerUnload(final UUID pearlUuid, final Runnable task) {
++        CompletableFuture<Void> pendingUnload = TESSERA_PENDING_OWNER_UNLOADS.get(pearlUuid);
++        if (pendingUnload == null) {
++            return false;
++        }
++
++        // Do not run chunk-ticket work inline from an EntityScheduler retired
++        // callback. Such callbacks execute inside critical scheduler cleanup.
++        pendingUnload.whenCompleteAsync((ignored, throwable) -> task.run());
++        return true;
++    }
++
++    public void tessera$restoreOwnerRegistration() {
 +        if (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this)) {
 +            this.getBukkitEntity().taskScheduler.schedule(
-+                entity -> ((ThrownEnderpearl)entity).tessera$unloadWithOwner(),
++                entity -> ((ThrownEnderpearl)entity).tessera$restoreOwnerRegistration(),
 +                null,
 +                1L
 +            );
 +            return;
 +        }
 +
-+        if (!this.level().paperConfig().misc.legacyEnderPearlBehavior && !this.isRemoved()) {
-+            this.setRemoved(
-+                Entity.RemovalReason.UNLOADED_WITH_PLAYER,
-+                org.bukkit.event.entity.EntityRemoveEvent.Cause.PLAYER_QUIT
++        if (!this.isRemoved()) {
++            this.registerToCurrentOwner();
++        }
++    }
++
++    public void tessera$detachFailedOwnerLoad() {
++        this.deregisterFromCurrentOwner();
++        this.tessera$ownerSaveData = null;
++    }
++
++    public void tessera$unloadWithOwner() {
++        CompletableFuture<Void> pendingUnload = TESSERA_PENDING_OWNER_UNLOADS.computeIfAbsent(
++            this.getUUID(),
++            ignored -> new CompletableFuture<>()
++        );
++
++        if (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this)) {
++            boolean scheduled = this.getBukkitEntity().taskScheduler.schedule(
++                entity -> ((ThrownEnderpearl)entity).tessera$unloadWithOwner(),
++                entity -> ((ThrownEnderpearl)entity).tessera$completeOwnerUnload(pendingUnload),
++                1L
 +            );
++            if (!scheduled) {
++                this.tessera$completeOwnerUnload(pendingUnload);
++            }
++            return;
++        }
++
++        try {
++            if (!this.level().paperConfig().misc.legacyEnderPearlBehavior && !this.isRemoved()) {
++                this.setRemoved(
++                    Entity.RemovalReason.UNLOADED_WITH_PLAYER,
++                    org.bukkit.event.entity.EntityRemoveEvent.Cause.PLAYER_QUIT
++                );
++            }
++        } finally {
++            this.tessera$completeOwnerUnload(pendingUnload);
++        }
++    }
++
++    private void tessera$completeOwnerUnload(final CompletableFuture<Void> pendingUnload) {
++        if (TESSERA_PENDING_OWNER_UNLOADS.remove(this.getUUID(), pendingUnload)) {
++            pendingUnload.complete(null);
 +        }
 +    }
 +
@@ -233,7 +373,7 @@ index 501a0e89cc7bcfce6793f059b080b38666e0fb64..887fcc5db203d572bd3a8a38a33e9834
      @Override
      protected void onHitEntity(final EntityHitResult hitResult) {
          super.onHitEntity(hitResult);
-@@ -176,9 +249,9 @@ public class ThrownEnderpearl extends ThrowableItemProjectile {
+@@ -176,9 +319,9 @@ public class ThrownEnderpearl extends ThrowableItemProjectile {
                  if (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this)) {
                      throw new IllegalStateException("Must be on tick thread for ticking entity: " + this);
                  }
@@ -245,7 +385,20 @@ index 501a0e89cc7bcfce6793f059b080b38666e0fb64..887fcc5db203d572bd3a8a38a33e9834
                  }
                  this.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.HIT);
                  return;
-@@ -282,6 +355,8 @@ public class ThrownEnderpearl extends ThrowableItemProjectile {
+@@ -264,7 +407,11 @@ public class ThrownEnderpearl extends ThrowableItemProjectile {
+             int previousChunkZ = SectionPos.blockToSectionCoord(this.position().z());
+             Entity owner = this.owner != null ? findOwnerIncludingDeadPlayer(serverLevel, this.owner.getUUID()) : null;
+             if (owner instanceof ServerPlayer serverPlayer
+-                && !owner.isAlive()
++                // Folia removes a player from the old region with
++                // CHANGED_DIMENSION during cross-region teleports. isAlive()
++                // is false in that transition even though the player did not
++                // die, so use the actual living-entity death state instead.
++                && serverPlayer.isDeadOrDying()
+                 && !serverPlayer.wonGame
+                 && serverPlayer.level().getGameRules().get(GameRules.ENDER_PEARLS_VANISH_ON_DEATH)) {
+                 this.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.DESPAWN); // CraftBukkit - add Bukkit remove cause
+@@ -282,6 +429,8 @@ public class ThrownEnderpearl extends ThrowableItemProjectile {
                      && owner instanceof ServerPlayer serverPlayer) {
                      this.ticketTimer = serverPlayer.registerAndUpdateEnderPearlTicket(this);
                  }
@@ -254,3 +407,11 @@ index 501a0e89cc7bcfce6793f059b080b38666e0fb64..887fcc5db203d572bd3a8a38a33e9834
              }
          } else {
              super.tick();
+@@ -329,6 +478,7 @@ public class ThrownEnderpearl extends ThrowableItemProjectile {
+     public void onRemoval(final Entity.RemovalReason reason) {
+         if (reason != Entity.RemovalReason.UNLOADED_WITH_PLAYER) {
+             this.deregisterFromCurrentOwner();
++            this.tessera$ownerSaveData = null; // Tessera - never persist a pearl that was actually removed
+         }
+ 
+         super.onRemoval(reason);
