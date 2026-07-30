@@ -1,0 +1,71 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Thu, 30 Jul 2026 18:19:17 +0200
+Subject: [PATCH] Fix neutral mob aggression after player death
+
+
+diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+index 4273dc42007e16cf5f5df67d1a914499f5652668..dff4f9d8cf3d1ff7ce0b526a7e3425b78c007e01 100644
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -1422,7 +1422,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+ 
+         this.removeEntitiesOnShoulder();
+         if (this.level().getGameRules().get(GameRules.FORGIVE_DEAD_PLAYERS)) {
+-            this.tellNeutralMobsThatIDied();
++            this.tellNeutralMobsThatIDied(source.getEntity()); // Folia - ensure the killing neutral mob is notified even across a region boundary
+         }
+ 
+         // SPIGOT-5478 must be called manually now
+@@ -1473,7 +1473,17 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         this.connection.markClientUnloadedAfterDeath();
+     }
+ 
+-    private void tellNeutralMobsThatIDied() {
++    private void tellNeutralMobsThatIDied(final @Nullable Entity killingEntity) {
++        // Folia start - the region-local Vanilla search below can miss the actual killer at a region boundary
++        if (killingEntity instanceof NeutralMob) {
++            final UUID deadPlayerUuid = this.getUUID();
++            killingEntity.getBukkitEntity().taskScheduler.scheduleOrExecute(entity -> {
++                if (entity instanceof NeutralMob neutralMob && entity.level() instanceof ServerLevel entityLevel) {
++                    neutralMob.playerDied(entityLevel, deadPlayerUuid);
++                }
++            });
++        }
++        // Folia end - the region-local Vanilla search below can miss the actual killer at a region boundary
+         AABB aabb = new AABB(this.blockPosition()).inflate(32.0, 10.0, 32.0);
+         this.level()
+             .getEntitiesOfClass(Mob.class, aabb, EntitySelector.NO_SPECTATORS)
+diff --git a/net/minecraft/world/entity/NeutralMob.java b/net/minecraft/world/entity/NeutralMob.java
+index 3425ac4f186f144527e612bc895457ba4cd3ff93..605b4f171fc6b1835b84ff0fffa0ad3a203d05c0 100644
+--- a/net/minecraft/world/entity/NeutralMob.java
++++ b/net/minecraft/world/entity/NeutralMob.java
+@@ -1,6 +1,7 @@
+ package net.minecraft.world.entity;
+ 
+ import java.util.Optional;
++import java.util.UUID;
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.world.Difficulty;
+ import net.minecraft.world.entity.player.Player;
+@@ -124,13 +125,19 @@ public interface NeutralMob {
+     }
+ 
+     default void playerDied(final ServerLevel level, final Player player) {
++        this.playerDied(level, player.getUUID());
++    }
++
++    // Folia start - forgive a dead player without accessing its entity from another region
++    default void playerDied(final ServerLevel level, final UUID playerUuid) {
+         if (level.getGameRules().get(GameRules.FORGIVE_DEAD_PLAYERS)) {
+             EntityReference<LivingEntity> persistentAngerTarget = this.getPersistentAngerTarget();
+-            if (persistentAngerTarget != null && persistentAngerTarget.matches(player)) {
++            if (persistentAngerTarget != null && persistentAngerTarget.getUUID().equals(playerUuid)) {
+                 this.stopBeingAngry();
+             }
+         }
+     }
++    // Folia end - forgive a dead player without accessing its entity from another region
+ 
+     default void forgetCurrentTargetAndRefreshUniversalAnger() {
+         this.stopBeingAngry();

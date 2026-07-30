@@ -284,7 +284,7 @@ index 8f940ca39da8b3fe4ca925698adb520ae389cd47..29127f21057eb83b8f08c84063ee31eb
              final List<String> out = new ArrayList<>();
              out.add("Total time: " + THREE_DECIMAL_PLACES.get().format(1.0E-9 * (regionTimings.endTime() - regionTimings.startTime())) + "s");
 diff --git a/net/minecraft/commands/Commands.java b/net/minecraft/commands/Commands.java
-index bc9f6cc286536b87513de81855ad0b61cf787c84..4c704a441465291ecee2ce401db6ad634303408f 100644
+index 4ddb5e7ce3529466c3930caa9aa6b18158e9a63d..db9087b31d3c14d82134cd8df0e3ed3574abeeaa 100644
 --- a/net/minecraft/commands/Commands.java
 +++ b/net/minecraft/commands/Commands.java
 @@ -257,7 +257,7 @@ public class Commands {
@@ -297,7 +297,7 @@ index bc9f6cc286536b87513de81855ad0b61cf787c84..4c704a441465291ecee2ce401db6ad63
          TitleCommand.register(this.dispatcher, context);
          //TriggerCommand.register(this.dispatcher); // Folia - region threading - TODO later
 diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
-index c6a4d52f76e10fcc57b2c49b07fbc2ef9bb90822..1215fb0c0a6dbeb47ab2934ba35d74e8d9e6a65b 100644
+index f7c17c54cd929ae107efd14bbead0bed9b555f3c..10b329e3da4149133038c1c90d776bc9a2dfee88 100644
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
 @@ -1814,7 +1814,8 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa

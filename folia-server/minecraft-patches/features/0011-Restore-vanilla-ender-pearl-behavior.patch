@@ -5,7 +5,7 @@ Subject: [PATCH] Restore vanilla ender pearl behavior
 
 
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index fbe0ef19bfabfc42d9e0e08e17b08159321b3804..3e1fb0a76304b7d45b49d2329a01d01c7cba030d 100644
+index 57f93d978fe48fdf6e77b7bfb9f1de060e1a8524..4273dc42007e16cf5f5df67d1a914499f5652668 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
 @@ -14,7 +14,6 @@ import com.mojang.serialization.MapCodec;
@@ -146,7 +146,7 @@ index fbe0ef19bfabfc42d9e0e08e17b08159321b3804..3e1fb0a76304b7d45b49d2329a01d01c
      public void setExperiencePoints(final int amount) {
          float limit = this.getXpNeededForNextLevel();
          float max = (limit - 1.0F) / limit;
-@@ -3442,11 +3497,11 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -3421,11 +3476,11 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
      }
  
      public void registerEnderPearl(final ThrownEnderpearl enderPearl) {
@@ -182,7 +182,7 @@ index e7579a9873362317dd82b63306cf650af9472574..c23e15bff7e957da8beef5fc19c7f2ba
  
          level.removePlayerImmediately(player, Entity.RemovalReason.UNLOADED_WITH_PLAYER);
 diff --git a/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEnderpearl.java b/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEnderpearl.java
-index 501a0e89cc7bcfce6793f059b080b38666e0fb64..c699d0bf1e09776642be3b3b550ff146b82d7a70 100644
+index d0dba5cc351903fb762e231a95f302479794185f..32aff84f3b11713882a5fe258a84fd2b1c19b71d 100644
 --- a/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEnderpearl.java
 +++ b/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEnderpearl.java
 @@ -1,9 +1,12 @@

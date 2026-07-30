@@ -42,7 +42,7 @@ index ab0239a9d32bd937fb8eef9696b8b7d32e89406c..78631d0f69dbaa106ce80fbb47cd6b6f
          BlockHitResult hitResult = getPlayerPOVHitResult(level, player, ClipContext.Fluid.NONE);
          if (hitResult.getType() == HitResult.Type.BLOCK && level.getBlockState(hitResult.getBlockPos()).is(Blocks.END_PORTAL_FRAME)) {
 diff --git a/net/minecraft/world/level/block/EndPortalBlock.java b/net/minecraft/world/level/block/EndPortalBlock.java
-index d42bb2a1721e4ab8c9956e18c3ca418b8d648c59..e2ed9bc4a86a484a5cebece551462f7ca9e2652e 100644
+index 123df098fa987030fe3789f36ff95aeee2979834..996d11cbbb35f0df18b9be9f0ad6cb3d66350e4b 100644
 --- a/net/minecraft/world/level/block/EndPortalBlock.java
 +++ b/net/minecraft/world/level/block/EndPortalBlock.java
 @@ -2,13 +2,19 @@ package net.minecraft.world.level.block;
@@ -92,7 +92,7 @@ index d42bb2a1721e4ab8c9956e18c3ca418b8d648c59..e2ed9bc4a86a484a5cebece551462f7c
      @Override
      public MapCodec<EndPortalBlock> codec() {
          return CODEC;
-@@ -141,10 +154,123 @@ public class EndPortalBlock extends BaseEntityBlock implements Portal {
+@@ -147,10 +160,123 @@ public class EndPortalBlock extends BaseEntityBlock implements Portal {
              return false;
          }
  
@@ -217,7 +217,7 @@ index d42bb2a1721e4ab8c9956e18c3ca418b8d648c59..e2ed9bc4a86a484a5cebece551462f7c
      public void animateTick(final BlockState state, final Level level, final BlockPos pos, final RandomSource random) {
          double x = pos.getX() + random.nextDouble();
 diff --git a/net/minecraft/world/level/block/NetherPortalBlock.java b/net/minecraft/world/level/block/NetherPortalBlock.java
-index b0e83c97263f6a3c5bfeb70a180f3d140ffb4e29..b4e7011332b9719b72bf2435361fa3a401ffef82 100644
+index 29fc9521c2c8333c999647dd833899393a838064..60c624d11202a5c39db0418badc079d87b8534b9 100644
 --- a/net/minecraft/world/level/block/NetherPortalBlock.java
 +++ b/net/minecraft/world/level/block/NetherPortalBlock.java
 @@ -15,6 +15,8 @@ import net.minecraft.util.BlockUtil;
