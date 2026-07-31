@@ -16,6 +16,7 @@ rootProject.name = "tessera"
 
 include("folia-api")
 include("folia-server")
+include("test-plugin")
 
 gradle.lifecycle.beforeProject {
     val mcVersion = providers.gradleProperty("mcVersion").get().trim()

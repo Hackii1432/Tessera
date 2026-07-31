@@ -1,0 +1,6 @@
+name: TesseraRuntimeWorldSmoke
+version: '1.0.0'
+main: dev.tessera.smoke.RuntimeWorldLifecycleSmokePlugin
+api-version: '26.2'
+folia-supported: true
+description: Reproducible runtime-world and region-safe scoreboard smoke test

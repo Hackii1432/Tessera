@@ -1,0 +1,85 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Fri, 31 Jul 2026 05:04:03 +0200
+Subject: [PATCH] Drain runtime world lifecycle barriers
+
+
+diff --git a/io/papermc/paper/threadedregions/RegionizedServer.java b/io/papermc/paper/threadedregions/RegionizedServer.java
+index 72a2cca829db0ef33a7000bbe6453c468863b840..ef62b14b440a99f16a9d300c37e76958a036c0c8 100644
+--- a/io/papermc/paper/threadedregions/RegionizedServer.java
++++ b/io/papermc/paper/threadedregions/RegionizedServer.java
+@@ -109,7 +109,19 @@ public final class RegionizedServer {
+             final java.util.concurrent.CompletableFuture<Void> barrier = new java.util.concurrent.CompletableFuture<>();
+             barriers.add(barrier);
+             try {
+-                this.taskQueue.queueTickTaskQueue(world, center.x(), center.z(), () -> barrier.complete(null));
++                final ca.spottedleaf.concurrentutil.executor.PrioritisedExecutor.PrioritisedTask task =
++                    this.taskQueue.createTickTaskQueue(
++                        world,
++                        center.x(),
++                        center.z(),
++                        () -> barrier.complete(null)
++                    );
++                if (!task.queue()) {
++                    // The region disappeared or migrated between enumeration
++                    // and queue insertion. It no longer owns work that this
++                    // snapshot must drain, so it satisfies this barrier.
++                    barrier.complete(null);
++                }
+             } catch (final Throwable throwable) {
+                 barrier.completeExceptionally(throwable);
+             }
+@@ -333,7 +345,7 @@ public final class RegionizedServer {
+ 
+         // tick worlds
+         for (final ServerLevel world : this.worlds) {
+-            if (!world.tessera$isRuntimeWorldActive()) { // Tessera - runtime world lifecycle
++            if (!world.tessera$isRuntimeWorldTickable()) { // Tessera - runtime world lifecycle
+                 continue;
+             }
+             this.globalTick(world, tickCount);
+@@ -484,7 +496,7 @@ public final class RegionizedServer {
+             MinecraftServer.getServer().clockManager().tick();
+         } else {
+             for (ServerLevel level : this.worlds) {
+-                if (!level.tessera$isRuntimeWorldActive()) { // Tessera - runtime world lifecycle
++                if (!level.tessera$isRuntimeWorldTickable()) { // Tessera - runtime world lifecycle
+                     continue;
+                 }
+                 level.clockManager().tick();
+diff --git a/io/papermc/paper/threadedregions/TickRegions.java b/io/papermc/paper/threadedregions/TickRegions.java
+index 6b1730f00081dc7da1d849eff791940458c8c1c3..c059d196368b238c2e66a4056af41ccf7dcc501f 100644
+--- a/io/papermc/paper/threadedregions/TickRegions.java
++++ b/io/papermc/paper/threadedregions/TickRegions.java
+@@ -498,7 +498,9 @@ public final class TickRegions implements ThreadedRegionizer.RegionCallbacks<Tic
+ 
+         @Override
+         protected void tickRegion(final long tickCount, final long startTime, final long scheduledEnd) {
+-            if (!this.region.world.tessera$isRuntimeWorldActive()) { // Tessera - runtime world lifecycle
++            // Tessera - INITIALIZING regions must tick internal chunk-system
++            // work while public API admission remains closed until WorldLoadEvent.
++            if (!this.region.world.tessera$isRuntimeWorldTickable()) {
+                 return;
+             }
+             final ca.spottedleaf.leafprofiler.RegionizedProfiler.Handle profiler = io.papermc.paper.threadedregions.TickRegionScheduler.getProfiler(); // Folia - profiler
+diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
+index 7285e66137316b25fc0d6a33e5b7a9213ee8eec2..08e318740a4d70ade90056d80d0404398c2bd3ff 100644
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -757,6 +757,16 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+         return this.tessera$runtimeLifecycleState.get() == RuntimeLifecycleState.ACTIVE;
+     }
+ 
++    public boolean tessera$isRuntimeWorldTickable() {
++        final RuntimeLifecycleState state = this.tessera$runtimeLifecycleState.get();
++        // INITIALIZING must process chunk preparation, and QUIESCING must
++        // drain already accepted work up to the lifecycle barrier. New API
++        // admission remains restricted to ACTIVE in both cases.
++        return state == RuntimeLifecycleState.ACTIVE
++            || state == RuntimeLifecycleState.INITIALIZING
++            || state == RuntimeLifecycleState.QUIESCING;
++    }
++
+     public boolean tessera$isAcceptingApiTasks() {
+         return this.tessera$isRuntimeWorldActive();
+     }

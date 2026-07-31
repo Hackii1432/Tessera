@@ -1,0 +1,456 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Fri, 31 Jul 2026 03:06:58 +0200
+Subject: [PATCH] Tessera region-safe Bukkit scoreboards
+
+
+diff --git a/net/minecraft/server/ServerScoreboard.java b/net/minecraft/server/ServerScoreboard.java
+index 7ffd683c42557052d7bfa963d87e68f4e8f62d6c..ad5ea802683645720db1682fc745dbb3386264dd 100644
+--- a/net/minecraft/server/ServerScoreboard.java
++++ b/net/minecraft/server/ServerScoreboard.java
+@@ -2,10 +2,16 @@ package net.minecraft.server;
+ 
+ import com.google.common.collect.Lists;
+ import com.google.common.collect.Sets;
++import java.util.ArrayList;
++import java.util.Collection;
+ import java.util.List;
++import java.util.Map;
+ import java.util.Objects;
+ import java.util.Optional;
+ import java.util.Set;
++import java.util.UUID;
++import java.util.concurrent.ConcurrentHashMap;
++import java.util.concurrent.atomic.AtomicBoolean;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.network.protocol.game.ClientboundResetScorePacket;
+ import net.minecraft.network.protocol.game.ClientboundSetDisplayObjectivePacket;
+@@ -22,12 +28,19 @@ import net.minecraft.world.scores.Score;
+ import net.minecraft.world.scores.ScoreHolder;
+ import net.minecraft.world.scores.Scoreboard;
+ import net.minecraft.world.scores.ScoreboardSaveData;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
+ import org.jspecify.annotations.Nullable;
+ 
+ public class ServerScoreboard extends Scoreboard {
+     private final MinecraftServer server;
+     private final Set<Objective> trackedObjectives = Sets.newHashSet();
+     private boolean dirty;
++    // Tessera start - region-safe scoreboards
++    // All model access is serialized on this ServerScoreboard. Network delivery is
++    // transferred as immutable, versioned batches to the owning entity scheduler.
++    private long tessera$revision;
++    private final Map<UUID, TesseraSubscriber> tessera$subscribers = new ConcurrentHashMap<>();
++    // Tessera end - region-safe scoreboards
+ 
+     public ServerScoreboard(final MinecraftServer server) {
+         this.server = server;
+@@ -48,7 +61,7 @@ public class ServerScoreboard extends Scoreboard {
+     }
+ 
+     @Override
+-    protected void onScoreChanged(final ScoreHolder owner, final Objective objective, final Score score) {
++    protected synchronized void onScoreChanged(final ScoreHolder owner, final Objective objective, final Score score) {
+         super.onScoreChanged(owner, objective, score);
+         if (this.trackedObjectives.contains(objective)) {
+             this.broadcastAll( // CraftBukkit
+@@ -66,20 +79,20 @@ public class ServerScoreboard extends Scoreboard {
+     }
+ 
+     @Override
+-    protected void onScoreLockChanged(final ScoreHolder owner, final Objective objective) {
++    protected synchronized void onScoreLockChanged(final ScoreHolder owner, final Objective objective) {
+         super.onScoreLockChanged(owner, objective);
+         this.setDirty();
+     }
+ 
+     @Override
+-    public void onPlayerRemoved(final ScoreHolder player) {
++    public synchronized void onPlayerRemoved(final ScoreHolder player) {
+         super.onPlayerRemoved(player);
+         this.broadcastAll(new ClientboundResetScorePacket(player.getScoreboardName(), null)); // CraftBukkit
+         this.setDirty();
+     }
+ 
+     @Override
+-    public void onPlayerScoreRemoved(final ScoreHolder player, final Objective objective) {
++    public synchronized void onPlayerScoreRemoved(final ScoreHolder player, final Objective objective) {
+         super.onPlayerScoreRemoved(player, objective);
+         if (this.trackedObjectives.contains(objective)) {
+             this.broadcastAll(new ClientboundResetScorePacket(player.getScoreboardName(), objective.getName())); // CraftBukkit
+@@ -89,7 +102,7 @@ public class ServerScoreboard extends Scoreboard {
+     }
+ 
+     @Override
+-    public void setDisplayObjective(final DisplaySlot slot, final @Nullable Objective objective) {
++    public synchronized void setDisplayObjective(final DisplaySlot slot, final @Nullable Objective objective) {
+         Objective old = this.getDisplayObjective(slot);
+         super.setDisplayObjective(slot, objective);
+         if (old != objective && old != null) {
+@@ -112,7 +125,7 @@ public class ServerScoreboard extends Scoreboard {
+     }
+ 
+     @Override
+-    public boolean addPlayerToTeam(final String player, final PlayerTeam team) {
++    public synchronized boolean addPlayerToTeam(final String player, final PlayerTeam team) {
+         if (super.addPlayerToTeam(player, team)) {
+             this.broadcastAll(ClientboundSetPlayerTeamPacket.createPlayerPacket(team, player, ClientboundSetPlayerTeamPacket.Action.ADD)); // CraftBukkit
+             this.updatePlayerWaypoint(player);
+@@ -124,7 +137,7 @@ public class ServerScoreboard extends Scoreboard {
+     }
+ 
+     // Paper start - Multiple Entries with Scoreboards
+-    public boolean addPlayersToTeam(java.util.Collection<String> players, PlayerTeam team) {
++    public synchronized boolean addPlayersToTeam(java.util.Collection<String> players, PlayerTeam team) {
+         boolean anyAdded = false;
+         for (String playerName : players) {
+             if (super.addPlayerToTeam(playerName, team)) {
+@@ -143,7 +156,7 @@ public class ServerScoreboard extends Scoreboard {
+     // Paper end - Multiple Entries with Scoreboards
+ 
+     @Override
+-    public void removePlayerFromTeam(final String player, final PlayerTeam team) {
++    public synchronized void removePlayerFromTeam(final String player, final PlayerTeam team) {
+         super.removePlayerFromTeam(player, team);
+         this.broadcastAll(ClientboundSetPlayerTeamPacket.createPlayerPacket(team, player, ClientboundSetPlayerTeamPacket.Action.REMOVE)); // CraftBukkit
+         this.updatePlayerWaypoint(player);
+@@ -151,7 +164,7 @@ public class ServerScoreboard extends Scoreboard {
+     }
+ 
+     // Paper start - Multiple Entries with Scoreboards
+-    public void removePlayersFromTeam(java.util.Collection<String> players, PlayerTeam team) {
++    public synchronized void removePlayersFromTeam(java.util.Collection<String> players, PlayerTeam team) {
+         for (String playerName : players) {
+             super.removePlayerFromTeam(playerName, team);
+         }
+@@ -162,13 +175,13 @@ public class ServerScoreboard extends Scoreboard {
+     // Paper end - Multiple Entries with Scoreboards
+ 
+     @Override
+-    public void onObjectiveAdded(final Objective objective) {
++    public synchronized void onObjectiveAdded(final Objective objective) {
+         super.onObjectiveAdded(objective);
+         this.setDirty();
+     }
+ 
+     @Override
+-    public void onObjectiveChanged(final Objective objective) {
++    public synchronized void onObjectiveChanged(final Objective objective) {
+         super.onObjectiveChanged(objective);
+         if (this.trackedObjectives.contains(objective)) {
+             this.broadcastAll(new ClientboundSetObjectivePacket(objective, ClientboundSetObjectivePacket.METHOD_CHANGE)); // CraftBukkit
+@@ -178,7 +191,7 @@ public class ServerScoreboard extends Scoreboard {
+     }
+ 
+     @Override
+-    public void onObjectiveRemoved(final Objective objective) {
++    public synchronized void onObjectiveRemoved(final Objective objective) {
+         super.onObjectiveRemoved(objective);
+         if (this.trackedObjectives.contains(objective)) {
+             this.stopTrackingObjective(objective);
+@@ -188,14 +201,14 @@ public class ServerScoreboard extends Scoreboard {
+     }
+ 
+     @Override
+-    public void onTeamAdded(final PlayerTeam team) {
++    public synchronized void onTeamAdded(final PlayerTeam team) {
+         super.onTeamAdded(team);
+         this.broadcastAll(ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(team, true)); // CraftBukkit
+         this.setDirty();
+     }
+ 
+     @Override
+-    public void onTeamChanged(final PlayerTeam team) {
++    public synchronized void onTeamChanged(final PlayerTeam team) {
+         super.onTeamChanged(team);
+         this.broadcastAll(ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(team, false)); // CraftBukkit
+         this.updateTeamWaypoints(team);
+@@ -203,25 +216,25 @@ public class ServerScoreboard extends Scoreboard {
+     }
+ 
+     @Override
+-    public void onTeamRemoved(final PlayerTeam team) {
++    public synchronized void onTeamRemoved(final PlayerTeam team) {
+         super.onTeamRemoved(team);
+         this.broadcastAll(ClientboundSetPlayerTeamPacket.createRemovePacket(team)); // CraftBukkit
+         this.updateTeamWaypoints(team);
+         this.setDirty();
+     }
+ 
+-    protected void setDirty() {
++    protected synchronized void setDirty() {
+         this.dirty = true;
+     }
+ 
+-    public void storeToSaveDataIfDirty(final ScoreboardSaveData saveData) {
++    public synchronized void storeToSaveDataIfDirty(final ScoreboardSaveData saveData) {
+         if (this.dirty) {
+             this.dirty = false;
+             saveData.setData(this.store());
+         }
+     }
+ 
+-    public List<Packet<?>> getStartTrackingPackets(final Objective objective) {
++    public synchronized List<Packet<?>> getStartTrackingPackets(final Objective objective) {
+         List<Packet<?>> packets = Lists.newArrayList();
+         packets.add(new ClientboundSetObjectivePacket(objective, ClientboundSetObjectivePacket.METHOD_ADD));
+ 
+@@ -242,20 +255,14 @@ public class ServerScoreboard extends Scoreboard {
+         return packets;
+     }
+ 
+-    public void startTrackingObjective(final Objective objective) {
++    public synchronized void startTrackingObjective(final Objective objective) {
+         List<Packet<?>> packets = this.getStartTrackingPackets(objective);
+-
+-        for (ServerPlayer player : this.server.getPlayerList().getPlayers()) {
+-            if (player.getBukkitEntity().getScoreboard().getHandle() != this) continue; // CraftBukkit - Only players on this board
+-            for (Packet<?> packet : packets) {
+-                player.connection.send(packet);
+-            }
+-        }
++        this.broadcastAll(packets); // Tessera - immutable entity-scheduler snapshot
+ 
+         this.trackedObjectives.add(objective);
+     }
+ 
+-    public List<Packet<?>> getStopTrackingPackets(final Objective objective) {
++    public synchronized List<Packet<?>> getStopTrackingPackets(final Objective objective) {
+         List<Packet<?>> packets = Lists.newArrayList();
+         packets.add(new ClientboundSetObjectivePacket(objective, ClientboundSetObjectivePacket.METHOD_REMOVE));
+ 
+@@ -268,20 +275,14 @@ public class ServerScoreboard extends Scoreboard {
+         return packets;
+     }
+ 
+-    public void stopTrackingObjective(final Objective objective) {
++    public synchronized void stopTrackingObjective(final Objective objective) {
+         List<Packet<?>> packets = this.getStopTrackingPackets(objective);
+-
+-        for (ServerPlayer player : this.server.getPlayerList().getPlayers()) {
+-            if (player.getBukkitEntity().getScoreboard().getHandle() != this) continue; // CraftBukkit - Only players on this board
+-            for (Packet<?> packet : packets) {
+-                player.connection.send(packet);
+-            }
+-        }
++        this.broadcastAll(packets); // Tessera - immutable entity-scheduler snapshot
+ 
+         this.trackedObjectives.remove(objective);
+     }
+ 
+-    public int getObjectiveDisplaySlotCount(final Objective objective) {
++    public synchronized int getObjectiveDisplaySlotCount(final Objective objective) {
+         int count = 0;
+ 
+         for (DisplaySlot slot : DisplaySlot.values()) {
+@@ -296,26 +297,181 @@ public class ServerScoreboard extends Scoreboard {
+     private void updatePlayerWaypoint(final String player) {
+         ServerPlayer serverPlayer = this.server.getPlayerList().getPlayerByName(player);
+         if (serverPlayer != null) {
+-            serverPlayer.level().getWaypointManager().remakeConnections(serverPlayer);
++            // Tessera start - never access a player/level from the scoreboard model thread
++            serverPlayer.getBukkitEntity().taskScheduler.schedule(
++                entity -> ((ServerPlayer)entity).level().getWaypointManager().remakeConnections((ServerPlayer)entity),
++                null,
++                1L
++            );
++            // Tessera end - never access a player/level from the scoreboard model thread
+         }
+     }
+ 
+     private void updateTeamWaypoints(final PlayerTeam team) {
+-        for (ServerLevel level : this.server.getAllLevels()) {
+-            team.getPlayers()
+-                .stream()
+-                .map(name -> this.server.getPlayerList().getPlayerByName(name))
+-                .filter(Objects::nonNull)
+-                .forEach(player -> level.getWaypointManager().remakeConnections(player));
+-        }
++        // Tessera start - each player is updated only on its current entity owner
++        team.getPlayers()
++            .stream()
++            .map(name -> this.server.getPlayerList().getPlayerByName(name))
++            .filter(Objects::nonNull)
++            .forEach(player -> player.getBukkitEntity().taskScheduler.schedule(
++                entity -> ((ServerPlayer)entity).level().getWaypointManager().remakeConnections((ServerPlayer)entity),
++                null,
++                1L
++            ));
++        // Tessera end - each player is updated only on its current entity owner
+     }
+     // CraftBukkit start - Send to players
+-    private void broadcastAll(Packet<?> packet) {
+-        for (ServerPlayer serverPlayer : this.server.getPlayerList().getPlayers()) {
+-            if (serverPlayer.getBukkitEntity().getScoreboard().getHandle() == this) {
+-                serverPlayer.connection.send(packet);
++    private synchronized void broadcastAll(Packet<?> packet) {
++        this.broadcastAll(List.of(packet)); // Tessera - region-safe scoreboards
++    }
++
++    // Tessera start - region-safe scoreboards
++    private synchronized void broadcastAll(final Collection<? extends Packet<?>> packets) {
++        if (packets.isEmpty()) {
++            return;
++        }
++        final VersionedPacketBatch batch = new VersionedPacketBatch(
++            ++this.tessera$revision,
++            List.copyOf(packets)
++        );
++        for (final TesseraSubscriber subscriber : this.tessera$subscribers.values()) {
++            subscriber.enqueue(batch);
++        }
++    }
++
++    public synchronized VersionedPacketBatch tessera$fullSnapshot() {
++        final List<Packet<?>> packets = new ArrayList<>();
++        for (final PlayerTeam team : List.copyOf(this.getPlayerTeams())) {
++            packets.add(ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(team, true));
++        }
++        final Set<Objective> objectives = Sets.newHashSet();
++        for (final DisplaySlot slot : DisplaySlot.values()) {
++            final Objective objective = this.getDisplayObjective(slot);
++            if (objective != null && objectives.add(objective)) {
++                packets.addAll(this.getStartTrackingPackets(objective));
++            }
++        }
++        return new VersionedPacketBatch(++this.tessera$revision, List.copyOf(packets));
++    }
++
++    public synchronized VersionedPacketBatch tessera$removalSnapshot() {
++        final List<Packet<?>> packets = new ArrayList<>();
++        final Set<Objective> objectives = Sets.newHashSet();
++        for (final DisplaySlot slot : DisplaySlot.values()) {
++            final Objective objective = this.getDisplayObjective(slot);
++            if (objective != null && objectives.add(objective)) {
++                packets.add(new ClientboundSetObjectivePacket(objective, ClientboundSetObjectivePacket.METHOD_REMOVE));
++            }
++        }
++        for (final PlayerTeam team : List.copyOf(this.getPlayerTeams())) {
++            packets.add(ClientboundSetPlayerTeamPacket.createRemovePacket(team));
++        }
++        return new VersionedPacketBatch(++this.tessera$revision, List.copyOf(packets));
++    }
++
++    public void tessera$subscribe(final CraftPlayer player) {
++        final TesseraSubscriber replacement = new TesseraSubscriber(player);
++        final TesseraSubscriber previous = this.tessera$subscribers.put(player.getUniqueId(), replacement);
++        if (previous != null) {
++            previous.retire();
++        }
++    }
++
++    public void tessera$unsubscribe(final UUID playerId) {
++        final TesseraSubscriber subscriber = this.tessera$subscribers.remove(playerId);
++        if (subscriber != null) {
++            subscriber.retire();
++        }
++    }
++
++    public void tessera$sendNow(final ServerPlayer player, final VersionedPacketBatch... batches) {
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(player, "Applying scoreboard snapshot");
++        if (player.connection == null) {
++            return;
++        }
++        for (final VersionedPacketBatch batch : batches) {
++            for (final Packet<?> packet : batch.packets) {
++                player.connection.send(packet);
++            }
++        }
++    }
++
++    public record VersionedPacketBatch(long version, List<Packet<?>> packets) {
++        public VersionedPacketBatch {
++            packets = List.copyOf(packets);
++        }
++    }
++
++    private final class TesseraSubscriber {
++        private final CraftPlayer player;
++        private final Object lock = new Object();
++        private final List<Packet<?>> pendingPackets = new ArrayList<>();
++        private final AtomicBoolean scheduled = new AtomicBoolean();
++        private long pendingVersion;
++        private boolean retired;
++
++        private TesseraSubscriber(final CraftPlayer player) {
++            this.player = player;
++        }
++
++        private void enqueue(final VersionedPacketBatch batch) {
++            synchronized (this.lock) {
++                if (this.retired) {
++                    return;
++                }
++                this.pendingPackets.addAll(batch.packets);
++                this.pendingVersion = Math.max(this.pendingVersion, batch.version);
++            }
++            this.scheduleDelivery();
++        }
++
++        private void scheduleDelivery() {
++            if (!this.scheduled.compareAndSet(false, true)) {
++                return;
++            }
++            final boolean accepted = this.player.taskScheduler.schedule(
++                entity -> this.deliver((ServerPlayer)entity),
++                entity -> ServerScoreboard.this.tessera$subscribers.remove(this.player.getUniqueId(), this),
++                1L
++            );
++            if (!accepted) {
++                this.scheduled.set(false);
++                ServerScoreboard.this.tessera$subscribers.remove(this.player.getUniqueId(), this);
++            }
++        }
++
++        private void deliver(final ServerPlayer currentPlayer) {
++            final VersionedPacketBatch batch;
++            synchronized (this.lock) {
++                batch = new VersionedPacketBatch(this.pendingVersion, List.copyOf(this.pendingPackets));
++                this.pendingPackets.clear();
++                this.scheduled.set(false);
++                if (this.retired) {
++                    return;
++                }
++            }
++            final CraftPlayer current = currentPlayer.getBukkitEntity();
++            if (currentPlayer.connection == null
++                || current.getScoreboard().getHandle() != ServerScoreboard.this
++                || ServerScoreboard.this.tessera$subscribers.get(current.getUniqueId()) != this) {
++                ServerScoreboard.this.tessera$subscribers.remove(current.getUniqueId(), this);
++                return;
++            }
++            ServerScoreboard.this.tessera$sendNow(currentPlayer, batch);
++            synchronized (this.lock) {
++                if (!this.pendingPackets.isEmpty() && !this.retired) {
++                    this.scheduleDelivery();
++                }
++            }
++        }
++
++        private void retire() {
++            synchronized (this.lock) {
++                this.retired = true;
++                this.pendingPackets.clear();
+             }
+         }
+     }
++    // Tessera end - region-safe scoreboards
+     // CraftBukkit end
+ }
+diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
+index c23e15bff7e957da8beef5fc19c7f2ba676df855..40dc8830d0a555057d94a78bbaa3ed7aea5170dd 100644
+--- a/net/minecraft/server/players/PlayerList.java
++++ b/net/minecraft/server/players/PlayerList.java
+@@ -272,7 +272,11 @@ public abstract class PlayerList {
+         this.sendPlayerPermissionLevel(player);
+         player.getStats().markAllDirty();
+         player.getRecipeBook().sendInitialRecipeBook(player);
+-        //this.updateEntireScoreboard(level.getScoreboard(), player); // Folia - region threading
++        // Tessera start - region-safe scoreboards
++        // Subscription and the initial immutable snapshot are applied by the
++        // player's entity scheduler once the player has a valid owner.
++        this.cserver.getScoreboardManager().onPlayerJoin(player.getBukkitEntity());
++        // Tessera end - region-safe scoreboards
+         this.server.invalidateStatus();
+         MutableComponent component;
+         if (player.getGameProfile().name().equalsIgnoreCase(oldName)) {

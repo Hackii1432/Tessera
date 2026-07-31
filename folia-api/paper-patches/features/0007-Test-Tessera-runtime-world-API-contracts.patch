@@ -1,0 +1,74 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Fri, 31 Jul 2026 03:26:01 +0200
+Subject: [PATCH] Test Tessera runtime world API contracts
+
+
+diff --git a/src/test/java/io/papermc/paper/world/RuntimeWorldApiTest.java b/src/test/java/io/papermc/paper/world/RuntimeWorldApiTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..9b408ae98117d094727c66e8946584063741d644
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/world/RuntimeWorldApiTest.java
+@@ -0,0 +1,62 @@
++package io.papermc.paper.world;
++
++import java.time.Duration;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.junit.jupiter.api.Assertions.assertThrows;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++class RuntimeWorldApiTest {
++
++    @Test
++    void cloneOptionsUseConservativeDefaults() {
++        final WorldCloneOptions options = WorldCloneOptions.defaults();
++        assertTrue(options.requireReadOnlyTemplate());
++        assertTrue(options.flushSource());
++        assertTrue(options.copyDataDirectory());
++        assertEquals(2, options.spawnChunkRadius());
++    }
++
++    @Test
++    void cloneRadiusIsBounded() {
++        assertThrows(
++            IllegalArgumentException.class,
++            () -> WorldCloneOptions.builder().spawnChunkRadius(-1)
++        );
++        assertThrows(
++            IllegalArgumentException.class,
++            () -> WorldCloneOptions.builder().spawnChunkRadius(9)
++        );
++    }
++
++    @Test
++    void unloadDefaultsSaveAndRejectPlayers() {
++        final WorldUnloadOptions options = WorldUnloadOptions.defaults();
++        assertTrue(options.save());
++        assertEquals(WorldUnloadOptions.PlayerHandling.FAIL, options.playerHandling());
++        assertEquals(Duration.ofSeconds(90), options.timeout());
++    }
++
++    @Test
++    void unloadTimeoutMustBePositive() {
++        assertThrows(
++            IllegalArgumentException.class,
++            () -> WorldUnloadOptions.builder().timeout(Duration.ZERO)
++        );
++        assertThrows(
++            IllegalArgumentException.class,
++            () -> WorldUnloadOptions.builder().timeout(Duration.ofSeconds(-1))
++        );
++    }
++
++    @Test
++    void resultsExposeTypedSuccess() {
++        assertTrue(new WorldLoadResult(WorldLoadResult.Status.SUCCESS, null, "ok", null).successful());
++        assertFalse(new WorldLoadResult(WorldLoadResult.Status.CORRUPT_WORLD, null, "bad", null).successful());
++        assertTrue(new WorldCloneResult(WorldCloneResult.Status.SUCCESS, null, "ok", null).successful());
++        assertTrue(new WorldUnloadResult(WorldUnloadResult.Status.SUCCESS, "ok", null).successful());
++        assertFalse(new WorldUnloadResult(WorldUnloadResult.Status.TIMEOUT, "late", null).successful());
++    }
++}

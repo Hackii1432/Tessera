@@ -1,0 +1,125 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Fri, 31 Jul 2026 03:36:01 +0200
+Subject: [PATCH] Test region-safe player scoreboards
+
+
+diff --git a/src/test/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboardConcurrencyTest.java b/src/test/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboardConcurrencyTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..3d4c3a3c26159461195481b0cc414233147e75c4
+--- /dev/null
++++ b/src/test/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboardConcurrencyTest.java
+@@ -0,0 +1,113 @@
++package org.bukkit.craftbukkit.scoreboard;
++
++import java.util.ArrayList;
++import java.util.List;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.ExecutorService;
++import java.util.concurrent.Executors;
++import java.util.concurrent.TimeUnit;
++import net.kyori.adventure.text.Component;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.players.PlayerList;
++import net.minecraft.server.ServerScoreboard;
++import org.bukkit.scoreboard.Criteria;
++import org.bukkit.scoreboard.DisplaySlot;
++import org.bukkit.scoreboard.Objective;
++import org.bukkit.scoreboard.Scoreboard;
++import org.bukkit.scoreboard.Team;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertNull;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++import static org.mockito.Mockito.mock;
++import static org.mockito.Mockito.when;
++
++class CraftScoreboardConcurrencyTest {
++
++    @Test
++    void supportsAdventureSidebarTeamsScoresAndReset() {
++        final Scoreboard scoreboard = this.newScoreboard();
++        final Objective objective = scoreboard.registerNewObjective(
++            "mcc",
++            Criteria.DUMMY,
++            Component.text("MCC sidebar")
++        );
++        objective.setDisplaySlot(DisplaySlot.SIDEBAR);
++
++        final Team team = scoreboard.registerNewTeam("line_00");
++        team.prefix(Component.text("Timer: 01:30"));
++        team.addEntry("entry_00");
++        objective.getScore("entry_00").setScore(15);
++
++        assertEquals(Component.text("MCC sidebar"), objective.displayName());
++        assertEquals(Component.text("Timer: 01:30"), team.prefix());
++        assertEquals(team, scoreboard.getEntryTeam("entry_00"));
++        assertEquals(15, objective.getScore("entry_00").getScore());
++
++        scoreboard.resetScores("entry_00");
++        assertTrue(scoreboard.getScores("entry_00").stream().noneMatch(score -> score.isScoreSet()));
++        scoreboard.clearSlot(DisplaySlot.SIDEBAR);
++        assertNull(scoreboard.getObjective(DisplaySlot.SIDEBAR));
++    }
++
++    @Test
++    void keepsFiftyConcurrentPlayerSidebarsIndependent() throws Exception {
++        final int playerCount = 50;
++        final int lineCount = 15;
++        final ExecutorService executor = Executors.newFixedThreadPool(12);
++        final List<Scoreboard> scoreboards = new ArrayList<>(playerCount);
++        final List<CompletableFuture<Void>> updates = new ArrayList<>(playerCount);
++
++        try {
++            for (int player = 0; player < playerCount; ++player) {
++                final int playerId = player;
++                final Scoreboard scoreboard = this.newScoreboard();
++                scoreboards.add(scoreboard);
++                updates.add(CompletableFuture.runAsync(() -> {
++                    final Objective objective = scoreboard.registerNewObjective(
++                        "sidebar",
++                        Criteria.DUMMY,
++                        Component.text("Player " + playerId)
++                    );
++                    objective.setDisplaySlot(DisplaySlot.SIDEBAR);
++                    for (int line = 0; line < lineCount; ++line) {
++                        final String suffix = String.format("%02d", line);
++                        final String entry = "p" + playerId + "_e" + suffix;
++                        final Team team = scoreboard.registerNewTeam("line_" + suffix);
++                        team.prefix(Component.text("P" + playerId + " line " + line));
++                        team.addEntry(entry);
++                        objective.getScore(entry).setScore(lineCount - line);
++                    }
++                }, executor));
++            }
++
++            CompletableFuture.allOf(updates.toArray(CompletableFuture[]::new))
++                .get(30L, TimeUnit.SECONDS);
++
++            for (int player = 0; player < playerCount; ++player) {
++                final Scoreboard scoreboard = scoreboards.get(player);
++                final Objective objective = scoreboard.getObjective("sidebar");
++                assertEquals(Component.text("Player " + player), objective.displayName());
++                assertEquals(lineCount, scoreboard.getTeams().size());
++                assertEquals(lineCount, scoreboard.getEntries().size());
++                assertEquals(
++                    Component.text("P" + player + " line 0"),
++                    scoreboard.getTeam("line_00").prefix()
++                );
++                assertEquals(
++                    lineCount,
++                    objective.getScore("p" + player + "_e00").getScore()
++                );
++            }
++        } finally {
++            executor.shutdownNow();
++        }
++    }
++
++    private Scoreboard newScoreboard() {
++        final MinecraftServer server = mock(MinecraftServer.class);
++        when(server.getPlayerList()).thenReturn(mock(PlayerList.class));
++        return new CraftScoreboard(new ServerScoreboard(server));
++    }
++}

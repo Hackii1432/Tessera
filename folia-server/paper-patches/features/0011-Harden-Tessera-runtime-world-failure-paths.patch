@@ -1,0 +1,481 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Fri, 31 Jul 2026 03:26:01 +0200
+Subject: [PATCH] Harden Tessera runtime world failure paths
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 951fb1382ffd049c36e811b4b08b625bb70b9d02..b304d37e0fb01228d559504fa269229a08fae493 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -1234,8 +1234,13 @@ public final class CraftServer implements Server {
+                     + "use Bukkit.getRuntimeWorldManager().createWorldAsync(...)"
+             );
+         }
+-        final io.papermc.paper.world.WorldLoadResult result =
++        io.papermc.paper.world.WorldLoadResult result =
+             this.runtimeWorldManager.createWorldAsync(creator).toCompletableFuture().join();
++        if (result.status() == io.papermc.paper.world.WorldLoadResult.Status.ALREADY_EXISTS) {
++            // Preserve Paper's historical create-or-load behavior only on a
++            // non-tick caller. The explicit async API keeps create/load distinct.
++            result = this.runtimeWorldManager.loadWorldAsync(creator).toCompletableFuture().join();
++        }
+         if (!result.successful()) {
+             throw new IllegalStateException("World creation failed (" + result.status() + "): " + result.message(), result.cause());
+         }
+@@ -1489,8 +1494,12 @@ public final class CraftServer implements Server {
+         this.worlds = Collections.unmodifiableMap(updated);
+     }
+ 
+-    public void tessera$shutdownRuntimeWorldManager() {
+-        this.runtimeWorldManager.shutdown();
++    public void tessera$beginRuntimeWorldManagerShutdown() {
++        this.runtimeWorldManager.beginServerShutdown();
++    }
++
++    public void tessera$completeRuntimeWorldManagerShutdown() {
++        this.runtimeWorldManager.completeServerShutdown();
+     }
+     // Tessera end - runtime world lifecycle
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+index 9c93895c5e61134370bd6f84ae0180039f7235fe..21e38b021e0a162f45343205a256ee5ca2f7b3e0 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -2036,6 +2036,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+     // Paper start
+     @Override
+     public void getChunkAtAsync(int x, int z, boolean gen, boolean urgent, @NotNull Consumer<? super Chunk> cb) {
++        this.getHandle().tessera$ensureAcceptingChunkRequests("new asynchronous chunk requests"); // Tessera - runtime world lifecycle
+         warnUnsafeChunk("getting a faraway chunk async", x, z); // Paper
+         ca.spottedleaf.moonrise.common.PlatformHooks.get().scheduleChunkLoad(
+             this.getHandle(), x, z, gen, ChunkStatus.FULL, true,
+@@ -2049,6 +2050,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+ 
+     @Override
+     public void getChunksAtAsync(int minX, int minZ, int maxX, int maxZ, boolean urgent, Runnable cb) {
++        this.getHandle().tessera$ensureAcceptingChunkRequests("new asynchronous chunk requests"); // Tessera - runtime world lifecycle
+         warnUnsafeChunk("getting a faraway chunk async", minX, minZ); // Paper
+         warnUnsafeChunk("getting a faraway chunk async", maxX, maxZ); // Paper
+         this.getHandle().loadChunks(
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java b/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
+index 53f24210557e3222fcaaf44678cfc0dd8e343636..dcbac8fb4b4f5edd228f49c1351359197cbfdd24 100644
+--- a/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
++++ b/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
+@@ -34,6 +34,7 @@ import java.util.concurrent.CompletionStage;
+ import java.util.concurrent.ConcurrentHashMap;
+ import java.util.concurrent.ExecutorService;
+ import java.util.concurrent.Executors;
++import java.util.concurrent.TimeUnit;
+ import java.util.concurrent.ThreadFactory;
+ import java.util.concurrent.atomic.AtomicBoolean;
+ import java.util.concurrent.atomic.AtomicInteger;
+@@ -73,7 +74,9 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+     private final ExecutorService lifecycleExecutor;
+     private final ConcurrentHashMap<String, StampedLock> operationLocks = new ConcurrentHashMap<>();
+     private final ConcurrentHashMap<UUID, CompletableFuture<TemplateSnapshot>> templateSnapshots = new ConcurrentHashMap<>();
++    private final Set<PendingOperation<?>> pendingOperations = ConcurrentHashMap.newKeySet();
+     private final AtomicBoolean stopping = new AtomicBoolean();
++    private final AtomicBoolean shutdownComplete = new AtomicBoolean();
+ 
+     public CraftRuntimeWorldManager(final CraftServer server) {
+         this.server = Objects.requireNonNull(server, "server");
+@@ -97,12 +100,18 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+ 
+     @Override
+     public CompletionStage<WorldLoadResult> createWorldAsync(final WorldCreator creator) {
+-        return this.loadWorld(creator, LoadMode.CREATE);
++        return this.trackOperation(
++            this.loadWorld(creator, LoadMode.CREATE),
++            () -> new WorldLoadResult(WorldLoadResult.Status.SERVER_STOPPING, null, "Server stopped during world creation", null)
++        );
+     }
+ 
+     @Override
+     public CompletionStage<WorldLoadResult> loadWorldAsync(final WorldCreator creator) {
+-        return this.loadWorld(creator, LoadMode.LOAD);
++        return this.trackOperation(
++            this.loadWorld(creator, LoadMode.LOAD),
++            () -> new WorldLoadResult(WorldLoadResult.Status.SERVER_STOPPING, null, "Server stopped during world load", null)
++        );
+     }
+ 
+     private CompletionStage<WorldLoadResult> loadWorld(final WorldCreator requested, final LoadMode mode) {
+@@ -271,10 +280,12 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+             ));
+         }
+ 
+-        return this.withLocks(
++        return this.trackOperation(this.withLocks(
+             List.of(new LockRequest(sourceName, false), new LockRequest(targetName, true)),
+             () -> this.cloneWorldLocked(craftSource, targetCreator, options)
+-        );
++        ), () -> new WorldCloneResult(
++            WorldCloneResult.Status.SERVER_STOPPING, null, "Server stopped during template clone", null
++        ));
+     }
+ 
+     private CompletionStage<WorldCloneResult> cloneWorldLocked(
+@@ -362,6 +373,12 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+     }
+ 
+     private CompletionStage<WorldLoadResult> loadPreparedClone(final WorldCreator creator, final int spawnRadius) {
++        if (creator.forcedSpawnPosition() == null) {
++            // The cloned region data already contains the spawn area. Avoid a
++            // synchronous spawn search on the global region while constructing
++            // the new independent identity/level metadata.
++            creator.forcedSpawnPosition(io.papermc.paper.math.Position.block(0, 64, 0), 0.0F, 0.0F);
++        }
+         return this.onGlobal(() -> {
+             this.ensureRunning();
+             final World world = this.server.tessera$createWorldInternal(creator);
+@@ -478,10 +495,12 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+                 WorldUnloadResult.Status.INVALID_REQUEST, "CraftWorld and options are required", null
+             ));
+         }
+-        return this.withLocks(
++        return this.trackOperation(this.withLocks(
+             List.of(new LockRequest(normalizeName(world.getName()), true)),
+             () -> this.unloadWorldLocked(craftWorld, options)
+-        );
++        ), () -> new WorldUnloadResult(
++            WorldUnloadResult.Status.SERVER_STOPPING, "Server stopped during world unload", null
++        ));
+     }
+ 
+     private CompletionStage<WorldUnloadResult> unloadWorldLocked(
+@@ -493,9 +512,15 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+                 WorldUnloadResult.Status.SERVER_STOPPING, "Server is stopping", null
+             ));
+         }
++        final AtomicBoolean timedOut = new AtomicBoolean();
++        CompletableFuture.delayedExecutor(options.timeout().toMillis(), TimeUnit.MILLISECONDS)
++            .execute(() -> timedOut.set(true));
+         return this.beginUnload(world)
+-            .thenCompose(context -> this.evacuatePlayers(context, options)
++            .thenCompose(context -> {
++                this.ensureUnloadWithinDeadline(timedOut);
++                return this.evacuatePlayers(context, options)
+                 .thenCompose(ignored -> this.onGlobal(() -> {
++                    this.ensureUnloadWithinDeadline(timedOut);
+                     if (!context.handle.players().isEmpty()) {
+                         throw new UnloadFailure(
+                             WorldUnloadResult.Status.PLAYERS_PRESENT,
+@@ -506,6 +531,7 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+                 }))
+                 .thenCompose(ignored -> RegionizedServer.getInstance().awaitWorldRegionTasks(context.handle))
+                 .thenCompose(ignored -> this.onGlobal(() -> {
++                    this.ensureUnloadWithinDeadline(timedOut);
+                     if (!context.handle.players().isEmpty()) {
+                         throw new UnloadFailure(
+                             WorldUnloadResult.Status.PLAYERS_PRESENT,
+@@ -527,8 +553,8 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+                     }
+                     return null;
+                 }))
+-                .thenCompose(ignored -> this.closeAndUnregister(context, options.save()))
+-            )
++                .thenCompose(ignored -> this.closeAndUnregister(context, options.save(), timedOut));
++            })
+             .exceptionallyCompose(throwable -> {
+                 final Throwable cause = unwrap(throwable);
+                 return this.resumeFailedUnload(world.getHandle()).thenApply(ignored -> {
+@@ -544,6 +570,15 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+             });
+     }
+ 
++    private void ensureUnloadWithinDeadline(final AtomicBoolean timedOut) {
++        if (timedOut.get()) {
++            throw new UnloadFailure(
++                WorldUnloadResult.Status.TIMEOUT,
++                "World unload timed out before irreversible storage shutdown"
++            );
++        }
++    }
++
+     private CompletionStage<UnloadContext> beginUnload(final CraftWorld world) {
+         return this.onGlobal(() -> {
+             final ServerLevel handle = world.getHandle();
+@@ -647,7 +682,8 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+ 
+     private CompletionStage<WorldUnloadResult> closeAndUnregister(
+         final UnloadContext context,
+-        final boolean save
++        final boolean save,
++        final AtomicBoolean timedOut
+     ) {
+         return RegionShutdownThread.closeRuntimeWorld(context.handle, save)
+             .handle((ignored, closeFailure) -> new CloseOutcome(
+@@ -674,6 +710,13 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+                             closeOutcome.failure
+                         );
+                     }
++                    if (timedOut.get()) {
++                        return new WorldUnloadResult(
++                            WorldUnloadResult.Status.SUCCESS,
++                            "World fully unloaded after the advisory deadline; all storage handles were released",
++                            null
++                        );
++                    }
+                     return new WorldUnloadResult(
+                         WorldUnloadResult.Status.SUCCESS,
+                         "World fully unloaded and all storage handles released",
+@@ -834,7 +877,7 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+             || file.equals("paper_world_pdc.dat");
+     }
+ 
+-    private static void validateRegionFile(final Path file) throws IOException {
++    static void validateRegionFile(final Path file) throws IOException {
+         final long size = Files.size(file);
+         if (size < 8192L) {
+             throw new CorruptRegionFileException(file, "region header is shorter than 8192 bytes");
+@@ -846,17 +889,45 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+                     throw new CorruptRegionFileException(file, "truncated location table");
+                 }
+             }
+-        }
+-        locations.flip();
+-        for (int index = 0; index < 1024; ++index) {
+-            final int location = locations.getInt();
+-            final int offset = (location >>> 8) & 0x00FF_FFFF;
+-            final int sectors = location & 0xFF;
+-            if (offset == 0 && sectors == 0) {
+-                continue;
+-            }
+-            if (offset < 2 || sectors == 0 || ((long) offset + sectors) * 4096L > size) {
+-                throw new CorruptRegionFileException(file, "invalid sector allocation at header entry " + index);
++            locations.flip();
++            final int sectorCount = Math.toIntExact((size + 4095L) / 4096L);
++            final boolean[] allocated = new boolean[sectorCount];
++            allocated[0] = true;
++            allocated[1] = true;
++            final ByteBuffer chunkHeader = ByteBuffer.allocate(5);
++            for (int index = 0; index < 1024; ++index) {
++                final int location = locations.getInt();
++                final int offset = (location >>> 8) & 0x00FF_FFFF;
++                final int sectors = location & 0xFF;
++                if (offset == 0 && sectors == 0) {
++                    continue;
++                }
++                if (offset < 2 || sectors == 0 || offset + sectors > sectorCount) {
++                    throw new CorruptRegionFileException(file, "invalid sector allocation at header entry " + index);
++                }
++                for (int sector = offset; sector < offset + sectors; ++sector) {
++                    if (allocated[sector]) {
++                        throw new CorruptRegionFileException(file, "overlapping sector allocation at header entry " + index);
++                    }
++                    allocated[sector] = true;
++                }
++
++                chunkHeader.clear();
++                channel.position((long)offset * 4096L);
++                while (chunkHeader.hasRemaining()) {
++                    if (channel.read(chunkHeader) < 0) {
++                        throw new CorruptRegionFileException(file, "truncated chunk header at entry " + index);
++                    }
++                }
++                chunkHeader.flip();
++                final int length = chunkHeader.getInt();
++                final int compression = chunkHeader.get() & 0x7F;
++                if (length <= 0 || length > sectors * 4096 - Integer.BYTES) {
++                    throw new CorruptRegionFileException(file, "invalid chunk length at header entry " + index);
++                }
++                if (!net.minecraft.world.level.chunk.storage.RegionFileVersion.isValidVersion(compression)) {
++                    throw new CorruptRegionFileException(file, "unknown compression type at header entry " + index);
++                }
+             }
+         }
+     }
+@@ -934,11 +1005,15 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+             try {
+                 for (final LockRequest request : ordered) {
+                     final StampedLock lock = this.operationLocks.computeIfAbsent(request.name, ignored -> new StampedLock());
+-                    final long stamp = request.write ? lock.writeLock() : lock.readLock();
++                    final long stamp = request.write ? lock.writeLockInterruptibly() : lock.readLockInterruptibly();
+                     held.add(new HeldLock(lock, stamp, request.write));
+                 }
+                 return held;
+-            } catch (final Throwable throwable) {
++            } catch (final InterruptedException interrupted) {
++                releaseLocks(held);
++                Thread.currentThread().interrupt();
++                throw new CompletionException(interrupted);
++            } catch (final RuntimeException | Error throwable) {
+                 releaseLocks(held);
+                 throw throwable;
+             }
+@@ -1002,12 +1077,62 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+         }
+     }
+ 
+-    public void shutdown() {
++    public void beginServerShutdown() {
+         if (!this.stopping.compareAndSet(false, true)) {
+             return;
+         }
++        this.lifecycleExecutor.shutdownNow();
++    }
++
++    public void completeServerShutdown() {
++        this.beginServerShutdown();
++        try {
++            if (!this.lifecycleExecutor.awaitTermination(30L, TimeUnit.SECONDS)) {
++                this.server.getLogger().warning("Runtime world lifecycle workers did not terminate within 30 seconds");
++            }
++        } catch (final InterruptedException interrupted) {
++            Thread.currentThread().interrupt();
++        }
+         this.templateSnapshots.clear();
+-        this.lifecycleExecutor.shutdown();
++        this.shutdownComplete.set(true);
++        for (final PendingOperation<?> pending : List.copyOf(this.pendingOperations)) {
++            pending.completeForShutdown();
++        }
++        this.pendingOperations.clear();
++    }
++
++    private <T> CompletionStage<T> trackOperation(
++        final CompletionStage<T> internal,
++        final Supplier<T> stoppedResult
++    ) {
++        if (this.stopping.get() && internal.toCompletableFuture().isDone()) {
++            return CompletableFuture.completedFuture(stoppedResult.get());
++        }
++        if (internal.toCompletableFuture().isDone() && !this.stopping.get()) {
++            return internal;
++        }
++        final PendingOperation<T> pending = new PendingOperation<>(stoppedResult);
++        this.pendingOperations.add(pending);
++        internal.whenComplete((result, failure) -> {
++            if (this.stopping.get()) {
++                if (this.shutdownComplete.get()) {
++                    pending.completeForShutdown();
++                    this.pendingOperations.remove(pending);
++                }
++                return;
++            }
++            if (failure == null) {
++                pending.exposed.complete(result);
++            } else {
++                pending.exposed.completeExceptionally(failure);
++            }
++            this.pendingOperations.remove(pending);
++        });
++        if (this.shutdownComplete.get()) {
++            pending.completeForShutdown();
++            this.pendingOperations.remove(pending);
++        }
++        return pending.exposed;
+     }
+ 
+     private static Throwable unwrap(final Throwable throwable) {
+@@ -1050,6 +1175,19 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+     private record HeldLock(StampedLock lock, long stamp, boolean write) {
+     }
+ 
++    private static final class PendingOperation<T> {
++        private final CompletableFuture<T> exposed = new CompletableFuture<>();
++        private final Supplier<T> stoppedResult;
++
++        private PendingOperation(final Supplier<T> stoppedResult) {
++            this.stoppedResult = stoppedResult;
++        }
++
++        private void completeForShutdown() {
++            this.exposed.complete(this.stoppedResult.get());
++        }
++    }
++
+     private static final class LifecycleFailure extends RuntimeException {
+         private final WorldLoadResult.Status loadStatus;
+ 
+diff --git a/src/test/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManagerTest.java b/src/test/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManagerTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..013059afbc46a487b6789af7848464a0834dd38c
+--- /dev/null
++++ b/src/test/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManagerTest.java
+@@ -0,0 +1,84 @@
++package org.bukkit.craftbukkit.world;
++
++import java.io.IOException;
++import java.nio.ByteBuffer;
++import java.nio.channels.FileChannel;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.nio.file.StandardOpenOption;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.api.io.TempDir;
++
++import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
++import static org.junit.jupiter.api.Assertions.assertThrows;
++
++class CraftRuntimeWorldManagerTest {
++
++    @TempDir
++    Path tempDir;
++
++    @Test
++    void acceptsWellFormedRegionAllocationAndChunkHeader() throws Exception {
++        final Path region = this.writeRegion(false, 2, 3);
++        assertDoesNotThrow(() -> CraftRuntimeWorldManager.validateRegionFile(region));
++    }
++
++    @Test
++    void rejectsTruncatedRegionHeader() throws Exception {
++        final Path region = this.tempDir.resolve("r.0.0.mca");
++        Files.write(region, new byte[4096]);
++        assertThrows(IOException.class, () -> CraftRuntimeWorldManager.validateRegionFile(region));
++    }
++
++    @Test
++    void rejectsOverlappingSectorAllocations() throws Exception {
++        final Path region = this.writeRegion(true, 2, 3);
++        assertThrows(IOException.class, () -> CraftRuntimeWorldManager.validateRegionFile(region));
++    }
++
++    @Test
++    void rejectsUnknownCompression() throws Exception {
++        final Path region = this.writeRegion(false, 2, 42);
++        assertThrows(IOException.class, () -> CraftRuntimeWorldManager.validateRegionFile(region));
++    }
++
++    @Test
++    void rejectsChunkLengthOutsideAllocatedSectors() throws Exception {
++        final Path region = this.writeRegion(false, 5000, 3);
++        assertThrows(IOException.class, () -> CraftRuntimeWorldManager.validateRegionFile(region));
++    }
++
++    private Path writeRegion(
++        final boolean overlap,
++        final int chunkLength,
++        final int compression
++    ) throws Exception {
++        final Path region = this.tempDir.resolve("r.0.0.mca");
++        try (FileChannel channel = FileChannel.open(
++            region,
++            StandardOpenOption.CREATE_NEW,
++            StandardOpenOption.WRITE
++        )) {
++            final ByteBuffer header = ByteBuffer.allocate(8192);
++            header.putInt((2 << 8) | 1);
++            if (overlap) {
++                header.putInt((2 << 8) | 1);
++            }
++            header.position(8192);
++            header.flip();
++            while (header.hasRemaining()) {
++                channel.write(header);
++            }
++
++            final ByteBuffer chunk = ByteBuffer.allocate(4096);
++            chunk.putInt(chunkLength);
++            chunk.put((byte)compression);
++            chunk.position(4096);
++            chunk.flip();
++            while (chunk.hasRemaining()) {
++                channel.write(chunk);
++            }
++        }
++        return region;
++    }
++}

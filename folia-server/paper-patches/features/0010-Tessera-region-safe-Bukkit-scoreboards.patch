@@ -1,0 +1,837 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Fri, 31 Jul 2026 03:06:57 +0200
+Subject: [PATCH] Tessera region-safe Bukkit scoreboards
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+index 2f2d94cb78c0b690e99bacc65fa9a85f01ff0230..6a0a4384cad69183eaa0583697d946d8cc4d8e02 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+@@ -945,17 +945,24 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+ 
+     @Override
+     public Set<String> getScoreboardTags() {
+-        return this.getHandle().entityTags();
++        // Tessera - scoreboard tags are entity state, not sidebar model state.
++        final Entity handle = this.getHandle();
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(handle, "Reading entity scoreboard tags");
++        return Set.copyOf(handle.entityTags());
+     }
+ 
+     @Override
+     public boolean addScoreboardTag(String tag) {
+-        return this.getHandle().addTag(tag);
++        final Entity handle = this.getHandle();
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(handle, "Adding entity scoreboard tag");
++        return handle.addTag(tag);
+     }
+ 
+     @Override
+     public boolean removeScoreboardTag(String tag) {
+-        return this.getHandle().removeTag(tag);
++        final Entity handle = this.getHandle();
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(handle, "Removing entity scoreboard tag");
++        return handle.removeTag(tag);
+     }
+ 
+     @Override
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+index 3f033dfec7d9f2cfba90b991c7c38419e320a06c..140dcfc232537052009c9fc804df1c09bdd86228 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+@@ -246,7 +246,9 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
+     private CraftWorldBorder clientWorldBorder = null;
+     private BorderChangeListener clientWorldBorderListener = this.createWorldBorderListener();
+     private long lastSaveTime; // Paper - getLastPlayed replacement API
+-    private @Nullable CraftScoreboard scoreboardOverride;
++    // Tessera - published by the owning entity thread and read by scoreboard
++    // model threads without dereferencing the NMS player.
++    private volatile @Nullable CraftScoreboard scoreboardOverride;
+     public final net.minecraft.network.PacketProcessor packetProcessor = new net.minecraft.network.PacketProcessor(null); // Folia
+ 
+     // Folia start - region threading
+@@ -2563,11 +2565,12 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
+     @Override
+     public void setScoreboard(Scoreboard scoreboard) {
+         Preconditions.checkArgument(scoreboard != null, "Scoreboard cannot be null");
+-        Preconditions.checkState(this.getHandle().connection != null, "Cannot set scoreboard yet (invalid player connection)");
+         if (!(scoreboard instanceof CraftScoreboard craftScoreboard)) {
+             throw new IllegalArgumentException("Cannot set player scoreboard to an unregistered Scoreboard");
+         }
+ 
++        // Tessera - connection validation and packet application happen on the
++        // owning entity scheduler in CraftScoreboardManager.
+         this.server.getScoreboardManager().setPlayerBoard(this, craftScoreboard);
+     }
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftObjective.java b/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftObjective.java
+index f1a8529bac83de33d4a27bde60b83877119443d7..badd84b4c0e0787dfe18f1f86e770f31f73aecb3 100644
+--- a/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftObjective.java
++++ b/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftObjective.java
+@@ -40,11 +40,14 @@ final class CraftObjective extends CraftScoreboardComponent implements Objective
+ 
+     @Override
+     public void displayName(net.kyori.adventure.text.Component displayName) throws IllegalStateException, IllegalArgumentException {
+-        this.checkState();
+         if (displayName == null) {
+             displayName = net.kyori.adventure.text.Component.empty();
+         }
+-        this.objective.setDisplayName(io.papermc.paper.adventure.PaperAdventure.asVanilla(displayName));
++        final net.kyori.adventure.text.Component checkedDisplayName = displayName;
++        this.getScoreboard().tessera$withLock(() -> {
++            this.checkState();
++            this.objective.setDisplayName(io.papermc.paper.adventure.PaperAdventure.asVanilla(checkedDisplayName));
++        });
+     }
+ 
+     @Override
+@@ -57,9 +60,10 @@ final class CraftObjective extends CraftScoreboardComponent implements Objective
+     @Override
+     public void setDisplayName(String displayName) {
+         Preconditions.checkArgument(displayName != null, "Display name cannot be null");
+-        this.checkState();
+-
+-        this.objective.setDisplayName(CraftChatMessage.fromString(displayName)[0]); // SPIGOT-4112: not nullable
++        this.getScoreboard().tessera$withLock(() -> {
++            this.checkState();
++            this.objective.setDisplayName(CraftChatMessage.fromString(displayName)[0]); // SPIGOT-4112: not nullable
++        });
+     }
+ 
+     @Override
+@@ -85,42 +89,42 @@ final class CraftObjective extends CraftScoreboardComponent implements Objective
+ 
+     @Override
+     public void setDisplaySlot(DisplaySlot slot) {
+-        this.checkState();
+-
+-        Scoreboard board = this.getScoreboard().getHandle();
+-
+-        for (net.minecraft.world.scores.DisplaySlot displaySlot : net.minecraft.world.scores.DisplaySlot.values()) {
+-            if (board.getDisplayObjective(displaySlot) == this.objective) {
+-                board.setDisplayObjective(displaySlot, null);
++        this.getScoreboard().tessera$withLock(() -> {
++            this.checkState();
++            Scoreboard board = this.getScoreboard().getHandle();
++            for (net.minecraft.world.scores.DisplaySlot displaySlot : net.minecraft.world.scores.DisplaySlot.values()) {
++                if (board.getDisplayObjective(displaySlot) == this.objective) {
++                    board.setDisplayObjective(displaySlot, null);
++                }
+             }
+-        }
+-        if (slot != null) {
+-            net.minecraft.world.scores.DisplaySlot displaySlot = CraftScoreboardTranslations.fromBukkitSlot(slot);
+-            board.setDisplayObjective(displaySlot, this.getHandle());
+-        }
++            if (slot != null) {
++                net.minecraft.world.scores.DisplaySlot displaySlot = CraftScoreboardTranslations.fromBukkitSlot(slot);
++                board.setDisplayObjective(displaySlot, this.getHandle());
++            }
++        });
+     }
+ 
+     @Override
+     public DisplaySlot getDisplaySlot() {
+-        this.checkState();
+-
+-        Scoreboard board = this.getScoreboard().getHandle();
+-        net.minecraft.world.scores.Objective objective = this.objective;
+-
+-        for (net.minecraft.world.scores.DisplaySlot i : net.minecraft.world.scores.DisplaySlot.values()) {
+-            if (board.getDisplayObjective(i) == objective) {
+-                return CraftScoreboardTranslations.toBukkitSlot(i);
++        return this.getScoreboard().tessera$withLock(() -> {
++            this.checkState();
++            Scoreboard board = this.getScoreboard().getHandle();
++            for (net.minecraft.world.scores.DisplaySlot i : net.minecraft.world.scores.DisplaySlot.values()) {
++                if (board.getDisplayObjective(i) == this.objective) {
++                    return CraftScoreboardTranslations.toBukkitSlot(i);
++                }
+             }
+-        }
+-        return null;
++            return null;
++        });
+     }
+ 
+     @Override
+     public void setRenderType(RenderType renderType) {
+         Preconditions.checkArgument(renderType != null, "RenderType cannot be null");
+-        this.checkState();
+-
+-        this.objective.setRenderType(CraftScoreboardTranslations.fromBukkitRender(renderType));
++        this.getScoreboard().tessera$withLock(() -> {
++            this.checkState();
++            this.objective.setRenderType(CraftScoreboardTranslations.fromBukkitRender(renderType));
++        });
+     }
+ 
+     @Override
+@@ -181,8 +185,10 @@ final class CraftObjective extends CraftScoreboardComponent implements Objective
+ 
+     @Override
+     public void unregister() {
+-        this.checkState();
+-        this.getScoreboard().getHandle().removeObjective(this.objective);
++        this.getScoreboard().tessera$withLock(() -> {
++            this.checkState();
++            this.getScoreboard().getHandle().removeObjective(this.objective);
++        });
+     }
+ 
+     @Override
+diff --git a/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScore.java b/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScore.java
+index ec67a0e103694f284353821edb208ef8040f9099..d8baee226555ce5e5609a2d73730d3de871e83e5 100644
+--- a/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScore.java
++++ b/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScore.java
+@@ -41,21 +41,20 @@ final class CraftScore implements Score {
+ 
+     @Override
+     public int getScore() {
+-        this.objective.checkState();
+-
+-        Scoreboard board = this.objective.getScoreboard().getHandle();
+-        ReadOnlyScoreInfo score = board.getPlayerScoreInfo(this.entry, this.objective.getHandle());
+-        if (score != null) {
+-            return score.value();
+-        }
+-
+-        return 0;
++        return this.objective.getScoreboard().tessera$withLock(() -> {
++            this.objective.checkState();
++            Scoreboard board = this.objective.getScoreboard().getHandle();
++            ReadOnlyScoreInfo score = board.getPlayerScoreInfo(this.entry, this.objective.getHandle());
++            return score == null ? 0 : score.value();
++        });
+     }
+ 
+     @Override
+     public void setScore(int score) {
+-        this.objective.checkState();
+-        this.objective.getScoreboard().getHandle().getOrCreatePlayerScore(this.entry, this.objective.getHandle()).set(score);
++        this.objective.getScoreboard().tessera$withLock(() -> {
++            this.objective.checkState();
++            this.objective.getScoreboard().getHandle().getOrCreatePlayerScore(this.entry, this.objective.getHandle()).set(score);
++        });
+     }
+ 
+     @Override
+@@ -106,10 +105,11 @@ final class CraftScore implements Score {
+ 
+     @Override
+     public void resetScore() {
+-        this.objective.checkState();
+-
+-        Scoreboard board = this.objective.getScoreboard().getHandle();
+-        board.resetSinglePlayerScore(entry, this.objective.getHandle());
++        this.objective.getScoreboard().tessera$withLock(() -> {
++            this.objective.checkState();
++            Scoreboard board = this.objective.getScoreboard().getHandle();
++            board.resetSinglePlayerScore(entry, this.objective.getHandle());
++        });
+     }
+ 
+     @Override
+diff --git a/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboard.java b/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboard.java
+index b959fe4311fc6cbae3dcc052ef4710f8c8aefec6..3bb0c8439cc67f17ae3b91f7d5635264ae1e1ca6 100644
+--- a/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboard.java
++++ b/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboard.java
+@@ -4,6 +4,7 @@ import com.google.common.base.Function;
+ import com.google.common.base.Preconditions;
+ import com.google.common.collect.ImmutableSet;
+ import com.google.common.collect.Iterables;
++import java.util.List;
+ import net.minecraft.world.scores.PlayerTeam;
+ import net.minecraft.world.scores.ScoreHolder;
+ import net.minecraft.world.scores.Scoreboard;
+@@ -19,7 +20,7 @@ import org.bukkit.scoreboard.Team;
+ 
+ public final class CraftScoreboard implements org.bukkit.scoreboard.Scoreboard {
+     private final Scoreboard board;
+-    public boolean registeredGlobally = false; // Paper - Lazily track plugin scoreboards by default
++    public volatile boolean registeredGlobally = false; // Paper - Lazily track plugin scoreboards by default // Tessera - cross-region publication
+ 
+     CraftScoreboard(Scoreboard board) {
+         this.board = board;
+@@ -32,23 +33,27 @@ public final class CraftScoreboard implements org.bukkit.scoreboard.Scoreboard {
+ 
+     @Override
+     public Objective registerNewObjective(String name, Criteria criteria, net.kyori.adventure.text.Component displayName, RenderType renderType) throws IllegalArgumentException {
+-        if (true) throw new UnsupportedOperationException(); // Folia - not supported yet
+         if (displayName == null) {
+             displayName = net.kyori.adventure.text.Component.empty();
+         }
++        final net.kyori.adventure.text.Component checkedDisplayName = displayName;
+         Preconditions.checkArgument(name != null, "Objective name cannot be null");
+         Preconditions.checkArgument(criteria != null, "Criteria cannot be null");
+         Preconditions.checkArgument(renderType != null, "RenderType cannot be null");
+         Preconditions.checkArgument(name.length() <= Short.MAX_VALUE, "The name '%s' is longer than the limit of 32767 characters (%s)", name, name.length());
+-        Preconditions.checkArgument(this.getHandle().getObjective(name) == null, "An objective of name '%s' already exists", name);
+-        // Paper start - lazily track plugin scoreboards
+-        if (((CraftCriteria) criteria).criteria != net.minecraft.world.scores.criteria.ObjectiveCriteria.DUMMY && !this.registeredGlobally) {
+-            net.minecraft.server.MinecraftServer.getServer().server.getScoreboardManager().registerScoreboardForVanilla(this);
+-            this.registeredGlobally = true;
+-        }
+-        // Paper end - lazily track plugin scoreboards
+-        net.minecraft.world.scores.Objective objective = this.getHandle().addObjective(name, ((CraftCriteria) criteria).criteria, io.papermc.paper.adventure.PaperAdventure.asVanilla(displayName), CraftScoreboardTranslations.fromBukkitRender(renderType), true, null);
+-        return new CraftObjective(this, objective);
++        // Tessera start - region-safe scoreboards
++        return this.tessera$withLock(() -> {
++            Preconditions.checkArgument(this.getHandle().getObjective(name) == null, "An objective of name '%s' already exists", name);
++            // Paper start - lazily track plugin scoreboards
++            if (((CraftCriteria) criteria).criteria != net.minecraft.world.scores.criteria.ObjectiveCriteria.DUMMY && !this.registeredGlobally) {
++                net.minecraft.server.MinecraftServer.getServer().server.getScoreboardManager().registerScoreboardForVanilla(this);
++                this.registeredGlobally = true;
++            }
++            // Paper end - lazily track plugin scoreboards
++            net.minecraft.world.scores.Objective objective = this.getHandle().addObjective(name, ((CraftCriteria) criteria).criteria, io.papermc.paper.adventure.PaperAdventure.asVanilla(checkedDisplayName), CraftScoreboardTranslations.fromBukkitRender(renderType), true, null);
++            return new CraftObjective(this, objective);
++        });
++        // Tessera end - region-safe scoreboards
+     }
+ 
+     @Override
+@@ -59,54 +64,58 @@ public final class CraftScoreboard implements org.bukkit.scoreboard.Scoreboard {
+     @Override
+     public Objective getObjective(String name) {
+         Preconditions.checkArgument(name != null, "Objective name cannot be null");
+-        net.minecraft.world.scores.Objective nms = this.getHandle().getObjective(name);
+-        return nms == null ? null : new CraftObjective(this, nms);
++        return this.tessera$withLock(() -> {
++            net.minecraft.world.scores.Objective nms = this.getHandle().getObjective(name);
++            return nms == null ? null : new CraftObjective(this, nms);
++        });
+     }
+ 
+     @Override
+     public ImmutableSet<Objective> getObjectivesByCriteria(String criteria) {
+         Preconditions.checkArgument(criteria != null, "Criteria name cannot be null");
+ 
+-        ImmutableSet.Builder<Objective> result = ImmutableSet.builder();
+-        for (net.minecraft.world.scores.Objective objective : this.getHandle().getObjectives()) {
+-            CraftObjective craftObjective = new CraftObjective(this, objective);
+-
+-            if (craftObjective.getCriteria().equals(criteria)) {
+-                result.add(craftObjective);
++        return this.tessera$withLock(() -> {
++            ImmutableSet.Builder<Objective> result = ImmutableSet.builder();
++            for (net.minecraft.world.scores.Objective objective : this.getHandle().getObjectives()) {
++                CraftObjective craftObjective = new CraftObjective(this, objective);
++                if (craftObjective.getCriteria().equals(criteria)) {
++                    result.add(craftObjective);
++                }
+             }
+-        }
+-        return result.build();
++            return result.build();
++        });
+     }
+ 
+     @Override
+     public ImmutableSet<Objective> getObjectivesByCriteria(Criteria criteria) {
+         Preconditions.checkArgument(criteria != null, "Criteria cannot be null");
+ 
+-        ImmutableSet.Builder<Objective> result = ImmutableSet.builder();
+-        for (net.minecraft.world.scores.Objective objective : this.getHandle().getObjectives()) {
+-            CraftObjective craftObjective = new CraftObjective(this, objective);
+-
+-            if (craftObjective.getTrackedCriteria().equals(criteria)) {
+-                result.add(craftObjective);
++        return this.tessera$withLock(() -> {
++            ImmutableSet.Builder<Objective> result = ImmutableSet.builder();
++            for (net.minecraft.world.scores.Objective objective : this.getHandle().getObjectives()) {
++                CraftObjective craftObjective = new CraftObjective(this, objective);
++                if (craftObjective.getTrackedCriteria().equals(criteria)) {
++                    result.add(craftObjective);
++                }
+             }
+-        }
+-
+-        return result.build();
++            return result.build();
++        });
+     }
+ 
+     @Override
+     public ImmutableSet<Objective> getObjectives() {
+-        return ImmutableSet.copyOf(Iterables.transform(this.getHandle().getObjectives(), (Function<net.minecraft.world.scores.Objective, Objective>) input -> new CraftObjective(CraftScoreboard.this, input)));
++        return this.tessera$withLock(() ->
++            ImmutableSet.copyOf(Iterables.transform(this.getHandle().getObjectives(), (Function<net.minecraft.world.scores.Objective, Objective>) input -> new CraftObjective(CraftScoreboard.this, input)))
++        );
+     }
+ 
+     @Override
+     public Objective getObjective(DisplaySlot slot) {
+         Preconditions.checkArgument(slot != null, "Display slot cannot be null");
+-        net.minecraft.world.scores.Objective objective = this.getHandle().getDisplayObjective(CraftScoreboardTranslations.fromBukkitSlot(slot));
+-        if (objective == null) {
+-            return null;
+-        }
+-        return new CraftObjective(this, objective);
++        return this.tessera$withLock(() -> {
++            net.minecraft.world.scores.Objective objective = this.getHandle().getDisplayObjective(CraftScoreboardTranslations.fromBukkitSlot(slot));
++            return objective == null ? null : new CraftObjective(this, objective);
++        });
+     }
+ 
+     @Override
+@@ -122,11 +131,13 @@ public final class CraftScoreboard implements org.bukkit.scoreboard.Scoreboard {
+     private ImmutableSet<Score> getScores(ScoreHolder entry) {
+         Preconditions.checkArgument(entry != null, "Entry cannot be null");
+ 
+-        ImmutableSet.Builder<Score> scores = ImmutableSet.builder();
+-        for (net.minecraft.world.scores.Objective objective : this.getHandle().getObjectives()) {
+-            scores.add(new CraftScore(new CraftObjective(this, objective), entry));
+-        }
+-        return scores.build();
++        return this.tessera$withLock(() -> {
++            ImmutableSet.Builder<Score> scores = ImmutableSet.builder();
++            for (net.minecraft.world.scores.Objective objective : this.getHandle().getObjectives()) {
++                scores.add(new CraftScore(new CraftObjective(this, objective), entry));
++            }
++            return scores.build();
++        });
+     }
+ 
+     @Override
+@@ -142,73 +153,90 @@ public final class CraftScoreboard implements org.bukkit.scoreboard.Scoreboard {
+     private void resetScores(ScoreHolder entry) {
+         Preconditions.checkArgument(entry != null, "Entry cannot be null");
+ 
+-        for (net.minecraft.world.scores.Objective objective : this.getHandle().getObjectives()) {
+-            this.getHandle().resetSinglePlayerScore(entry, objective);
+-        }
++        // Tessera - serialize a multi-objective reset as one model operation.
++        this.tessera$withLock(() -> {
++            for (net.minecraft.world.scores.Objective objective : List.copyOf(this.getHandle().getObjectives())) {
++                this.getHandle().resetSinglePlayerScore(entry, objective);
++            }
++        });
+     }
+ 
+     @Override
+     public Team getPlayerTeam(OfflinePlayer player) {
+         Preconditions.checkArgument(player != null, "OfflinePlayer cannot be null");
+ 
+-        PlayerTeam team = this.getHandle().getPlayersTeam(player.getName());
+-        return team == null ? null : new CraftTeam(this, team);
++        return this.tessera$withLock(() -> {
++            PlayerTeam team = this.getHandle().getPlayersTeam(player.getName());
++            return team == null ? null : new CraftTeam(this, team);
++        });
+     }
+ 
+     @Override
+     public Team getEntryTeam(String entry) {
+         Preconditions.checkArgument(entry != null, "Entry cannot be null");
+ 
+-        PlayerTeam team = this.getHandle().getPlayersTeam(entry);
+-        return team == null ? null : new CraftTeam(this, team);
++        return this.tessera$withLock(() -> {
++            PlayerTeam team = this.getHandle().getPlayersTeam(entry);
++            return team == null ? null : new CraftTeam(this, team);
++        });
+     }
+ 
+     @Override
+     public Team getTeam(String teamName) {
+         Preconditions.checkArgument(teamName != null, "Team name cannot be null");
+ 
+-        PlayerTeam team = this.getHandle().getPlayerTeam(teamName);
+-        return team == null ? null : new CraftTeam(this, team);
++        return this.tessera$withLock(() -> {
++            PlayerTeam team = this.getHandle().getPlayerTeam(teamName);
++            return team == null ? null : new CraftTeam(this, team);
++        });
+     }
+ 
+     @Override
+     public ImmutableSet<Team> getTeams() {
+-        return ImmutableSet.copyOf(Iterables.transform(this.getHandle().getPlayerTeams(), (Function<PlayerTeam, Team>) input -> new CraftTeam(CraftScoreboard.this, input)));
++        return this.tessera$withLock(() ->
++            ImmutableSet.copyOf(Iterables.transform(this.getHandle().getPlayerTeams(), (Function<PlayerTeam, Team>) input -> new CraftTeam(CraftScoreboard.this, input)))
++        );
+     }
+ 
+     @Override
+     public Team registerNewTeam(String name) {
+-        if (true) throw new UnsupportedOperationException(); // Folia - not supported yet
+         Preconditions.checkArgument(name != null, "Team name cannot be null");
+         Preconditions.checkArgument(name.length() <= Short.MAX_VALUE, "Team name '%s' is longer than the limit of 32767 characters (%s)", name, name.length());
+-        Preconditions.checkArgument(this.getHandle().getPlayerTeam(name) == null, "Team name '%s' is already in use", name);
+-
+-        return new CraftTeam(this, this.getHandle().addPlayerTeam(name));
++        // Tessera - objective/team names are checked and inserted atomically.
++        return this.tessera$withLock(() -> {
++            Preconditions.checkArgument(this.getHandle().getPlayerTeam(name) == null, "Team name '%s' is already in use", name);
++            return new CraftTeam(this, this.getHandle().addPlayerTeam(name));
++        });
+     }
+ 
+     @Override
+     public ImmutableSet<OfflinePlayer> getPlayers() {
+-        ImmutableSet.Builder<OfflinePlayer> players = ImmutableSet.builder();
+-        for (ScoreHolder playerName : this.getHandle().getTrackedPlayers()) {
+-            players.add(Bukkit.getOfflinePlayer(playerName.getScoreboardName()));
+-        }
+-        return players.build();
++        return this.tessera$withLock(() -> {
++            ImmutableSet.Builder<OfflinePlayer> players = ImmutableSet.builder();
++            for (ScoreHolder playerName : this.getHandle().getTrackedPlayers()) {
++                players.add(Bukkit.getOfflinePlayer(playerName.getScoreboardName()));
++            }
++            return players.build();
++        });
+     }
+ 
+     @Override
+     public ImmutableSet<String> getEntries() {
+-        ImmutableSet.Builder<String> entries = ImmutableSet.builder();
+-        for (ScoreHolder entry : this.getHandle().getTrackedPlayers()) {
+-            entries.add(entry.getScoreboardName());
+-        }
+-        return entries.build();
++        return this.tessera$withLock(() -> {
++            ImmutableSet.Builder<String> entries = ImmutableSet.builder();
++            for (ScoreHolder entry : this.getHandle().getTrackedPlayers()) {
++                entries.add(entry.getScoreboardName());
++            }
++            return entries.build();
++        });
+     }
+ 
+     @Override
+     public void clearSlot(DisplaySlot slot) {
+-        if (true) throw new UnsupportedOperationException(); // Folia - not supported yet
+         Preconditions.checkArgument(slot != null, "Slot cannot be null");
+-        this.getHandle().setDisplayObjective(CraftScoreboardTranslations.fromBukkitSlot(slot), null);
++        this.tessera$withLock(() ->
++            this.getHandle().setDisplayObjective(CraftScoreboardTranslations.fromBukkitSlot(slot), null)
++        );
+     }
+ 
+     @Override
+@@ -233,6 +261,20 @@ public final class CraftScoreboard implements org.bukkit.scoreboard.Scoreboard {
+         return this.board;
+     }
+ 
++    // Tessera start - region-safe scoreboards
++    <T> T tessera$withLock(final java.util.function.Supplier<T> operation) {
++        synchronized (this.board) {
++            return operation.get();
++        }
++    }
++
++    void tessera$withLock(final Runnable operation) {
++        synchronized (this.board) {
++            operation.run();
++        }
++    }
++    // Tessera end - region-safe scoreboards
++
+     static ScoreHolder getScoreHolder(String entry) {
+         return () -> entry;
+     }
+diff --git a/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboardManager.java b/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboardManager.java
+index ab76c7f9bb0a4980a07a4d08c0d3ecadbca9668b..ca25fc660b66c7c0a9e81a3517f783dd2cefaf53 100644
+--- a/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboardManager.java
++++ b/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboardManager.java
+@@ -1,6 +1,7 @@
+ package org.bukkit.craftbukkit.scoreboard;
+ 
+ import java.util.Collection;
++import java.util.Collections;
+ import java.util.HashMap;
+ import java.util.HashSet;
+ import java.util.Map;
+@@ -22,7 +23,8 @@ import org.bukkit.scoreboard.ScoreboardManager;
+ public final class CraftScoreboardManager implements ScoreboardManager {
+     private final CraftScoreboard mainScoreboard;
+     private final MinecraftServer server;
+-    private final Collection<CraftScoreboard> scoreboards = new WeakCollection<>();
++    // Tessera - the weak registry is accessed by independent region threads.
++    private final Collection<CraftScoreboard> scoreboards = Collections.synchronizedCollection(new WeakCollection<>());
+ 
+     public CraftScoreboardManager(MinecraftServer server, net.minecraft.world.scores.Scoreboard scoreboard) {
+         this.mainScoreboard = new CraftScoreboard(scoreboard);
+@@ -38,18 +40,18 @@ public final class CraftScoreboardManager implements ScoreboardManager {
+ 
+     @Override
+     public CraftScoreboard getNewScoreboard() {
+-        if (true) throw new UnsupportedOperationException(); // Folia - not supported yet
+-        org.spigotmc.AsyncCatcher.catchOp("scoreboard creation"); // Spigot
++        // Tessera start - region-safe scoreboards
++        // Creating an independent in-memory model has no world/entity affinity.
+         CraftScoreboard scoreboard = new CraftScoreboard(new ServerScoreboard(this.server));
+         if (io.papermc.paper.configuration.GlobalConfiguration.get().scoreboards.trackPluginScoreboards) {
+             scoreboard.registeredGlobally = true;
+             this.scoreboards.add(scoreboard);
+         }
+         return scoreboard;
++        // Tessera end - region-safe scoreboards
+     }
+ 
+     public void registerScoreboardForVanilla(CraftScoreboard scoreboard) {
+-        org.spigotmc.AsyncCatcher.catchOp("scoreboard registration");
+         this.scoreboards.add(scoreboard);
+     }
+ 
+@@ -59,49 +61,81 @@ public final class CraftScoreboardManager implements ScoreboardManager {
+     }
+ 
+     public void setPlayerBoard(CraftPlayer player, CraftScoreboard scoreboard) {
+-        if (true) throw new UnsupportedOperationException(); // Folia - not supported yet
+-        net.minecraft.world.scores.Scoreboard oldBoard = this.getPlayerBoard(player).getHandle();
+-        net.minecraft.world.scores.Scoreboard newBoard = scoreboard.getHandle();
+-        if (oldBoard == newBoard) {
++        // Tessera - Bukkit's void API is non-blocking off-owner; application is
++        // transferred to the player's entity scheduler.
++        this.schedulePlayerBoard(player, scoreboard, false);
++    }
++
++    public void onPlayerJoin(final CraftPlayer player) {
++        this.schedulePlayerBoard(player, this.getPlayerBoard(player), true);
++    }
++
++    private void schedulePlayerBoard(
++        final CraftPlayer player,
++        final CraftScoreboard scoreboard,
++        final boolean forceInitialSnapshot
++    ) {
++        final Boolean scheduled = player.taskScheduler.scheduleOrExecute(entity ->
++            this.applyPlayerBoard(((ServerPlayer)entity).getBukkitEntity(), scoreboard, forceInitialSnapshot)
++        );
++        if (Boolean.FALSE.equals(scheduled)) {
++            // The player retired between the API call and scheduling. Nothing may
++            // touch its connection or replacement entity from this thread.
++            this.removePlayer(player);
++        }
++    }
++
++    private void applyPlayerBoard(
++        final CraftPlayer player,
++        final CraftScoreboard scoreboard,
++        final boolean forceInitialSnapshot
++    ) {
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(
++            player.getHandle(),
++            "Applying player scoreboard"
++        );
++
++        final ServerScoreboard oldBoard = (ServerScoreboard)this.getPlayerBoard(player).getHandle();
++        final ServerScoreboard newBoard = (ServerScoreboard)scoreboard.getHandle();
++        if (oldBoard == newBoard && !forceInitialSnapshot) {
+             return;
+         }
+ 
++        final ServerScoreboard.VersionedPacketBatch removal =
++            oldBoard == newBoard || forceInitialSnapshot ? null : oldBoard.tessera$removalSnapshot();
++        final ServerScoreboard.VersionedPacketBatch snapshot = newBoard.tessera$fullSnapshot();
++
++        oldBoard.tessera$unsubscribe(player.getUniqueId());
+         if (scoreboard == this.mainScoreboard) {
+             player.setScoreboardOverride(null);
+         } else {
+             player.setScoreboardOverride(scoreboard);
+         }
++        newBoard.tessera$subscribe(player);
+ 
+-        ServerPlayer serverPlayer = player.getHandle();
+-
+-        // Old objective tracking
+-        HashSet<Objective> removed = new HashSet<>();
+-        for (net.minecraft.world.scores.DisplaySlot displaySlot : net.minecraft.world.scores.DisplaySlot.values()) { // Paper - clear all display slots
+-            Objective objective = oldBoard.getDisplayObjective(displaySlot); // Paper - clear all display slots
+-            if (objective != null && !removed.contains(objective)) {
+-                serverPlayer.connection.send(new ClientboundSetObjectivePacket(objective, ClientboundSetObjectivePacket.METHOD_REMOVE));
+-                removed.add(objective);
+-            }
+-        }
+-
+-        // Old team tracking
+-        for (final PlayerTeam team : oldBoard.getPlayerTeams()) {
+-            serverPlayer.connection.send(ClientboundSetPlayerTeamPacket.createRemovePacket(team));
++        if (removal == null) {
++            newBoard.tessera$sendNow(player.getHandle(), snapshot);
++        } else {
++            newBoard.tessera$sendNow(player.getHandle(), removal, snapshot);
+         }
+-
+-        // The above is the reverse of the below method.
+-        this.server.getPlayerList().updateEntireScoreboard((ServerScoreboard) newBoard, player.getHandle());
+     }
+ 
+     // CraftBukkit method
+     public void removePlayer(CraftPlayer player) {
++        ((ServerScoreboard)this.getPlayerBoard(player).getHandle()).tessera$unsubscribe(player.getUniqueId());
+         player.setScoreboardOverride(null);
+     }
+ 
+     // CraftBukkit method
+     public void forAllObjectives(ObjectiveCriteria criteria, ScoreHolder holder, Consumer<ScoreAccess> consumer) {
+-        for (CraftScoreboard scoreboard : this.scoreboards) {
+-            scoreboard.getHandle().forAllObjectives(criteria, holder, consumer);
++        final java.util.List<CraftScoreboard> snapshot;
++        synchronized (this.scoreboards) {
++            snapshot = java.util.List.copyOf(this.scoreboards);
++        }
++        for (CraftScoreboard scoreboard : snapshot) {
++            synchronized (scoreboard.getHandle()) {
++                scoreboard.getHandle().forAllObjectives(criteria, holder, consumer);
++            }
+         }
+     }
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftTeam.java b/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftTeam.java
+index 4a1e986231093c64f4dd86986bd9bc853f1a06e2..09ff329eb5363b19246eae5f0e337fd9ad984137 100644
+--- a/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftTeam.java
++++ b/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftTeam.java
+@@ -44,8 +44,11 @@ final class CraftTeam extends CraftScoreboardComponent implements Team {
+     @Override
+     public void displayName(net.kyori.adventure.text.Component displayName) throws IllegalStateException, IllegalArgumentException {
+         if (displayName == null) displayName = net.kyori.adventure.text.Component.empty();
+-        this.checkState();
+-        this.team.setDisplayName(io.papermc.paper.adventure.PaperAdventure.asVanilla(displayName));
++        final net.kyori.adventure.text.Component checkedDisplayName = displayName;
++        this.getScoreboard().tessera$withLock(() -> {
++            this.checkState();
++            this.team.setDisplayName(io.papermc.paper.adventure.PaperAdventure.asVanilla(checkedDisplayName));
++        });
+     }
+ 
+     @Override
+@@ -57,8 +60,11 @@ final class CraftTeam extends CraftScoreboardComponent implements Team {
+     @Override
+     public void prefix(net.kyori.adventure.text.Component prefix) throws IllegalStateException, IllegalArgumentException {
+         if (prefix == null) prefix = net.kyori.adventure.text.Component.empty();
+-        this.checkState();
+-        this.team.setPlayerPrefix(io.papermc.paper.adventure.PaperAdventure.asVanilla(prefix));
++        final net.kyori.adventure.text.Component checkedPrefix = prefix;
++        this.getScoreboard().tessera$withLock(() -> {
++            this.checkState();
++            this.team.setPlayerPrefix(io.papermc.paper.adventure.PaperAdventure.asVanilla(checkedPrefix));
++        });
+     }
+ 
+     @Override
+@@ -70,8 +76,11 @@ final class CraftTeam extends CraftScoreboardComponent implements Team {
+     @Override
+     public void suffix(net.kyori.adventure.text.Component suffix) throws IllegalStateException, IllegalArgumentException {
+         if (suffix == null) suffix = net.kyori.adventure.text.Component.empty();
+-        this.checkState();
+-        this.team.setPlayerSuffix(io.papermc.paper.adventure.PaperAdventure.asVanilla(suffix));
++        final net.kyori.adventure.text.Component checkedSuffix = suffix;
++        this.getScoreboard().tessera$withLock(() -> {
++            this.checkState();
++            this.team.setPlayerSuffix(io.papermc.paper.adventure.PaperAdventure.asVanilla(checkedSuffix));
++        });
+     }
+ 
+     @Override
+@@ -102,9 +111,10 @@ final class CraftTeam extends CraftScoreboardComponent implements Team {
+     @Override
+     public void setDisplayName(String displayName) {
+         Preconditions.checkArgument(displayName != null, "Display name cannot be null");
+-        this.checkState();
+-
+-        this.team.setDisplayName(CraftChatMessage.fromString(displayName)[0]); // SPIGOT-4112: not nullable
++        this.getScoreboard().tessera$withLock(() -> {
++            this.checkState();
++            this.team.setDisplayName(CraftChatMessage.fromString(displayName)[0]); // SPIGOT-4112: not nullable
++        });
+     }
+ 
+     @Override
+@@ -117,9 +127,10 @@ final class CraftTeam extends CraftScoreboardComponent implements Team {
+     @Override
+     public void setPrefix(String prefix) {
+         Preconditions.checkArgument(prefix != null, "Prefix cannot be null");
+-        this.checkState();
+-
+-        this.team.setPlayerPrefix(CraftChatMessage.fromStringOrNull(prefix));
++        this.getScoreboard().tessera$withLock(() -> {
++            this.checkState();
++            this.team.setPlayerPrefix(CraftChatMessage.fromStringOrNull(prefix));
++        });
+     }
+ 
+     @Override
+@@ -132,9 +143,10 @@ final class CraftTeam extends CraftScoreboardComponent implements Team {
+     @Override
+     public void setSuffix(String suffix) {
+         Preconditions.checkArgument(suffix != null, "Suffix cannot be null");
+-        this.checkState();
+-
+-        this.team.setPlayerSuffix(CraftChatMessage.fromStringOrNull(suffix));
++        this.getScoreboard().tessera$withLock(() -> {
++            this.checkState();
++            this.team.setPlayerSuffix(CraftChatMessage.fromStringOrNull(suffix));
++        });
+     }
+ 
+     @Override
+@@ -241,9 +253,10 @@ final class CraftTeam extends CraftScoreboardComponent implements Team {
+     @Override
+     public void addEntry(String entry) {
+         Preconditions.checkArgument(entry != null, "Entry cannot be null");
+-        this.checkState();
+-
+-        this.getScoreboard().getHandle().addPlayerToTeam(entry, this.team);
++        this.getScoreboard().tessera$withLock(() -> {
++            this.checkState();
++            this.getScoreboard().getHandle().addPlayerToTeam(entry, this.team);
++        });
+     }
+ 
+     @Override
+@@ -254,9 +267,10 @@ final class CraftTeam extends CraftScoreboardComponent implements Team {
+     @Override
+     public void addEntries(java.util.Collection<String> entries) throws IllegalStateException, IllegalArgumentException {
+         Preconditions.checkArgument(entries != null, "Entries cannot be null");
+-        this.checkState();
+-
+-        ((net.minecraft.server.ServerScoreboard) this.getScoreboard().getHandle()).addPlayersToTeam(entries, this.team);
++        this.getScoreboard().tessera$withLock(() -> {
++            this.checkState();
++            ((net.minecraft.server.ServerScoreboard) this.getScoreboard().getHandle()).addPlayersToTeam(List.copyOf(entries), this.team);
++        });
+     }
+ 
+     @Override
+@@ -269,14 +283,14 @@ final class CraftTeam extends CraftScoreboardComponent implements Team {
+     @Override
+     public boolean removeEntry(String entry) {
+         Preconditions.checkArgument(entry != null, "Entry cannot be null");
+-        this.checkState();
+-
+-        if (!this.team.getPlayers().contains(entry)) {
+-            return false;
+-        }
+-
+-        this.getScoreboard().getHandle().removePlayerFromTeam(entry, this.team);
+-        return true;
++        return this.getScoreboard().tessera$withLock(() -> {
++            this.checkState();
++            if (!this.team.getPlayers().contains(entry)) {
++                return false;
++            }
++            this.getScoreboard().getHandle().removePlayerFromTeam(entry, this.team);
++            return true;
++        });
+     }
+ 
+     @Override
+@@ -316,8 +330,10 @@ final class CraftTeam extends CraftScoreboardComponent implements Team {
+ 
+     @Override
+     public void unregister() {
+-        this.checkState();
+-        this.getScoreboard().getHandle().removePlayerTeam(this.team);
++        this.getScoreboard().tessera$withLock(() -> {
++            this.checkState();
++            this.getScoreboard().getHandle().removePlayerTeam(this.team);
++        });
+     }
+ 
+     @Override

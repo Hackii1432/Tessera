@@ -1,0 +1,1356 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Fri, 31 Jul 2026 02:52:51 +0200
+Subject: [PATCH] Tessera runtime world lifecycle
+
+
+diff --git a/src/main/java/io/papermc/paper/threadedregions/scheduler/FoliaEntityScheduler.java b/src/main/java/io/papermc/paper/threadedregions/scheduler/FoliaEntityScheduler.java
+index 811b8efd155540beac19b70afa1885bff570cd3e..002610695eac30e2a6f662e209af56e8ddcc3907 100644
+--- a/src/main/java/io/papermc/paper/threadedregions/scheduler/FoliaEntityScheduler.java
++++ b/src/main/java/io/papermc/paper/threadedregions/scheduler/FoliaEntityScheduler.java
+@@ -19,6 +19,15 @@ public final class FoliaEntityScheduler implements EntityScheduler {
+         this.entity = entity;
+     }
+ 
++    // Tessera start - runtime world lifecycle
++    private void ensureWorldAcceptsTasks() {
++        final net.minecraft.world.entity.Entity handle = this.entity.getHandleRaw();
++        if (handle.level() instanceof net.minecraft.server.level.ServerLevel level) {
++            level.tessera$ensureAcceptingApiTasks("new entity scheduler tasks");
++        }
++    }
++    // Tessera end - runtime world lifecycle
++
+     private static Consumer<? extends Entity> wrap(final Plugin plugin, final Runnable runnable) {
+         Objects.requireNonNull(plugin, "Plugin may not be null");
+         Objects.requireNonNull(runnable, "Runnable may not be null");
+@@ -39,6 +48,7 @@ public final class FoliaEntityScheduler implements EntityScheduler {
+     @Override
+     public boolean execute(final Plugin plugin, final Runnable run, final Runnable retired,
+                            final long delay) {
++        this.ensureWorldAcceptsTasks(); // Tessera - runtime world lifecycle
+         final Consumer<? extends Entity> runNMS = wrap(plugin, run);
+         final Consumer<? extends Entity> runRetired = retired == null ? null : wrap(plugin, retired);
+ 
+@@ -58,6 +68,7 @@ public final class FoliaEntityScheduler implements EntityScheduler {
+         if (delayTicks <= 0) {
+             throw new IllegalArgumentException("Delay ticks may not be <= 0");
+         }
++        this.ensureWorldAcceptsTasks(); // Tessera - runtime world lifecycle
+ 
+         if (!plugin.isEnabled()) {
+             throw new IllegalPluginAccessException("Plugin attempted to register task while disabled");
+@@ -88,6 +99,7 @@ public final class FoliaEntityScheduler implements EntityScheduler {
+         if (periodTicks <= 0) {
+             throw new IllegalArgumentException("Period ticks may not be <= 0");
+         }
++        this.ensureWorldAcceptsTasks(); // Tessera - runtime world lifecycle
+ 
+         if (!plugin.isEnabled()) {
+             throw new IllegalPluginAccessException("Plugin attempted to register task while disabled");
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 3fac32b420ce4ae74166eac43d38c51c1fd513cf..951fb1382ffd049c36e811b4b08b625bb70b9d02 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -276,7 +276,24 @@ public final class CraftServer implements Server {
+     private final StructureManager structureManager;
+     final DedicatedServer console;
+     private final DedicatedPlayerList playerList;
+-    private final Map<String, World> worlds = new LinkedHashMap<>();
++    // Tessera start - runtime world lifecycle
++    // Copy-on-write preserves Bukkit's deterministic world order while allowing
++    // lock-free reads from independent region threads.
++    private volatile Map<String, World> worlds = Collections.unmodifiableMap(new LinkedHashMap<>());
++    private final org.bukkit.craftbukkit.world.CraftRuntimeWorldManager runtimeWorldManager;
++    private static final io.papermc.paper.threadedregions.TesseraCapabilities TESSERA_CAPABILITIES =
++        new io.papermc.paper.threadedregions.TesseraCapabilities() {
++            @Override
++            public boolean supportsRuntimeWorldLifecycle() {
++                return true;
++            }
++
++            @Override
++            public boolean supportsRegionSafeScoreboards() {
++                return true;
++            }
++        };
++    // Tessera end - runtime world lifecycle
+     private YamlConfiguration configuration;
+     private YamlConfiguration commandsConfiguration;
+     private final Yaml yaml = new Yaml(new SafeConstructor(new LoaderOptions()));
+@@ -325,6 +342,18 @@ public final class CraftServer implements Server {
+         return this.globalRegionScheduler;
+     }
+ 
++    // Tessera start - runtime capabilities
++    @Override
++    public io.papermc.paper.threadedregions.TesseraCapabilities getTesseraCapabilities() {
++        return TESSERA_CAPABILITIES;
++    }
++
++    @Override
++    public org.bukkit.craftbukkit.world.CraftRuntimeWorldManager getRuntimeWorldManager() {
++        return this.runtimeWorldManager;
++    }
++    // Tessera end - runtime capabilities
++
+     @Override
+     public final boolean isOwnedByCurrentRegion(World world, io.papermc.paper.math.Position position) {
+         return ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(
+@@ -398,6 +427,7 @@ public final class CraftServer implements Server {
+     public CraftServer(DedicatedServer console, PlayerList playerList) {
+         this.console = console;
+         this.playerList = (DedicatedPlayerList) playerList;
++        this.runtimeWorldManager = new org.bukkit.craftbukkit.world.CraftRuntimeWorldManager(this); // Tessera - runtime world lifecycle
+         this.playerView = MCUtil.transformUnmodifiable(playerList.getPlayers(), ServerPlayer::getBukkitEntity);
+         this.serverVersion = io.papermc.paper.ServerBuildInfo.buildInfo().asString(io.papermc.paper.ServerBuildInfo.StringRepresentation.VERSION_SIMPLE); // Paper - improve version
+         this.structureManager = new CraftStructureManager(console.getStructureManager(), console.registryAccess());
+@@ -1197,7 +1227,27 @@ public final class CraftServer implements Server {
+ 
+     @Override
+     public World createWorld(WorldCreator creator) {
+-        if (true) throw new UnsupportedOperationException(); // Folia - not implemented properly yet
++        // Tessera start - runtime world lifecycle
++        if (ca.spottedleaf.moonrise.common.util.TickThread.isTickThread()) {
++            throw new IllegalStateException(
++                "Synchronous world creation is not safe on a region/entity/global tick thread; "
++                    + "use Bukkit.getRuntimeWorldManager().createWorldAsync(...)"
++            );
++        }
++        final io.papermc.paper.world.WorldLoadResult result =
++            this.runtimeWorldManager.createWorldAsync(creator).toCompletableFuture().join();
++        if (!result.successful()) {
++            throw new IllegalStateException("World creation failed (" + result.status() + "): " + result.message(), result.cause());
++        }
++        return result.world();
++        // Tessera end - runtime world lifecycle
++    }
++
++    /**
++     * Tessera lifecycle entrypoint. Must only be invoked by the lifecycle
++     * coordinator on the global-region thread.
++     */
++    public World tessera$createWorldInternal(WorldCreator creator) {
+         Preconditions.checkState(this.console.getAllLevels().iterator().hasNext(), "Cannot create additional worlds on STARTUP");
+         //Preconditions.checkState(!this.console.isIteratingOverLevels, "Cannot create a world while worlds are being ticked"); // Paper - Cat - Temp disable. We'll see how this goes.
+         Preconditions.checkArgument(creator != null, "WorldCreator cannot be null");
+@@ -1333,6 +1383,7 @@ public final class CraftServer implements Server {
+             savedDataStorage,
+             loadedWorldData
+         );
++        serverLevel.tessera$setRuntimeLifecycle(ServerLevel.RuntimeLifecycleState.INITIALIZING); // Tessera - runtime world lifecycle
+ 
+         if (!(this.worlds.containsKey(name.toLowerCase(Locale.ROOT)))) {
+             return null;
+@@ -1355,45 +1406,22 @@ public final class CraftServer implements Server {
+ 
+     @Override
+     public boolean unloadWorld(World world, boolean save) {
+-        if (true) throw new UnsupportedOperationException(); // Folia - not implemented properly yet
+-        //Preconditions.checkState(!this.console.isIteratingOverLevels, "Cannot unload a world while worlds are being ticked"); // Paper - Cat - Temp disable. We'll see how this goes.
+-        if (world == null) {
+-            return false;
+-        }
+-
+-        ServerLevel handle = ((CraftWorld) world).getHandle();
+-
+-        if (this.console.getLevel(handle.dimension()) == null) {
+-            return false;
+-        }
+-
+-        if (handle.dimension() == net.minecraft.world.level.Level.OVERWORLD) {
+-            return false;
+-        }
+-
+-        if (!handle.players().isEmpty()) {
+-            return false;
++        // Tessera start - runtime world lifecycle
++        if (ca.spottedleaf.moonrise.common.util.TickThread.isTickThread()) {
++            throw new IllegalStateException(
++                "Synchronous world unload is not safe on a region/entity/global tick thread; "
++                    + "use Bukkit.getRuntimeWorldManager().unloadWorldAsync(...)"
++            );
+         }
+-
+-        WorldUnloadEvent event = new WorldUnloadEvent(handle.getWorld());
+-        if (!event.callEvent()) {
++        if (world == null) {
+             return false;
+         }
+-
+-        try {
+-            if (save) {
+-                handle.save(null, true, false); // Paper - Fix saving in unloadWorld
+-            }
+-
+-            handle.getChunkSource().close(save);
+-            io.papermc.paper.FeatureHooks.closeEntityManager(handle, save); // SPIGOT-6722: close entityManager // Paper - chunk system
+-        } catch (Exception ex) {
+-            this.getLogger().log(Level.SEVERE, null, ex);
+-        }
+-
+-        this.worlds.remove(world.getName().toLowerCase(Locale.ROOT));
+-        this.console.removeLevel(handle);
+-        return true;
++        final io.papermc.paper.world.WorldUnloadResult result = this.runtimeWorldManager.unloadWorldAsync(
++            world,
++            io.papermc.paper.world.WorldUnloadOptions.builder().save(save).build()
++        ).toCompletableFuture().join();
++        return result.successful();
++        // Tessera end - runtime world lifecycle
+     }
+ 
+     @Override
+@@ -1437,14 +1465,34 @@ public final class CraftServer implements Server {
+         return level.getWorld();
+     }
+ 
+-    public void addWorld(World world) {
++    public synchronized void addWorld(World world) {
+         // Check if a World already exists with the UID.
+         if (this.getWorld(world.getUID()) != null) {
+             System.out.println("World " + world.key().asString() + " is a duplicate of another world and has been prevented from loading. Please remove or change the duplicated Paper world metadata before loading it again.");
+             return;
+         }
+-        this.worlds.put(world.getName().toLowerCase(Locale.ROOT), world);
++        // Tessera start - runtime world lifecycle
++        final Map<String, World> updated = new LinkedHashMap<>(this.worlds);
++        updated.put(world.getName().toLowerCase(Locale.ROOT), world);
++        this.worlds = Collections.unmodifiableMap(updated);
++        // Tessera end - runtime world lifecycle
++    }
++
++    // Tessera start - runtime world lifecycle
++    public synchronized void tessera$removeWorldRegistration(final World world) {
++        final String name = world.getName().toLowerCase(Locale.ROOT);
++        if (this.worlds.get(name) != world) {
++            throw new IllegalStateException("World is not registered with CraftServer: " + world.getName());
++        }
++        final Map<String, World> updated = new LinkedHashMap<>(this.worlds);
++        updated.remove(name);
++        this.worlds = Collections.unmodifiableMap(updated);
++    }
++
++    public void tessera$shutdownRuntimeWorldManager() {
++        this.runtimeWorldManager.shutdown();
+     }
++    // Tessera end - runtime world lifecycle
+ 
+     @Override
+     public WorldBorder createWorldBorder() {
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+index 89d545a6d6396423a53d4c655fb7bae7a98b84fc..9c93895c5e61134370bd6f84ae0180039f7235fe 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -561,6 +561,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+ 
+     @Override
+     public boolean addPluginChunkTicket(int x, int z, Plugin plugin) {
++        this.world.tessera$ensureAcceptingApiTasks("new plugin chunk tickets"); // Tessera - runtime world lifecycle
+         warnUnsafeChunk("adding a faraway chunk ticket", x, z); // Paper
+         Preconditions.checkArgument(plugin != null, "null plugin");
+         Preconditions.checkArgument(plugin.isEnabled(), "plugin is not enabled");
+@@ -628,6 +629,9 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+     @Override
+     public void setChunkForceLoaded(int x, int z, boolean forced) {
+         io.papermc.paper.threadedregions.RegionizedServer.ensureGlobalTickThread("Cannot modify force-loaded chunks off global region"); // Folia - region threading
++        if (forced) {
++            this.world.tessera$ensureAcceptingApiTasks("new force-loaded chunk tickets"); // Tessera - runtime world lifecycle
++        }
+         warnUnsafeChunk("forceloading a faraway chunk", x, z); // Paper
+         this.getHandle().setChunkForced(x, z, forced);
+     }
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+index fd090e3bec778f16d84155fe738c7aca0d6e38d7..2f2d94cb78c0b690e99bacc65fa9a85f01ff0230 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+@@ -1154,6 +1154,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+         Preconditions.checkState(!this.entity.generation, "Cannot teleport entity to an other world during world generation");
+         location.checkFinite();
+         Location locationClone = location.clone(); // clone so we don't need to worry about mutations after this call.
++        ((CraftWorld) locationClone.getWorld()).getHandle().tessera$ensureAcceptingApiTasks("new entity teleports"); // Tessera - runtime world lifecycle
+ 
+         // Folia start - region threading
+         java.util.concurrent.CompletableFuture<Boolean> ret = new java.util.concurrent.CompletableFuture<>();
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java b/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..53f24210557e3222fcaaf44678cfc0dd8e343636
+--- /dev/null
++++ b/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
+@@ -0,0 +1,1076 @@
++package org.bukkit.craftbukkit.world;
++
++import io.papermc.paper.threadedregions.RegionShutdownThread;
++import io.papermc.paper.threadedregions.RegionizedServer;
++import io.papermc.paper.world.RuntimeWorldManager;
++import io.papermc.paper.world.WorldCloneOptions;
++import io.papermc.paper.world.WorldCloneResult;
++import io.papermc.paper.world.WorldLoadResult;
++import io.papermc.paper.world.WorldUnloadOptions;
++import io.papermc.paper.world.WorldUnloadResult;
++import java.io.IOException;
++import java.nio.ByteBuffer;
++import java.nio.channels.SeekableByteChannel;
++import java.nio.file.FileVisitResult;
++import java.nio.file.Files;
++import java.nio.file.LinkOption;
++import java.nio.file.Path;
++import java.nio.file.SimpleFileVisitor;
++import java.nio.file.StandardCopyOption;
++import java.nio.file.StandardOpenOption;
++import java.nio.file.attribute.BasicFileAttributes;
++import java.time.Instant;
++import java.util.ArrayList;
++import java.util.Comparator;
++import java.util.HashSet;
++import java.util.List;
++import java.util.Locale;
++import java.util.Objects;
++import java.util.Set;
++import java.util.UUID;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.CompletionException;
++import java.util.concurrent.CompletionStage;
++import java.util.concurrent.ConcurrentHashMap;
++import java.util.concurrent.ExecutorService;
++import java.util.concurrent.Executors;
++import java.util.concurrent.ThreadFactory;
++import java.util.concurrent.atomic.AtomicBoolean;
++import java.util.concurrent.atomic.AtomicInteger;
++import java.util.concurrent.locks.StampedLock;
++import java.util.function.Supplier;
++import java.util.regex.Pattern;
++import net.minecraft.server.level.ServerLevel;
++import org.bukkit.Chunk;
++import org.bukkit.Location;
++import org.bukkit.NamespacedKey;
++import org.bukkit.World;
++import org.bukkit.WorldCreator;
++import org.bukkit.craftbukkit.CraftServer;
++import org.bukkit.craftbukkit.CraftWorld;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.entity.Player;
++import org.bukkit.event.world.WorldSaveEvent;
++import org.bukkit.event.world.WorldUnloadEvent;
++import org.jspecify.annotations.Nullable;
++
++/**
++ * Tessera's lifecycle actor. Global registrations and Bukkit lifecycle events
++ * are serialized on the global region; blocking storage work is isolated on
++ * lifecycle workers and per-world stamped locks never block a tick thread.
++ */
++public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
++
++    private static final Pattern SAFE_WORLD_NAME = Pattern.compile("[A-Za-z0-9._-]{1,64}");
++    private static final Set<String> WINDOWS_RESERVED_NAMES = Set.of(
++        "con", "prn", "aux", "nul",
++        "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9",
++        "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9"
++    );
++    private static final Set<String> SNAPSHOT_DIRECTORIES = Set.of("region", "entities", "poi", "data");
++
++    private final CraftServer server;
++    private final ExecutorService lifecycleExecutor;
++    private final ConcurrentHashMap<String, StampedLock> operationLocks = new ConcurrentHashMap<>();
++    private final ConcurrentHashMap<UUID, CompletableFuture<TemplateSnapshot>> templateSnapshots = new ConcurrentHashMap<>();
++    private final AtomicBoolean stopping = new AtomicBoolean();
++
++    public CraftRuntimeWorldManager(final CraftServer server) {
++        this.server = Objects.requireNonNull(server, "server");
++        final int workers = Math.max(4, Math.min(16, Runtime.getRuntime().availableProcessors()));
++        final AtomicInteger ids = new AtomicInteger();
++        final ThreadFactory factory = runnable -> {
++            final Thread thread = new Thread(runnable, "Tessera World Lifecycle #" + ids.incrementAndGet());
++            thread.setDaemon(true);
++            thread.setUncaughtExceptionHandler((ignored, throwable) ->
++                this.server.getLogger().log(java.util.logging.Level.SEVERE, "Uncaught runtime world lifecycle failure", throwable)
++            );
++            return thread;
++        };
++        this.lifecycleExecutor = Executors.newFixedThreadPool(workers, factory);
++    }
++
++    @Override
++    public boolean supportsRuntimeWorldLifecycle() {
++        return true;
++    }
++
++    @Override
++    public CompletionStage<WorldLoadResult> createWorldAsync(final WorldCreator creator) {
++        return this.loadWorld(creator, LoadMode.CREATE);
++    }
++
++    @Override
++    public CompletionStage<WorldLoadResult> loadWorldAsync(final WorldCreator creator) {
++        return this.loadWorld(creator, LoadMode.LOAD);
++    }
++
++    private CompletionStage<WorldLoadResult> loadWorld(final WorldCreator requested, final LoadMode mode) {
++        if (requested == null) {
++            return CompletableFuture.completedFuture(new WorldLoadResult(
++                WorldLoadResult.Status.INVALID_REQUEST, null, "WorldCreator cannot be null", null
++            ));
++        }
++
++        final WorldCreator creator;
++        try {
++            creator = copyCreator(requested);
++        } catch (final Throwable throwable) {
++            return CompletableFuture.completedFuture(new WorldLoadResult(
++                WorldLoadResult.Status.INVALID_REQUEST, null, "Could not snapshot WorldCreator", throwable
++            ));
++        }
++
++        final String lockName = normalizeName(creator.name());
++        return this.withLocks(List.of(new LockRequest(lockName, true)), () -> this.loadWorldLocked(creator, mode));
++    }
++
++    private CompletionStage<WorldLoadResult> loadWorldLocked(final WorldCreator creator, final LoadMode mode) {
++        final WorldLoadResult validation = this.validateLoadRequest(creator, mode);
++        if (validation != null) {
++            return CompletableFuture.completedFuture(validation);
++        }
++
++        final boolean newWorld = mode != LoadMode.LOAD;
++        if (newWorld && creator.forcedSpawnPosition() == null) {
++            // Avoid vanilla's synchronous first-chunk lookup on the global region.
++            // The surrounding chunks are prepared asynchronously before activation.
++            creator.forcedSpawnPosition(io.papermc.paper.math.Position.block(0, 64, 0), 0.0F, 0.0F);
++        }
++
++        return this.onGlobal(() -> {
++            this.ensureRunning();
++            final World duplicateByName = this.server.getWorld(creator.name());
++            final World duplicateByKey = this.server.getWorld(creator.key());
++            if (duplicateByName != null || duplicateByKey != null) {
++                throw new LifecycleFailure(WorldLoadResult.Status.ALREADY_LOADED, "World is already loaded");
++            }
++            final World created = this.server.tessera$createWorldInternal(creator);
++            if (created == null) {
++                throw new LifecycleFailure(WorldLoadResult.Status.REGISTRATION_FAILED, "CraftServer rejected world registration");
++            }
++            final Location spawn = created.getSpawnLocation();
++            return new PreparedWorld((CraftWorld) created, spawn.getBlockX() >> 4, spawn.getBlockZ() >> 4);
++        }).thenCompose(prepared -> this.prepareSpawnChunks(prepared.world, prepared.spawnChunkX, prepared.spawnChunkZ, 2)
++            .thenCompose(ignored -> this.onGlobal(() -> {
++                this.ensureRunning();
++                this.server.getServer().tessera$activateRuntimeWorld(prepared.world.getHandle());
++                return new WorldLoadResult(
++                    WorldLoadResult.Status.SUCCESS,
++                    prepared.world,
++                    (mode == LoadMode.LOAD ? "Loaded" : "Created") + " runtime world " + prepared.world.getName(),
++                    null
++                );
++            }))
++            .exceptionallyCompose(throwable -> this.rollbackFailedLoad(prepared.world, unwrap(throwable))
++                .thenApply(rollbackFailure -> {
++                    final Throwable cause = unwrap(throwable);
++                    if (rollbackFailure != null) {
++                        cause.addSuppressed(rollbackFailure);
++                        return new WorldLoadResult(
++                            WorldLoadResult.Status.ROLLBACK_FAILED,
++                            null,
++                            "World initialization failed and rollback was incomplete",
++                            cause
++                        );
++                    }
++                    return new WorldLoadResult(
++                        cause instanceof LifecycleFailure failure
++                            ? failure.loadStatus
++                            : WorldLoadResult.Status.CHUNK_PREPARATION_FAILED,
++                        null,
++                        "World initialization failed; all registrations were rolled back",
++                        cause
++                    );
++                }))
++        ).exceptionally(throwable -> {
++            final Throwable cause = unwrap(throwable);
++            if (cause instanceof LifecycleFailure failure) {
++                return new WorldLoadResult(failure.loadStatus, null, failure.getMessage(), failure.getCause());
++            }
++            return new WorldLoadResult(
++                this.isStopping() ? WorldLoadResult.Status.SERVER_STOPPING : WorldLoadResult.Status.INITIALIZATION_FAILED,
++                null,
++                "World initialization failed before activation",
++                cause
++            );
++        });
++    }
++
++    private @Nullable WorldLoadResult validateLoadRequest(final WorldCreator creator, final LoadMode mode) {
++        if (this.isStopping()) {
++            return new WorldLoadResult(WorldLoadResult.Status.SERVER_STOPPING, null, "Server is stopping", null);
++        }
++        final String invalidName = validateWorldName(creator.name());
++        if (invalidName != null) {
++            return new WorldLoadResult(WorldLoadResult.Status.INVALID_NAME, null, invalidName, null);
++        }
++        if (creator.key() == null) {
++            return new WorldLoadResult(WorldLoadResult.Status.INVALID_KEY, null, "World key cannot be null", null);
++        }
++        if (this.server.getWorld(creator.name()) != null || this.server.getWorld(creator.key()) != null) {
++            return new WorldLoadResult(WorldLoadResult.Status.ALREADY_LOADED, null, "World is already loaded", null);
++        }
++
++        final Path folder;
++        try {
++            folder = this.resolveWorldFolder(creator.name());
++        } catch (final IOException exception) {
++            return new WorldLoadResult(WorldLoadResult.Status.INVALID_NAME, null, exception.getMessage(), exception);
++        }
++        final Path levelDat = folder.resolve("level.dat");
++        if (mode == LoadMode.CREATE && Files.exists(folder, LinkOption.NOFOLLOW_LINKS)) {
++            return new WorldLoadResult(WorldLoadResult.Status.ALREADY_EXISTS, null, "Target world folder already exists: " + folder, null);
++        }
++        if (mode == LoadMode.LOAD && !Files.isRegularFile(levelDat, LinkOption.NOFOLLOW_LINKS)) {
++            return new WorldLoadResult(
++                Files.exists(folder, LinkOption.NOFOLLOW_LINKS)
++                    ? WorldLoadResult.Status.INCOMPLETE_WORLD
++                    : WorldLoadResult.Status.NOT_FOUND,
++                null,
++                "Existing world requires a regular level.dat: " + levelDat,
++                null
++            );
++        }
++        return null;
++    }
++
++    @Override
++    public CompletionStage<WorldCloneResult> cloneWorldAsync(
++        final World source,
++        final NamespacedKey target,
++        final WorldCloneOptions options
++    ) {
++        if (!(source instanceof CraftWorld craftSource) || target == null || options == null) {
++            return CompletableFuture.completedFuture(new WorldCloneResult(
++                WorldCloneResult.Status.INVALID_REQUEST, null, "Source, target and options are required", null
++            ));
++        }
++        if (!options.requireReadOnlyTemplate()) {
++            return CompletableFuture.completedFuture(new WorldCloneResult(
++                WorldCloneResult.Status.SOURCE_NOT_READ_ONLY,
++                null,
++                "Template cloning requires the source to be declared read-only",
++                null
++            ));
++        }
++
++        final WorldCreator targetCreator;
++        try {
++            targetCreator = WorldCreator.ofKey(target).copy(source);
++        } catch (final Throwable throwable) {
++            return CompletableFuture.completedFuture(new WorldCloneResult(
++                WorldCloneResult.Status.INVALID_REQUEST, null, "Could not construct target WorldCreator", throwable
++            ));
++        }
++        final String sourceName = normalizeName(source.getName());
++        final String targetName = normalizeName(targetCreator.name());
++        if (sourceName.equals(targetName) || source.key().equals(target)) {
++            return CompletableFuture.completedFuture(new WorldCloneResult(
++                WorldCloneResult.Status.INVALID_REQUEST, null, "Clone target must differ from the source", null
++            ));
++        }
++
++        return this.withLocks(
++            List.of(new LockRequest(sourceName, false), new LockRequest(targetName, true)),
++            () -> this.cloneWorldLocked(craftSource, targetCreator, options)
++        );
++    }
++
++    private CompletionStage<WorldCloneResult> cloneWorldLocked(
++        final CraftWorld source,
++        final WorldCreator targetCreator,
++        final WorldCloneOptions options
++    ) {
++        if (this.isStopping()) {
++            return CompletableFuture.completedFuture(new WorldCloneResult(
++                WorldCloneResult.Status.SERVER_STOPPING, null, "Server is stopping", null
++            ));
++        }
++        final ServerLevel sourceHandle = source.getHandle();
++        if (this.server.getServer().getLevel(sourceHandle.dimension()) != sourceHandle
++            || !sourceHandle.tessera$isRuntimeWorldActive()) {
++            return CompletableFuture.completedFuture(new WorldCloneResult(
++                WorldCloneResult.Status.INVALID_SOURCE, null, "Source world is not active", null
++            ));
++        }
++        if (!sourceHandle.players().isEmpty()) {
++            return CompletableFuture.completedFuture(new WorldCloneResult(
++                WorldCloneResult.Status.INVALID_SOURCE, null, "Template world contains players", null
++            ));
++        }
++        if (this.server.getWorld(targetCreator.name()) != null || this.server.getWorld(targetCreator.key()) != null) {
++            return CompletableFuture.completedFuture(new WorldCloneResult(
++                WorldCloneResult.Status.TARGET_EXISTS, null, "Target world is already loaded", null
++            ));
++        }
++
++        final Path targetFolder;
++        try {
++            targetFolder = this.resolveWorldFolder(targetCreator.name());
++            if (Files.exists(targetFolder, LinkOption.NOFOLLOW_LINKS)) {
++                return CompletableFuture.completedFuture(new WorldCloneResult(
++                    WorldCloneResult.Status.TARGET_EXISTS, null, "Target world folder already exists: " + targetFolder, null
++                ));
++            }
++        } catch (final IOException exception) {
++            return CompletableFuture.completedFuture(new WorldCloneResult(
++                WorldCloneResult.Status.INVALID_REQUEST, null, exception.getMessage(), exception
++            ));
++        }
++
++        return this.templateSnapshot(source, options)
++            .thenCompose(snapshot -> CompletableFuture.runAsync(
++                () -> {
++                    try {
++                        this.installSnapshot(snapshot.path, targetFolder);
++                    } catch (final IOException exception) {
++                        throw new CompletionException(exception);
++                    }
++                },
++                this.lifecycleExecutor
++            ))
++            .thenCompose(ignored -> this.loadPreparedClone(targetCreator, options.spawnChunkRadius()))
++            .thenApply(loadResult -> {
++                if (!loadResult.successful()) {
++                    return new WorldCloneResult(
++                        WorldCloneResult.Status.LOAD_FAILED,
++                        null,
++                        "Template copied, but target load failed: " + loadResult.message(),
++                        loadResult.cause()
++                    );
++                }
++                return new WorldCloneResult(
++                    WorldCloneResult.Status.SUCCESS,
++                    loadResult.world(),
++                    "Cloned template " + source.getName() + " to " + targetCreator.key(),
++                    null
++                );
++            })
++            .exceptionally(throwable -> {
++                final Throwable cause = unwrap(throwable);
++                this.deleteTreeBestEffort(targetFolder);
++                return new WorldCloneResult(
++                    cause instanceof CorruptRegionFileException
++                        ? WorldCloneResult.Status.CORRUPT_TEMPLATE
++                        : WorldCloneResult.Status.COPY_FAILED,
++                    null,
++                    "Template clone failed",
++                    cause
++                );
++            });
++    }
++
++    private CompletionStage<WorldLoadResult> loadPreparedClone(final WorldCreator creator, final int spawnRadius) {
++        return this.onGlobal(() -> {
++            this.ensureRunning();
++            final World world = this.server.tessera$createWorldInternal(creator);
++            if (world == null) {
++                throw new LifecycleFailure(WorldLoadResult.Status.REGISTRATION_FAILED, "CraftServer rejected cloned world");
++            }
++            final Location spawn = world.getSpawnLocation();
++            return new PreparedWorld((CraftWorld) world, spawn.getBlockX() >> 4, spawn.getBlockZ() >> 4);
++        }).thenCompose(prepared -> this.prepareSpawnChunks(
++            prepared.world,
++            prepared.spawnChunkX,
++            prepared.spawnChunkZ,
++            spawnRadius
++        ).thenCompose(ignored -> this.onGlobal(() -> {
++            this.server.getServer().tessera$activateRuntimeWorld(prepared.world.getHandle());
++            return new WorldLoadResult(
++                WorldLoadResult.Status.SUCCESS, prepared.world, "Loaded cloned runtime world " + prepared.world.getName(), null
++            );
++        })).exceptionallyCompose(throwable -> this.rollbackFailedLoad(prepared.world, unwrap(throwable))
++            .thenApply(rollback -> new WorldLoadResult(
++                rollback == null ? WorldLoadResult.Status.CHUNK_PREPARATION_FAILED : WorldLoadResult.Status.ROLLBACK_FAILED,
++                null,
++                "Failed to activate cloned world",
++                unwrap(throwable)
++            ))
++        )).exceptionally(throwable -> new WorldLoadResult(
++            WorldLoadResult.Status.INITIALIZATION_FAILED, null, "Failed to construct cloned world", unwrap(throwable)
++        ));
++    }
++
++    private CompletableFuture<TemplateSnapshot> templateSnapshot(
++        final CraftWorld source,
++        final WorldCloneOptions options
++    ) {
++        final UUID sourceId = source.getUID();
++        return this.templateSnapshots.computeIfAbsent(sourceId, ignored -> {
++            final CompletableFuture<TemplateSnapshot> created = this.createTemplateSnapshot(source, options).toCompletableFuture();
++            created.whenComplete((result, failure) -> {
++                if (failure != null) {
++                    this.templateSnapshots.remove(sourceId, created);
++                }
++            });
++            return created;
++        });
++    }
++
++    private CompletionStage<TemplateSnapshot> createTemplateSnapshot(
++        final CraftWorld source,
++        final WorldCloneOptions options
++    ) {
++        final ServerLevel handle = source.getHandle();
++        final Path snapshotRoot;
++        try {
++            snapshotRoot = this.snapshotRoot().resolve(
++                source.getUID() + "-" + Instant.now().toEpochMilli()
++            ).normalize();
++        } catch (final IOException exception) {
++            return CompletableFuture.failedFuture(exception);
++        }
++
++        final CompletionStage<Void> quiesced = this.onGlobal(() -> {
++            this.ensureRunning();
++            if (!handle.players().isEmpty()) {
++                throw new IllegalStateException("Template acquired players before snapshot");
++            }
++            if (!handle.tessera$transitionRuntimeLifecycle(
++                ServerLevel.RuntimeLifecycleState.ACTIVE,
++                ServerLevel.RuntimeLifecycleState.QUIESCING
++            )) {
++                throw new IllegalStateException("Template is busy: " + handle.tessera$getRuntimeLifecycleState());
++            }
++            return null;
++        }).thenCompose(ignored -> RegionizedServer.getInstance().awaitWorldRegionTasks(handle));
++
++        CompletionStage<Void> flushed = quiesced;
++        if (options.flushSource()) {
++            flushed = flushed.thenCompose(ignored -> this.onGlobal(() -> {
++                new WorldSaveEvent(source).callEvent();
++                return null;
++            })).thenCompose(ignored -> RegionShutdownThread.flushRuntimeWorldSnapshot(handle));
++        }
++
++        final CompletionStage<TemplateSnapshot> copied = flushed.thenApplyAsync(ignored -> {
++            try {
++                Files.createDirectories(snapshotRoot);
++                this.copyReusableWorldData(source.getWorldPath(), snapshotRoot, options.copyDataDirectory());
++                return new TemplateSnapshot(snapshotRoot);
++            } catch (final IOException exception) {
++                throw new CompletionException(exception);
++            }
++        }, this.lifecycleExecutor);
++
++        return copied.handle((snapshot, failure) -> this.onGlobal(() -> {
++            if (!handle.tessera$transitionRuntimeLifecycle(
++                ServerLevel.RuntimeLifecycleState.QUIESCING,
++                ServerLevel.RuntimeLifecycleState.ACTIVE
++            ) && handle.tessera$getRuntimeLifecycleState() != ServerLevel.RuntimeLifecycleState.ACTIVE) {
++                throw new IllegalStateException("Could not resume template world from " + handle.tessera$getRuntimeLifecycleState());
++            }
++            if (failure != null) {
++                throw new CompletionException(unwrap(failure));
++            }
++            return snapshot;
++        })).thenCompose(stage -> stage);
++    }
++
++    @Override
++    public CompletionStage<WorldUnloadResult> unloadWorldAsync(
++        final World world,
++        final WorldUnloadOptions options
++    ) {
++        if (!(world instanceof CraftWorld craftWorld) || options == null) {
++            return CompletableFuture.completedFuture(new WorldUnloadResult(
++                WorldUnloadResult.Status.INVALID_REQUEST, "CraftWorld and options are required", null
++            ));
++        }
++        return this.withLocks(
++            List.of(new LockRequest(normalizeName(world.getName()), true)),
++            () -> this.unloadWorldLocked(craftWorld, options)
++        );
++    }
++
++    private CompletionStage<WorldUnloadResult> unloadWorldLocked(
++        final CraftWorld world,
++        final WorldUnloadOptions options
++    ) {
++        if (this.isStopping()) {
++            return CompletableFuture.completedFuture(new WorldUnloadResult(
++                WorldUnloadResult.Status.SERVER_STOPPING, "Server is stopping", null
++            ));
++        }
++        return this.beginUnload(world)
++            .thenCompose(context -> this.evacuatePlayers(context, options)
++                .thenCompose(ignored -> this.onGlobal(() -> {
++                    if (!context.handle.players().isEmpty()) {
++                        throw new UnloadFailure(
++                            WorldUnloadResult.Status.PLAYERS_PRESENT,
++                            "Players entered or remained in the world while unload was quiescing"
++                        );
++                    }
++                    return null;
++                }))
++                .thenCompose(ignored -> RegionizedServer.getInstance().awaitWorldRegionTasks(context.handle))
++                .thenCompose(ignored -> this.onGlobal(() -> {
++                    if (!context.handle.players().isEmpty()) {
++                        throw new UnloadFailure(
++                            WorldUnloadResult.Status.PLAYERS_PRESENT,
++                            "A pending cross-world teleport entered the world during unload"
++                        );
++                    }
++                    if (!context.handle.tessera$transitionRuntimeLifecycle(
++                        ServerLevel.RuntimeLifecycleState.QUIESCING,
++                        ServerLevel.RuntimeLifecycleState.UNLOADING
++                    )) {
++                        throw new UnloadFailure(
++                            WorldUnloadResult.Status.QUIESCE_FAILED,
++                            "World changed lifecycle state while quiescing"
++                        );
++                    }
++                    RegionizedServer.getInstance().deactivateWorldRegions(context.handle);
++                    if (options.save()) {
++                        new WorldSaveEvent(world).callEvent();
++                    }
++                    return null;
++                }))
++                .thenCompose(ignored -> this.closeAndUnregister(context, options.save()))
++            )
++            .exceptionallyCompose(throwable -> {
++                final Throwable cause = unwrap(throwable);
++                return this.resumeFailedUnload(world.getHandle()).thenApply(ignored -> {
++                    if (cause instanceof UnloadFailure failure) {
++                        return new WorldUnloadResult(failure.status, failure.getMessage(), failure.getCause());
++                    }
++                    return new WorldUnloadResult(
++                        WorldUnloadResult.Status.QUIESCE_FAILED,
++                        "World unload failed before storage close",
++                        cause
++                    );
++                });
++            });
++    }
++
++    private CompletionStage<UnloadContext> beginUnload(final CraftWorld world) {
++        return this.onGlobal(() -> {
++            final ServerLevel handle = world.getHandle();
++            if (this.server.getServer().getLevel(handle.dimension()) != handle) {
++                throw new UnloadFailure(WorldUnloadResult.Status.NOT_LOADED, "World is not loaded");
++            }
++            if (RegionizedServer.getInstance().isProtectedWorld(handle)) {
++                throw new UnloadFailure(WorldUnloadResult.Status.PROTECTED_WORLD, "Startup/protected worlds cannot be unloaded");
++            }
++            if (handle.tessera$getRuntimeLifecycleState() != ServerLevel.RuntimeLifecycleState.ACTIVE) {
++                throw new UnloadFailure(
++                    WorldUnloadResult.Status.ALREADY_UNLOADING,
++                    "World is already in lifecycle state " + handle.tessera$getRuntimeLifecycleState()
++                );
++            }
++
++            final WorldUnloadEvent event = new WorldUnloadEvent(world);
++            if (!event.callEvent()) {
++                throw new UnloadFailure(WorldUnloadResult.Status.EVENT_CANCELLED, "WorldUnloadEvent was cancelled");
++            }
++            if (!handle.tessera$transitionRuntimeLifecycle(
++                ServerLevel.RuntimeLifecycleState.ACTIVE,
++                ServerLevel.RuntimeLifecycleState.QUIESCING
++            )) {
++                throw new UnloadFailure(WorldUnloadResult.Status.ALREADY_UNLOADING, "World state changed during unload event");
++            }
++
++            final List<CraftPlayer> players = handle.players().stream()
++                .map(player -> player.getBukkitEntity())
++                .toList();
++            return new UnloadContext(world, handle, players);
++        });
++    }
++
++    private CompletionStage<Void> evacuatePlayers(
++        final UnloadContext context,
++        final WorldUnloadOptions options
++    ) {
++        if (context.players.isEmpty()) {
++            return CompletableFuture.completedFuture(null);
++        }
++        if (options.playerHandling() == WorldUnloadOptions.PlayerHandling.FAIL) {
++            return CompletableFuture.failedFuture(new UnloadFailure(
++                WorldUnloadResult.Status.PLAYERS_PRESENT,
++                "World contains " + context.players.size() + " player(s)"
++            ));
++        }
++
++        final Location target = options.teleportTarget();
++        if (target == null || target.getWorld() == null || target.getWorld() == context.world) {
++            return CompletableFuture.failedFuture(new UnloadFailure(
++                WorldUnloadResult.Status.INVALID_TELEPORT_TARGET,
++                "Teleport target must be in another active world"
++            ));
++        }
++        if (!(target.getWorld() instanceof CraftWorld targetWorld) || !targetWorld.getHandle().tessera$isRuntimeWorldActive()) {
++            return CompletableFuture.failedFuture(new UnloadFailure(
++                WorldUnloadResult.Status.INVALID_TELEPORT_TARGET,
++                "Teleport target world is not active"
++            ));
++        }
++
++        final CompletableFuture<?>[] teleports = context.players.stream()
++            .map(player -> player.teleportAsync(target).thenApply(success -> {
++                if (!success && player.isOnline()) {
++                    throw new CompletionException(new UnloadFailure(
++                        WorldUnloadResult.Status.PLAYER_TELEPORT_FAILED,
++                        "Failed to teleport player " + player.getName()
++                    ));
++                }
++                return null;
++            }))
++            .toArray(CompletableFuture[]::new);
++        return CompletableFuture.allOf(teleports);
++    }
++
++    private CompletionStage<Void> unregisterClosedWorld(final UnloadContext context) {
++        return this.onGlobal(() -> {
++            Throwable failure = null;
++            try {
++                RegionizedServer.getInstance().removeWorld(context.handle);
++            } catch (final Throwable throwable) {
++                failure = throwable;
++            }
++            try {
++                this.server.getServer().removeLevel(context.handle);
++            } catch (final Throwable throwable) {
++                failure = append(failure, throwable);
++            }
++            try {
++                this.server.tessera$removeWorldRegistration(context.world);
++            } catch (final Throwable throwable) {
++                failure = append(failure, throwable);
++            }
++            if (failure != null) {
++                throw new CompletionException(failure);
++            }
++            return null;
++        });
++    }
++
++    private CompletionStage<WorldUnloadResult> closeAndUnregister(
++        final UnloadContext context,
++        final boolean save
++    ) {
++        return RegionShutdownThread.closeRuntimeWorld(context.handle, save)
++            .handle((ignored, closeFailure) -> new CloseOutcome(
++                closeFailure == null ? null : unwrap(closeFailure)
++            ))
++            .thenCompose(closeOutcome -> this.unregisterClosedWorld(context)
++                .handle((ignored, unregisterFailure) -> {
++                    final Throwable unregisterCause =
++                        unregisterFailure == null ? null : unwrap(unregisterFailure);
++                    if (closeOutcome.failure != null && unregisterCause != null) {
++                        closeOutcome.failure.addSuppressed(unregisterCause);
++                    }
++                    if (unregisterCause != null) {
++                        return new WorldUnloadResult(
++                            WorldUnloadResult.Status.UNREGISTRATION_FAILED,
++                            "World storage was closed, but one or more registrations could not be removed",
++                            unregisterCause
++                        );
++                    }
++                    if (closeOutcome.failure != null) {
++                        return new WorldUnloadResult(
++                            WorldUnloadResult.Status.STORAGE_CLOSE_FAILED,
++                            "World was unregistered after a storage close failure",
++                            closeOutcome.failure
++                        );
++                    }
++                    return new WorldUnloadResult(
++                        WorldUnloadResult.Status.SUCCESS,
++                        "World fully unloaded and all storage handles released",
++                        null
++                    );
++                })
++            );
++    }
++
++    private CompletionStage<Void> resumeFailedUnload(final ServerLevel handle) {
++        if (handle.tessera$getRuntimeLifecycleState() != ServerLevel.RuntimeLifecycleState.QUIESCING) {
++            return CompletableFuture.completedFuture(null);
++        }
++        return this.<Void>onGlobal(() -> {
++            handle.tessera$transitionRuntimeLifecycle(
++                ServerLevel.RuntimeLifecycleState.QUIESCING,
++                ServerLevel.RuntimeLifecycleState.ACTIVE
++            );
++            return null;
++        }).exceptionally(ignored -> (Void)null);
++    }
++
++    private CompletionStage<@Nullable Throwable> rollbackFailedLoad(
++        final CraftWorld world,
++        final Throwable originalFailure
++    ) {
++        final ServerLevel handle = world.getHandle();
++        return RegionizedServer.getInstance().awaitWorldRegionTasks(handle)
++            .exceptionally(throwable -> null)
++            .thenCompose(ignored -> this.onGlobal(() -> {
++                handle.tessera$setRuntimeLifecycle(ServerLevel.RuntimeLifecycleState.UNLOADING);
++                RegionizedServer.getInstance().deactivateWorldRegions(handle);
++                return null;
++            }))
++            .thenCompose(ignored -> RegionShutdownThread.closeRuntimeWorld(handle, false))
++            .handle((ignored, closeFailure) -> new CloseOutcome(
++                closeFailure == null ? null : unwrap(closeFailure)
++            ))
++            .thenCompose(closeOutcome -> this.unregisterClosedWorld(new UnloadContext(world, handle, List.of()))
++                .handle((unused, unregisterFailure) -> {
++                    Throwable failure = closeOutcome.failure;
++                    if (unregisterFailure != null) {
++                        failure = append(failure, unwrap(unregisterFailure));
++                    }
++                    return failure;
++                })
++            )
++            .exceptionally(throwable -> {
++                originalFailure.addSuppressed(unwrap(throwable));
++                return unwrap(throwable);
++            });
++    }
++
++    private CompletableFuture<Void> prepareSpawnChunks(
++        final CraftWorld world,
++        final int centerX,
++        final int centerZ,
++        final int radius
++    ) {
++        final List<CompletableFuture<Chunk>> chunks = new ArrayList<>((radius * 2 + 1) * (radius * 2 + 1));
++        for (int dz = -radius; dz <= radius; ++dz) {
++            for (int dx = -radius; dx <= radius; ++dx) {
++                chunks.add(world.getChunkAtAsync(centerX + dx, centerZ + dz, true, true));
++            }
++        }
++        return CompletableFuture.allOf(chunks.toArray(CompletableFuture[]::new));
++    }
++
++    private void copyReusableWorldData(
++        final Path sourceRoot,
++        final Path targetRoot,
++        final boolean copyDataDirectory
++    ) throws IOException {
++        final Path normalizedSource = sourceRoot.toRealPath(LinkOption.NOFOLLOW_LINKS);
++        for (final String name : SNAPSHOT_DIRECTORIES) {
++            if (!copyDataDirectory && name.equals("data")) {
++                continue;
++            }
++            final Path source = normalizedSource.resolve(name);
++            if (!Files.exists(source, LinkOption.NOFOLLOW_LINKS)) {
++                continue;
++            }
++            if (!Files.isDirectory(source, LinkOption.NOFOLLOW_LINKS) || Files.isSymbolicLink(source)) {
++                throw new IOException("Unsafe template path: " + source);
++            }
++            final Path target = targetRoot.resolve(name);
++            this.copyTree(source, target, true);
++        }
++    }
++
++    private void installSnapshot(final Path snapshot, final Path target) throws IOException {
++        final Path parent = target.getParent();
++        Files.createDirectories(parent);
++        final Path staging = parent.resolve("." + target.getFileName() + ".tessera-staging-" + UUID.randomUUID()).normalize();
++        if (!staging.getParent().equals(parent)) {
++            throw new IOException("Invalid staging path " + staging);
++        }
++        try {
++            Files.createDirectory(staging);
++            this.copyTree(snapshot, staging, false);
++            try {
++                Files.move(staging, target, StandardCopyOption.ATOMIC_MOVE);
++            } catch (final java.nio.file.AtomicMoveNotSupportedException ignored) {
++                Files.move(staging, target);
++            }
++        } catch (final Throwable throwable) {
++            this.deleteTreeBestEffort(staging);
++            if (throwable instanceof IOException ioException) {
++                throw ioException;
++            }
++            throw new IOException("Failed to install world snapshot", throwable);
++        }
++    }
++
++    private void copyTree(final Path source, final Path target, final boolean validateRegions) throws IOException {
++        Files.walkFileTree(source, new SimpleFileVisitor<>() {
++            @Override
++            public FileVisitResult preVisitDirectory(final Path directory, final BasicFileAttributes attributes) throws IOException {
++                if (Files.isSymbolicLink(directory)) {
++                    throw new IOException("Symbolic links are not allowed in world templates: " + directory);
++                }
++                Files.createDirectories(target.resolve(source.relativize(directory)));
++                return FileVisitResult.CONTINUE;
++            }
++
++            @Override
++            public FileVisitResult visitFile(final Path file, final BasicFileAttributes attributes) throws IOException {
++                if (!attributes.isRegularFile() || Files.isSymbolicLink(file)) {
++                    throw new IOException("Non-regular file in world template: " + file);
++                }
++                final Path relative = source.relativize(file);
++                if (isIdentityOrPlayerData(relative)) {
++                    return FileVisitResult.CONTINUE;
++                }
++                if (validateRegions && file.getFileName().toString().endsWith(".mca")) {
++                    validateRegionFile(file);
++                }
++                Files.copy(file, target.resolve(relative), StandardCopyOption.COPY_ATTRIBUTES);
++                return FileVisitResult.CONTINUE;
++            }
++        });
++    }
++
++    private static boolean isIdentityOrPlayerData(final Path relative) {
++        if (relative.getNameCount() == 0) {
++            return false;
++        }
++        final String first = relative.getName(0).toString().toLowerCase(Locale.ROOT);
++        final String file = relative.getFileName().toString().toLowerCase(Locale.ROOT);
++        return first.equals("playerdata")
++            || first.equals("players")
++            || first.equals("stats")
++            || first.equals("advancements")
++            || file.equals("uid.dat")
++            || file.equals("session.lock")
++            || file.equals("level.dat")
++            || file.equals("level.dat_old")
++            || file.equals("paper_world_pdc.dat");
++    }
++
++    private static void validateRegionFile(final Path file) throws IOException {
++        final long size = Files.size(file);
++        if (size < 8192L) {
++            throw new CorruptRegionFileException(file, "region header is shorter than 8192 bytes");
++        }
++        final ByteBuffer locations = ByteBuffer.allocate(4096);
++        try (SeekableByteChannel channel = Files.newByteChannel(file, StandardOpenOption.READ)) {
++            while (locations.hasRemaining()) {
++                if (channel.read(locations) < 0) {
++                    throw new CorruptRegionFileException(file, "truncated location table");
++                }
++            }
++        }
++        locations.flip();
++        for (int index = 0; index < 1024; ++index) {
++            final int location = locations.getInt();
++            final int offset = (location >>> 8) & 0x00FF_FFFF;
++            final int sectors = location & 0xFF;
++            if (offset == 0 && sectors == 0) {
++                continue;
++            }
++            if (offset < 2 || sectors == 0 || ((long) offset + sectors) * 4096L > size) {
++                throw new CorruptRegionFileException(file, "invalid sector allocation at header entry " + index);
++            }
++        }
++    }
++
++    private Path resolveWorldFolder(final String name) throws IOException {
++        final Path container = this.server.getWorldContainer().toPath().toAbsolutePath().normalize();
++        final Path resolved = container.resolve(name).normalize();
++        if (!resolved.getParent().equals(container)) {
++            throw new IOException("World folder escapes the configured world container: " + name);
++        }
++        return resolved;
++    }
++
++    private Path snapshotRoot() throws IOException {
++        final Path container = this.server.getWorldContainer().toPath().toAbsolutePath().normalize();
++        final Path root = container.resolve(".tessera").resolve("template-snapshots").normalize();
++        if (!root.startsWith(container)) {
++            throw new IOException("Snapshot path escapes world container");
++        }
++        Files.createDirectories(root);
++        return root;
++    }
++
++    private void deleteTreeBestEffort(final Path path) {
++        if (path == null || !Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
++            return;
++        }
++        try {
++            final Path container = this.server.getWorldContainer().toPath().toAbsolutePath().normalize();
++            final Path normalized = path.toAbsolutePath().normalize();
++            if (!normalized.startsWith(container) || normalized.equals(container)) {
++                throw new IOException("Refusing to delete path outside the world container: " + normalized);
++            }
++            try (var stream = Files.walk(normalized)) {
++                for (final Path entry : stream.sorted(Comparator.reverseOrder()).toList()) {
++                    Files.deleteIfExists(entry);
++                }
++            }
++        } catch (final IOException exception) {
++            this.server.getLogger().log(java.util.logging.Level.WARNING, "Could not clean lifecycle staging path " + path, exception);
++        }
++    }
++
++    private <T> CompletableFuture<T> onGlobal(final Supplier<T> action) {
++        final CompletableFuture<T> future = new CompletableFuture<>();
++        final Runnable run = () -> {
++            if (future.isDone()) {
++                return;
++            }
++            try {
++                future.complete(action.get());
++            } catch (final Throwable throwable) {
++                future.completeExceptionally(throwable);
++            }
++        };
++        if (RegionizedServer.isGlobalTickThread()) {
++            run.run();
++        } else if (this.isStopping()) {
++            future.completeExceptionally(new IllegalStateException("Server is stopping"));
++        } else {
++            RegionizedServer.getInstance().addTask(run);
++        }
++        return future;
++    }
++
++    private <T> CompletableFuture<T> withLocks(
++        final List<LockRequest> requests,
++        final Supplier<? extends CompletionStage<T>> operation
++    ) {
++        final List<LockRequest> ordered = requests.stream()
++            .sorted(Comparator.comparing(LockRequest::name))
++            .toList();
++        return CompletableFuture.supplyAsync(() -> {
++            final List<HeldLock> held = new ArrayList<>(ordered.size());
++            try {
++                for (final LockRequest request : ordered) {
++                    final StampedLock lock = this.operationLocks.computeIfAbsent(request.name, ignored -> new StampedLock());
++                    final long stamp = request.write ? lock.writeLock() : lock.readLock();
++                    held.add(new HeldLock(lock, stamp, request.write));
++                }
++                return held;
++            } catch (final Throwable throwable) {
++                releaseLocks(held);
++                throw throwable;
++            }
++        }, this.lifecycleExecutor).thenCompose(held -> {
++            final CompletionStage<T> stage;
++            try {
++                stage = operation.get();
++            } catch (final Throwable throwable) {
++                releaseLocks(held);
++                return CompletableFuture.failedFuture(throwable);
++            }
++            return stage.whenComplete((ignored, throwable) -> releaseLocks(held)).toCompletableFuture();
++        });
++    }
++
++    private static void releaseLocks(final List<HeldLock> held) {
++        for (int index = held.size() - 1; index >= 0; --index) {
++            final HeldLock lock = held.get(index);
++            if (lock.write) {
++                lock.lock.unlockWrite(lock.stamp);
++            } else {
++                lock.lock.unlockRead(lock.stamp);
++            }
++        }
++    }
++
++    private static WorldCreator copyCreator(final WorldCreator original) {
++        final WorldCreator copy = WorldCreator.ofKey(original.key()).copy(original);
++        if (original.forcedSpawnPosition() != null) {
++            copy.forcedSpawnPosition(
++                original.forcedSpawnPosition(),
++                Objects.requireNonNullElse(original.forcedSpawnYaw(), 0.0F),
++                Objects.requireNonNullElse(original.forcedSpawnPitch(), 0.0F)
++            );
++        }
++        return copy;
++    }
++
++    private static @Nullable String validateWorldName(final String name) {
++        if (name == null || !SAFE_WORLD_NAME.matcher(name).matches() || name.equals(".") || name.equals("..")) {
++            return "World name must contain 1-64 characters from A-Z, a-z, 0-9, '.', '_' or '-'";
++        }
++        final String stem = name.split("\\.", 2)[0].toLowerCase(Locale.ROOT);
++        if (WINDOWS_RESERVED_NAMES.contains(stem)) {
++            return "World name is reserved on Windows: " + name;
++        }
++        return null;
++    }
++
++    private static String normalizeName(final String name) {
++        return name.toLowerCase(Locale.ROOT);
++    }
++
++    private boolean isStopping() {
++        return this.stopping.get() || !this.server.getServer().isRunning();
++    }
++
++    private void ensureRunning() {
++        if (this.isStopping()) {
++            throw new IllegalStateException("Server is stopping");
++        }
++    }
++
++    public void shutdown() {
++        if (!this.stopping.compareAndSet(false, true)) {
++            return;
++        }
++        this.templateSnapshots.clear();
++        this.lifecycleExecutor.shutdown();
++    }
++
++    private static Throwable unwrap(final Throwable throwable) {
++        Throwable current = throwable;
++        while ((current instanceof CompletionException || current instanceof java.util.concurrent.ExecutionException)
++            && current.getCause() != null) {
++            current = current.getCause();
++        }
++        return current;
++    }
++
++    private static Throwable append(final @Nullable Throwable existing, final Throwable additional) {
++        if (existing == null) {
++            return additional;
++        }
++        existing.addSuppressed(additional);
++        return existing;
++    }
++
++    private enum LoadMode {
++        CREATE,
++        LOAD
++    }
++
++    private record PreparedWorld(CraftWorld world, int spawnChunkX, int spawnChunkZ) {
++    }
++
++    private record UnloadContext(CraftWorld world, ServerLevel handle, List<CraftPlayer> players) {
++    }
++
++    private record TemplateSnapshot(Path path) {
++    }
++
++    private record CloseOutcome(@Nullable Throwable failure) {
++    }
++
++    private record LockRequest(String name, boolean write) {
++    }
++
++    private record HeldLock(StampedLock lock, long stamp, boolean write) {
++    }
++
++    private static final class LifecycleFailure extends RuntimeException {
++        private final WorldLoadResult.Status loadStatus;
++
++        private LifecycleFailure(final WorldLoadResult.Status status, final String message) {
++            super(message);
++            this.loadStatus = status;
++        }
++    }
++
++    private static final class UnloadFailure extends RuntimeException {
++        private final WorldUnloadResult.Status status;
++
++        private UnloadFailure(final WorldUnloadResult.Status status, final String message) {
++            super(message);
++            this.status = status;
++        }
++    }
++
++    private static final class CorruptRegionFileException extends IOException {
++        private CorruptRegionFileException(final Path file, final String message) {
++            super("Corrupt region file " + file + ": " + message);
++        }
++    }
++}

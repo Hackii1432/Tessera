@@ -1,0 +1,155 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Fri, 31 Jul 2026 03:26:02 +0200
+Subject: [PATCH] Harden Tessera runtime world shutdown
+
+
+diff --git a/io/papermc/paper/threadedregions/RegionShutdownThread.java b/io/papermc/paper/threadedregions/RegionShutdownThread.java
+index e65818b6d3700f65222c68b23c2775ffa2acf1bf..75bbbf47c3d44df0ea559c39a55c1188655ddb0d 100644
+--- a/io/papermc/paper/threadedregions/RegionShutdownThread.java
++++ b/io/papermc/paper/threadedregions/RegionShutdownThread.java
+@@ -17,6 +17,10 @@ import java.util.concurrent.TimeUnit;
+ public final class RegionShutdownThread extends ca.spottedleaf.moonrise.common.util.TickThread {
+ 
+     private static final Logger LOGGER = LogUtils.getClassLogger();
++    // Tessera - server shutdown must not close the same storage concurrently
++    // with a runtime snapshot/close thread.
++    private static final java.util.Set<java.util.concurrent.CompletableFuture<Void>> RUNTIME_OPERATIONS =
++        java.util.concurrent.ConcurrentHashMap.newKeySet();
+ 
+     ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData> shuttingDown;
+     // Tessera start - runtime world lifecycle
+@@ -60,6 +64,8 @@ public final class RegionShutdownThread extends ca.spottedleaf.moonrise.common.u
+         final boolean save
+     ) {
+         final java.util.concurrent.CompletableFuture<Void> completion = new java.util.concurrent.CompletableFuture<>();
++        RUNTIME_OPERATIONS.add(completion);
++        completion.whenComplete((ignored, failure) -> RUNTIME_OPERATIONS.remove(completion));
+         new RegionShutdownThread(
+             "Tessera world close - " + world.getWorld().getName(),
+             world,
+@@ -72,6 +78,8 @@ public final class RegionShutdownThread extends ca.spottedleaf.moonrise.common.u
+ 
+     public static java.util.concurrent.CompletableFuture<Void> flushRuntimeWorldSnapshot(final ServerLevel world) {
+         final java.util.concurrent.CompletableFuture<Void> completion = new java.util.concurrent.CompletableFuture<>();
++        RUNTIME_OPERATIONS.add(completion);
++        completion.whenComplete((ignored, failure) -> RUNTIME_OPERATIONS.remove(completion));
+         new RegionShutdownThread(
+             "Tessera world snapshot - " + world.getWorld().getName(),
+             world,
+@@ -82,6 +90,35 @@ public final class RegionShutdownThread extends ca.spottedleaf.moonrise.common.u
+         return completion;
+     }
+ 
++    private static void tessera$awaitRuntimeOperations() {
++        final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60L);
++        while (!RUNTIME_OPERATIONS.isEmpty()) {
++            final java.util.concurrent.CompletableFuture<?>[] snapshot =
++                RUNTIME_OPERATIONS.toArray(java.util.concurrent.CompletableFuture[]::new);
++            final long remaining = deadline - System.nanoTime();
++            if (remaining <= 0L) {
++                LOGGER.error(
++                    "{} runtime world lifecycle operation(s) did not stop before server world shutdown",
++                    RUNTIME_OPERATIONS.size()
++                );
++                return;
++            }
++            try {
++                java.util.concurrent.CompletableFuture.allOf(snapshot).get(
++                    Math.min(remaining, TimeUnit.SECONDS.toNanos(5L)),
++                    TimeUnit.NANOSECONDS
++                );
++            } catch (final java.util.concurrent.TimeoutException ignored) {
++                // Re-snapshot so operations which completed are discarded.
++            } catch (final java.util.concurrent.ExecutionException ignored) {
++                // Failed operations are still terminal and remove themselves.
++            } catch (final InterruptedException interrupted) {
++                Thread.currentThread().interrupt();
++                return;
++            }
++        }
++    }
++
+     private List<ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData>>
+     tessera$regions(final ServerLevel world) {
+         final List<ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData>> regions =
+@@ -321,6 +358,7 @@ public final class RegionShutdownThread extends ca.spottedleaf.moonrise.common.u
+             return;
+         }
+         // Tessera end - runtime world lifecycle
++        tessera$awaitRuntimeOperations(); // Tessera - avoid concurrent per-world storage close
+         // await scheduler termination
+         LOGGER.info("Awaiting scheduler termination for 60s...");
+         if (TickRegions.getScheduler().halt(true, TimeUnit.SECONDS.toNanos(60L))) {
+diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
+index fa19b1d1e3927dd481f68be3d260c6a9c4bd9753..73dcb704482520c69f2fed46f665e6751bed0e2d 100644
+--- a/net/minecraft/server/MinecraftServer.java
++++ b/net/minecraft/server/MinecraftServer.java
+@@ -1078,6 +1078,13 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+ 
+     public void stopServer() { // Folia - region threading - public
+         // Folia start - region threading
++        // Tessera start - runtime world lifecycle
++        // Close the admission gate before the region scheduler is halted. Any
++        // already-started operation is reconciled by RegionShutdownThread.
++        if (this.server != null) {
++            this.server.tessera$beginRuntimeWorldManagerShutdown();
++        }
++        // Tessera end - runtime world lifecycle
+         // halt scheduler
+         // don't wait, we may be on a scheduler thread
+         io.papermc.paper.threadedregions.TickRegions.getScheduler().halt(false, 0L);
+@@ -1186,6 +1193,13 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+         LOGGER.info("Waiting for all RegionFile I/O tasks to complete...");
+         ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.flush((MinecraftServer)(Object)this);
+         LOGGER.info("All RegionFile I/O tasks to complete");
++        // Tessera start - runtime world lifecycle
++        // Only now may stop-interrupted API futures report SERVER_STOPPING:
++        // every world and global storage worker has completed its final flush.
++        if (this.server != null) {
++            this.server.tessera$completeRuntimeWorldManagerShutdown();
++        }
++        // Tessera end - runtime world lifecycle
+         if ((Object)this instanceof net.minecraft.server.dedicated.DedicatedServer) {
+             ca.spottedleaf.moonrise.common.util.MoonriseCommon.haltExecutors();
+         }
+diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
+index 9d6f81492f0bf0f2b1f4af8d360c0f06a38604d8..7285e66137316b25fc0d6a33e5b7a9213ee8eec2 100644
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -770,6 +770,16 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+             );
+         }
+     }
++
++    public void tessera$ensureAcceptingChunkRequests(final String operation) {
++        final RuntimeLifecycleState state = this.tessera$runtimeLifecycleState.get();
++        if (state != RuntimeLifecycleState.ACTIVE && state != RuntimeLifecycleState.INITIALIZING) {
++            throw new IllegalStateException(
++                "World '" + this.getWorld().getName() + "' is " + state.name().toLowerCase(java.util.Locale.ROOT)
++                    + " and cannot accept " + operation
++            );
++        }
++    }
+     // Tessera end - runtime world lifecycle
+ 
+     public static final record PendingTeleport(Entity.EntityTreeNode rootVehicle, Vec3 to) {}
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index a3d026243c776e67289b9e1cc2ba5bcb105420ec..b45e724b009b1fbbee04ac441c80e7574c359982 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -4459,6 +4459,14 @@ public abstract class Entity
+                                        org.bukkit.event.player.PlayerTeleportEvent.TeleportCause cause, long teleportFlags,
+                                        java.util.function.Consumer<Entity> teleportComplete) {
+         ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this, "Cannot teleport entity async");
++        // Tessera start - runtime world lifecycle
++        // Cross-region/cross-world teleport admission closes before unload
++        // barriers are installed. Same-world moves are also rejected once the
++        // world is quiescing so no entity task can repopulate it.
++        if (!destination.tessera$isRuntimeWorldActive()) {
++            return false;
++        }
++        // Tessera end - runtime world lifecycle
+ 
+         if (!ServerLevel.isInSpawnableBounds(new BlockPos(ca.spottedleaf.moonrise.common.util.CoordinateUtils.getBlockX(pos), ca.spottedleaf.moonrise.common.util.CoordinateUtils.getBlockY(pos), ca.spottedleaf.moonrise.common.util.CoordinateUtils.getBlockZ(pos)))) {
+             return false;

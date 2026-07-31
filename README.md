@@ -12,6 +12,11 @@
 
 ## Overview of Tessera Features
 
+### Runtime worlds and region-safe scoreboards
+
+- [Asynchronous runtime world lifecycle](docs/runtime-world-lifecycle.md)
+- [Region-safe Bukkit scoreboards](docs/region-safe-scoreboards.md)
+
 ### GameRules Changes
 - GameRule: allow_entering_nether_using_portals
   - works now as intended.

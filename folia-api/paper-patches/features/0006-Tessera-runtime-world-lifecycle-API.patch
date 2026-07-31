@@ -1,0 +1,510 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Fri, 31 Jul 2026 02:31:22 +0200
+Subject: [PATCH] Tessera runtime world lifecycle API
+
+
+diff --git a/src/main/java/io/papermc/paper/threadedregions/TesseraCapabilities.java b/src/main/java/io/papermc/paper/threadedregions/TesseraCapabilities.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..6199a5120590ddbe660287c34688372b4479a255
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/threadedregions/TesseraCapabilities.java
+@@ -0,0 +1,30 @@
++package io.papermc.paper.threadedregions;
++
++import org.jetbrains.annotations.ApiStatus;
++import org.jspecify.annotations.NullMarked;
++
++/**
++ * Stable, implementation-backed feature detection for Tessera extensions.
++ *
++ * <p>Plugins which also run on Paper or unmodified Folia should first test for
++ * the presence of this type (or use reflection) before linking it. Server names
++ * and version strings are intentionally not part of the capability contract.</p>
++ */
++@NullMarked
++@ApiStatus.NonExtendable
++public interface TesseraCapabilities {
++
++    /**
++     * Returns whether the region-safe asynchronous runtime world lifecycle is available.
++     *
++     * @return {@code true} when runtime worlds can be managed through Tessera
++     */
++    boolean supportsRuntimeWorldLifecycle();
++
++    /**
++     * Returns whether Bukkit scoreboards are implemented using Tessera's region-safe model.
++     *
++     * @return {@code true} when per-player scoreboards can be used on region threads
++     */
++    boolean supportsRegionSafeScoreboards();
++}
+diff --git a/src/main/java/io/papermc/paper/world/RuntimeWorldManager.java b/src/main/java/io/papermc/paper/world/RuntimeWorldManager.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..0cb6ab9eb4c2d976e2906ccc1db810c2260447dc
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/world/RuntimeWorldManager.java
+@@ -0,0 +1,52 @@
++package io.papermc.paper.world;
++
++import java.util.concurrent.CompletionStage;
++import org.bukkit.NamespacedKey;
++import org.bukkit.World;
++import org.bukkit.WorldCreator;
++import org.jetbrains.annotations.ApiStatus;
++import org.jspecify.annotations.NullMarked;
++
++/**
++ * Controls Tessera's asynchronous, region-safe runtime world lifecycle.
++ *
++ * <p>Every method is non-blocking and may be invoked from plugin, asynchronous,
++ * entity, region, or global-region threads. Completion happens only after the
++ * requested world has reached a terminal registered or fully closed state.</p>
++ *
++ * <p>Lifecycle events are fired on the global-region thread. Chunk preparation,
++ * snapshot validation and storage I/O are not awaited by a tick thread.</p>
++ */
++@NullMarked
++@ApiStatus.NonExtendable
++public interface RuntimeWorldManager {
++
++    boolean supportsRuntimeWorldLifecycle();
++
++    /**
++     * Creates a new world. Existing world data is rejected.
++     */
++    CompletionStage<WorldLoadResult> createWorldAsync(WorldCreator creator);
++
++    /**
++     * Loads an existing world. A missing or incomplete {@code level.dat} is rejected.
++     */
++    CompletionStage<WorldLoadResult> loadWorldAsync(WorldCreator creator);
++
++    /**
++     * Creates an independent world from a validated template snapshot.
++     */
++    CompletionStage<WorldCloneResult> cloneWorldAsync(
++        World source,
++        NamespacedKey target,
++        WorldCloneOptions options
++    );
++
++    /**
++     * Quiesces, flushes, closes, and unregisters a runtime world.
++     */
++    CompletionStage<WorldUnloadResult> unloadWorldAsync(
++        World world,
++        WorldUnloadOptions options
++    );
++}
+diff --git a/src/main/java/io/papermc/paper/world/WorldCloneOptions.java b/src/main/java/io/papermc/paper/world/WorldCloneOptions.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..19db7c1193acc71bad765d0f7bfbf2c3a99666fd
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/world/WorldCloneOptions.java
+@@ -0,0 +1,94 @@
++package io.papermc.paper.world;
++
++import org.jspecify.annotations.NullMarked;
++
++/**
++ * Immutable options for validated arena-template cloning.
++ */
++@NullMarked
++public final class WorldCloneOptions {
++
++    private final boolean requireReadOnlyTemplate;
++    private final boolean flushSource;
++    private final boolean copyDataDirectory;
++    private final int spawnChunkRadius;
++
++    private WorldCloneOptions(final Builder builder) {
++        this.requireReadOnlyTemplate = builder.requireReadOnlyTemplate;
++        this.flushSource = builder.flushSource;
++        this.copyDataDirectory = builder.copyDataDirectory;
++        this.spawnChunkRadius = builder.spawnChunkRadius;
++    }
++
++    /**
++     * Conservative defaults: quiesce and flush the template, validate region
++     * files, never copy players, and prepare a 5x5 spawn area.
++     */
++    public static WorldCloneOptions defaults() {
++        return builder().build();
++    }
++
++    public static Builder builder() {
++        return new Builder();
++    }
++
++    public boolean requireReadOnlyTemplate() {
++        return this.requireReadOnlyTemplate;
++    }
++
++    public boolean flushSource() {
++        return this.flushSource;
++    }
++
++    public boolean copyDataDirectory() {
++        return this.copyDataDirectory;
++    }
++
++    public int spawnChunkRadius() {
++        return this.spawnChunkRadius;
++    }
++
++    public static final class Builder {
++        private boolean requireReadOnlyTemplate = true;
++        private boolean flushSource = true;
++        private boolean copyDataDirectory = true;
++        private int spawnChunkRadius = 2;
++
++        private Builder() {
++        }
++
++        /**
++         * Requires the caller to treat the source as a template. Tessera also
++         * quiesces a loaded source while producing the filesystem snapshot.
++         */
++        public Builder requireReadOnlyTemplate(final boolean requireReadOnlyTemplate) {
++            this.requireReadOnlyTemplate = requireReadOnlyTemplate;
++            return this;
++        }
++
++        public Builder flushSource(final boolean flushSource) {
++            this.flushSource = flushSource;
++            return this;
++        }
++
++        public Builder copyDataDirectory(final boolean copyDataDirectory) {
++            this.copyDataDirectory = copyDataDirectory;
++            return this;
++        }
++
++        /**
++         * Sets the prepared radius around spawn, from 0 through 8 chunks.
++         */
++        public Builder spawnChunkRadius(final int spawnChunkRadius) {
++            if (spawnChunkRadius < 0 || spawnChunkRadius > 8) {
++                throw new IllegalArgumentException("spawnChunkRadius must be between 0 and 8");
++            }
++            this.spawnChunkRadius = spawnChunkRadius;
++            return this;
++        }
++
++        public WorldCloneOptions build() {
++            return new WorldCloneOptions(this);
++        }
++    }
++}
+diff --git a/src/main/java/io/papermc/paper/world/WorldCloneResult.java b/src/main/java/io/papermc/paper/world/WorldCloneResult.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d9ba502056798567e4e4c70a3644da979317790a
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/world/WorldCloneResult.java
+@@ -0,0 +1,38 @@
++package io.papermc.paper.world;
++
++import org.bukkit.World;
++import org.jspecify.annotations.NullMarked;
++import org.jspecify.annotations.Nullable;
++
++/**
++ * Result of a template clone operation.
++ */
++@NullMarked
++public record WorldCloneResult(
++    Status status,
++    @Nullable World world,
++    String message,
++    @Nullable Throwable cause
++) {
++
++    public boolean successful() {
++        return this.status == Status.SUCCESS;
++    }
++
++    public enum Status {
++        SUCCESS,
++        UNSUPPORTED,
++        SERVER_STOPPING,
++        INVALID_REQUEST,
++        INVALID_SOURCE,
++        SOURCE_NOT_READ_ONLY,
++        SOURCE_BUSY,
++        TARGET_EXISTS,
++        SNAPSHOT_FAILED,
++        CORRUPT_TEMPLATE,
++        COPY_FAILED,
++        LOAD_FAILED,
++        CLEANUP_FAILED,
++        CANCELLED
++    }
++}
+diff --git a/src/main/java/io/papermc/paper/world/WorldLoadResult.java b/src/main/java/io/papermc/paper/world/WorldLoadResult.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d5deecc215d41c4e457755d82d9e44e612424cd6
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/world/WorldLoadResult.java
+@@ -0,0 +1,45 @@
++package io.papermc.paper.world;
++
++import org.bukkit.World;
++import org.jspecify.annotations.NullMarked;
++import org.jspecify.annotations.Nullable;
++
++/**
++ * Result of a runtime create or load operation.
++ *
++ * @param status terminal status
++ * @param world registered world on success, otherwise {@code null}
++ * @param message diagnostic message
++ * @param cause underlying failure, when available
++ */
++@NullMarked
++public record WorldLoadResult(
++    Status status,
++    @Nullable World world,
++    String message,
++    @Nullable Throwable cause
++) {
++
++    public boolean successful() {
++        return this.status == Status.SUCCESS;
++    }
++
++    public enum Status {
++        SUCCESS,
++        UNSUPPORTED,
++        SERVER_STOPPING,
++        INVALID_REQUEST,
++        INVALID_NAME,
++        INVALID_KEY,
++        ALREADY_EXISTS,
++        ALREADY_LOADED,
++        NOT_FOUND,
++        INCOMPLETE_WORLD,
++        CORRUPT_WORLD,
++        INITIALIZATION_FAILED,
++        CHUNK_PREPARATION_FAILED,
++        REGISTRATION_FAILED,
++        ROLLBACK_FAILED,
++        CANCELLED
++    }
++}
+diff --git a/src/main/java/io/papermc/paper/world/WorldUnloadOptions.java b/src/main/java/io/papermc/paper/world/WorldUnloadOptions.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..ec4a366626ae11fb76f33e64422bb92362002474
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/world/WorldUnloadOptions.java
+@@ -0,0 +1,99 @@
++package io.papermc.paper.world;
++
++import java.time.Duration;
++import org.bukkit.Location;
++import org.jspecify.annotations.NullMarked;
++import org.jspecify.annotations.Nullable;
++
++/**
++ * Immutable options for a runtime world unload.
++ */
++@NullMarked
++public final class WorldUnloadOptions {
++
++    private final boolean save;
++    private final PlayerHandling playerHandling;
++    private final @Nullable Location teleportTarget;
++    private final Duration timeout;
++
++    private WorldUnloadOptions(final Builder builder) {
++        this.save = builder.save;
++        this.playerHandling = builder.playerHandling;
++        this.teleportTarget = builder.teleportTarget == null ? null : builder.teleportTarget.clone();
++        this.timeout = builder.timeout;
++    }
++
++    public static WorldUnloadOptions defaults() {
++        return builder().build();
++    }
++
++    public static Builder builder() {
++        return new Builder();
++    }
++
++    public boolean save() {
++        return this.save;
++    }
++
++    public PlayerHandling playerHandling() {
++        return this.playerHandling;
++    }
++
++    public @Nullable Location teleportTarget() {
++        return this.teleportTarget == null ? null : this.teleportTarget.clone();
++    }
++
++    public Duration timeout() {
++        return this.timeout;
++    }
++
++    public enum PlayerHandling {
++        FAIL,
++        TELEPORT
++    }
++
++    public static final class Builder {
++        private boolean save = true;
++        private PlayerHandling playerHandling = PlayerHandling.FAIL;
++        private @Nullable Location teleportTarget;
++        private Duration timeout = Duration.ofSeconds(90);
++
++        private Builder() {
++        }
++
++        public Builder save(final boolean save) {
++            this.save = save;
++            return this;
++        }
++
++        public Builder failWhenPlayersPresent() {
++            this.playerHandling = PlayerHandling.FAIL;
++            this.teleportTarget = null;
++            return this;
++        }
++
++        public Builder teleportPlayers(final Location target) {
++            if (target == null || target.getWorld() == null) {
++                throw new IllegalArgumentException("Teleport target and target world must be present");
++            }
++            this.playerHandling = PlayerHandling.TELEPORT;
++            this.teleportTarget = target.clone();
++            return this;
++        }
++
++        public Builder timeout(final Duration timeout) {
++            if (timeout == null || timeout.isNegative() || timeout.isZero()) {
++                throw new IllegalArgumentException("timeout must be positive");
++            }
++            this.timeout = timeout;
++            return this;
++        }
++
++        public WorldUnloadOptions build() {
++            if (this.playerHandling == PlayerHandling.TELEPORT && this.teleportTarget == null) {
++                throw new IllegalStateException("TELEPORT player handling requires a target");
++            }
++            return new WorldUnloadOptions(this);
++        }
++    }
++}
+diff --git a/src/main/java/io/papermc/paper/world/WorldUnloadResult.java b/src/main/java/io/papermc/paper/world/WorldUnloadResult.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..bf4127195ff93b7262b0a0b9fb6fd8be6404909e
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/world/WorldUnloadResult.java
+@@ -0,0 +1,40 @@
++package io.papermc.paper.world;
++
++import org.jspecify.annotations.NullMarked;
++import org.jspecify.annotations.Nullable;
++
++/**
++ * Result of a runtime unload operation.
++ */
++@NullMarked
++public record WorldUnloadResult(
++    Status status,
++    String message,
++    @Nullable Throwable cause
++) {
++
++    public boolean successful() {
++        return this.status == Status.SUCCESS;
++    }
++
++    public enum Status {
++        SUCCESS,
++        UNSUPPORTED,
++        SERVER_STOPPING,
++        INVALID_REQUEST,
++        NOT_LOADED,
++        ALREADY_UNLOADING,
++        PROTECTED_WORLD,
++        EVENT_CANCELLED,
++        PLAYERS_PRESENT,
++        INVALID_TELEPORT_TARGET,
++        PLAYER_TELEPORT_FAILED,
++        QUIESCE_FAILED,
++        SAVE_FAILED,
++        STORAGE_CLOSE_FAILED,
++        UNREGISTRATION_FAILED,
++        CLEANUP_FAILED,
++        TIMEOUT,
++        CANCELLED
++    }
++}
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index 8a24b84db656da4cec59e9bccac306467c8155b0..3d655f1da462ab4b86992851ab9aa9a2b14a25a2 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -2877,6 +2877,28 @@ public final class Bukkit {
+         return server.getGlobalRegionScheduler();
+     }
+ 
++    // Tessera start - runtime capabilities
++    /**
++     * Returns Tessera's implementation-backed feature capabilities.
++     *
++     * @return Tessera capabilities
++     * @see Server#getTesseraCapabilities()
++     */
++    public static @NotNull io.papermc.paper.threadedregions.TesseraCapabilities getTesseraCapabilities() {
++        return server.getTesseraCapabilities();
++    }
++
++    /**
++     * Returns Tessera's asynchronous runtime world manager.
++     *
++     * @return runtime world manager
++     * @see Server#getRuntimeWorldManager()
++     */
++    public static @NotNull io.papermc.paper.world.RuntimeWorldManager getRuntimeWorldManager() {
++        return server.getRuntimeWorldManager();
++    }
++    // Tessera end - runtime capabilities
++
+     /**
+      * Returns whether the current thread is ticking a region and that the region being ticked
+      * owns the chunk at the specified world and block position.
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index fb5ca3ab0ddba433a39e65572beeb955b50d6f72..31691551b74552212cda51947195cb844331bfec 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -2661,6 +2661,26 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+      */
+     @NotNull io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler getGlobalRegionScheduler();
+ 
++    // Tessera start - runtime capabilities
++    /**
++     * Returns Tessera's implementation-backed capabilities.
++     *
++     * <p>Plugins targeting multiple server implementations should detect the
++     * presence of {@link io.papermc.paper.threadedregions.TesseraCapabilities}
++     * before linking this method.</p>
++     *
++     * @return the Tessera capability provider
++     */
++    @NotNull io.papermc.paper.threadedregions.TesseraCapabilities getTesseraCapabilities();
++
++    /**
++     * Returns Tessera's asynchronous runtime world manager.
++     *
++     * @return runtime world manager
++     */
++    @NotNull io.papermc.paper.world.RuntimeWorldManager getRuntimeWorldManager();
++    // Tessera end - runtime capabilities
++
+     /**
+      * Returns whether the current thread is ticking a region and that the region being ticked
+      * owns the chunk at the specified world and block position.

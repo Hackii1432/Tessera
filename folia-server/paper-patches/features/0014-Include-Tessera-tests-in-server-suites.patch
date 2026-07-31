@@ -1,0 +1,68 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Fri, 31 Jul 2026 05:22:48 +0200
+Subject: [PATCH] Include Tessera tests in server suites
+
+
+diff --git a/src/test/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboardConcurrencyTest.java b/src/test/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboardConcurrencyTest.java
+index 3d4c3a3c26159461195481b0cc414233147e75c4..6ddf1fcf47554c22e031ff6b148d2e7a9b7858fc 100644
+--- a/src/test/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboardConcurrencyTest.java
++++ b/src/test/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboardConcurrencyTest.java
+@@ -10,11 +10,11 @@ import net.kyori.adventure.text.Component;
+ import net.minecraft.server.MinecraftServer;
+ import net.minecraft.server.players.PlayerList;
+ import net.minecraft.server.ServerScoreboard;
+-import org.bukkit.scoreboard.Criteria;
+ import org.bukkit.scoreboard.DisplaySlot;
+ import org.bukkit.scoreboard.Objective;
+ import org.bukkit.scoreboard.Scoreboard;
+ import org.bukkit.scoreboard.Team;
++import org.junit.jupiter.api.Tag;
+ import org.junit.jupiter.api.Test;
+ 
+ import static org.junit.jupiter.api.Assertions.assertEquals;
+@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
+ import static org.mockito.Mockito.mock;
+ import static org.mockito.Mockito.when;
+ 
++@Tag("AllFeatures")
+ class CraftScoreboardConcurrencyTest {
+ 
+     @Test
+@@ -30,7 +31,7 @@ class CraftScoreboardConcurrencyTest {
+         final Scoreboard scoreboard = this.newScoreboard();
+         final Objective objective = scoreboard.registerNewObjective(
+             "mcc",
+-            Criteria.DUMMY,
++            CraftCriteria.getFromBukkit("dummy"),
+             Component.text("MCC sidebar")
+         );
+         objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+@@ -67,7 +68,7 @@ class CraftScoreboardConcurrencyTest {
+                 updates.add(CompletableFuture.runAsync(() -> {
+                     final Objective objective = scoreboard.registerNewObjective(
+                         "sidebar",
+-                        Criteria.DUMMY,
++                        CraftCriteria.getFromBukkit("dummy"),
+                         Component.text("Player " + playerId)
+                     );
+                     objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+diff --git a/src/test/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManagerTest.java b/src/test/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManagerTest.java
+index 013059afbc46a487b6789af7848464a0834dd38c..496dc14aab75004b238f015f5132ee1eb6c88fde 100644
+--- a/src/test/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManagerTest.java
++++ b/src/test/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManagerTest.java
+@@ -6,12 +6,14 @@ import java.nio.channels.FileChannel;
+ import java.nio.file.Files;
+ import java.nio.file.Path;
+ import java.nio.file.StandardOpenOption;
++import org.junit.jupiter.api.Tag;
+ import org.junit.jupiter.api.Test;
+ import org.junit.jupiter.api.io.TempDir;
+ 
+ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+ import static org.junit.jupiter.api.Assertions.assertThrows;
+ 
++@Tag("Normal")
+ class CraftRuntimeWorldManagerTest {
+ 
+     @TempDir

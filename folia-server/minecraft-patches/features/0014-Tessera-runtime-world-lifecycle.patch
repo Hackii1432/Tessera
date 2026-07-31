@@ -1,0 +1,502 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Fri, 31 Jul 2026 02:54:49 +0200
+Subject: [PATCH] Tessera runtime world lifecycle
+
+
+diff --git a/io/papermc/paper/threadedregions/RegionShutdownThread.java b/io/papermc/paper/threadedregions/RegionShutdownThread.java
+index f2208bcd5ccf3bd5a428e8ea3bf3ff26b3c9483b..e65818b6d3700f65222c68b23c2775ffa2acf1bf 100644
+--- a/io/papermc/paper/threadedregions/RegionShutdownThread.java
++++ b/io/papermc/paper/threadedregions/RegionShutdownThread.java
+@@ -19,14 +19,178 @@ public final class RegionShutdownThread extends ca.spottedleaf.moonrise.common.u
+     private static final Logger LOGGER = LogUtils.getClassLogger();
+ 
+     ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData> shuttingDown;
++    // Tessera start - runtime world lifecycle
++    private final ServerLevel runtimeWorld;
++    private final boolean runtimeSave;
++    private final boolean runtimeSnapshotOnly;
++    private final java.util.concurrent.CompletableFuture<Void> runtimeCompletion;
++    // Tessera end - runtime world lifecycle
+ 
+     public RegionShutdownThread(final String name) {
+         super(name);
++        // Tessera start - runtime world lifecycle
++        this.runtimeWorld = null;
++        this.runtimeSave = false;
++        this.runtimeSnapshotOnly = false;
++        this.runtimeCompletion = null;
++        // Tessera end - runtime world lifecycle
+         this.setUncaughtExceptionHandler((thread, thr) -> {
+             LOGGER.error("Error shutting down server", thr);
+         });
+     }
+ 
++    // Tessera start - runtime world lifecycle
++    private RegionShutdownThread(
++        final String name,
++        final ServerLevel runtimeWorld,
++        final boolean runtimeSave,
++        final boolean runtimeSnapshotOnly,
++        final java.util.concurrent.CompletableFuture<Void> runtimeCompletion
++    ) {
++        super(name);
++        this.runtimeWorld = runtimeWorld;
++        this.runtimeSave = runtimeSave;
++        this.runtimeSnapshotOnly = runtimeSnapshotOnly;
++        this.runtimeCompletion = runtimeCompletion;
++        this.setDaemon(true);
++    }
++
++    public static java.util.concurrent.CompletableFuture<Void> closeRuntimeWorld(
++        final ServerLevel world,
++        final boolean save
++    ) {
++        final java.util.concurrent.CompletableFuture<Void> completion = new java.util.concurrent.CompletableFuture<>();
++        new RegionShutdownThread(
++            "Tessera world close - " + world.getWorld().getName(),
++            world,
++            save,
++            false,
++            completion
++        ).start();
++        return completion;
++    }
++
++    public static java.util.concurrent.CompletableFuture<Void> flushRuntimeWorldSnapshot(final ServerLevel world) {
++        final java.util.concurrent.CompletableFuture<Void> completion = new java.util.concurrent.CompletableFuture<>();
++        new RegionShutdownThread(
++            "Tessera world snapshot - " + world.getWorld().getName(),
++            world,
++            true,
++            true,
++            completion
++        ).start();
++        return completion;
++    }
++
++    private List<ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData>>
++    tessera$regions(final ServerLevel world) {
++        final List<ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData>> regions =
++            new ArrayList<>();
++        world.regioniser.computeForAllRegions(regions::add);
++        return regions;
++    }
++
++    private void tessera$saveRegion(
++        final ServerLevel world,
++        final ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData> region,
++        final boolean first,
++        final boolean last,
++        final boolean shutdown
++    ) {
++        this.shuttingDown = region;
++        try {
++            world.moonrise$getChunkTaskScheduler().chunkHolderManager.saveAllChunksRegionised(
++                true,
++                shutdown,
++                false,
++                false,
++                first,
++                last,
++                false
++            );
++        } finally {
++            this.shuttingDown = null;
++        }
++    }
++
++    private void tessera$flushSnapshot(final ServerLevel world) throws Exception {
++        final List<ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData>> regions =
++            this.tessera$regions(world);
++        for (int i = 0; i < regions.size(); ++i) {
++            this.tessera$saveRegion(world, regions.get(i), i == 0, (i + 1) == regions.size(), false);
++        }
++        world.saveLevelData(true);
++        ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.flush(world);
++        ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.flushRegionStorages(world);
++    }
++
++    private void tessera$closeRuntimeWorld(final ServerLevel world, final boolean save) throws Exception {
++        final var holderManager = world.moonrise$getChunkTaskScheduler().chunkHolderManager;
++        holderManager.close(false, true, true, false, false);
++
++        final List<ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData>> regions =
++            this.tessera$regions(world);
++        for (final ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData> region : regions) {
++            this.finishTeleportations(region, world);
++        }
++
++        if (regions.isEmpty()) {
++            holderManager.close(save, true, false, true, false);
++        } else {
++            for (int i = 0; i < regions.size(); ++i) {
++                final ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData> region = regions.get(i);
++                this.shuttingDown = region;
++                try {
++                    holderManager.close(save, true, false, (i + 1) == regions.size(), false);
++                } finally {
++                    this.shuttingDown = null;
++                }
++            }
++        }
++
++        if (save) {
++            world.saveLevelData(true);
++        }
++        world.getDataStorage().close();
++    }
++
++    private void tessera$runRuntimeLifecycle() {
++        Throwable failure = null;
++        try {
++            if (this.runtimeSnapshotOnly) {
++                this.tessera$flushSnapshot(this.runtimeWorld);
++            } else {
++                this.tessera$closeRuntimeWorld(this.runtimeWorld, this.runtimeSave);
++            }
++        } catch (final Throwable throwable) {
++            failure = throwable;
++            LOGGER.error(
++                "Runtime world {} failed for '{}'",
++                this.runtimeSnapshotOnly ? "snapshot" : "close",
++                this.runtimeWorld.getWorld().getName(),
++                throwable
++            );
++            if (!this.runtimeSnapshotOnly) {
++                try {
++                    this.runtimeWorld.getDataStorage().close();
++                } catch (final Throwable closeFailure) {
++                    throwable.addSuppressed(closeFailure);
++                }
++            }
++        } finally {
++            if (!this.runtimeSnapshotOnly) {
++                this.runtimeWorld.tessera$setRuntimeLifecycle(ServerLevel.RuntimeLifecycleState.CLOSED);
++            }
++        }
++
++        if (failure == null) {
++            this.runtimeCompletion.complete(null);
++        } else {
++            this.runtimeCompletion.completeExceptionally(failure);
++        }
++    }
++    // Tessera end - runtime world lifecycle
++
+     static ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData> getRegion() {
+         final Thread currentThread = Thread.currentThread();
+         if (currentThread instanceof RegionShutdownThread shutdownThread) {
+@@ -151,6 +315,12 @@ public final class RegionShutdownThread extends ca.spottedleaf.moonrise.common.u
+ 
+     @Override
+     public final void run() {
++        // Tessera start - runtime world lifecycle
++        if (this.runtimeWorld != null) {
++            this.tessera$runRuntimeLifecycle();
++            return;
++        }
++        // Tessera end - runtime world lifecycle
+         // await scheduler termination
+         LOGGER.info("Awaiting scheduler termination for 60s...");
+         if (TickRegions.getScheduler().halt(true, TimeUnit.SECONDS.toNanos(60L))) {
+@@ -226,4 +396,4 @@ public final class RegionShutdownThread extends ca.spottedleaf.moonrise.common.u
+         MinecraftServer.getServer().stopPart2(); // stop part 2: close other resources (io thread, etc)
+         // done, part 2 should call exit()
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/io/papermc/paper/threadedregions/RegionizedServer.java b/io/papermc/paper/threadedregions/RegionizedServer.java
+index 8211b2cd97e5f61ac69c62a074e3b8b676019c96..72a2cca829db0ef33a7000bbe6453c468863b840 100644
+--- a/io/papermc/paper/threadedregions/RegionizedServer.java
++++ b/io/papermc/paper/threadedregions/RegionizedServer.java
+@@ -40,6 +40,10 @@ public final class RegionizedServer {
+ 
+     private final CopyOnWriteArrayList<ServerLevel> worlds = new CopyOnWriteArrayList<>();
+     private final CopyOnWriteArrayList<Connection> connections = new CopyOnWriteArrayList<>();
++    // Tessera start - runtime world lifecycle
++    private final java.util.Set<net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level>> protectedWorlds =
++        java.util.concurrent.ConcurrentHashMap.newKeySet();
++    // Tessera end - runtime world lifecycle
+ 
+     private final MultiThreadedQueue<Runnable> globalTickQueue = new MultiThreadedQueue<>();
+ 
+@@ -60,13 +64,75 @@ public final class RegionizedServer {
+     }
+ 
+     public void addWorld(final ServerLevel world) {
+-        this.worlds.add(world);
++        // Tessera start - runtime world lifecycle
++        if (!this.worlds.addIfAbsent(java.util.Objects.requireNonNull(world, "world"))) {
++            throw new IllegalStateException("World is already registered with RegionizedServer: " + world.dimension().identifier());
++        }
++        // Tessera end - runtime world lifecycle
++    }
++
++    // Tessera start - runtime world lifecycle
++    public boolean isProtectedWorld(final ServerLevel world) {
++        return this.protectedWorlds.contains(world.dimension());
++    }
++
++    /**
++     * Removes a fully closed runtime world. Region shutdown and storage close are
++     * prerequisites; callers cannot use this as a plain list removal.
++     */
++    public void removeWorld(final ServerLevel world) {
++        ensureGlobalTickThread("Runtime worlds must be unregistered on the global region");
++        if (this.isProtectedWorld(world)) {
++            throw new IllegalStateException("Cannot remove protected startup world " + world.dimension().identifier());
++        }
++        if (world.tessera$getRuntimeLifecycleState() != ServerLevel.RuntimeLifecycleState.CLOSED) {
++            throw new IllegalStateException(
++                "Cannot unregister world " + world.dimension().identifier() + " in state " + world.tessera$getRuntimeLifecycleState()
++            );
++        }
++        if (!this.worlds.remove(world)) {
++            throw new IllegalStateException("World is not registered with RegionizedServer: " + world.dimension().identifier());
++        }
+     }
+ 
++    /**
++     * Places a completion barrier behind all currently known region task queues
++     * for one world. It never waits on the calling thread.
++     */
++    public java.util.concurrent.CompletableFuture<Void> awaitWorldRegionTasks(final ServerLevel world) {
++        final java.util.List<java.util.concurrent.CompletableFuture<Void>> barriers = new java.util.ArrayList<>();
++        world.regioniser.computeForAllRegions(region -> {
++            final net.minecraft.world.level.ChunkPos center = region.getCenterChunk();
++            if (center == null) {
++                return;
++            }
++            final java.util.concurrent.CompletableFuture<Void> barrier = new java.util.concurrent.CompletableFuture<>();
++            barriers.add(barrier);
++            try {
++                this.taskQueue.queueTickTaskQueue(world, center.x(), center.z(), () -> barrier.complete(null));
++            } catch (final Throwable throwable) {
++                barrier.completeExceptionally(throwable);
++            }
++        });
++        return java.util.concurrent.CompletableFuture.allOf(
++            barriers.toArray(java.util.concurrent.CompletableFuture[]::new)
++        );
++    }
++
++    public void deactivateWorldRegions(final ServerLevel world) {
++        ensureGlobalTickThread("Runtime world regions must be detached on the global region");
++        TickRegions.deactivateWorld(world);
++    }
++    // Tessera end - runtime world lifecycle
++
+     public void init() {
+         // call init event _before_ scheduling anything
+         new RegionizedServerInitEvent().callEvent();
+ 
++        // Tessera start - runtime world lifecycle
++        this.protectedWorlds.addAll(this.worlds.stream().map(ServerLevel::dimension).toList());
++        // Tessera end - runtime world lifecycle
++
+         // now we can schedule
+         this.tickHandle.setInitialStart(System.nanoTime() + TickRegionScheduler.getTargetTickPeriodNanos());
+         TickRegions.getScheduler().scheduleRegion(this.tickHandle);
+@@ -267,6 +333,9 @@ public final class RegionizedServer {
+ 
+         // tick worlds
+         for (final ServerLevel world : this.worlds) {
++            if (!world.tessera$isRuntimeWorldActive()) { // Tessera - runtime world lifecycle
++                continue;
++            }
+             this.globalTick(world, tickCount);
+         }
+ 
+@@ -415,6 +484,9 @@ public final class RegionizedServer {
+             MinecraftServer.getServer().clockManager().tick();
+         } else {
+             for (ServerLevel level : this.worlds) {
++                if (!level.tessera$isRuntimeWorldActive()) { // Tessera - runtime world lifecycle
++                    continue;
++                }
+                 level.clockManager().tick();
+             }
+         }
+diff --git a/io/papermc/paper/threadedregions/TickRegions.java b/io/papermc/paper/threadedregions/TickRegions.java
+index a4182f5420ce018e001025de7d5e0e8e0380d183..6b1730f00081dc7da1d849eff791940458c8c1c3 100644
+--- a/io/papermc/paper/threadedregions/TickRegions.java
++++ b/io/papermc/paper/threadedregions/TickRegions.java
+@@ -83,6 +83,21 @@ public final class TickRegions implements ThreadedRegionizer.RegionCallbacks<Tic
+         scheduler.start();
+      }
+ 
++    // Tessera start - runtime world lifecycle
++    /**
++     * Permanently detaches only the supplied world's region handles. Other
++     * worlds and regions remain scheduled on the shared Folia worker pool.
++     */
++    public static void deactivateWorld(final ServerLevel world) {
++        final java.util.List<ConcreteRegionTickHandle> handles = new java.util.ArrayList<>();
++        world.regioniser.computeForAllRegions(region -> handles.add(region.getData().tickHandle));
++        for (final ConcreteRegionTickHandle handle : handles) {
++            handle.markNonSchedulable();
++            scheduler.descheduleRegion(handle);
++        }
++    }
++    // Tessera end - runtime world lifecycle
++
+     @Override
+     public TickRegionData createNewData(final ThreadedRegionizer.ThreadedRegion<TickRegionData, TickRegionSectionData> region) {
+         return new TickRegionData(region);
+@@ -483,6 +498,9 @@ public final class TickRegions implements ThreadedRegionizer.RegionCallbacks<Tic
+ 
+         @Override
+         protected void tickRegion(final long tickCount, final long startTime, final long scheduledEnd) {
++            if (!this.region.world.tessera$isRuntimeWorldActive()) { // Tessera - runtime world lifecycle
++                return;
++            }
+             final ca.spottedleaf.leafprofiler.RegionizedProfiler.Handle profiler = io.papermc.paper.threadedregions.TickRegionScheduler.getProfiler(); // Folia - profiler
+             profiler.startTick(); try { // Folia - profiler
+             MinecraftServer.getServer().tickServer(startTime, scheduledEnd, TimeUnit.MILLISECONDS.toMillis(10L), this.region);
+diff --git a/io/papermc/paper/threadedregions/scheduler/FoliaRegionScheduler.java b/io/papermc/paper/threadedregions/scheduler/FoliaRegionScheduler.java
+index 84fa22ac06f1c2533874e1677f4bbd899288c4d6..31c80047b44f0c178aed934628048049359ce4bb 100644
+--- a/io/papermc/paper/threadedregions/scheduler/FoliaRegionScheduler.java
++++ b/io/papermc/paper/threadedregions/scheduler/FoliaRegionScheduler.java
+@@ -28,6 +28,12 @@ import java.util.logging.Level;
+ 
+ public final class FoliaRegionScheduler implements RegionScheduler {
+ 
++    // Tessera start - runtime world lifecycle
++    private static void ensureWorldAcceptsTasks(final World world) {
++        ((CraftWorld) world).getHandle().tessera$ensureAcceptingApiTasks("new region tasks");
++    }
++    // Tessera end - runtime world lifecycle
++
+     private static Runnable wrap(final Plugin plugin, final World world, final int chunkX, final int chunkZ, final Runnable run) {
+         return () -> {
+             try {
+@@ -64,6 +70,7 @@ public final class FoliaRegionScheduler implements RegionScheduler {
+         Objects.requireNonNull(plugin, "Plugin may not be null");
+         Objects.requireNonNull(world, "World may not be null");
+         Objects.requireNonNull(run, "Runnable may not be null");
++        ensureWorldAcceptsTasks(world); // Tessera - runtime world lifecycle
+ 
+         RegionizedServer.getInstance().taskQueue.queueTickTaskQueue(
+             ((CraftWorld) world).getHandle(), chunkX, chunkZ, wrap(plugin, world, chunkX, chunkZ, run)
+@@ -84,6 +91,7 @@ public final class FoliaRegionScheduler implements RegionScheduler {
+         if (delayTicks <= 0) {
+             throw new IllegalArgumentException("Delay ticks may not be <= 0");
+         }
++        ensureWorldAcceptsTasks(world); // Tessera - runtime world lifecycle
+ 
+         if (!plugin.isEnabled()) {
+             throw new IllegalPluginAccessException("Plugin attempted to register task while disabled");
+@@ -117,6 +125,7 @@ public final class FoliaRegionScheduler implements RegionScheduler {
+         if (periodTicks <= 0) {
+             throw new IllegalArgumentException("Period ticks may not be <= 0");
+         }
++        ensureWorldAcceptsTasks(world); // Tessera - runtime world lifecycle
+ 
+         if (!plugin.isEnabled()) {
+             throw new IllegalPluginAccessException("Plugin attempted to register task while disabled");
+@@ -424,4 +433,4 @@ public final class FoliaRegionScheduler implements RegionScheduler {
+             }
+         }
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
+index 10b329e3da4149133038c1c90d776bc9a2dfee88..fa19b1d1e3927dd481f68be3d260c6a9c4bd9753 100644
+--- a/net/minecraft/server/MinecraftServer.java
++++ b/net/minecraft/server/MinecraftServer.java
+@@ -942,8 +942,29 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+         this.forceTicks = false; // CraftBukkit
+         //level.entityManager.tick(); // SPIGOT-6526: Load pending entities so they are available to the API // Paper - rewrite chunk system
+         io.papermc.paper.threadedregions.RegionizedServer.getInstance().addWorld(level); // Folia - region threading
+-        new org.bukkit.event.world.WorldLoadEvent(level.getWorld()).callEvent(); // Paper - call WorldLoadEvent
++        // Tessera start - runtime world lifecycle
++        if (level.tessera$isRuntimeWorldActive()) {
++            new org.bukkit.event.world.WorldLoadEvent(level.getWorld()).callEvent(); // Paper - call WorldLoadEvent
++        }
++        // Tessera end - runtime world lifecycle
++    }
++
++    // Tessera start - runtime world lifecycle
++    public void tessera$activateRuntimeWorld(final ServerLevel level) {
++        io.papermc.paper.threadedregions.RegionizedServer.ensureGlobalTickThread(
++            "Runtime worlds must be activated on the global region"
++        );
++        if (!level.tessera$transitionRuntimeLifecycle(
++            ServerLevel.RuntimeLifecycleState.INITIALIZING,
++            ServerLevel.RuntimeLifecycleState.ACTIVE
++        )) {
++            throw new IllegalStateException(
++                "Cannot activate runtime world " + level.dimension().identifier() + " from " + level.tessera$getRuntimeLifecycleState()
++            );
++        }
++        new org.bukkit.event.world.WorldLoadEvent(level.getWorld()).callEvent();
+     }
++    // Tessera end - runtime world lifecycle
+ 
+     protected GlobalPos selectLevelLoadFocusPos() {
+         return this.worldData.overworldData().getRespawnData().globalPos();
+diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
+index eae0255b59a12bcb5e50faca87ac1260558901db..9d6f81492f0bf0f2b1f4af8d360c0f06a38604d8 100644
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -721,6 +721,57 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+     }
+     public final io.papermc.paper.threadedregions.RegionizedTaskQueue.WorldRegionTaskData taskQueueRegionData = new io.papermc.paper.threadedregions.RegionizedTaskQueue.WorldRegionTaskData(this);
+ 
++    // Tessera start - runtime world lifecycle
++    /**
++     * Runtime lifecycle state is deliberately independent from chunk/region ownership.
++     * INITIALIZING and QUIESCING regions may drain internal tasks, but normal world
++     * ticks and new public scheduler work are only accepted while ACTIVE.
++     */
++    public enum RuntimeLifecycleState {
++        ACTIVE,
++        INITIALIZING,
++        QUIESCING,
++        UNLOADING,
++        CLOSED
++    }
++
++    private final java.util.concurrent.atomic.AtomicReference<RuntimeLifecycleState> tessera$runtimeLifecycleState =
++        new java.util.concurrent.atomic.AtomicReference<>(RuntimeLifecycleState.ACTIVE);
++
++    public RuntimeLifecycleState tessera$getRuntimeLifecycleState() {
++        return this.tessera$runtimeLifecycleState.get();
++    }
++
++    public boolean tessera$transitionRuntimeLifecycle(
++        final RuntimeLifecycleState expected,
++        final RuntimeLifecycleState update
++    ) {
++        return this.tessera$runtimeLifecycleState.compareAndSet(expected, update);
++    }
++
++    public void tessera$setRuntimeLifecycle(final RuntimeLifecycleState update) {
++        this.tessera$runtimeLifecycleState.set(java.util.Objects.requireNonNull(update, "update"));
++    }
++
++    public boolean tessera$isRuntimeWorldActive() {
++        return this.tessera$runtimeLifecycleState.get() == RuntimeLifecycleState.ACTIVE;
++    }
++
++    public boolean tessera$isAcceptingApiTasks() {
++        return this.tessera$isRuntimeWorldActive();
++    }
++
++    public void tessera$ensureAcceptingApiTasks(final String operation) {
++        final RuntimeLifecycleState state = this.tessera$runtimeLifecycleState.get();
++        if (state != RuntimeLifecycleState.ACTIVE) {
++            throw new IllegalStateException(
++                "World '" + this.getWorld().getName() + "' is " + state.name().toLowerCase(java.util.Locale.ROOT)
++                    + " and cannot accept " + operation
++            );
++        }
++    }
++    // Tessera end - runtime world lifecycle
++
+     public static final record PendingTeleport(Entity.EntityTreeNode rootVehicle, Vec3 to) {}
+     private final it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet<PendingTeleport> pendingTeleports = new it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet<>();
+ 

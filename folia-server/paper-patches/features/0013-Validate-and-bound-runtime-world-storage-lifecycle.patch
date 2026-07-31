@@ -1,0 +1,236 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Fri, 31 Jul 2026 05:04:04 +0200
+Subject: [PATCH] Validate and bound runtime world storage lifecycle
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java b/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
+index dcbac8fb4b4f5edd228f49c1351359197cbfdd24..2efdc28b7df623c0e4a2d669ed1ec392db5687ac 100644
+--- a/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
++++ b/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
+@@ -221,23 +221,56 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+             return new WorldLoadResult(WorldLoadResult.Status.ALREADY_LOADED, null, "World is already loaded", null);
+         }
+ 
+-        final Path folder;
++        final Path dimensionFolder;
++        final Path legacyFolder;
+         try {
+-            folder = this.resolveWorldFolder(creator.name());
++            dimensionFolder = this.resolveDimensionFolder(creator.key());
++            legacyFolder = this.resolveLegacyWorldFolder(creator.name());
+         } catch (final IOException exception) {
+             return new WorldLoadResult(WorldLoadResult.Status.INVALID_NAME, null, exception.getMessage(), exception);
+         }
+-        final Path levelDat = folder.resolve("level.dat");
+-        if (mode == LoadMode.CREATE && Files.exists(folder, LinkOption.NOFOLLOW_LINKS)) {
+-            return new WorldLoadResult(WorldLoadResult.Status.ALREADY_EXISTS, null, "Target world folder already exists: " + folder, null);
++        if (mode == LoadMode.CREATE
++            && (Files.exists(dimensionFolder, LinkOption.NOFOLLOW_LINKS)
++                || Files.exists(legacyFolder, LinkOption.NOFOLLOW_LINKS))) {
++            return new WorldLoadResult(
++                WorldLoadResult.Status.ALREADY_EXISTS,
++                null,
++                "Target world storage already exists: " + dimensionFolder,
++                null
++            );
+         }
+-        if (mode == LoadMode.LOAD && !Files.isRegularFile(levelDat, LinkOption.NOFOLLOW_LINKS)) {
++        if (mode == LoadMode.LOAD) {
++            if (Files.exists(dimensionFolder, LinkOption.NOFOLLOW_LINKS)) {
++                final Path worldGenSettings = dimensionFolder.resolve("data/minecraft/world_gen_settings.dat");
++                final Path metadata = dimensionFolder.resolve("data/paper/metadata.dat");
++                if (!Files.isDirectory(dimensionFolder, LinkOption.NOFOLLOW_LINKS)
++                    || !Files.isRegularFile(worldGenSettings, LinkOption.NOFOLLOW_LINKS)
++                    || !Files.isRegularFile(metadata, LinkOption.NOFOLLOW_LINKS)) {
++                    return new WorldLoadResult(
++                        WorldLoadResult.Status.INCOMPLETE_WORLD,
++                        null,
++                        "Existing dimension storage is incomplete; expected regular metadata files under " + dimensionFolder.resolve("data"),
++                        null
++                    );
++                }
++                return null;
++            }
++
++            // Paper 26.2 stores API-created worlds as independent dimension
++            // roots below the primary level. A legacy Bukkit world directory
++            // is nevertheless accepted here and atomically migrated by the
++            // normal Paper world loader before any registration occurs.
++            final Path legacyLevelDat = legacyFolder.resolve("level.dat");
++            if (Files.isRegularFile(legacyLevelDat, LinkOption.NOFOLLOW_LINKS)) {
++                return null;
++            }
++            final boolean partialLegacy = Files.exists(legacyFolder, LinkOption.NOFOLLOW_LINKS);
+             return new WorldLoadResult(
+-                Files.exists(folder, LinkOption.NOFOLLOW_LINKS)
+-                    ? WorldLoadResult.Status.INCOMPLETE_WORLD
+-                    : WorldLoadResult.Status.NOT_FOUND,
++                partialLegacy ? WorldLoadResult.Status.INCOMPLETE_WORLD : WorldLoadResult.Status.NOT_FOUND,
+                 null,
+-                "Existing world requires a regular level.dat: " + levelDat,
++                partialLegacy
++                    ? "Legacy world storage requires a regular level.dat: " + legacyLevelDat
++                    : "World dimension storage does not exist: " + dimensionFolder,
+                 null
+             );
+         }
+@@ -318,7 +351,7 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+ 
+         final Path targetFolder;
+         try {
+-            targetFolder = this.resolveWorldFolder(targetCreator.name());
++            targetFolder = this.resolveDimensionFolder(targetCreator.key());
+             if (Files.exists(targetFolder, LinkOption.NOFOLLOW_LINKS)) {
+                 return CompletableFuture.completedFuture(new WorldCloneResult(
+                     WorldCloneResult.Status.TARGET_EXISTS, null, "Target world folder already exists: " + targetFolder, null
+@@ -451,7 +484,8 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+                 throw new IllegalStateException("Template is busy: " + handle.tessera$getRuntimeLifecycleState());
+             }
+             return null;
+-        }).thenCompose(ignored -> RegionizedServer.getInstance().awaitWorldRegionTasks(handle));
++        }).thenCompose(ignored -> RegionizedServer.getInstance().awaitWorldRegionTasks(handle)
++            .orTimeout(30L, TimeUnit.SECONDS));
+ 
+         CompletionStage<Void> flushed = quiesced;
+         if (options.flushSource()) {
+@@ -482,7 +516,11 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+                 throw new CompletionException(unwrap(failure));
+             }
+             return snapshot;
+-        })).thenCompose(stage -> stage);
++        })).thenCompose(stage -> stage).whenComplete((snapshot, failure) -> {
++            if (failure != null) {
++                this.deleteTreeBestEffort(snapshotRoot);
++            }
++        });
+     }
+ 
+     @Override
+@@ -529,7 +567,7 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+                     }
+                     return null;
+                 }))
+-                .thenCompose(ignored -> RegionizedServer.getInstance().awaitWorldRegionTasks(context.handle))
++                .thenCompose(ignored -> this.awaitWorldRegionTasks(context.handle, options))
+                 .thenCompose(ignored -> this.onGlobal(() -> {
+                     this.ensureUnloadWithinDeadline(timedOut);
+                     if (!context.handle.players().isEmpty()) {
+@@ -579,6 +617,24 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+         }
+     }
+ 
++    private CompletionStage<Void> awaitWorldRegionTasks(
++        final ServerLevel handle,
++        final WorldUnloadOptions options
++    ) {
++        return RegionizedServer.getInstance().awaitWorldRegionTasks(handle)
++            .orTimeout(options.timeout().toMillis(), TimeUnit.MILLISECONDS)
++            .exceptionallyCompose(throwable -> {
++                final Throwable cause = unwrap(throwable);
++                if (cause instanceof java.util.concurrent.TimeoutException) {
++                    return CompletableFuture.failedFuture(new UnloadFailure(
++                        WorldUnloadResult.Status.TIMEOUT,
++                        "World unload timed out while draining region task queues"
++                    ));
++                }
++                return CompletableFuture.failedFuture(cause);
++            });
++    }
++
+     private CompletionStage<UnloadContext> beginUnload(final CraftWorld world) {
+         return this.onGlobal(() -> {
+             final ServerLevel handle = world.getHandle();
+@@ -745,6 +801,7 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+     ) {
+         final ServerLevel handle = world.getHandle();
+         return RegionizedServer.getInstance().awaitWorldRegionTasks(handle)
++            .orTimeout(30L, TimeUnit.SECONDS)
+             .exceptionally(throwable -> null)
+             .thenCompose(ignored -> this.onGlobal(() -> {
+                 handle.tessera$setRuntimeLifecycle(ServerLevel.RuntimeLifecycleState.UNLOADING);
+@@ -782,7 +839,10 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+                 chunks.add(world.getChunkAtAsync(centerX + dx, centerZ + dz, true, true));
+             }
+         }
+-        return CompletableFuture.allOf(chunks.toArray(CompletableFuture[]::new));
++        // Tessera - never leave a public lifecycle future pending forever if
++        // a chunk-system callback is lost during initialization.
++        return CompletableFuture.allOf(chunks.toArray(CompletableFuture[]::new))
++            .orTimeout(30L, TimeUnit.SECONDS);
+     }
+ 
+     private void copyReusableWorldData(
+@@ -866,6 +926,9 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+         }
+         final String first = relative.getName(0).toString().toLowerCase(Locale.ROOT);
+         final String file = relative.getFileName().toString().toLowerCase(Locale.ROOT);
++        final String parent = relative.getParent() == null
++            ? ""
++            : relative.getParent().toString().replace('\\', '/').toLowerCase(Locale.ROOT);
+         return first.equals("playerdata")
+             || first.equals("players")
+             || first.equals("stats")
+@@ -874,7 +937,8 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+             || file.equals("session.lock")
+             || file.equals("level.dat")
+             || file.equals("level.dat_old")
+-            || file.equals("paper_world_pdc.dat");
++            // Tessera - cloned worlds receive a fresh Paper world UUID.
++            || (parent.equals("data/paper") && file.equals("metadata.dat"));
+     }
+ 
+     static void validateRegionFile(final Path file) throws IOException {
+@@ -932,7 +996,7 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+         }
+     }
+ 
+-    private Path resolveWorldFolder(final String name) throws IOException {
++    private Path resolveLegacyWorldFolder(final String name) throws IOException {
+         final Path container = this.server.getWorldContainer().toPath().toAbsolutePath().normalize();
+         final Path resolved = container.resolve(name).normalize();
+         if (!resolved.getParent().equals(container)) {
+@@ -941,6 +1005,23 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+         return resolved;
+     }
+ 
++    private Path resolveDimensionFolder(final NamespacedKey key) throws IOException {
++        final Path container = this.server.getWorldContainer().toPath().toAbsolutePath().normalize();
++        final net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension =
++            org.bukkit.craftbukkit.util.CraftNamespacedKey.toResourceKey(
++                net.minecraft.core.registries.Registries.DIMENSION,
++                key
++            );
++        final Path resolved = this.server.getServer().storageSource
++            .getDimensionPath(dimension)
++            .toAbsolutePath()
++            .normalize();
++        if (!resolved.startsWith(container) || resolved.equals(container)) {
++            throw new IOException("Dimension folder escapes the configured world container: " + key);
++        }
++        return resolved;
++    }
++
+     private Path snapshotRoot() throws IOException {
+         final Path container = this.server.getWorldContainer().toPath().toAbsolutePath().normalize();
+         final Path root = container.resolve(".tessera").resolve("template-snapshots").normalize();
+@@ -1093,6 +1174,19 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+         } catch (final InterruptedException interrupted) {
+             Thread.currentThread().interrupt();
+         }
++        if (this.lifecycleExecutor.isTerminated()) {
++            try {
++                final Path snapshots = this.snapshotRoot();
++                this.deleteTreeBestEffort(snapshots);
++                Files.deleteIfExists(snapshots.getParent());
++            } catch (final IOException exception) {
++                this.server.getLogger().log(
++                    java.util.logging.Level.WARNING,
++                    "Could not remove runtime-world template snapshot cache",
++                    exception
++                );
++            }
++        }
+         this.templateSnapshots.clear();
+         this.shutdownComplete.set(true);
+         for (final PendingOperation<?> pending : List.copyOf(this.pendingOperations)) {
