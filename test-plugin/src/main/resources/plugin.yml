@@ -4,3 +4,7 @@ main: dev.tessera.smoke.RuntimeWorldLifecycleSmokePlugin
 api-version: '26.2'
 folia-supported: true
 description: Reproducible runtime-world and region-safe scoreboard smoke test
+commands:
+  tessera-console-context:
+    description: Verifies console and RCON command dispatch world context
+    usage: /tessera-console-context [marker]

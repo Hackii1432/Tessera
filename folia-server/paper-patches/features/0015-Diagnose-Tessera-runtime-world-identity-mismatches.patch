@@ -1,0 +1,156 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Tue, 4 Aug 2026 09:04:19 +0200
+Subject: [PATCH] Diagnose Tessera runtime world identity mismatches
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java b/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
+index 2efdc28b7df623c0e4a2d669ed1ec392db5687ac..a04a098f599e63948053958322c0de2f73ecf6ad 100644
+--- a/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
++++ b/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
+@@ -265,12 +265,32 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+                 return null;
+             }
+             final boolean partialLegacy = Files.exists(legacyFolder, LinkOption.NOFOLLOW_LINKS);
++            final NamespacedKey displayNameMatch = partialLegacy
++                ? null
++                : findStoredKeyByDisplayName(
++                    dimensionFolder.getParent().getParent(),
++                    creator.name(),
++                    creator.key()
++                );
++            if (displayNameMatch != null) {
++                return new WorldLoadResult(
++                    WorldLoadResult.Status.IDENTITY_MISMATCH,
++                    null,
++                    "Requested world key " + creator.key() + " does not exist at " + dimensionFolder
++                        + ", but the display name '" + creator.name() + "' uniquely matches stored key "
++                        + displayNameMatch + ". Persist World#getKey(), not World#getName(), and call "
++                        + "RuntimeWorldManager#loadWorldAsync(NamespacedKey).",
++                    null
++                );
++            }
+             return new WorldLoadResult(
+                 partialLegacy ? WorldLoadResult.Status.INCOMPLETE_WORLD : WorldLoadResult.Status.NOT_FOUND,
+                 null,
+                 partialLegacy
+                     ? "Legacy world storage requires a regular level.dat: " + legacyLevelDat
+-                    : "World dimension storage does not exist: " + dimensionFolder,
++                    : "World dimension storage for key " + creator.key() + " does not exist: " + dimensionFolder
++                        + ". Persist World#getKey(), not World#getName(), and load it with "
++                        + "RuntimeWorldManager#loadWorldAsync(NamespacedKey).",
+                 null
+             );
+         }
+@@ -1022,6 +1042,57 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+         return resolved;
+     }
+ 
++    // Tessera start - diagnose stable-key/display-name confusion
++    static @Nullable NamespacedKey findStoredKeyByDisplayName(
++        final Path dimensionsRoot,
++        final String displayName,
++        final NamespacedKey requestedKey
++    ) {
++        if (!Files.isDirectory(dimensionsRoot, LinkOption.NOFOLLOW_LINKS)) {
++            return null;
++        }
++
++        NamespacedKey match = null;
++        try (var namespaces = Files.newDirectoryStream(dimensionsRoot)) {
++            for (final Path namespacePath : namespaces) {
++                if (!Files.isDirectory(namespacePath, LinkOption.NOFOLLOW_LINKS)) {
++                    continue;
++                }
++                try (var keys = Files.newDirectoryStream(namespacePath)) {
++                    for (final Path keyPath : keys) {
++                        if (!Files.isDirectory(keyPath, LinkOption.NOFOLLOW_LINKS)) {
++                            continue;
++                        }
++                        final NamespacedKey candidate = NamespacedKey.fromString(
++                            namespacePath.getFileName() + ":" + keyPath.getFileName()
++                        );
++                        if (candidate == null
++                            || candidate.equals(requestedKey)
++                            || !displayNameForKey(candidate).equals(displayName)) {
++                            continue;
++                        }
++                        if (match != null && !match.equals(candidate)) {
++                            return null;
++                        }
++                        match = candidate;
++                    }
++                }
++            }
++        } catch (final IOException ignored) {
++            // This is an optional diagnostic. The authoritative requested-key
++            // validation and its NOT_FOUND result remain available.
++            return null;
++        }
++        return match;
++    }
++
++    private static String displayNameForKey(final NamespacedKey key) {
++        return key.getNamespace().equals(NamespacedKey.MINECRAFT)
++            ? key.getKey()
++            : key.getNamespace() + "_" + key.getKey();
++    }
++    // Tessera end - diagnose stable-key/display-name confusion
++
+     private Path snapshotRoot() throws IOException {
+         final Path container = this.server.getWorldContainer().toPath().toAbsolutePath().normalize();
+         final Path root = container.resolve(".tessera").resolve("template-snapshots").normalize();
+diff --git a/src/test/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManagerTest.java b/src/test/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManagerTest.java
+index 496dc14aab75004b238f015f5132ee1eb6c88fde..94182d3e78c1a25493dfc5575357dbfbf18c901f 100644
+--- a/src/test/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManagerTest.java
++++ b/src/test/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManagerTest.java
+@@ -6,11 +6,14 @@ import java.nio.channels.FileChannel;
+ import java.nio.file.Files;
+ import java.nio.file.Path;
+ import java.nio.file.StandardOpenOption;
++import org.bukkit.NamespacedKey;
+ import org.junit.jupiter.api.Tag;
+ import org.junit.jupiter.api.Test;
+ import org.junit.jupiter.api.io.TempDir;
+ 
+ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertNull;
+ import static org.junit.jupiter.api.Assertions.assertThrows;
+ 
+ @Tag("Normal")
+@@ -50,6 +53,34 @@ class CraftRuntimeWorldManagerTest {
+         assertThrows(IOException.class, () -> CraftRuntimeWorldManager.validateRegionFile(region));
+     }
+ 
++    @Test
++    void identifiesUniqueStoredKeyWhenDisplayNameWasMistakenForIdentity() throws Exception {
++        final Path dimensions = this.tempDir.resolve("dimensions");
++        Files.createDirectories(dimensions.resolve("mosaikchallenges").resolve("mcc_arena"));
++
++        assertEquals(
++            new NamespacedKey("mosaikchallenges", "mcc_arena"),
++            CraftRuntimeWorldManager.findStoredKeyByDisplayName(
++                dimensions,
++                "mosaikchallenges_mcc_arena",
++                NamespacedKey.minecraft("mosaikchallenges_mcc_arena")
++            )
++        );
++    }
++
++    @Test
++    void refusesToGuessWhenFlattenedDisplayNameIsAmbiguous() throws Exception {
++        final Path dimensions = this.tempDir.resolve("dimensions");
++        Files.createDirectories(dimensions.resolve("mosaikchallenges").resolve("mcc_arena"));
++        Files.createDirectories(dimensions.resolve("mosaikchallenges_mcc").resolve("arena"));
++
++        assertNull(CraftRuntimeWorldManager.findStoredKeyByDisplayName(
++            dimensions,
++            "mosaikchallenges_mcc_arena",
++            NamespacedKey.minecraft("mosaikchallenges_mcc_arena")
++        ));
++    }
++
+     private Path writeRegion(
+         final boolean overlap,
+         final int chunkLength,

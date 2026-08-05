@@ -1,0 +1,97 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Tue, 4 Aug 2026 09:04:26 +0200
+Subject: [PATCH] Test Tessera console command world contexts
+
+
+diff --git a/src/test/java/net/minecraft/server/dedicated/DedicatedServerConsoleSourceTestSuite.java b/src/test/java/net/minecraft/server/dedicated/DedicatedServerConsoleSourceTestSuite.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..3747e846b82e865fcc2157092beff7c46b4d0310
+--- /dev/null
++++ b/src/test/java/net/minecraft/server/dedicated/DedicatedServerConsoleSourceTestSuite.java
+@@ -0,0 +1,85 @@
++package net.minecraft.server.dedicated;
++
++import net.minecraft.commands.CommandSourceStack;
++import net.minecraft.commands.Commands;
++import net.minecraft.network.chat.Component;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.permissions.LevelBasedPermissionSet;
++import net.minecraft.world.phys.Vec2;
++import net.minecraft.world.phys.Vec3;
++import org.bukkit.support.environment.Normal;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.assertSame;
++import static org.junit.jupiter.api.Assertions.assertThrows;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++import static org.mockito.Mockito.mock;
++import static org.mockito.Mockito.when;
++
++@Normal
++class DedicatedServerConsoleSourceTestSuite {
++
++    @Test
++    void refreshesServerConsoleSourceCapturedBeforeWorldInitialization() {
++        final DedicatedServer server = mock(DedicatedServer.class);
++        final CommandSourceStack queued = stack(server, null);
++        final CommandSourceStack resolved = mock(CommandSourceStack.class);
++        when(resolved.getLevel()).thenReturn(mock(ServerLevel.class));
++        when(server.createCommandSourceStack()).thenReturn(resolved);
++
++        assertSame(resolved, DedicatedServer.tessera$resolveConsoleCommandSource(server, queued));
++    }
++
++    @Test
++    void preservesExplicitDimensionContext() {
++        final DedicatedServer server = mock(DedicatedServer.class);
++        final CommandSourceStack queued = stack(server, mock(ServerLevel.class));
++
++        assertSame(queued, DedicatedServer.tessera$resolveConsoleCommandSource(server, queued));
++    }
++
++    @Test
++    void rejectsConsoleExecutionWhenStartupStillHasNoDefaultWorld() {
++        final DedicatedServer server = mock(DedicatedServer.class);
++        final CommandSourceStack queued = stack(server, null);
++        final CommandSourceStack unresolved = stack(server, null);
++        when(server.createCommandSourceStack()).thenReturn(unresolved);
++
++        final IllegalStateException failure = assertThrows(
++            IllegalStateException.class,
++            () -> DedicatedServer.tessera$resolveConsoleCommandSource(server, queued)
++        );
++        assertTrue(failure.getMessage().contains("default server world"));
++    }
++
++    @Test
++    void commandExecutionReportsWorldlessSourceInsteadOfGameruleNpe() {
++        final DedicatedServer server = mock(DedicatedServer.class);
++        final CommandSourceStack worldless = stack(server, null);
++
++        final IllegalStateException failure = assertThrows(
++            IllegalStateException.class,
++            () -> Commands.executeCommandInContext(worldless, ignored -> {
++                throw new AssertionError("worldless command must not enter the execution queue");
++            })
++        );
++        assertTrue(failure.getMessage().contains("has no world context"));
++    }
++
++    private static CommandSourceStack stack(
++        final DedicatedServer server,
++        final ServerLevel level
++    ) {
++        return new CommandSourceStack(
++            server,
++            Vec3.ZERO,
++            Vec2.ZERO,
++            level,
++            LevelBasedPermissionSet.OWNER,
++            "Server",
++            Component.literal("Server"),
++            server,
++            null
++        );
++    }
++}

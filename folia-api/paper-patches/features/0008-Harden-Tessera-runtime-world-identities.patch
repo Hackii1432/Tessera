@@ -1,0 +1,223 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Tue, 4 Aug 2026 09:04:08 +0200
+Subject: [PATCH] Harden Tessera runtime world identities
+
+
+diff --git a/src/main/java/io/papermc/paper/world/RuntimeWorldManager.java b/src/main/java/io/papermc/paper/world/RuntimeWorldManager.java
+index 0cb6ab9eb4c2d976e2906ccc1db810c2260447dc..d8004d9b75f9adb17b736482f84c74a9344d3cdd 100644
+--- a/src/main/java/io/papermc/paper/world/RuntimeWorldManager.java
++++ b/src/main/java/io/papermc/paper/world/RuntimeWorldManager.java
+@@ -1,5 +1,6 @@
+ package io.papermc.paper.world;
+ 
++import java.util.Objects;
+ import java.util.concurrent.CompletionStage;
+ import org.bukkit.NamespacedKey;
+ import org.bukkit.World;
+@@ -33,6 +34,20 @@ public interface RuntimeWorldManager {
+      */
+     CompletionStage<WorldLoadResult> loadWorldAsync(WorldCreator creator);
+ 
++    /**
++     * Loads an existing world by its stable namespaced identity.
++     *
++     * <p>Persist {@link World#getKey()} rather than {@link World#getName()}.
++     * The Bukkit display name may be a flattened representation of this key
++     * and is not a persistent runtime-world identity.</p>
++     *
++     * @param key stable world key
++     * @return terminal load result
++     */
++    default CompletionStage<WorldLoadResult> loadWorldAsync(final NamespacedKey key) {
++        return this.loadWorldAsync(WorldCreator.ofKey(Objects.requireNonNull(key, "key")));
++    }
++
+     /**
+      * Creates an independent world from a validated template snapshot.
+      */
+diff --git a/src/main/java/io/papermc/paper/world/WorldCloneResult.java b/src/main/java/io/papermc/paper/world/WorldCloneResult.java
+index d9ba502056798567e4e4c70a3644da979317790a..b9fdf2347f65f2d2d8660ca6296761201b95a30f 100644
+--- a/src/main/java/io/papermc/paper/world/WorldCloneResult.java
++++ b/src/main/java/io/papermc/paper/world/WorldCloneResult.java
+@@ -1,5 +1,7 @@
+ package io.papermc.paper.world;
+ 
++import java.nio.file.Path;
++import org.bukkit.NamespacedKey;
+ import org.bukkit.World;
+ import org.jspecify.annotations.NullMarked;
+ import org.jspecify.annotations.Nullable;
+@@ -19,6 +21,24 @@ public record WorldCloneResult(
+         return this.status == Status.SUCCESS;
+     }
+ 
++    /**
++     * Returns the stable namespaced identity of the cloned world.
++     *
++     * @return cloned world key on success, otherwise {@code null}
++     */
++    public @Nullable NamespacedKey worldKey() {
++        return this.world == null ? null : this.world.getKey();
++    }
++
++    /**
++     * Returns the authoritative storage path of the cloned world.
++     *
++     * @return cloned world path on success, otherwise {@code null}
++     */
++    public @Nullable Path worldPath() {
++        return this.world == null ? null : this.world.getWorldPath();
++    }
++
+     public enum Status {
+         SUCCESS,
+         UNSUPPORTED,
+diff --git a/src/main/java/io/papermc/paper/world/WorldLoadResult.java b/src/main/java/io/papermc/paper/world/WorldLoadResult.java
+index d5deecc215d41c4e457755d82d9e44e612424cd6..c91f1ea3bc0cd2491412919c901fe694c11b6f9d 100644
+--- a/src/main/java/io/papermc/paper/world/WorldLoadResult.java
++++ b/src/main/java/io/papermc/paper/world/WorldLoadResult.java
+@@ -1,5 +1,7 @@
+ package io.papermc.paper.world;
+ 
++import java.nio.file.Path;
++import org.bukkit.NamespacedKey;
+ import org.bukkit.World;
+ import org.jspecify.annotations.NullMarked;
+ import org.jspecify.annotations.Nullable;
+@@ -24,6 +26,27 @@ public record WorldLoadResult(
+         return this.status == Status.SUCCESS;
+     }
+ 
++    /**
++     * Returns the stable namespaced identity of the loaded world.
++     *
++     * @return world key on success, otherwise {@code null}
++     */
++    public @Nullable NamespacedKey worldKey() {
++        return this.world == null ? null : this.world.getKey();
++    }
++
++    /**
++     * Returns the authoritative storage path of the loaded world.
++     *
++     * <p>Capture this value before unloading when the directory should be
++     * deleted after a successful unload.</p>
++     *
++     * @return actual world path on success, otherwise {@code null}
++     */
++    public @Nullable Path worldPath() {
++        return this.world == null ? null : this.world.getWorldPath();
++    }
++
+     public enum Status {
+         SUCCESS,
+         UNSUPPORTED,
+@@ -34,6 +57,7 @@ public record WorldLoadResult(
+         ALREADY_EXISTS,
+         ALREADY_LOADED,
+         NOT_FOUND,
++        IDENTITY_MISMATCH,
+         INCOMPLETE_WORLD,
+         CORRUPT_WORLD,
+         INITIALIZATION_FAILED,
+diff --git a/src/test/java/io/papermc/paper/world/RuntimeWorldApiTest.java b/src/test/java/io/papermc/paper/world/RuntimeWorldApiTest.java
+index 9b408ae98117d094727c66e8946584063741d644..a04b270b9b1d4bcd4e297848dd500f67b1a130f0 100644
+--- a/src/test/java/io/papermc/paper/world/RuntimeWorldApiTest.java
++++ b/src/test/java/io/papermc/paper/world/RuntimeWorldApiTest.java
+@@ -1,10 +1,20 @@
+ package io.papermc.paper.world;
+ 
++import java.lang.reflect.Proxy;
++import java.nio.file.Path;
+ import java.time.Duration;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.CompletionStage;
++import java.util.concurrent.atomic.AtomicReference;
++import org.bukkit.NamespacedKey;
++import org.bukkit.World;
++import org.bukkit.WorldCreator;
+ import org.junit.jupiter.api.Test;
+ 
+ import static org.junit.jupiter.api.Assertions.assertEquals;
+ import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.junit.jupiter.api.Assertions.assertNull;
++import static org.junit.jupiter.api.Assertions.assertSame;
+ import static org.junit.jupiter.api.Assertions.assertThrows;
+ import static org.junit.jupiter.api.Assertions.assertTrue;
+ 
+@@ -59,4 +69,74 @@ class RuntimeWorldApiTest {
+         assertTrue(new WorldUnloadResult(WorldUnloadResult.Status.SUCCESS, "ok", null).successful());
+         assertFalse(new WorldUnloadResult(WorldUnloadResult.Status.TIMEOUT, "late", null).successful());
+     }
++
++    @Test
++    void keyLoadOverloadUsesStableNamespacedIdentity() {
++        final NamespacedKey key = new NamespacedKey("mosaikchallenges", "mcc_arena");
++        final AtomicReference<WorldCreator> captured = new AtomicReference<>();
++        final WorldLoadResult expected = new WorldLoadResult(WorldLoadResult.Status.NOT_FOUND, null, "expected", null);
++        final RuntimeWorldManager manager = new RuntimeWorldManager() {
++            @Override
++            public boolean supportsRuntimeWorldLifecycle() {
++                return true;
++            }
++
++            @Override
++            public CompletionStage<WorldLoadResult> createWorldAsync(final WorldCreator creator) {
++                throw new UnsupportedOperationException();
++            }
++
++            @Override
++            public CompletionStage<WorldLoadResult> loadWorldAsync(final WorldCreator creator) {
++                captured.set(creator);
++                return CompletableFuture.completedFuture(expected);
++            }
++
++            @Override
++            public CompletionStage<WorldCloneResult> cloneWorldAsync(
++                final World source,
++                final NamespacedKey target,
++                final WorldCloneOptions options
++            ) {
++                throw new UnsupportedOperationException();
++            }
++
++            @Override
++            public CompletionStage<WorldUnloadResult> unloadWorldAsync(
++                final World world,
++                final WorldUnloadOptions options
++            ) {
++                throw new UnsupportedOperationException();
++            }
++        };
++
++        assertSame(expected, manager.loadWorldAsync(key).toCompletableFuture().join());
++        assertEquals(key, captured.get().key());
++        assertEquals("mosaikchallenges_mcc_arena", captured.get().name());
++    }
++
++    @Test
++    void loadAndCloneResultsExposeKeyAndActualPathWithoutChangingRecordShape() {
++        final NamespacedKey key = new NamespacedKey("mosaikchallenges", "mcc_arena");
++        final Path path = Path.of("world", "dimensions", "mosaikchallenges", "mcc_arena");
++        final World world = (World)Proxy.newProxyInstance(
++            World.class.getClassLoader(),
++            new Class<?>[] {World.class},
++            (proxy, method, arguments) -> switch (method.getName()) {
++                case "getKey" -> key;
++                case "getWorldPath" -> path;
++                case "toString" -> "world[" + key + "]";
++                default -> throw new UnsupportedOperationException(method.toString());
++            }
++        );
++
++        final WorldLoadResult load = new WorldLoadResult(WorldLoadResult.Status.SUCCESS, world, "ok", null);
++        final WorldCloneResult clone = new WorldCloneResult(WorldCloneResult.Status.SUCCESS, world, "ok", null);
++        assertEquals(key, load.worldKey());
++        assertEquals(path, load.worldPath());
++        assertEquals(key, clone.worldKey());
++        assertEquals(path, clone.worldPath());
++        assertNull(new WorldLoadResult(WorldLoadResult.Status.NOT_FOUND, null, "missing", null).worldKey());
++        assertNull(new WorldCloneResult(WorldCloneResult.Status.LOAD_FAILED, null, "failed", null).worldPath());
++    }
+ }

@@ -1,0 +1,82 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Tue, 4 Aug 2026 09:04:32 +0200
+Subject: [PATCH] Resolve Tessera console command world contexts
+
+
+diff --git a/net/minecraft/commands/Commands.java b/net/minecraft/commands/Commands.java
+index db9087b31d3c14d82134cd8df0e3ed3574abeeaa..13de80fa4e50e2cd5f0dc339f7d59ab4d2cb8f0d 100644
+--- a/net/minecraft/commands/Commands.java
++++ b/net/minecraft/commands/Commands.java
+@@ -138,6 +138,7 @@ import net.minecraft.server.commands.WeatherCommand;
+ import net.minecraft.server.commands.WhitelistCommand;
+ import net.minecraft.server.commands.WorldBorderCommand;
+ import net.minecraft.server.commands.data.DataCommands;
++import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.server.permissions.PermissionCheck;
+ import net.minecraft.server.permissions.PermissionProviderCheck;
+@@ -460,7 +461,19 @@ public class Commands {
+         ExecutionContext<CommandSourceStack> currentContext = CURRENT_EXECUTION_CONTEXT.get();
+         boolean isTopContext = currentContext == null;
+         if (isTopContext) {
+-            GameRules gameRules = context.getLevel().getGameRules();
++            // Tessera start - fail safely for invalid worldless command sources
++            // Legitimate console commands are rebound to the default world when the
++            // global-region queue executes them, and RCON constructs an overworld
++            // source at dispatch time. Keep this guard so another malformed source
++            // produces a useful diagnostic instead of an unrelated gamerule NPE.
++            final ServerLevel commandLevel = context.getLevel();
++            if (commandLevel == null) {
++                throw new IllegalStateException(
++                    "Command source '" + context.getTextName() + "' has no world context"
++                );
++            }
++            GameRules gameRules = commandLevel.getGameRules();
++            // Tessera end - fail safely for invalid worldless command sources
+             int chainLimit = Math.max(1, gameRules.get(GameRules.MAX_COMMAND_SEQUENCE_LENGTH));
+             int forkLimit = gameRules.get(GameRules.MAX_COMMAND_FORKS);
+ 
+diff --git a/net/minecraft/server/dedicated/DedicatedServer.java b/net/minecraft/server/dedicated/DedicatedServer.java
+index cd5551c0221ad2a7b5c7d452d8d91ffc9711c3ee..1bdb0d9054ecdf1fc043b693dbee8a01ced0e32e 100644
+--- a/net/minecraft/server/dedicated/DedicatedServer.java
++++ b/net/minecraft/server/dedicated/DedicatedServer.java
+@@ -574,10 +574,37 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+             if (event.isCancelled()) continue;
+             input = new ConsoleInput(event.getCommand(), input.source);
+             // CraftBukkit end
+-            this.getCommands().performPrefixedCommand(input.source, input.msg);
++            // Tessera start - resolve console worlds when the queued command is executed
++            // PaperConsole starts before the startup worlds exist. A CommandSourceStack
++            // captured by the input thread at that time permanently contains a null
++            // level even though this queue is not drained until the global region is
++            // running. Refresh only the server console source; explicit dimension,
++            // entity, command-block, and plugin sources retain their original context.
++            final CommandSourceStack source = tessera$resolveConsoleCommandSource(this, input.source);
++            this.getCommands().performPrefixedCommand(source, input.msg);
++            // Tessera end - resolve console worlds when the queued command is executed
+         }
+     }
+ 
++    // Tessera start - resolve console worlds when the queued command is executed
++    static CommandSourceStack tessera$resolveConsoleCommandSource(
++        final DedicatedServer server,
++        final CommandSourceStack queuedSource
++    ) {
++        if (queuedSource.getLevel() != null || queuedSource.source != server) {
++            return queuedSource;
++        }
++
++        final CommandSourceStack resolved = server.createCommandSourceStack();
++        if (resolved.getLevel() == null) {
++            throw new IllegalStateException(
++                "Cannot execute a queued console command before a default server world is available"
++            );
++        }
++        return resolved;
++    }
++    // Tessera end - resolve console worlds when the queued command is executed
++
+     @Override
+     public boolean isDedicatedServer() {
+         return true;

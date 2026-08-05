@@ -1,0 +1,274 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Sat, 1 Aug 2026 13:54:15 +0200
+Subject: [PATCH] Forgive village defense aggression after player death
+
+
+diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+index dff4f9d8cf3d1ff7ce0b526a7e3425b78c007e01..6071ea07ac8b76ef38ccf7ad7dea90399c161e78 100644
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -22,6 +22,7 @@ import java.util.Set;
+ import java.util.UUID;
+ import java.util.concurrent.CompletableFuture;
+ import java.util.concurrent.ConcurrentHashMap;
++import java.util.concurrent.atomic.AtomicLong;
+ import java.util.stream.Collectors;
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.CrashReport;
+@@ -276,6 +277,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+     private @Nullable BlockPos raidOmenPosition;
+     private Vec3 lastKnownClientMovement = Vec3.ZERO;
+     private Input lastClientInput = Input.EMPTY;
++    // Tessera start - forgive village-defense aggression after player death
++    // This counter is persisted across deaths and reloads. Iron golems remember
++    // the value they forgave, so a later villager offense can make them hostile
++    // again without deleting the player's vanilla villager reputation.
++    private final AtomicLong tesseraVillagerOffenseCounter = new AtomicLong();
++    // Tessera end - forgive village-defense aggression after player death
+     // Tessera start - restore vanilla ender pearl ownership
+     // A pearl and its owner may be ticked by different Folia regions. The set is
+     // therefore concurrent; entity data itself is read through region-owned NBT
+@@ -665,6 +672,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         this.respawnConfig = input.read("respawn", ServerPlayer.RespawnConfig.CODEC).orElse(null);
+         this.spawnExtraParticlesOnFall = input.getBooleanOr("spawn_extra_particles_on_fall", false);
+         this.raidOmenPosition = input.read("raid_omen_position", BlockPos.CODEC).orElse(null);
++        this.tesseraVillagerOffenseCounter.set(input.getLongOr("Tessera.VillagerOffenseCounter", 0L)); // Tessera - forgive village-defense aggression
+         this.loadGameTypes(input); // Paper - Expand PlayerGameModeChangeEvent
+         this.setShoulderEntityLeft(input.read("ShoulderEntityLeft", CompoundTag.CODEC).orElseGet(CompoundTag::new));
+         this.setShoulderEntityRight(input.read("ShoulderEntityRight", CompoundTag.CODEC).orElseGet(CompoundTag::new));
+@@ -699,6 +707,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         output.storeNullable("respawn", ServerPlayer.RespawnConfig.CODEC, this.respawnConfig);
+         output.putBoolean("spawn_extra_particles_on_fall", this.spawnExtraParticlesOnFall);
+         output.storeNullable("raid_omen_position", BlockPos.CODEC, this.raidOmenPosition);
++        output.putLong("Tessera.VillagerOffenseCounter", this.tesseraVillagerOffenseCounter.get()); // Tessera - forgive village-defense aggression
+         this.saveEnderPearls(output);
+         if (!this.getShoulderEntityLeft().isEmpty()) {
+             output.store("ShoulderEntityLeft", CompoundTag.CODEC, this.getShoulderEntityLeft());
+@@ -1422,7 +1431,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+ 
+         this.removeEntitiesOnShoulder();
+         if (this.level().getGameRules().get(GameRules.FORGIVE_DEAD_PLAYERS)) {
+-            this.tellNeutralMobsThatIDied(source.getEntity()); // Folia - ensure the killing neutral mob is notified even across a region boundary
++            this.tellNeutralMobsThatIDied(source.getEntity(), this.tesseraVillagerOffenseCounter.get()); // Folia - ensure the killing neutral mob is notified even across a region boundary
+         }
+ 
+         // SPIGOT-5478 must be called manually now
+@@ -1473,13 +1482,13 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         this.connection.markClientUnloadedAfterDeath();
+     }
+ 
+-    private void tellNeutralMobsThatIDied(final @Nullable Entity killingEntity) {
++    private void tellNeutralMobsThatIDied(final @Nullable Entity killingEntity, final long villagerOffenseCounter) {
+         // Folia start - the region-local Vanilla search below can miss the actual killer at a region boundary
+         if (killingEntity instanceof NeutralMob) {
+             final UUID deadPlayerUuid = this.getUUID();
+             killingEntity.getBukkitEntity().taskScheduler.scheduleOrExecute(entity -> {
+                 if (entity instanceof NeutralMob neutralMob && entity.level() instanceof ServerLevel entityLevel) {
+-                    neutralMob.playerDied(entityLevel, deadPlayerUuid);
++                    neutralMob.playerDied(entityLevel, deadPlayerUuid, villagerOffenseCounter);
+                 }
+             });
+         }
+@@ -1489,7 +1498,15 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+             .getEntitiesOfClass(Mob.class, aabb, EntitySelector.NO_SPECTATORS)
+             .stream()
+             .filter(mob -> mob instanceof NeutralMob)
+-            .forEach(mob -> ((NeutralMob)mob).playerDied(this.level(), this));
++            .forEach(mob -> ((NeutralMob)mob).playerDied(this.level(), this.getUUID(), villagerOffenseCounter));
++    }
++
++    public long tessera$getVillagerOffenseCounter() {
++        return this.tesseraVillagerOffenseCounter.get();
++    }
++
++    public void tessera$recordVillagerOffense() {
++        this.tesseraVillagerOffenseCounter.incrementAndGet();
+     }
+ 
+     @Override
+@@ -2728,6 +2745,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         this.enteredNetherPosition = oldPlayer.enteredNetherPosition;
+         this.currentExplosionImpactPos = oldPlayer.currentExplosionImpactPos;
+         this.currentExplosionCause = oldPlayer.currentExplosionCause;
++        this.tesseraVillagerOffenseCounter.set(oldPlayer.tesseraVillagerOffenseCounter.get()); // Tessera - forgive village-defense aggression
+         this.chunkTrackingView = oldPlayer.chunkTrackingView;
+         this.requestedDebugSubscriptions = oldPlayer.requestedDebugSubscriptions;
+         this.setShoulderEntityLeft(oldPlayer.getShoulderEntityLeft());
+diff --git a/net/minecraft/world/entity/NeutralMob.java b/net/minecraft/world/entity/NeutralMob.java
+index 605b4f171fc6b1835b84ff0fffa0ad3a203d05c0..e66e9fc11b4a76de842b5c39bf0515ceebc159c7 100644
+--- a/net/minecraft/world/entity/NeutralMob.java
++++ b/net/minecraft/world/entity/NeutralMob.java
+@@ -137,6 +137,11 @@ public interface NeutralMob {
+             }
+         }
+     }
++
++    // Tessera - supplies player state needed by neutral mobs with additional targeting systems
++    default void playerDied(final ServerLevel level, final UUID playerUuid, final long villagerOffenseCounter) {
++        this.playerDied(level, playerUuid);
++    }
+     // Folia end - forgive a dead player without accessing its entity from another region
+ 
+     default void forgetCurrentTargetAndRefreshUniversalAnger() {
+diff --git a/net/minecraft/world/entity/ai/goal/target/DefendVillageTargetGoal.java b/net/minecraft/world/entity/ai/goal/target/DefendVillageTargetGoal.java
+index 83ce3e3e5b289f5d5dfb9589a16102b0607ab8eb..cd5aae1bd7baf5ee355291e1f15d66803f4a0d8e 100644
+--- a/net/minecraft/world/entity/ai/goal/target/DefendVillageTargetGoal.java
++++ b/net/minecraft/world/entity/ai/goal/target/DefendVillageTargetGoal.java
+@@ -3,6 +3,7 @@ package net.minecraft.world.entity.ai.goal.target;
+ import java.util.EnumSet;
+ import java.util.List;
+ import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.ai.goal.Goal;
+ import net.minecraft.world.entity.ai.targeting.TargetingConditions;
+@@ -25,6 +26,7 @@ public class DefendVillageTargetGoal extends TargetGoal {
+ 
+     @Override
+     public boolean canUse() {
++        this.potentialTarget = null; // Tessera - do not retain a target that was forgiven after death
+         AABB grow = this.golem.getBoundingBox().inflate(10.0, 8.0, 10.0);
+         ServerLevel level = getServerLevel(this.golem);
+         List<? extends LivingEntity> villagers = level.getNearbyEntities(Villager.class, this.attackTargeting, this.golem, grow);
+@@ -35,7 +37,9 @@ public class DefendVillageTargetGoal extends TargetGoal {
+ 
+             for (Player player : players) {
+                 int reputation = villager.getPlayerReputation(player);
+-                if (reputation <= -100) {
++                if (reputation <= -100
++                    && (!(player instanceof ServerPlayer serverPlayer)
++                        || !this.golem.tessera$isVillagePlayerForgiven(serverPlayer.getUUID(), serverPlayer.tessera$getVillagerOffenseCounter()))) {
+                     this.potentialTarget = player;
+                 }
+             }
+diff --git a/net/minecraft/world/entity/animal/golem/IronGolem.java b/net/minecraft/world/entity/animal/golem/IronGolem.java
+index 21b481765faca951c8baf20a7a63cf03d77db33a..c5024b6809378ea311ea7b1462987d97291fb6dd 100644
+--- a/net/minecraft/world/entity/animal/golem/IronGolem.java
++++ b/net/minecraft/world/entity/animal/golem/IronGolem.java
+@@ -1,6 +1,10 @@
+ package net.minecraft.world.entity.animal.golem;
+ 
++import java.util.HashMap;
++import java.util.Map;
++import java.util.UUID;
+ import net.minecraft.core.BlockPos;
++import net.minecraft.core.UUIDUtil;
+ import net.minecraft.network.syncher.EntityDataAccessor;
+ import net.minecraft.network.syncher.EntityDataSerializers;
+ import net.minecraft.network.syncher.SynchedEntityData;
+@@ -59,6 +63,8 @@ public class IronGolem extends AbstractGolem implements NeutralMob {
+     private static final UniformInt PERSISTENT_ANGER_TIME = TimeUtil.rangeOfSeconds(20, 39);
+     private long persistentAngerEndTime;
+     private @Nullable EntityReference<LivingEntity> persistentAngerTarget;
++    // Tessera - player UUID -> villager-offense generation forgiven by death
++    private final Map<UUID, Long> tesseraForgivenVillagePlayers = new HashMap<>();
+ 
+     public IronGolem(final EntityType<? extends IronGolem> type, final Level level) {
+         super(type, level);
+@@ -144,6 +150,14 @@ public class IronGolem extends AbstractGolem implements NeutralMob {
+         super.addAdditionalSaveData(output);
+         output.putBoolean("PlayerCreated", this.isPlayerCreated());
+         this.addPersistentAngerSaveData(output);
++        if (!this.tesseraForgivenVillagePlayers.isEmpty()) {
++            ValueOutput.ValueOutputList forgivenPlayers = output.childrenList("Tessera.ForgivenVillagePlayers");
++            this.tesseraForgivenVillagePlayers.forEach((playerUuid, offenseCounter) -> {
++                ValueOutput entry = forgivenPlayers.addChild();
++                entry.store("Player", UUIDUtil.CODEC, playerUuid);
++                entry.putLong("VillagerOffenseCounter", offenseCounter);
++            });
++        }
+     }
+ 
+     @Override
+@@ -151,6 +165,12 @@ public class IronGolem extends AbstractGolem implements NeutralMob {
+         super.readAdditionalSaveData(input);
+         this.setPlayerCreated(input.getBooleanOr("PlayerCreated", false));
+         this.readPersistentAngerSaveData(this.level(), input);
++        this.tesseraForgivenVillagePlayers.clear();
++        for (ValueInput entry : input.childrenListOrEmpty("Tessera.ForgivenVillagePlayers")) {
++            entry.read("Player", UUIDUtil.CODEC)
++                .ifPresent(playerUuid -> entry.getLong("VillagerOffenseCounter")
++                    .ifPresent(offenseCounter -> this.tesseraForgivenVillagePlayers.put(playerUuid, offenseCounter)));
++        }
+     }
+ 
+     @Override
+@@ -178,6 +198,30 @@ public class IronGolem extends AbstractGolem implements NeutralMob {
+         return this.persistentAngerTarget;
+     }
+ 
++    @Override
++    public void playerDied(final ServerLevel level, final UUID playerUuid, final long villagerOffenseCounter) {
++        NeutralMob.super.playerDied(level, playerUuid, villagerOffenseCounter);
++        if (level.getGameRules().get(net.minecraft.world.level.gamerules.GameRules.FORGIVE_DEAD_PLAYERS)) {
++            this.tesseraForgivenVillagePlayers.put(playerUuid, villagerOffenseCounter);
++        }
++    }
++
++    public boolean tessera$isVillagePlayerForgiven(final UUID playerUuid, final long villagerOffenseCounter) {
++        Long forgivenCounter = this.tesseraForgivenVillagePlayers.get(playerUuid);
++        if (forgivenCounter == null) {
++            return false;
++        }
++        if (forgivenCounter.longValue() != villagerOffenseCounter) {
++            this.tesseraForgivenVillagePlayers.remove(playerUuid);
++            return false;
++        }
++        return true;
++    }
++
++    public void tessera$revokeVillagePlayerForgiveness(final UUID playerUuid) {
++        this.tesseraForgivenVillagePlayers.remove(playerUuid);
++    }
++
+     private float getAttackDamage() {
+         return (float)this.getAttributeValue(Attributes.ATTACK_DAMAGE);
+     }
+diff --git a/net/minecraft/world/entity/npc/villager/Villager.java b/net/minecraft/world/entity/npc/villager/Villager.java
+index f649c46cc9a34e646f8da3244866c6e011d30aa3..56fff5664b325f86d143b3fc4af8a9147fe5139d 100644
+--- a/net/minecraft/world/entity/npc/villager/Villager.java
++++ b/net/minecraft/world/entity/npc/villager/Villager.java
+@@ -9,6 +9,7 @@ import java.util.ArrayList;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.Optional;
++import java.util.UUID;
+ import java.util.function.BiPredicate;
+ import net.minecraft.SharedConstants;
+ import net.minecraft.core.GlobalPos;
+@@ -25,6 +26,7 @@ import net.minecraft.network.syncher.SynchedEntityData;
+ import net.minecraft.resources.ResourceKey;
+ import net.minecraft.server.MinecraftServer;
+ import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.sounds.SoundEvent;
+ import net.minecraft.sounds.SoundEvents;
+ import net.minecraft.stats.Stats;
+@@ -73,6 +75,7 @@ import net.minecraft.world.entity.ai.village.ReputationEventType;
+ import net.minecraft.world.entity.ai.village.poi.PoiManager;
+ import net.minecraft.world.entity.ai.village.poi.PoiType;
+ import net.minecraft.world.entity.ai.village.poi.PoiTypes;
++import net.minecraft.world.entity.animal.golem.IronGolem;
+ import net.minecraft.world.entity.item.ItemEntity;
+ import net.minecraft.world.entity.monster.Witch;
+ import net.minecraft.world.entity.npc.InventoryCarrier;
+@@ -929,6 +932,18 @@ public class Villager extends AbstractVillager implements VillagerDataHolder, Re
+ 
+     @Override
+     public void onReputationEventFrom(final ReputationEventType type, final Entity source) {
++        // Tessera start - a new villager offense revokes death forgiveness for village-defense targeting
++        if ((type == ReputationEventType.VILLAGER_HURT || type == ReputationEventType.VILLAGER_KILLED) && source instanceof ServerPlayer serverPlayer) {
++            final UUID playerUuid = serverPlayer.getUUID();
++            serverPlayer.tessera$recordVillagerOffense(); // Atomic: safe even when player and villager belong to different Folia regions
++
++            if (this.level() instanceof ServerLevel serverLevel) {
++                AABB golemSearchBox = this.getBoundingBox().inflate(16.0, 10.0, 16.0);
++                serverLevel.getEntitiesOfClass(IronGolem.class, golemSearchBox)
++                    .forEach(golem -> golem.tessera$revokeVillagePlayerForgiveness(playerUuid));
++            }
++        }
++        // Tessera end - a new villager offense revokes death forgiveness for village-defense targeting
+         if (type == ReputationEventType.ZOMBIE_VILLAGER_CURED) {
+             this.gossips.add(source.getUUID(), GossipType.MAJOR_POSITIVE, 20);
+             this.gossips.add(source.getUUID(), GossipType.MINOR_POSITIVE, 25);

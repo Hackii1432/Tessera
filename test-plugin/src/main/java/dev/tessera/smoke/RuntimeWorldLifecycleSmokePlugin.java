@@ -37,6 +37,8 @@ import org.bukkit.World;
 import org.bukkit.WorldCreator;
 import org.bukkit.WorldType;
 import org.bukkit.block.Chest;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
@@ -86,6 +88,10 @@ public final class RuntimeWorldLifecycleSmokePlugin extends JavaPlugin {
             return;
         }
         this.worlds = Bukkit.getRuntimeWorldManager();
+        if (this.mode.equals("console-context")) {
+            this.getLogger().info("TESSERA_CONSOLE_CONTEXT_PLUGIN_READY");
+            return;
+        }
 
         final CompletionStage<Void> run = switch (this.mode) {
             case "full" -> this.runFullSuite();
@@ -98,7 +104,10 @@ public final class RuntimeWorldLifecycleSmokePlugin extends JavaPlugin {
             );
         };
 
-        final long watchdogMinutes = this.mode.equals("full") ? 12L : 2L;
+        // Tessera test: the full matrix normally completes in well under one
+        // minute after enable. Keep enough room for slow CI disks, but fail a
+        // stalled lifecycle in three minutes instead of waiting twelve.
+        final long watchdogMinutes = this.mode.equals("full") ? 3L : 2L;
         run.toCompletableFuture()
             .orTimeout(watchdogMinutes, TimeUnit.MINUTES)
             .whenComplete((ignored, failure) -> {
@@ -140,6 +149,7 @@ public final class RuntimeWorldLifecycleSmokePlugin extends JavaPlugin {
             .thenCompose(ignored -> this.createTemplateWorld())
             .thenCompose(ignored -> this.populateTemplate())
             .thenCompose(ignored -> this.unloadTemplateForReload())
+            .thenCompose(ignored -> this.rejectFlattenedTemplateIdentity())
             .thenCompose(ignored -> this.reloadTemplate())
             .thenCompose(ignored -> this.verifyTemplate(this.template))
             .thenCompose(ignored -> this.runCloneBatch(2))
@@ -305,9 +315,19 @@ public final class RuntimeWorldLifecycleSmokePlugin extends JavaPlugin {
 
     private CompletionStage<Void> reloadTemplate() {
         return this.requireLoad(
-            this.worlds.loadWorldAsync(WorldCreator.ofKey(this.key("smoke_template"))),
+            this.worlds.loadWorldAsync(this.key("smoke_template")),
             "load existing template"
         ).thenAccept(world -> this.template = world);
+    }
+
+    @SuppressWarnings("UnstableApiUsage")
+    private CompletionStage<Void> rejectFlattenedTemplateIdentity() {
+        return this.worlds.loadWorldAsync(new WorldCreator(this.template.getName()))
+            .thenAccept(result -> this.check(
+                result.status() == WorldLoadResult.Status.IDENTITY_MISMATCH,
+                "flattened display name rejected with stable-key diagnostic",
+                result.toString()
+            ));
     }
 
     private CompletionStage<Void> verifyTemplate(final World world) {
@@ -655,8 +675,38 @@ public final class RuntimeWorldLifecycleSmokePlugin extends JavaPlugin {
     ) {
         return operation.thenApply(result -> {
             this.check(result.successful(), label, result.toString());
-            return Objects.requireNonNull(result.world());
+            final World world = Objects.requireNonNull(result.world());
+            this.check(
+                Objects.equals(result.worldKey(), world.getKey()),
+                label + " result key",
+                String.valueOf(result.worldKey())
+            );
+            this.check(
+                Objects.equals(result.worldPath(), world.getWorldPath()),
+                label + " result path",
+                String.valueOf(result.worldPath())
+            );
+            return world;
         });
+    }
+
+    @Override
+    public boolean onCommand(
+        final CommandSender sender,
+        final Command command,
+        final String label,
+        final String[] args
+    ) {
+        if (!command.getName().equals("tessera-console-context")) {
+            return false;
+        }
+        final String marker = "TESSERA_CONSOLE_CONTEXT_OK sender="
+            + sender.getClass().getSimpleName()
+            + " args="
+            + String.join(",", args);
+        this.getLogger().info(marker);
+        sender.sendMessage(marker);
+        return true;
     }
 
     private CompletionStage<Void> onGlobal(final Runnable operation) {

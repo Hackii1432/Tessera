@@ -122,6 +122,40 @@ existing complete world. Names are limited to 1–64 characters from
 The world name, dimension key, target folder, and current server registrations
 must all be unique.
 
+### Stable identity across restarts
+
+Runtime worlds have three deliberately different values:
+
+| Value | Example | Purpose |
+| --- | --- | --- |
+| `World#getKey()` | `mosaikchallenges:mcc_arena` | Stable identity to persist and reload |
+| `World#getName()` | `mosaikchallenges_mcc_arena` | Bukkit display/compatibility name only |
+| `World#getWorldPath()` | `<level>/dimensions/mosaikchallenges/mcc_arena` | Authoritative storage path |
+
+Persist `world.getKey().toString()`. On restart, parse that value with
+`NamespacedKey.fromString(...)` and call the typed overload:
+
+```java
+NamespacedKey key = Objects.requireNonNull(
+    NamespacedKey.fromString(config.getString("arena-world-key"))
+);
+
+CompletionStage<WorldLoadResult> load = Bukkit.getRuntimeWorldManager()
+    .loadWorldAsync(key);
+```
+
+Do not persist `World#getName()` and do not derive a namespaced key or directory
+from underscores in that display name. Such a derivation is ambiguous. If a
+legacy `WorldCreator(String)` request uses a flattened display name and Tessera
+can identify exactly one stored key with that display name, loading fails with
+`IDENTITY_MISMATCH` and names the key that must be requested explicitly. Tessera
+never guesses or automatically loads a different identity.
+
+Successful `WorldLoadResult` and `WorldCloneResult` values expose the same
+information directly through `worldKey()` and `worldPath()`. Capture the path
+before unload and delete it only after `WorldUnloadResult#successful()` returns
+`true`.
+
 Paper 26.2 stores API-created worlds as independent dimension roots below the
 primary level (`<level>/dimensions/<namespace>/<key>`). Each root owns its
 `region`, `entities`, `poi`, and per-dimension `data` trees. The primary
@@ -220,9 +254,7 @@ CompletionStage<World> farming = requireLoad(
 );
 
 CompletionStage<World> template = requireLoad(
-    worlds.loadWorldAsync(
-        WorldCreator.ofKey(new NamespacedKey(plugin, "mab_template"))
-    )
+    worlds.loadWorldAsync(new NamespacedKey(plugin, "mab_template"))
 );
 
 CompletionStage<World> teamA = template.thenCompose(source ->
