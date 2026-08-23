@@ -1,0 +1,749 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Sat, 8 Aug 2026 17:04:23 +0200
+Subject: [PATCH] Restore Folia-safe locator bar
+
+
+diff --git a/net/minecraft/commands/Commands.java b/net/minecraft/commands/Commands.java
+index 13de80fa4e50e2cd5f0dc339f7d59ab4d2cb8f0d..bdf75ad1d720a2409a6ae8a50522a7f868b4337b 100644
+--- a/net/minecraft/commands/Commands.java
++++ b/net/minecraft/commands/Commands.java
+@@ -262,7 +262,7 @@ public class Commands {
+         TimeCommand.register(this.dispatcher, context);
+         TitleCommand.register(this.dispatcher, context);
+         //TriggerCommand.register(this.dispatcher); // Folia - region threading - TODO later
+-        //WaypointCommand.register(this.dispatcher, context); // Folia - region threading - TODO later
++        WaypointCommand.register(this.dispatcher, context); // Tessera - region-safe locator bar
+         WeatherCommand.register(this.dispatcher);
+         WorldBorderCommand.register(this.dispatcher);
+         if (JvmProfiler.INSTANCE.isAvailable()) {
+diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
+index 73dcb704482520c69f2fed46f665e6751bed0e2d..bc405b5fdfff27c42371de36ec93f594d7a8ba94 100644
+--- a/net/minecraft/server/MinecraftServer.java
++++ b/net/minecraft/server/MinecraftServer.java
+@@ -3096,12 +3096,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+         } else if (rule == GameRules.LOCATOR_BAR) {
+             // this.getAllLevels().forEach(level -> { // Paper - per-world game rules
+                 ServerWaypointManager waypointManager = level.getWaypointManager();
+-                waypointManager.locatorBarEnabled = (Boolean) value; // Paper - optimize ServerWaypointManager with locator bar disabled
+-                if ((Boolean)value) {
+-                    level.players().forEach(waypointManager::updatePlayer);
+-                } else {
+-                    waypointManager.breakAllConnections();
+-                }
++                waypointManager.setLocatorBarEnabled((Boolean)value); // Tessera - region-safe locator bar
+             // }); // Paper - per-world game rules
+         } else if (rule == GameRules.SPAWN_MONSTERS) {
+             level.setSpawnSettings(level.isSpawningMonsters()); // Paper - per-world game rules
+diff --git a/net/minecraft/server/commands/WaypointCommand.java b/net/minecraft/server/commands/WaypointCommand.java
+index 1a826c3d697ab01a84a4b182d4185b1001b8d0fa..28c652edfc2a6323d4fe2c88da78d2bd1a9ff5f6 100644
+--- a/net/minecraft/server/commands/WaypointCommand.java
++++ b/net/minecraft/server/commands/WaypointCommand.java
+@@ -3,7 +3,6 @@ package net.minecraft.server.commands;
+ import com.mojang.brigadier.CommandDispatcher;
+ import java.util.HexFormat;
+ import java.util.Optional;
+-import java.util.Set;
+ import java.util.function.Consumer;
+ import java.util.function.Function;
+ import net.minecraft.commands.CommandBuildContext;
+@@ -21,6 +20,7 @@ import net.minecraft.network.chat.ComponentUtils;
+ import net.minecraft.network.chat.HoverEvent;
+ import net.minecraft.resources.ResourceKey;
+ import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.waypoints.ServerWaypointManager;
+ import net.minecraft.util.ARGB;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.scores.TeamColor;
+@@ -129,7 +129,7 @@ public class WaypointCommand {
+ 
+     private static int listWaypoints(final CommandSourceStack source) {
+         ServerLevel level = source.getLevel();
+-        Set<WaypointTransmitter> waypoints = level.getWaypointManager().transmitters();
++        java.util.List<ServerWaypointManager.WaypointInfo> waypoints = level.getWaypointManager().waypointInfo();
+         String dimension = level.dimension().identifier().toString();
+         if (waypoints.isEmpty()) {
+             source.sendSuccess(() -> Component.translatable("commands.waypoint.list.empty", dimension), false);
+@@ -138,23 +138,19 @@ public class WaypointCommand {
+             Component waypointNames = ComponentUtils.formatList(
+                 waypoints.stream()
+                     .map(
+-                        transmitter -> {
+-                            if (transmitter instanceof LivingEntity livingEntity) {
+-                                BlockPos pos = livingEntity.blockPosition();
+-                                return livingEntity.getFeedbackDisplayName()
+-                                    .copy()
+-                                    .withStyle(
+-                                        s -> s.withClickEvent(
+-                                                new ClickEvent.SuggestCommand(
+-                                                    "/execute in " + dimension + " run tp @s " + pos.getX() + " " + pos.getY() + " " + pos.getZ()
+-                                                )
++                        waypoint -> {
++                            BlockPos pos = waypoint.blockPosition();
++                            return waypoint.displayName()
++                                .copy()
++                                .withStyle(
++                                    s -> s.withClickEvent(
++                                            new ClickEvent.SuggestCommand(
++                                                "/execute in " + dimension + " run tp @s " + pos.getX() + " " + pos.getY() + " " + pos.getZ()
+                                             )
+-                                            .withHoverEvent(new HoverEvent.ShowText(Component.translatable("chat.coordinates.tooltip")))
+-                                            .withColor(transmitter.waypointIcon().color.orElse(-1))
+-                                    );
+-                            } else {
+-                                return Component.literal(transmitter.toString());
+-                            }
++                                        )
++                                        .withHoverEvent(new HoverEvent.ShowText(Component.translatable("chat.coordinates.tooltip")))
++                                        .withColor(waypoint.color().orElse(-1))
++                                );
+                         }
+                     )
+                     .toList(),
+@@ -166,9 +162,16 @@ public class WaypointCommand {
+     }
+ 
+     private static void mutateIcon(final CommandSourceStack source, final WaypointTransmitter waypoint, final Consumer<Waypoint.Icon> iconConsumer) {
+-        ServerLevel level = (waypoint instanceof LivingEntity livingEntity) ? (ServerLevel) livingEntity.level() : source.getLevel(); // Paper - MC-300685 use level of waypoint if it's a living entity for broadcast
+-        level.getWaypointManager().untrackWaypoint(waypoint);
+-        iconConsumer.accept(waypoint.waypointIcon());
+-        level.getWaypointManager().trackWaypoint(waypoint);
++        if (waypoint instanceof LivingEntity livingEntity) {
++            livingEntity.getBukkitEntity().taskScheduler.scheduleOrExecute(entity -> {
++                if (!(entity instanceof LivingEntity currentEntity)) {
++                    return;
++                }
++
++                WaypointTransmitter currentWaypoint = currentEntity;
++                iconConsumer.accept(currentWaypoint.waypointIcon());
++                ((ServerLevel)currentEntity.level()).getWaypointManager().remakeConnections(currentWaypoint);
++            });
++        }
+     }
+ }
+diff --git a/net/minecraft/server/waypoints/ServerWaypointManager.java b/net/minecraft/server/waypoints/ServerWaypointManager.java
+index b455050c16946f54fc1d9893173777e39baf4290..5797a95a2e1df3a903b76ce991b0e84965f6288d 100644
+--- a/net/minecraft/server/waypoints/ServerWaypointManager.java
++++ b/net/minecraft/server/waypoints/ServerWaypointManager.java
+@@ -1,127 +1,542 @@
+ package net.minecraft.server.waypoints;
+ 
+-import com.google.common.collect.HashBasedTable;
+-import com.google.common.collect.ImmutableSet;
+-import com.google.common.collect.Sets;
+-import com.google.common.collect.Table;
+-import com.google.common.collect.Tables;
+-import com.google.common.collect.Sets.SetView;
++import java.util.ArrayList;
++import java.util.HashMap;
+ import java.util.HashSet;
++import java.util.List;
+ import java.util.Map;
++import java.util.Optional;
+ import java.util.Set;
+-import java.util.Map.Entry;
++import java.util.UUID;
++import java.util.concurrent.ConcurrentHashMap;
++import java.util.concurrent.atomic.AtomicBoolean;
++import java.util.concurrent.atomic.AtomicLong;
++import net.minecraft.core.BlockPos;
++import net.minecraft.network.chat.Component;
++import net.minecraft.network.protocol.game.ClientboundTrackedWaypointPacket;
++import net.minecraft.resources.ResourceKey;
++import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.util.Mth;
++import net.minecraft.world.entity.Entity;
++import net.minecraft.world.entity.LivingEntity;
++import net.minecraft.world.entity.ai.attributes.Attributes;
++import net.minecraft.world.level.ChunkPos;
+ import net.minecraft.world.level.gamerules.GameRules;
++import net.minecraft.world.phys.Vec3;
++import net.minecraft.world.waypoints.Waypoint;
+ import net.minecraft.world.waypoints.WaypointManager;
++import net.minecraft.world.waypoints.WaypointStyleAsset;
+ import net.minecraft.world.waypoints.WaypointTransmitter;
+ 
++/**
++ * Folia-safe server-side state for the locator bar.
++ *
++ * <p>Vanilla stores live transmitter/receiver pairs and reads both entities whenever either one moves. That is not
++ * safe when the pair belongs to different Folia regions. Tessera instead publishes an immutable transmitter snapshot
++ * from the transmitter's owning region. A receiver consumes those snapshots and owns all of its connection state on
++ * its own entity scheduler.</p>
++ */
+ public class ServerWaypointManager implements WaypointManager<WaypointTransmitter> {
+-    private final Set<WaypointTransmitter> waypoints = new HashSet<>();
+-    private final Set<ServerPlayer> players = new HashSet<>();
+-    private final Table<ServerPlayer, WaypointTransmitter, WaypointTransmitter.Connection> connections = HashBasedTable.create();
+-    // Paper start - optimize ServerWaypointManager with locator bar disabled
+-    public boolean locatorBarEnabled; // Avoid a gamerule lookup for each player
++    private static final double REALLY_FAR_DISTANCE_SQUARED = Mth.square((double)WaypointTransmitter.REALLY_FAR_DISTANCE);
++    private static final float MINIMUM_AZIMUTH_CHANGE = 0.008726646F;
+ 
+-    public ServerWaypointManager(net.minecraft.server.level.ServerLevel serverLevel) {
++    private final ServerLevel level;
++    private final Map<UUID, PublishedWaypoint> waypoints = new ConcurrentHashMap<>();
++    private final Map<UUID, ReceiverState> players = new ConcurrentHashMap<>();
++    private final AtomicLong publicationRevision = new AtomicLong();
++    private volatile boolean locatorBarEnabled;
++
++    public ServerWaypointManager(final ServerLevel serverLevel) {
++        this.level = serverLevel;
+         this.locatorBarEnabled = serverLevel.getGameRules().get(GameRules.LOCATOR_BAR);
+     }
+-    // Paper end - optimize ServerWaypointManager with locator bar disabled
+ 
+     @Override
+     public void trackWaypoint(final WaypointTransmitter waypoint) {
+-        // Folia - region threading
++        this.publishWaypoint(waypoint, PublicationMode.TRACK);
+     }
+ 
+     @Override
+     public void updateWaypoint(final WaypointTransmitter waypoint) {
+-        if (!this.locatorBarEnabled) return; // Paper - optimize ServerWaypointManager with locator bar disabled
+-        if (this.waypoints.contains(waypoint)) {
+-            Map<ServerPlayer, WaypointTransmitter.Connection> playerConnection = Tables.transpose(this.connections).row(waypoint);
+-            SetView<ServerPlayer> potentialPlayers = Sets.difference(this.players, playerConnection.keySet());
+-
+-            for (Entry<ServerPlayer, WaypointTransmitter.Connection> waypointConnection : ImmutableSet.copyOf(playerConnection.entrySet())) {
+-                this.updateConnection(waypointConnection.getKey(), waypoint, waypointConnection.getValue());
+-            }
+-
+-            for (ServerPlayer player : potentialPlayers) {
+-                this.createConnection(player, waypoint);
+-            }
+-        }
++        this.publishWaypoint(waypoint, PublicationMode.UPDATE);
+     }
+ 
+     @Override
+     public void untrackWaypoint(final WaypointTransmitter waypoint) {
+-        this.connections.column(waypoint).forEach((player, connection) -> connection.disconnect());
+-        Tables.transpose(this.connections).row(waypoint).clear();
+-        this.waypoints.remove(waypoint);
++        if (!(waypoint instanceof LivingEntity source)) {
++            return;
++        }
++
++        final UUID identifier = source.getUUID();
++        final AtomicBoolean removed = new AtomicBoolean();
++        this.waypoints.computeIfPresent(identifier, (ignored, current) -> {
++            if (current.source() != source) {
++                return current;
++            }
++
++            removed.set(true);
++            return null;
++        });
++        if (removed.get()) {
++            this.waypointsChanged();
++        }
+     }
+ 
+     public void addPlayer(final ServerPlayer player) {
+-        // Folia - region threading
++        player.getBukkitEntity().taskScheduler.scheduleOrExecute(entity -> {
++            if (!(entity instanceof ServerPlayer currentPlayer)
++                || currentPlayer != player
++                || currentPlayer.level() != this.level
++                || currentPlayer.isRemoved()
++                || !currentPlayer.isReceivingWaypoints()) {
++                return;
++            }
++
++            final ReceiverState existing = this.players.get(currentPlayer.getUUID());
++            if (existing != null && existing.player == currentPlayer && existing.active.get()) {
++                this.queueReceiverUpdate(existing);
++                return;
++            }
++
++            final ReceiverState state = new ReceiverState(currentPlayer);
++            final ReceiverState previous = this.players.put(currentPlayer.getUUID(), state);
++            if (previous != null) {
++                this.retireReceiver(previous);
++            }
++            this.queueReceiverUpdate(state);
++            if (currentPlayer.isTransmittingWaypoint()) {
++                this.publishWaypoint(currentPlayer, PublicationMode.TRACK);
++            }
++        });
+     }
+ 
+     public void updatePlayer(final ServerPlayer player) {
+-        // Folia - region threading
++        final ReceiverState state = this.players.get(player.getUUID());
++        if (state != null && state.player == player) {
++            this.queueReceiverUpdate(state);
++        }
+     }
+ 
+     public void removePlayer(final ServerPlayer player) {
+-        // Folia - region threading
++        final ReceiverState state = this.players.get(player.getUUID());
++        if (state != null && state.player == player && this.players.remove(player.getUUID(), state)) {
++            this.retireReceiver(state);
++        }
++        this.untrackWaypoint(player);
++    }
++
++    /** Updates the cached gamerule and synchronizes every receiver on its owning region. */
++    public void setLocatorBarEnabled(final boolean enabled) {
++        this.locatorBarEnabled = enabled;
++        for (final ReceiverState state : this.players.values()) {
++            if (!enabled) {
++                state.clearRequested.set(true);
++            }
++            this.queueReceiverUpdate(state);
++        }
+     }
+ 
+     public void breakAllConnections() {
+-        this.connections.values().forEach(WaypointTransmitter.Connection::disconnect);
+-        this.connections.clear();
++        for (final ReceiverState state : this.players.values()) {
++            state.clearRequested.set(true);
++            this.queueReceiverUpdate(state);
++        }
+     }
+ 
+     public void remakeConnections(final WaypointTransmitter waypoint) {
+-        if (!this.locatorBarEnabled) return; // Paper - optimize ServerWaypointManager with locator bar disabled
+-        for (ServerPlayer player : this.players) {
+-            this.createConnection(player, waypoint);
+-        }
++        this.publishWaypoint(waypoint, PublicationMode.REMAKE);
+     }
+ 
+     public Set<WaypointTransmitter> transmitters() {
+-        return this.waypoints;
+-    }
+-
+-    // Paper start - optimize ServerWaypointManager with locator bar disabled
+-    // Avoid a gamerule lookup for each player
+-    private boolean isLocatorBarEnabledFor(final ServerPlayer player) {
+-        return locatorBarEnabled;
+-    // Paper end - optimize ServerWaypointManager with locator bar disabled
+-    }
+-
+-    private void createConnection(final ServerPlayer player, final WaypointTransmitter waypoint) {
+-        if (player != waypoint) {
+-            if (isLocatorBarEnabledFor(player)) {
+-                waypoint.makeWaypointConnectionWith(player).ifPresentOrElse(connection -> {
+-                    this.connections.put(player, waypoint, connection);
+-                    connection.connect();
+-                }, () -> {
+-                    WaypointTransmitter.Connection connection = this.connections.remove(player, waypoint);
+-                    if (connection != null) {
+-                        connection.disconnect();
+-                    }
+-                });
+-            }
+-        }
+-    }
+-
+-    private void updateConnection(final ServerPlayer player, final WaypointTransmitter waypoint, final WaypointTransmitter.Connection connection) {
+-        if (player != waypoint) {
+-            if (isLocatorBarEnabledFor(player)) {
+-                if (!connection.isBroken()) {
+-                    connection.update();
+-                } else {
+-                    waypoint.makeWaypointConnectionWith(player).ifPresentOrElse(newConnection -> {
+-                        newConnection.connect();
+-                        this.connections.put(player, waypoint, newConnection);
+-                    }, () -> {
+-                        connection.disconnect();
+-                        this.connections.remove(player, waypoint);
+-                    });
++        final Set<WaypointTransmitter> result = new HashSet<>();
++        for (final PublishedWaypoint waypoint : this.waypoints.values()) {
++            result.add(waypoint.source());
++        }
++        return Set.copyOf(result);
++    }
++
++    /** Returns command-safe values without exposing live entities owned by other regions. */
++    public List<WaypointInfo> waypointInfo() {
++        return this.waypoints.values().stream().map(waypoint -> waypoint.snapshot().toInfo()).toList();
++    }
++
++    private void publishWaypoint(final WaypointTransmitter waypoint, final PublicationMode mode) {
++        if (!(waypoint instanceof LivingEntity source)) {
++            return;
++        }
++
++        source.getBukkitEntity().taskScheduler.scheduleOrExecute(entity -> {
++            if (!(entity instanceof LivingEntity currentSource) || currentSource != source) {
++                return;
++            }
++
++            final UUID identifier = currentSource.getUUID();
++            if (currentSource.level() != this.level || currentSource.isRemoved() || !currentSource.isTransmittingWaypoint()) {
++                this.removePublishedWaypoint(identifier, currentSource);
++                return;
++            }
++
++            final WaypointSnapshot snapshot = WaypointSnapshot.capture(currentSource);
++            final AtomicBoolean changed = new AtomicBoolean();
++            this.waypoints.compute(identifier, (ignored, current) -> {
++                if (mode == PublicationMode.UPDATE && (current == null || current.source() != currentSource)) {
++                    return current;
++                }
++
++                final long connectionRevision = mode == PublicationMode.REMAKE
++                    ? (current == null ? 1L : current.connectionRevision() + 1L)
++                    : (current == null ? 0L : current.connectionRevision());
++                changed.set(true);
++                return new PublishedWaypoint(currentSource, snapshot, connectionRevision);
++            });
++            if (changed.get()) {
++                this.waypointsChanged();
++            }
++        });
++    }
++
++    private void removePublishedWaypoint(final UUID identifier, final LivingEntity source) {
++        final AtomicBoolean removed = new AtomicBoolean();
++        this.waypoints.computeIfPresent(identifier, (ignored, current) -> {
++            if (current.source() != source) {
++                return current;
++            }
++
++            removed.set(true);
++            return null;
++        });
++        if (removed.get()) {
++            this.waypointsChanged();
++        }
++    }
++
++    private void waypointsChanged() {
++        this.publicationRevision.incrementAndGet();
++        for (final ReceiverState state : this.players.values()) {
++            this.queueReceiverUpdate(state);
++        }
++    }
++
++    private void queueReceiverUpdate(final ReceiverState state) {
++        if (!state.active.get() || !state.updateQueued.compareAndSet(false, true)) {
++            return;
++        }
++
++        if (!state.player.getBukkitEntity().taskScheduler.schedule(
++            entity -> {
++                state.updateQueued.set(false);
++                if (!(entity instanceof ServerPlayer currentPlayer) || currentPlayer != state.player) {
++                    this.removeReceiverState(state);
++                    return;
+                 }
++                this.synchronizeReceiver(currentPlayer, state);
++            },
++            entity -> this.removeReceiverState(state),
++            1L
++        )) {
++            this.removeReceiverState(state);
++        }
++    }
++
++    private void synchronizeReceiver(final ServerPlayer player, final ReceiverState state) {
++        if (!state.active.get() || this.players.get(player.getUUID()) != state) {
++            this.disconnectAll(player, state);
++            return;
++        }
++
++        if (state.clearRequested.getAndSet(false)) {
++            this.disconnectAll(player, state);
++        }
++
++        if (player.level() != this.level || player.isRemoved() || !player.isReceivingWaypoints() || player.connection == null || player.connection.isDisconnected()) {
++            if (this.players.remove(player.getUUID(), state)) {
++                state.active.set(false);
++            }
++            this.disconnectAll(player, state);
++            return;
++        }
++
++        if (!this.locatorBarEnabled) {
++            this.disconnectAll(player, state);
++            return;
++        }
++
++        final long revisionBefore = this.publicationRevision.get();
++        final List<PublishedWaypoint> published = new ArrayList<>(this.waypoints.values());
++        final Set<UUID> present = new HashSet<>();
++        for (final PublishedWaypoint waypoint : published) {
++            present.add(waypoint.snapshot().identifier());
++            this.synchronizeConnection(player, state, waypoint);
++        }
++
++        for (final UUID identifier : new ArrayList<>(state.connections.keySet())) {
++            if (!present.contains(identifier)) {
++                this.disconnect(player, state, identifier);
+             }
+         }
++
++        if (revisionBefore != this.publicationRevision.get()) {
++            this.queueReceiverUpdate(state);
++        }
++    }
++
++    private void synchronizeConnection(final ServerPlayer player, final ReceiverState state, final PublishedWaypoint published) {
++        final WaypointSnapshot waypoint = published.snapshot();
++        final UUID identifier = waypoint.identifier();
++        if (identifier.equals(player.getUUID()) || this.doesSourceIgnoreReceiver(waypoint, player)) {
++            this.disconnect(player, state, identifier);
++            return;
++        }
++
++        final SentConnection connection = state.connections.get(identifier);
++        if (connection == null
++            || connection.connectionRevision != published.connectionRevision()
++            || !connection.icon.matches(waypoint.icon())) {
++            this.replaceConnection(player, state, published);
++            return;
++        }
++
++        switch (connection.kind) {
++            case AZIMUTH -> {
++                if (this.isChunkVisible(waypoint.chunkPosition(), player) || !this.isReallyFar(waypoint, player)) {
++                    this.replaceConnection(player, state, published);
++                    return;
++                }
++
++                final float angle = this.calculateAzimuth(waypoint, player);
++                if (Mth.abs(angle - connection.lastAngle) > MINIMUM_AZIMUTH_CHANGE) {
++                    player.connection.send(ClientboundTrackedWaypointPacket.updateWaypointAzimuth(identifier, waypoint.icon().toIcon(), angle));
++                    connection.lastAngle = angle;
++                }
++            }
++            case BLOCK -> {
++                final BlockPos position = waypoint.blockPosition();
++                final int distance = connection.lastBlockPosition.distManhattan(position);
++                if (distance > 1) {
++                    this.replaceConnection(player, state, published);
++                } else if (distance > 0) {
++                    player.connection.send(ClientboundTrackedWaypointPacket.updateWaypointPosition(identifier, waypoint.icon().toIcon(), position));
++                    connection.lastBlockPosition = position;
++                }
++            }
++            case CHUNK -> {
++                final ChunkPos position = waypoint.chunkPosition();
++                final int distance = connection.lastChunkPosition.getChessboardDistance(position);
++                if (distance > 1 || this.isChunkVisible(connection.lastChunkPosition, player)) {
++                    this.replaceConnection(player, state, published);
++                } else if (distance > 0) {
++                    player.connection.send(ClientboundTrackedWaypointPacket.updateWaypointChunk(identifier, waypoint.icon().toIcon(), position));
++                    connection.lastChunkPosition = position;
++                }
++            }
++        }
++    }
++
++    private void replaceConnection(final ServerPlayer player, final ReceiverState state, final PublishedWaypoint published) {
++        final WaypointSnapshot waypoint = published.snapshot();
++        final UUID identifier = waypoint.identifier();
++        final SentConnection connection;
++        if (this.isReallyFar(waypoint, player)) {
++            final float angle = this.calculateAzimuth(waypoint, player);
++            player.connection.send(ClientboundTrackedWaypointPacket.addWaypointAzimuth(identifier, waypoint.icon().toIcon(), angle));
++            connection = SentConnection.azimuth(waypoint.icon(), published.connectionRevision(), angle);
++        } else if (!this.isChunkVisible(waypoint.chunkPosition(), player)) {
++            player.connection.send(ClientboundTrackedWaypointPacket.addWaypointChunk(identifier, waypoint.icon().toIcon(), waypoint.chunkPosition()));
++            connection = SentConnection.chunk(waypoint.icon(), published.connectionRevision(), waypoint.chunkPosition());
++        } else {
++            player.connection.send(ClientboundTrackedWaypointPacket.addWaypointPosition(identifier, waypoint.icon().toIcon(), waypoint.blockPosition()));
++            connection = SentConnection.block(waypoint.icon(), published.connectionRevision(), waypoint.blockPosition());
++        }
++        state.connections.put(identifier, connection);
++    }
++
++    private boolean doesSourceIgnoreReceiver(final WaypointSnapshot source, final ServerPlayer receiver) {
++        // CraftPlayer#canSee is receiver-owned state. The source wrapper is only used for its UUID/default visibility.
++        if (!receiver.getBukkitEntity().canSee(source.bukkitEntity())) {
++            return true;
++        }
++        if (receiver.isSpectator()) {
++            return false;
++        }
++        if (source.spectator() || source.indirectPassengers().contains(receiver.getUUID())) {
++            return true;
++        }
++
++        final double broadcastRange = Math.min(source.transmitRange(), receiver.getAttributeValue(Attributes.WAYPOINT_RECEIVE_RANGE));
++        return source.position().distanceToSqr(receiver.position()) >= Mth.square(broadcastRange);
++    }
++
++    private boolean isReallyFar(final WaypointSnapshot source, final ServerPlayer receiver) {
++        return source.position().distanceToSqr(receiver.position()) > REALLY_FAR_DISTANCE_SQUARED;
++    }
++
++    private boolean isChunkVisible(final ChunkPos chunkPosition, final ServerPlayer receiver) {
++        return WaypointTransmitter.isChunkVisible(chunkPosition, receiver);
++    }
++
++    private float calculateAzimuth(final WaypointSnapshot source, final ServerPlayer receiver) {
++        final Vec3 direction = receiver.position().subtract(source.position()).rotateClockwise90();
++        return (float)Mth.atan2(direction.z(), direction.x());
++    }
++
++    private void disconnect(final ServerPlayer player, final ReceiverState state, final UUID identifier) {
++        if (state.connections.remove(identifier) != null && player.connection != null && !player.connection.isDisconnected()) {
++            player.connection.send(ClientboundTrackedWaypointPacket.removeWaypoint(identifier));
++        }
++    }
++
++    private void disconnectAll(final ServerPlayer player, final ReceiverState state) {
++        if (state.connections.isEmpty()) {
++            return;
++        }
++
++        final boolean canSend = player.connection != null && !player.connection.isDisconnected();
++        for (final UUID identifier : new ArrayList<>(state.connections.keySet())) {
++            if (canSend) {
++                player.connection.send(ClientboundTrackedWaypointPacket.removeWaypoint(identifier));
++            }
++        }
++        state.connections.clear();
++    }
++
++    private void retireReceiver(final ReceiverState state) {
++        state.active.set(false);
++        state.player.getBukkitEntity().taskScheduler.scheduleOrExecute(entity -> {
++            if (entity instanceof ServerPlayer player) {
++                this.disconnectAll(player, state);
++            } else {
++                state.connections.clear();
++            }
++        });
++    }
++
++    private void removeReceiverState(final ReceiverState state) {
++        state.active.set(false);
++        state.updateQueued.set(false);
++        this.players.remove(state.player.getUUID(), state);
++        state.connections.clear();
++    }
++
++    private enum PublicationMode {
++        TRACK,
++        UPDATE,
++        REMAKE
++    }
++
++    private enum ConnectionKind {
++        AZIMUTH,
++        BLOCK,
++        CHUNK
++    }
++
++    private record PublishedWaypoint(LivingEntity source, WaypointSnapshot snapshot, long connectionRevision) {
++    }
++
++    private record WaypointSnapshot(
++        UUID identifier,
++        Vec3 position,
++        BlockPos blockPosition,
++        ChunkPos chunkPosition,
++        double transmitRange,
++        boolean spectator,
++        Set<UUID> indirectPassengers,
++        org.bukkit.entity.Entity bukkitEntity,
++        Component displayName,
++        IconSnapshot icon
++    ) {
++        private static WaypointSnapshot capture(final LivingEntity source) {
++            final Set<UUID> passengers = new HashSet<>();
++            for (final Entity passenger : source.getIndirectPassengers()) {
++                passengers.add(passenger.getUUID());
++            }
++
++            final Waypoint.Icon assignedIcon = source.waypointIcon().cloneAndAssignStyle(source);
++            return new WaypointSnapshot(
++                source.getUUID(),
++                source.position(),
++                source.blockPosition(),
++                source.chunkPosition(),
++                source.getAttributeValue(Attributes.WAYPOINT_TRANSMIT_RANGE),
++                source.isSpectator(),
++                Set.copyOf(passengers),
++                source.getBukkitEntity(),
++                source.getFeedbackDisplayName().copy(),
++                IconSnapshot.capture(assignedIcon)
++            );
++        }
++
++        private WaypointInfo toInfo() {
++            return new WaypointInfo(this.displayName, this.blockPosition, this.icon.color());
++        }
++    }
++
++    public record WaypointInfo(Component displayName, BlockPos blockPosition, Optional<Integer> color) {
++    }
++
++    private record IconSnapshot(ResourceKey<WaypointStyleAsset> style, Optional<Integer> color) {
++        private static IconSnapshot capture(final Waypoint.Icon icon) {
++            return new IconSnapshot(icon.style, icon.color);
++        }
++
++        private Waypoint.Icon toIcon() {
++            final Waypoint.Icon icon = new Waypoint.Icon();
++            icon.style = this.style;
++            icon.color = this.color;
++            return icon;
++        }
++
++        private boolean matches(final IconSnapshot other) {
++            return this.style.equals(other.style) && this.color.equals(other.color);
++        }
++    }
++
++    private static final class ReceiverState {
++        private final ServerPlayer player;
++        private final Map<UUID, SentConnection> connections = new HashMap<>();
++        private final AtomicBoolean active = new AtomicBoolean(true);
++        private final AtomicBoolean updateQueued = new AtomicBoolean();
++        private final AtomicBoolean clearRequested = new AtomicBoolean();
++
++        private ReceiverState(final ServerPlayer player) {
++            this.player = player;
++        }
++    }
++
++    private static final class SentConnection {
++        private final ConnectionKind kind;
++        private final IconSnapshot icon;
++        private final long connectionRevision;
++        private float lastAngle;
++        private BlockPos lastBlockPosition;
++        private ChunkPos lastChunkPosition;
++
++        private SentConnection(
++            final ConnectionKind kind,
++            final IconSnapshot icon,
++            final long connectionRevision,
++            final float lastAngle,
++            final BlockPos lastBlockPosition,
++            final ChunkPos lastChunkPosition
++        ) {
++            this.kind = kind;
++            this.icon = icon;
++            this.connectionRevision = connectionRevision;
++            this.lastAngle = lastAngle;
++            this.lastBlockPosition = lastBlockPosition;
++            this.lastChunkPosition = lastChunkPosition;
++        }
++
++        private static SentConnection azimuth(final IconSnapshot icon, final long revision, final float angle) {
++            return new SentConnection(ConnectionKind.AZIMUTH, icon, revision, angle, null, null);
++        }
++
++        private static SentConnection block(final IconSnapshot icon, final long revision, final BlockPos position) {
++            return new SentConnection(ConnectionKind.BLOCK, icon, revision, 0.0F, position, null);
++        }
++
++        private static SentConnection chunk(final IconSnapshot icon, final long revision, final ChunkPos position) {
++            return new SentConnection(ConnectionKind.CHUNK, icon, revision, 0.0F, null, position);
++        }
+     }
+ }
