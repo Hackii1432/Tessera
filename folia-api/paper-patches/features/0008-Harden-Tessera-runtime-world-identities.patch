@@ -122,10 +122,10 @@ index d5deecc215d41c4e457755d82d9e44e612424cd6..c91f1ea3bc0cd2491412919c901fe694
          CORRUPT_WORLD,
          INITIALIZATION_FAILED,
 diff --git a/src/test/java/io/papermc/paper/world/RuntimeWorldApiTest.java b/src/test/java/io/papermc/paper/world/RuntimeWorldApiTest.java
-index 9b408ae98117d094727c66e8946584063741d644..a04b270b9b1d4bcd4e297848dd500f67b1a130f0 100644
+index 9b408ae98117d094727c66e8946584063741d644..eac28352f5eaef808d9894d9f2bfaeb8727b79af 100644
 --- a/src/test/java/io/papermc/paper/world/RuntimeWorldApiTest.java
 +++ b/src/test/java/io/papermc/paper/world/RuntimeWorldApiTest.java
-@@ -1,10 +1,20 @@
+@@ -1,13 +1,25 @@
  package io.papermc.paper.world;
  
 +import java.lang.reflect.Proxy;
@@ -137,6 +137,7 @@ index 9b408ae98117d094727c66e8946584063741d644..a04b270b9b1d4bcd4e297848dd500f67
 +import org.bukkit.NamespacedKey;
 +import org.bukkit.World;
 +import org.bukkit.WorldCreator;
++import org.jspecify.annotations.NullMarked;
  import org.junit.jupiter.api.Test;
  
  import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -146,7 +147,11 @@ index 9b408ae98117d094727c66e8946584063741d644..a04b270b9b1d4bcd4e297848dd500f67
  import static org.junit.jupiter.api.Assertions.assertThrows;
  import static org.junit.jupiter.api.Assertions.assertTrue;
  
-@@ -59,4 +69,74 @@ class RuntimeWorldApiTest {
++@NullMarked
+ class RuntimeWorldApiTest {
+ 
+     @Test
+@@ -59,4 +71,74 @@ class RuntimeWorldApiTest {
          assertTrue(new WorldUnloadResult(WorldUnloadResult.Status.SUCCESS, "ok", null).successful());
          assertFalse(new WorldUnloadResult(WorldUnloadResult.Status.TIMEOUT, "late", null).successful());
      }
@@ -200,7 +205,7 @@ index 9b408ae98117d094727c66e8946584063741d644..a04b270b9b1d4bcd4e297848dd500f67
 +    void loadAndCloneResultsExposeKeyAndActualPathWithoutChangingRecordShape() {
 +        final NamespacedKey key = new NamespacedKey("mosaikchallenges", "mcc_arena");
 +        final Path path = Path.of("world", "dimensions", "mosaikchallenges", "mcc_arena");
-+        final World world = (World)Proxy.newProxyInstance(
++        final World world = (World) Proxy.newProxyInstance(
 +            World.class.getClassLoader(),
 +            new Class<?>[] {World.class},
 +            (proxy, method, arguments) -> switch (method.getName()) {

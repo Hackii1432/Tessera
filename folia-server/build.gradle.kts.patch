@@ -1,57 +1,19 @@
 --- a/paper-server/build.gradle.kts
 +++ b/paper-server/build.gradle.kts
-@@ -17,11 +_,72 @@
+@@ -17,11 +_,34 @@
      mache("io.papermc:mache:26.2+build.1")
      paperclip("io.papermc:paperclip:3.0.4")
  }
-+// tessera 26.2 start - change output file
-+val tesseraBuildVersion = providers
-+    .gradleProperty("tesseraBuildVersion")
-+    .orElse("LOCAL")
-+    .get()
-+
-+val tesseraBuildChannel = providers
-+    .gradleProperty("tesseraBuildChannel")
-+    .orElse("DEV")
-+    .get()
-+
-+val tesseraMinecraftVersion = providers
-+    .gradleProperty("mcVersion")
-+    .orElse("26.2")
-+    .get()
-+
-+val invalidFileNameCharacters = Regex("[^A-Za-z0-9._-]")
-+
-+val safeBuildVersion = tesseraBuildVersion.replace(invalidFileNameCharacters, "-")
-+val safeBuildChannel = tesseraBuildChannel.replace(invalidFileNameCharacters, "-")
-+val safeMinecraftVersion = tesseraMinecraftVersion.replace(invalidFileNameCharacters, "-")
-+val tesseraPaperclipFileName = "tessera-server-$safeMinecraftVersion.build-$safeBuildVersion-$safeBuildChannel.jar"
++// Tessera start - publish the runnable server artifact from the main build directory
++val tesseraPaperclipFileName = "${rootProject.name}-server-${project.version}.jar"
 +
 +tasks.createPaperclipJar {
-+    outputZip.set(layout.buildDirectory.file("libs/$tesseraPaperclipFileName"))
++    outputZip.set(rootProject.layout.buildDirectory.file("libs/$tesseraPaperclipFileName"))
 +}
-+//// settings for this are inside gradle.properties
-+//val tesseraBuildVersion = providers.gradleProperty("tesseraBuildVersion").orElse("LOCAL")
-+//val tesseraBuildChannel = providers.gradleProperty("tesseraBuildChannel").orElse("DEV")
-+//val tmcVersion = providers.gradleProperty("mcVersion").orElse("26.2").get()
-+//
-+//val tesseraPaperclipPath = providers.zip(tesseraBuildVersion, tesseraBuildChannel)
-+//{ buildNumber, buildChannel ->
-+//    val safeBuildVersion = buildNumber.replace(Regex("[^A-Za-z0-9._-]"), "-")
-+//    val safeBuildChannel = buildChannel.replace(Regex("[^A-Za-z0-9._-]"), "-")
-+//
-+//    val safeMCVersion = tmcVersion.replace(Regex("[^A-Za-z0-9._-]"), "-")
-+//
-+//    //tessera-paperclip-26.2.local-SNAPSHOT_old
-+//    "libs/tessera-server-$safeMCVersion.build-$safeBuildVersion-$safeBuildChannel.jar"
-+//}
-+//
-+//
-+//tasks.createPaperclipJar {
-+//    // set output to tessera Paper clip Path
-+//    outputZip.set(layout.buildDirectory.file(tesseraPaperclipPath))
-+//}
-+// tessera 26.2 end - change output file
++tasks.assemble {
++    dependsOn(tasks.createPaperclipJar)
++}
++// Tessera end - publish the runnable server artifact from the main build directory
  
  paperweight {
      minecraftVersion = providers.gradleProperty("mcVersion")
@@ -100,7 +62,7 @@
  dependencies {
 -    implementation(project(":paper-api"))
 +    implementation(project(":folia-api"))
-     implementation("ca.spottedleaf:leafpile:1.0.0")
+     implementation("ca.spottedleaf:leafpile:1.2.0")
      implementation("org.jline:jline-terminal-ffm:3.27.1") // use ffm on java 22+
      implementation("org.jline:jline-terminal-jni:3.27.1") // fall back to jni on java 21
 @@ -163,27 +_,29 @@
@@ -140,7 +102,7 @@
          for (tld in setOf("net", "com", "org")) {
              attributes("$tld/bukkit", "Sealed" to true)
          }
-@@ -316,7 +_,10 @@
+@@ -327,7 +_,10 @@
  }
  
  fill {

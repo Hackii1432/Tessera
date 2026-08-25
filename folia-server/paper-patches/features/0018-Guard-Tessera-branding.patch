@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Wed, 26 Aug 2026 01:25:23 +0200
+Subject: [PATCH] Guard Tessera branding
+
+
+diff --git a/src/test/java/io/papermc/paper/TesseraBrandingTest.java b/src/test/java/io/papermc/paper/TesseraBrandingTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..023ec4c112a55580128c8bf3dd1076f6e56ee114
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/TesseraBrandingTest.java
+@@ -0,0 +1,32 @@
++package io.papermc.paper;
++
++import com.destroystokyo.paper.PaperVersionFetcher;
++import net.kyori.adventure.key.Key;
++import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
++import org.bukkit.support.environment.Normal;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++@Normal
++public class TesseraBrandingTest {
++
++    @Test
++    void buildInfoUsesTesseraBrandingWithoutManifestOverrides() {
++        final ServerBuildInfoImpl buildInfo = new ServerBuildInfoImpl();
++
++        assertEquals(Key.key("mosaikdev", "tessera"), buildInfo.brandId());
++        assertEquals("Tessera", buildInfo.brandName());
++    }
++
++    @Test
++    void versionFetcherReportsTesseraBranding() {
++        final String message = PlainTextComponentSerializer.plainText()
++            .serialize(new PaperVersionFetcher().getVersionMessage());
++
++        assertTrue(message.contains("Tessera"));
++        assertFalse(message.contains("Folia"));
++    }
++}

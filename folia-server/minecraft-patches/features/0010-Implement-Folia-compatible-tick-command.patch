@@ -297,10 +297,10 @@ index 4ddb5e7ce3529466c3930caa9aa6b18158e9a63d..db9087b31d3c14d82134cd8df0e3ed35
          TitleCommand.register(this.dispatcher, context);
          //TriggerCommand.register(this.dispatcher); // Folia - region threading - TODO later
 diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
-index f7c17c54cd929ae107efd14bbead0bed9b555f3c..10b329e3da4149133038c1c90d776bc9a2dfee88 100644
+index 4f94733c11f476cf574a407b1caff92f5652c9ff..ed6919edcc70254edb15fce055d7cf1eb800c424 100644
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
-@@ -1814,7 +1814,8 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1813,7 +1813,8 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
      // Folia - region threading - use absolute time instead of this
  
      public void onTickRateChanged() {

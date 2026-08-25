@@ -28,7 +28,22 @@ paperweight {
             patchesDir = file("folia-api/paper-patches")
             outputDir = file("paper-api")
         }
+        patchDir("paperCheckstyle") {
+            upstreamPath = "paper-checkstyle"
+            patchesDir = file("folia-checkstyle/project-patches")
+            outputDir = file("paper-checkstyle")
+        }
+        patchDir("paperCheckstyleConfig") {
+            upstreamPath = ".checkstyle"
+            patchesDir = file("folia-checkstyle/config-patches")
+            outputDir = file(".checkstyle")
+        }
     }
+}
+
+// The runnable Tessera paperclip is the root build artifact; do not emit an empty root Java jar.
+tasks.jar {
+    enabled = false
 }
 
 val paperMavenPublicUrl = "https://repo.papermc.io/repository/maven-public/"

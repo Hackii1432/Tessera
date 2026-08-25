@@ -1,0 +1,78 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Tue, 25 Aug 2026 23:58:27 +0200
+Subject: [PATCH] Test region-safe vanilla entity selectors
+
+
+diff --git a/src/test/java/net/minecraft/commands/arguments/selector/EntitySelectorRegionSafetyTestSuite.java b/src/test/java/net/minecraft/commands/arguments/selector/EntitySelectorRegionSafetyTestSuite.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..f2973f9516941440464f55bde39901fee8e88215
+--- /dev/null
++++ b/src/test/java/net/minecraft/commands/arguments/selector/EntitySelectorRegionSafetyTestSuite.java
+@@ -0,0 +1,66 @@
++package net.minecraft.commands.arguments.selector;
++
++import com.mojang.brigadier.exceptions.CommandSyntaxException;
++import java.util.List;
++import net.minecraft.commands.CommandSourceStack;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.world.flag.FeatureFlagSet;
++import net.minecraft.world.phys.AABB;
++import net.minecraft.world.phys.Vec3;
++import org.bukkit.support.environment.Normal;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.assertTrue;
++import static org.junit.jupiter.api.Assertions.assertThrows;
++import static org.mockito.Mockito.mock;
++import static org.mockito.Mockito.when;
++
++@Normal
++class EntitySelectorRegionSafetyTestSuite {
++
++    @Test
++    void rejectsUnboundedEntityQueryBeforeWorldLookup() {
++        final CommandSyntaxException failure = assertThrows(
++            CommandSyntaxException.class,
++            () -> selector(null).findEntities(source())
++        );
++
++        assertTrue(failure.getRawMessage().getString().contains("Unbounded entity selectors"));
++    }
++
++    @Test
++    void rejectsBoundedEntityQueryOutsideAnOwningRegionBeforeWorldLookup() {
++        final CommandSyntaxException failure = assertThrows(
++            CommandSyntaxException.class,
++            () -> selector(new AABB(-8.0, -8.0, -8.0, 9.0, 9.0, 9.0)).findEntities(source())
++        );
++
++        assertTrue(failure.getRawMessage().getString().contains("crosses region boundaries"));
++    }
++
++    private static EntitySelector selector(final AABB aabb) {
++        return new EntitySelector(
++            1,
++            true,
++            true,
++            List.of(),
++            null,
++            position -> position,
++            aabb,
++            EntitySelector.ORDER_ARBITRARY,
++            false,
++            null,
++            null,
++            null,
++            false
++        );
++    }
++
++    private static CommandSourceStack source() {
++        final CommandSourceStack source = mock(CommandSourceStack.class);
++        when(source.getPosition()).thenReturn(Vec3.ZERO);
++        when(source.getLevel()).thenReturn(mock(ServerLevel.class));
++        when(source.enabledFeatures()).thenReturn(mock(FeatureFlagSet.class));
++        return source;
++    }
++}

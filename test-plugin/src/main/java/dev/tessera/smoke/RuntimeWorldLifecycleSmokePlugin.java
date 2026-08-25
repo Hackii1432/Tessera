@@ -39,6 +39,7 @@ import org.bukkit.WorldType;
 import org.bukkit.block.Chest;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
@@ -700,12 +701,67 @@ public final class RuntimeWorldLifecycleSmokePlugin extends JavaPlugin {
         if (!command.getName().equals("tessera-console-context")) {
             return false;
         }
+        if (args.length == 6 && args[0].equals("fixture")) {
+            return this.prepareSelectorFixture(sender, args);
+        }
         final String marker = "TESSERA_CONSOLE_CONTEXT_OK sender="
             + sender.getClass().getSimpleName()
             + " args="
             + String.join(",", args);
         this.getLogger().info(marker);
         sender.sendMessage(marker);
+        return true;
+    }
+
+    private boolean prepareSelectorFixture(final CommandSender sender, final String[] args) {
+        final NamespacedKey worldKey = NamespacedKey.fromString(args[1]);
+        final World world = worldKey == null ? null : Bukkit.getWorld(worldKey);
+        if (world == null) {
+            sender.sendMessage("Unknown fixture world: " + args[1]);
+            return true;
+        }
+
+        final double x;
+        final double y;
+        final double z;
+        final int count;
+        try {
+            x = Double.parseDouble(args[2]);
+            y = Double.parseDouble(args[3]);
+            z = Double.parseDouble(args[4]);
+            count = Integer.parseInt(args[5]);
+        } catch (final NumberFormatException invalidNumber) {
+            sender.sendMessage("Invalid selector fixture coordinates/count");
+            return true;
+        }
+
+        final int chunkX = ((int)Math.floor(x)) >> 4;
+        final int chunkZ = ((int)Math.floor(z)) >> 4;
+        world.getChunkAtAsync(chunkX, chunkZ, true).whenComplete((chunk, loadFailure) -> {
+            if (loadFailure != null) {
+                this.getLogger().severe("TESSERA_SELECTOR_FIXTURE_FAILED world=" + args[1] + " error=" + loadFailure);
+                return;
+            }
+            chunk.addPluginChunkTicket(this);
+            Bukkit.getRegionScheduler().execute(this, world, chunkX, chunkZ, () -> {
+                try {
+                    final Location location = new Location(world, x, y, z);
+                    for (int i = 0; i < count; ++i) {
+                        world.spawn(location, ArmorStand.class, armorStand -> {
+                            armorStand.setGravity(false);
+                            armorStand.setMarker(true);
+                            armorStand.addScoreboardTag("tessera_selector_fixture");
+                        });
+                    }
+                    final String ready = "TESSERA_SELECTOR_FIXTURE_READY world=" + args[1]
+                        + " chunk=" + chunkX + "," + chunkZ + " count=" + count;
+                    this.getLogger().info(ready);
+                    sender.sendMessage(ready);
+                } catch (final Throwable fixtureFailure) {
+                    this.getLogger().severe("TESSERA_SELECTOR_FIXTURE_FAILED world=" + args[1] + " error=" + fixtureFailure);
+                }
+            });
+        });
         return true;
     }
 

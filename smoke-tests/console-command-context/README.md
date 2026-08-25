@@ -15,13 +15,18 @@ The second launch verifies:
 - `execute in minecraft:overworld ...`;
 - authenticated RCON;
 - plugin commands through RCON;
+- region-bound entity selectors in the Overworld, Nether, and End;
+- empty, single-result, and multiple-result selectors with radii 8 and 128;
+- `if entity`, `as`, `at`, `data get entity`, and `kill` selector paths;
+- clear RCON rejection of unbounded, cross-region, and unloaded-region queries;
+- absence of entity-query thread-check exceptions;
 - clean shutdown.
 
 Run with Java 25:
 
 ```powershell
 .\smoke-tests\console-command-context\run.ps1 `
-    -JarPath .\folia-server\build\libs\tessera-server-26.2.build-010-stable.jar `
+    -JarPath .\folia-server\build\libs\tessera-server-26.2.build-012-stable.jar `
     -SkipBuild
 ```
 

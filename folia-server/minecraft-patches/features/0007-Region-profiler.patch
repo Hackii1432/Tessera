@@ -417,7 +417,7 @@ index 0000000000000000000000000000000000000000..48223704c769b1920e5b7ad444f0ffea
 +    ) {}
 +}
 diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
-index 961a9c3a31a5cabc250932df823b9e3f1e6e9662..648331faac47ad644f32efc52d459dc32837ca73 100644
+index 25263ada9e9414427e27980c3f07f4d71b352ad5..8b06d0c893e07c969d35c4d7528927552c27b48b 100644
 --- a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
 +++ b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
 @@ -1563,6 +1563,7 @@ public final class ChunkHolderManager {
@@ -860,10 +860,10 @@ index 0c84984fc72ae949c09300306783db23e0ed6cc0..10fa576838c726d026df078eef6c693d
                      if (e instanceof ReportedException re && re.getCause() instanceof OutOfMemoryError) {
                          throw PacketUtils.makeReportedException(e, this.packet, this.listener);
 diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
-index 12414bf222ffdadcb14a6f1ef38586db12206f89..f7c17c54cd929ae107efd14bbead0bed9b555f3c 100644
+index f7f5baaccec4cf12828215ba44fd55306a21014d..4f94733c11f476cf574a407b1caff92f5652c9ff 100644
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
-@@ -1649,6 +1649,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1648,6 +1648,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
      // Folia start - region threading
      public void tickServer(final long startTime, final long scheduledEnd, final long targetBuffer,
                             final io.papermc.paper.threadedregions.TickRegions.TickRegionData region) {
@@ -871,7 +871,7 @@ index 12414bf222ffdadcb14a6f1ef38586db12206f89..f7c17c54cd929ae107efd14bbead0bed
          // Folia end - region threading
          org.spigotmc.WatchdogThread.tick(); // Spigot
          long nano = startTime; // Folia - region threading
-@@ -1686,6 +1687,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1685,6 +1686,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
              }
          }
  
@@ -879,7 +879,7 @@ index 12414bf222ffdadcb14a6f1ef38586db12206f89..f7c17c54cd929ae107efd14bbead0bed
          // Folia start - region threading
          region.world.getCurrentWorldData().updateTickData();
          BooleanSupplier haveTime = () -> {
-@@ -1697,22 +1699,33 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1696,22 +1698,33 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
          new com.destroystokyo.paper.event.server.ServerTickStartEvent((int)region.getCurrentTick()).callEvent(); // Paper - Server Tick Events // Folia - region threading
          // Folia start - region threading
          if (region != null) {
@@ -913,7 +913,7 @@ index 12414bf222ffdadcb14a6f1ef38586db12206f89..f7c17c54cd929ae107efd14bbead0bed
          }
          // Folia end - region threading
          //this.tickCount++; // Folia - region threading
-@@ -1731,6 +1744,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1730,6 +1743,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
          }
          Profiler.get().push("save");
          final boolean fullSave = this.autosavePeriod > 0 && io.papermc.paper.threadedregions.RegionizedServer.getCurrentTick() % this.autosavePeriod == 0; // Folia - region threading
@@ -921,7 +921,7 @@ index 12414bf222ffdadcb14a6f1ef38586db12206f89..f7c17c54cd929ae107efd14bbead0bed
          try {
              this.isSaving = true;
              if (playerSaveInterval > 0) {
-@@ -1748,6 +1762,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1747,6 +1761,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
              this.isSaving = false;
          }
          Profiler.get().pop();
@@ -929,7 +929,7 @@ index 12414bf222ffdadcb14a6f1ef38586db12206f89..f7c17c54cd929ae107efd14bbead0bed
          // Paper end - Incremental chunk and player saving
  
          ProfilerFiller profiler = Profiler.get();
-@@ -1847,6 +1862,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1846,6 +1861,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
  
      protected void tickChildren(final BooleanSupplier haveTime, final io.papermc.paper.threadedregions.TickRegions.TickRegionData region) { // Folia - region threading
          final io.papermc.paper.threadedregions.RegionizedWorldData regionizedWorldData = io.papermc.paper.threadedregions.TickRegionScheduler.getCurrentRegionizedWorldData(); // Folia - regionised ticking
@@ -937,7 +937,7 @@ index 12414bf222ffdadcb14a6f1ef38586db12206f89..f7c17c54cd929ae107efd14bbead0bed
          ProfilerFiller profiler = Profiler.get();
          //this.getPlayerList().getPlayers().forEach(playerx -> playerx.connection.suspendFlushing()); // Folia - region threading
          //this.server.getScheduler().mainThreadHeartbeat(); // CraftBukkit // Folia - region threading
-@@ -1907,7 +1923,9 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1906,7 +1922,9 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
              profiler.push("tick");
  
              try {
@@ -947,7 +947,7 @@ index 12414bf222ffdadcb14a6f1ef38586db12206f89..f7c17c54cd929ae107efd14bbead0bed
              } catch (Throwable t) {
                  CrashReport report = CrashReport.forThrowable(t, "Exception ticking world");
                  level.fillReportDetails(report);
-@@ -1921,7 +1939,9 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1920,7 +1938,9 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
          //this.isIteratingOverLevels = false; // Paper - Throw exception on world create while being ticked // Folia - region threading
  
          profiler.popPush("connection");
@@ -958,7 +958,7 @@ index 12414bf222ffdadcb14a6f1ef38586db12206f89..f7c17c54cd929ae107efd14bbead0bed
          //this.playerList.tick(); // Folia - region threading
          profiler.popPush("debugSubscribers");
 diff --git a/net/minecraft/server/level/ChunkMap.java b/net/minecraft/server/level/ChunkMap.java
-index 1b4f063e04ce7d5262515cc14fc3557378ef7d25..163999d50213e0167eb09f0eae883388849f28fa 100644
+index 2319a9b5a13dc81edc182f434f9a602d7f2790cd..6a815980ef5eee300363f9162de919448a8fae23 100644
 --- a/net/minecraft/server/level/ChunkMap.java
 +++ b/net/minecraft/server/level/ChunkMap.java
 @@ -400,12 +400,17 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
@@ -979,9 +979,9 @@ index 1b4f063e04ce7d5262515cc14fc3557378ef7d25..163999d50213e0167eb09f0eae883388
          }
  
          profiler.pop();
-@@ -1041,13 +1046,18 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
+@@ -1050,13 +1055,18 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
+     // Folia - tracker entities and iteration state are stored in RegionizedWorldData
  
-     // Paper start - optimise entity tracker
      private void newTrackerTick() {
 +        // Folia start - profiler
 +        final ca.spottedleaf.leafprofiler.RegionizedProfiler.Handle profiler = io.papermc.paper.threadedregions.TickRegionScheduler.getProfiler();
@@ -989,19 +989,19 @@ index 1b4f063e04ce7d5262515cc14fc3557378ef7d25..163999d50213e0167eb09f0eae883388
 +        profiler.startTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.ENTITY_TRACKER_TICK); try { // Folia - profiler
 +        // Folia end - profiler
          final io.papermc.paper.threadedregions.RegionizedWorldData worldData = this.level.getCurrentWorldData(); // Folia - region threading
-         final ca.spottedleaf.moonrise.patches.chunk_system.level.entity.server.ServerEntityLookup entityLookup = (ca.spottedleaf.moonrise.patches.chunk_system.level.entity.server.ServerEntityLookup)((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.level).moonrise$getEntityLookup();;
          final ca.spottedleaf.moonrise.common.misc.NearbyPlayers nearbyPlayers = this.level.moonrise$getNearbyPlayers(); // Folia - region threading
- 
-         final ca.spottedleaf.moonrise.common.list.ReferenceList<net.minecraft.world.entity.Entity> trackerEntities = worldData.trackerEntities; // Folia - region threading
-         final Entity[] trackerEntitiesRaw = trackerEntities.getRawDataUnchecked();
--        for (int i = 0, len = trackerEntities.size(); i < len; ++i) {
-+        for (int i = 0, len = totalEntities = trackerEntities.size(); i < len; ++i) { // Folia - region threading
-             final Entity entity = trackerEntitiesRaw[i];
-             final ChunkMap.TrackedEntity tracker = ((ca.spottedleaf.moonrise.patches.entity_tracker.EntityTrackerEntity)entity).moonrise$getTrackedEntity();
-             if (tracker == null) {
-@@ -1059,6 +1069,8 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
-                 tracker.serverEntity.sendChanges();
-             }
+         worldData.iteratingTrackerEntities = true; // Folia - region threading
+         try {
+             final ca.spottedleaf.moonrise.common.list.ReferenceList<net.minecraft.world.entity.Entity> trackerEntities = worldData.trackerEntities; // Folia - region threading
+             final Entity[] trackerEntitiesRaw = trackerEntities.getRawDataUnchecked();
+-            for (int i = 0, len = trackerEntities.size(); i < len; ++i) {
++            for (int i = 0, len = totalEntities = trackerEntities.size(); i < len; ++i) { // Folia - profiler
+                 final Entity entity = trackerEntitiesRaw[i];
+                 final ChunkMap.TrackedEntity tracker = ((ca.spottedleaf.moonrise.patches.entity_tracker.EntityTrackerEntity)entity).moonrise$getTrackedEntity();
+                 if (tracker == null) {
+@@ -1071,6 +1081,8 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
+         } finally {
+             worldData.iteratingTrackerEntities = false; // Folia - region threading
          }
 +        profiler.addCounter(ca.spottedleaf.leafprofiler.LProfilerRegistry.TRACKED_ENTITY_COUNTS, (long)totalEntities); // Folia - profiler
 +        } finally { profiler.stopTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.ENTITY_TRACKER_TICK); } // Folia - profiler

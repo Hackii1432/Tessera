@@ -5,10 +5,10 @@ Subject: [PATCH] Adapt portal transitions to updated Paper API
 
 
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index 0e02de971fdb02c04b09161a6eda3676ebf36135..a3d026243c776e67289b9e1cc2ba5bcb105420ec 100644
+index dc45a01067eddb249c6d688e276a02a809e79ef6..f991552dda05e022e19506f5fd4b6456a6ae6134 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
-@@ -4613,9 +4613,8 @@ public abstract class Entity
+@@ -4619,9 +4619,8 @@ public abstract class Entity
                                  new net.minecraft.world.level.portal.TeleportTransition(
                                      destination, Vec3.atBottomCenterOf(targetPos.below()), Vec3.ZERO, Direction.WEST.toYRot(), 0.0f,
                                      Relative.union(Relative.DELTA, Set.of(Relative.X_ROT)),
@@ -20,7 +20,7 @@ index 0e02de971fdb02c04b09161a6eda3676ebf36135..a3d026243c776e67289b9e1cc2ba5bcb
                              );
                          }
                      );
-@@ -4633,9 +4632,8 @@ public abstract class Entity
+@@ -4639,9 +4638,8 @@ public abstract class Entity
                                  new net.minecraft.world.level.portal.TeleportTransition(
                                      destination, Vec3.atBottomCenterOf(adjustedSpawn), Vec3.ZERO, 0.0f, 0.0f,
                                      Relative.union(Relative.DELTA, Relative.ROTATION),

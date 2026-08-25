@@ -1,0 +1,341 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Wed, 26 Aug 2026 00:00:21 +0200
+Subject: [PATCH] Route console entity selectors to their region
+
+
+diff --git a/net/minecraft/commands/Commands.java b/net/minecraft/commands/Commands.java
+index bdf75ad1d720a2409a6ae8a50522a7f868b4337b..a56c76fc57b4fb51eceeae45b0d9e3e33e8b5779 100644
+--- a/net/minecraft/commands/Commands.java
++++ b/net/minecraft/commands/Commands.java
+@@ -19,6 +19,7 @@ import java.util.HashMap;
+ import java.util.Map;
+ import java.util.Optional;
+ import java.util.Set;
++import java.util.concurrent.CompletableFuture;
+ import java.util.function.Consumer;
+ import java.util.function.Predicate;
+ import java.util.function.UnaryOperator;
+@@ -26,6 +27,9 @@ import java.util.stream.Collectors;
+ import java.util.stream.Stream;
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.SharedConstants;
++import net.minecraft.commands.arguments.DimensionArgument;
++import net.minecraft.commands.arguments.EntityArgument;
++import net.minecraft.commands.arguments.coordinates.Vec3Argument;
+ import net.minecraft.commands.execution.ExecutionContext;
+ import net.minecraft.commands.synchronization.ArgumentTypeInfos;
+ import net.minecraft.commands.synchronization.ArgumentUtils;
+@@ -358,6 +362,13 @@ public class Commands {
+         this.performCommand(this.dispatcher.parse(command, sender), command);
+     }
+ 
++    // Tessera start - route spatial console entity selectors to their region
++    public CompletableFuture<Void> performPrefixedCommandAsync(final CommandSourceStack sender, String command) {
++        command = trimOptionalPrefix(command);
++        return this.performCommandAsync(this.dispatcher.parse(command, sender), command, false);
++    }
++    // Tessera end - route spatial console entity selectors to their region
++
+     public static String trimOptionalPrefix(final String command) {
+         return command.startsWith("/") ? command.substring(1) : command;
+     }
+@@ -368,6 +379,15 @@ public class Commands {
+     }
+ 
+     public void performCommand(final ParseResults<CommandSourceStack> command, final String commandString, final boolean throwCommandError) {
++        this.performCommandAsync(command, commandString, throwCommandError);
++    }
++
++    // Tessera start - route spatial console entity selectors to their region
++    private CompletableFuture<Void> performCommandAsync(
++        final ParseResults<CommandSourceStack> command,
++        final String commandString,
++        final boolean throwCommandError
++    ) {
+         org.spigotmc.AsyncCatcher.catchOp("Cannot perform command async");
+         // Paper end
+         CommandSourceStack sender = command.getContext().getSource();
+@@ -376,6 +396,15 @@ public class Commands {
+ 
+         try {
+             if (commandChain != null) {
++                final CommandSourceStack regionTarget = tessera$findRegionTarget(commandChain, sender);
++                if (regionTarget != null
++                    && !ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(
++                        regionTarget.getLevel(), regionTarget.getPosition()
++                    )) {
++                    return this.tessera$scheduleRegionCommand(
++                        command, commandString, throwCommandError, sender, regionTarget
++                    );
++                }
+                 executeCommandInContext(
+                     sender,
+                     executionContext -> ExecutionContext.queueInitialCommandExecution(
+@@ -383,6 +412,7 @@ public class Commands {
+                     )
+                 );
+             }
++            return CompletableFuture.completedFuture(null);
+             // Paper start
+         } catch (Throwable e) { // always gracefully handle it, no matter how bad:tm:
+             if (throwCommandError) throw e; // rethrow directly if requested
+@@ -406,11 +436,124 @@ public class Commands {
+                 sender.sendFailure(Component.literal(Util.describeError(e)));
+                 LOGGER.error("'/{}' threw an exception", commandString, e);
+             }
++            return CompletableFuture.completedFuture(null);
+         } finally {
+             Profiler.get().pop();
+         }
+     }
+ 
++    private CompletableFuture<Void> tessera$scheduleRegionCommand(
++        final ParseResults<CommandSourceStack> command,
++        final String commandString,
++        final boolean throwCommandError,
++        final CommandSourceStack sender,
++        final CommandSourceStack target
++    ) {
++        final ServerLevel level = target.getLevel();
++        final int chunkX = net.minecraft.util.Mth.floor(target.getPosition().x()) >> 4;
++        final int chunkZ = net.minecraft.util.Mth.floor(target.getPosition().z()) >> 4;
++        if (level.regioniser.getRegionAtSynchronised(chunkX, chunkZ) == null) {
++            sender.sendFailure(Component.literal(
++                "Cannot run a region-bound entity selector: target region "
++                    + level.dimension().identifier() + " [" + chunkX + ", " + chunkZ + "] is not loaded"
++            ));
++            return CompletableFuture.completedFuture(null);
++        }
++
++        final CompletableFuture<Void> completion = new CompletableFuture<>();
++        final ca.spottedleaf.concurrentutil.executor.PrioritisedExecutor.PrioritisedTask task =
++            io.papermc.paper.threadedregions.RegionizedServer.getInstance().taskQueue.createTickTaskQueue(
++                level,
++                chunkX,
++                chunkZ,
++                () -> {
++                    try {
++                        this.performCommand(command, commandString, throwCommandError);
++                        completion.complete(null);
++                    } catch (final Throwable throwable) {
++                        completion.completeExceptionally(throwable);
++                    }
++                }
++            );
++        if (!task.queue()) {
++            sender.sendFailure(Component.literal(
++                "Cannot run a region-bound entity selector: target region "
++                    + level.dimension().identifier() + " [" + chunkX + ", " + chunkZ + "] is no longer available"
++            ));
++            completion.complete(null);
++        }
++        return completion;
++    }
++
++    private static @Nullable CommandSourceStack tessera$findRegionTarget(
++        final ContextChain<CommandSourceStack> command,
++        final CommandSourceStack sender
++    ) {
++        if ((sender.source != sender.getServer()
++            && !(sender.source instanceof net.minecraft.server.rcon.RconConsoleSource))
++            || !tessera$containsEntityArgument(command)) {
++            return null;
++        }
++
++        ContextChain<CommandSourceStack> stage = command;
++        CommandSourceStack target = sender;
++        boolean explicitDimension = false;
++        try {
++            while (true) {
++                final com.mojang.brigadier.context.CommandContext<CommandSourceStack> context = stage.getTopContext();
++                if (tessera$hasArgumentType(context, EntityArgument.class)) {
++                    break;
++                }
++                if (tessera$hasArgumentType(context, DimensionArgument.class)) {
++                    target = target.withLevel(DimensionArgument.getDimension(context.copyFor(target), "dimension"));
++                    explicitDimension = true;
++                } else if (tessera$hasNode(context, "positioned")
++                    && tessera$hasArgumentType(context, Vec3Argument.class)) {
++                    target = target.withPosition(Vec3Argument.getVec3(context.copyFor(target), "pos"));
++                }
++
++                if (stage.getStage() == ContextChain.Stage.EXECUTE) {
++                    break;
++                }
++                stage = stage.nextStage();
++            }
++        } catch (final CommandSyntaxException | IllegalArgumentException ignored) {
++            // Let normal command execution report invalid dimensions/coordinates.
++            return null;
++        }
++        return explicitDimension ? target : null;
++    }
++
++    private static boolean tessera$containsEntityArgument(final ContextChain<CommandSourceStack> command) {
++        ContextChain<CommandSourceStack> stage = command;
++        while (true) {
++            if (tessera$hasArgumentType(stage.getTopContext(), EntityArgument.class)) {
++                return true;
++            }
++            if (stage.getStage() == ContextChain.Stage.EXECUTE) {
++                return false;
++            }
++            stage = stage.nextStage();
++        }
++    }
++
++    private static boolean tessera$hasNode(
++        final com.mojang.brigadier.context.CommandContext<CommandSourceStack> context,
++        final String name
++    ) {
++        return context.getNodes().stream().anyMatch(node -> node.getNode().getName().equals(name));
++    }
++
++    private static boolean tessera$hasArgumentType(
++        final com.mojang.brigadier.context.CommandContext<CommandSourceStack> context,
++        final Class<? extends ArgumentType<?>> type
++    ) {
++        return context.getNodes().stream().anyMatch(node ->
++            node.getNode() instanceof ArgumentCommandNode<?, ?> argument && type.isInstance(argument.getType())
++        );
++    }
++    // Tessera end - route spatial console entity selectors to their region
++
+     private static @Nullable ContextChain<CommandSourceStack> finishParsing(
+         final ParseResults<CommandSourceStack> command, final String commandString, final CommandSourceStack sender
+     ) {
+diff --git a/net/minecraft/commands/arguments/selector/EntitySelector.java b/net/minecraft/commands/arguments/selector/EntitySelector.java
+index 6c05b9276bdc267a36376f6c64592a50e4b2b36e..01f0713224deb846c865c25fe0ef31bf67c78c94 100644
+--- a/net/minecraft/commands/arguments/selector/EntitySelector.java
++++ b/net/minecraft/commands/arguments/selector/EntitySelector.java
+@@ -2,6 +2,7 @@ package net.minecraft.commands.arguments.selector;
+ 
+ import com.mojang.brigadier.StringReader;
+ import com.mojang.brigadier.exceptions.CommandSyntaxException;
++import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
+ import com.mojang.serialization.Codec;
+ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+ import java.util.List;
+@@ -30,6 +31,14 @@ import org.jspecify.annotations.Nullable;
+ public class EntitySelector {
+     public static final int INFINITE = Integer.MAX_VALUE;
+     public static final BiConsumer<Vec3, List<? extends Entity>> ORDER_ARBITRARY = (p, c) -> {};
++    // Tessera start - reject unsafe cross-region entity selectors cleanly
++    private static final SimpleCommandExceptionType ERROR_UNBOUNDED_REGION_QUERY = new SimpleCommandExceptionType(
++        Component.literal("Unbounded entity selectors cannot be used by a region-bound command; add a finite distance or volume")
++    );
++    private static final SimpleCommandExceptionType ERROR_CROSS_REGION_QUERY = new SimpleCommandExceptionType(
++        Component.literal("The entity selector search area crosses region boundaries and is not supported")
++    );
++    // Tessera end - reject unsafe cross-region entity selectors cleanly
+     private static final EntityTypeTest<Entity, ?> ANY_TYPE = new EntityTypeTest<Entity, Entity>() {
+         @Override
+         public Entity tryCast(final Entity entity) {
+@@ -169,26 +178,44 @@ public class EntitySelector {
+ 
+             Predicate<Entity> predicate = this.getPredicate(pos, absoluteAabb, sender.enabledFeatures());
+             List<Entity> result = new ObjectArrayList<>();
+-            if (this.isWorldLimited()) {
+-                this.addEntities(result, sender.getLevel(), absoluteAabb, predicate);
+-            } else {
+-                for (ServerLevel level : sender.getServer().getAllLevels()) {
+-                    this.addEntities(result, level, absoluteAabb, predicate);
++            try {
++                if (this.isWorldLimited()) {
++                    this.addEntities(result, sender.getLevel(), absoluteAabb, predicate);
++                } else {
++                    for (ServerLevel level : sender.getServer().getAllLevels()) {
++                        this.addEntities(result, level, absoluteAabb, predicate);
++                    }
+                 }
++            } catch (final CommandSyntaxException failure) {
++                // Brigadier suppresses exceptions raised by forked execute conditions. Send the
++                // actionable region-safety error before rethrowing so console and RCON still see it.
++                if (failure.getType() == ERROR_UNBOUNDED_REGION_QUERY || failure.getType() == ERROR_CROSS_REGION_QUERY) {
++                    sender.sendFailure(ComponentUtils.fromMessage(failure.getRawMessage()));
++                }
++                throw failure;
+             }
+ 
+             return this.sortAndLimit(pos, result);
+         }
+     }
+ 
+-    private void addEntities(final List<Entity> result, final ServerLevel level, final @Nullable AABB absoluteAABB, final Predicate<Entity> predicate) {
++    private void addEntities(
++        final List<Entity> result,
++        final ServerLevel level,
++        final @Nullable AABB absoluteAABB,
++        final Predicate<Entity> predicate
++    ) throws CommandSyntaxException {
+         int limit = this.getResultLimit();
+         if (result.size() < limit) {
+-            if (absoluteAABB != null) {
+-                level.getEntities(this.type, absoluteAABB, predicate, result, limit);
+-            } else {
+-                level.getEntities(this.type, predicate, result, limit);
++            // Tessera start - reject unsafe cross-region entity selectors cleanly
++            if (absoluteAABB == null) {
++                throw ERROR_UNBOUNDED_REGION_QUERY.create();
++            }
++            if (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(level, absoluteAABB)) {
++                throw ERROR_CROSS_REGION_QUERY.create();
+             }
++            // Tessera end - reject unsafe cross-region entity selectors cleanly
++            level.getEntities(this.type, absoluteAABB, predicate, result, limit);
+         }
+     }
+ 
+diff --git a/net/minecraft/server/dedicated/DedicatedServer.java b/net/minecraft/server/dedicated/DedicatedServer.java
+index 1bdb0d9054ecdf1fc043b693dbee8a01ced0e32e..7bca66115257e48cc2867338ddfe4b3f0ac184ba 100644
+--- a/net/minecraft/server/dedicated/DedicatedServer.java
++++ b/net/minecraft/server/dedicated/DedicatedServer.java
+@@ -920,23 +920,37 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+         if (command.isBlank()) return ""; // Paper - Do not process empty rcon commands
+ 
+         rconConsoleSource.prepareForCommand();
+-        Runnable sync = () -> { // Folia - region threading
+-            CommandSourceStack wrapper = rconConsoleSource.createCommandSourceStack();
+-            org.bukkit.event.server.RemoteServerCommandEvent event = new org.bukkit.event.server.RemoteServerCommandEvent(rconConsoleSource.getBukkitSender(wrapper), command);
+-            this.server.getPluginManager().callEvent(event);
+-            if (event.isCancelled()) {
+-                return;
++        // Tessera start - allow RCON to await a command rerouted to a region without blocking the global tick
++        final java.util.concurrent.CompletableFuture<Void> commandCompletion = new java.util.concurrent.CompletableFuture<>();
++        io.papermc.paper.threadedregions.RegionizedServer.getInstance().addTask(() -> {
++            try {
++                CommandSourceStack wrapper = rconConsoleSource.createCommandSourceStack();
++                org.bukkit.event.server.RemoteServerCommandEvent event = new org.bukkit.event.server.RemoteServerCommandEvent(rconConsoleSource.getBukkitSender(wrapper), command);
++                this.server.getPluginManager().callEvent(event);
++                if (event.isCancelled()) {
++                    commandCompletion.complete(null);
++                    return;
++                }
++                this.getCommands().performPrefixedCommandAsync(wrapper, event.getCommand())
++                    .whenComplete((ignored, failure) -> {
++                        if (failure == null) {
++                            commandCompletion.complete(null);
++                        } else {
++                            commandCompletion.completeExceptionally(failure);
++                        }
++                    });
++            } catch (final Throwable throwable) {
++                commandCompletion.completeExceptionally(throwable);
+             }
+-            this.getCommands().performPrefixedCommand(wrapper, event.getCommand());
+-        }; // Folia start - region threading
+-        java.util.concurrent.CompletableFuture
+-            .runAsync(sync, io.papermc.paper.threadedregions.RegionizedServer.getInstance()::addTask)
++        });
++        commandCompletion
+             .whenComplete((Void r, Throwable t) -> {
+                 if (t != null) {
+                     LOGGER.error("Error handling command for rcon: " + command, t);
+                 }
+             })
+             .join();
++        // Tessera end - allow RCON to await a command rerouted to a region without blocking the global tick
+         // Folia end - region threading
+         return rconConsoleSource.getCommandResponse();
+         // CraftBukkit end

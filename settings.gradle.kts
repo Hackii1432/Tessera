@@ -16,6 +16,10 @@ rootProject.name = "tessera"
 
 include("folia-api")
 include("folia-server")
+include("paper-checkstyle")
+if (!file("paper-checkstyle/build.gradle.kts").exists()) {
+    project(":paper-checkstyle").projectDir = file("folia-checkstyle/bootstrap")
+}
 include("test-plugin")
 
 gradle.lifecycle.beforeProject {

@@ -226,7 +226,7 @@ index 21b481765faca951c8baf20a7a63cf03d77db33a..c5024b6809378ea311ea7b1462987d97
          return (float)this.getAttributeValue(Attributes.ATTACK_DAMAGE);
      }
 diff --git a/net/minecraft/world/entity/npc/villager/Villager.java b/net/minecraft/world/entity/npc/villager/Villager.java
-index f649c46cc9a34e646f8da3244866c6e011d30aa3..56fff5664b325f86d143b3fc4af8a9147fe5139d 100644
+index 0869ecb4b7fe07efa33d521bef2f525955bd3c30..3cc32fa48f95399e39d5becfd4fe1f7384dc4034 100644
 --- a/net/minecraft/world/entity/npc/villager/Villager.java
 +++ b/net/minecraft/world/entity/npc/villager/Villager.java
 @@ -9,6 +9,7 @@ import java.util.ArrayList;

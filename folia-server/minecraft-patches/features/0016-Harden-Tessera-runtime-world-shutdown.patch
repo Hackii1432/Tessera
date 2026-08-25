@@ -82,7 +82,7 @@ index e65818b6d3700f65222c68b23c2775ffa2acf1bf..75bbbf47c3d44df0ea559c39a55c1188
          LOGGER.info("Awaiting scheduler termination for 60s...");
          if (TickRegions.getScheduler().halt(true, TimeUnit.SECONDS.toNanos(60L))) {
 diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
-index fa19b1d1e3927dd481f68be3d260c6a9c4bd9753..73dcb704482520c69f2fed46f665e6751bed0e2d 100644
+index 1b1fc04fc0f4ded5fee450253a5c0b1142f97295..215faeb4b0f47fcae6e0486dc788fef6cd8e5181 100644
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
 @@ -1078,6 +1078,13 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
@@ -99,7 +99,7 @@ index fa19b1d1e3927dd481f68be3d260c6a9c4bd9753..73dcb704482520c69f2fed46f665e675
          // halt scheduler
          // don't wait, we may be on a scheduler thread
          io.papermc.paper.threadedregions.TickRegions.getScheduler().halt(false, 0L);
-@@ -1186,6 +1193,13 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1185,6 +1192,13 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
          LOGGER.info("Waiting for all RegionFile I/O tasks to complete...");
          ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.flush((MinecraftServer)(Object)this);
          LOGGER.info("All RegionFile I/O tasks to complete");
@@ -135,10 +135,10 @@ index 9d6f81492f0bf0f2b1f4af8d360c0f06a38604d8..7285e66137316b25fc0d6a33e5b7a921
  
      public static final record PendingTeleport(Entity.EntityTreeNode rootVehicle, Vec3 to) {}
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index a3d026243c776e67289b9e1cc2ba5bcb105420ec..b45e724b009b1fbbee04ac441c80e7574c359982 100644
+index f991552dda05e022e19506f5fd4b6456a6ae6134..d973aae76e3d3ec5083a7f38e30af01b4abb6e01 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
-@@ -4459,6 +4459,14 @@ public abstract class Entity
+@@ -4465,6 +4465,14 @@ public abstract class Entity
                                         org.bukkit.event.player.PlayerTeleportEvent.TeleportCause cause, long teleportFlags,
                                         java.util.function.Consumer<Entity> teleportComplete) {
          ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this, "Cannot teleport entity async");

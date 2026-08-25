@@ -182,6 +182,8 @@ function Assert-NoCommandContextFailure {
         "executeCommandInContext.*NullPointerException"
         "Cannot invoke .*ServerLevel\.getGameRules"
         "Command source .* has no world context"
+        "Thread failed main thread check"
+        "Cannot getEntities asynchronously"
     )
     foreach ($pattern in $unsafe) {
         if ($content -match $pattern) {
@@ -326,6 +328,64 @@ try {
         -Pattern "Done \(" `
         -TimeoutSeconds $StartupTimeoutSeconds | Out-Null
 
+    $fixtures = @(
+        "tessera-console-context fixture minecraft:overworld 736 80 736 2"
+        "tessera-console-context fixture minecraft:overworld 1760 80 736 1"
+        "tessera-console-context fixture minecraft:the_nether 736 80 736 1"
+        "tessera-console-context fixture minecraft:the_end 736 80 736 0"
+    )
+    foreach ($fixture in $fixtures) {
+        $interactive.Process.StandardInput.WriteLine($fixture)
+    }
+    $interactive.Process.StandardInput.Flush()
+    foreach ($fixtureReady in @(
+        "world=minecraft:overworld chunk=46,46 count=2",
+        "world=minecraft:overworld chunk=110,46 count=1",
+        "world=minecraft:the_nether chunk=46,46 count=1",
+        "world=minecraft:the_end chunk=46,46 count=0"
+    )) {
+        Wait-LogPattern `
+            -Server $interactive `
+            -Pattern ("TESSERA_SELECTOR_FIXTURE_READY " + [regex]::Escape($fixtureReady)) `
+            -TimeoutSeconds $CommandTimeoutSeconds | Out-Null
+    }
+
+    $selectorCommands = @(
+        "execute in minecraft:overworld positioned 736 80 736 if entity @e[type=minecraft:armor_stand,distance=..8] run tessera-console-context selector-overworld-local"
+        "execute in minecraft:the_nether positioned 736 80 736 if entity @e[type=minecraft:armor_stand,distance=..8] run tessera-console-context selector-nether-local"
+        "execute in minecraft:the_end positioned 736 80 736 unless entity @e[type=minecraft:armor_stand,distance=..8] run tessera-console-context selector-end-empty"
+        "execute in minecraft:overworld positioned 736 80 736 if entity @e[type=minecraft:armor_stand,distance=..128] run tessera-console-context selector-overworld-128"
+        "execute in minecraft:overworld positioned 736 80 736 as @e[type=minecraft:armor_stand,distance=..8] run tessera-console-context selector-as"
+        "execute in minecraft:overworld positioned 736 80 736 at @e[type=minecraft:armor_stand,distance=..8] run tessera-console-context selector-at"
+    )
+    foreach ($selectorCommand in $selectorCommands) {
+        $interactive.Process.StandardInput.WriteLine($selectorCommand)
+    }
+    $interactive.Process.StandardInput.Flush()
+    foreach ($marker in @(
+        "selector-overworld-local",
+        "selector-nether-local",
+        "selector-end-empty",
+        "selector-overworld-128",
+        "selector-as",
+        "selector-at"
+    )) {
+        Wait-LogPattern `
+            -Server $interactive `
+            -Pattern ("TESSERA_CONSOLE_CONTEXT_OK.*" + $marker) `
+            -TimeoutSeconds $CommandTimeoutSeconds | Out-Null
+    }
+    $selectorLog = Get-Content -LiteralPath $interactive.Log -Raw
+    foreach ($marker in @("selector-as", "selector-at")) {
+        $invocations = [regex]::Matches(
+            $selectorLog,
+            "\[TesseraRuntimeWorldSmoke\].*TESSERA_CONSOLE_CONTEXT_OK.*" + $marker
+        ).Count
+        if ($invocations -ne 2) {
+            throw "Expected two '$marker' invocations for two selector results, got $invocations."
+        }
+    }
+
     $interactive.Process.StandardInput.WriteLine("tessera-console-context interactive")
     $interactive.Process.StandardInput.WriteLine(
         "execute in minecraft:overworld run tessera-console-context interactive-dimension"
@@ -348,6 +408,48 @@ try {
     if ($rconDimensionResponse -notmatch "TESSERA_CONSOLE_CONTEXT_OK") {
         throw "RCON dimension command returned an unexpected response: $rconDimensionResponse"
     }
+    $rconSelectorResponse = Invoke-RconCommand `
+        -Port $rconPort `
+        -Command "execute in minecraft:overworld positioned 736 80 736 if entity @e[type=minecraft:armor_stand,distance=..8] run tessera-console-context rcon-selector"
+    if ($rconSelectorResponse -notmatch "TESSERA_CONSOLE_CONTEXT_OK.*rcon-selector") {
+        throw "RCON local selector returned an unexpected response: $rconSelectorResponse"
+    }
+    $rconLimitedDataResponse = Invoke-RconCommand `
+        -Port $rconPort `
+        -Command "execute in minecraft:overworld positioned 736 80 736 run data get entity @e[type=minecraft:armor_stand,limit=1]"
+    if ($rconLimitedDataResponse -notmatch "following entity data|Unbounded entity selectors|Incorrect argument for command") {
+        throw "RCON limited data-get selector returned an unexpected response: $rconLimitedDataResponse"
+    }
+    $rconUnboundedResponse = Invoke-RconCommand `
+        -Port $rconPort `
+        -Command "execute in minecraft:overworld positioned 736 80 736 if entity @e[type=minecraft:armor_stand] run say unsafe-unbounded"
+    if ($rconUnboundedResponse -notmatch "Unbounded entity selectors") {
+        throw "RCON executable unbounded selector was not rejected clearly: $rconUnboundedResponse"
+    }
+    $rconCrossRegionResponse = Invoke-RconCommand `
+        -Port $rconPort `
+        -Command "execute in minecraft:overworld positioned 736 80 736 if entity @e[type=minecraft:armor_stand,distance=..1024] run say unsafe-cross-region"
+    if ($rconCrossRegionResponse -notmatch "crosses region boundaries") {
+        throw "RCON cross-region selector was not rejected clearly: $rconCrossRegionResponse"
+    }
+    $rconUnloadedResponse = Invoke-RconCommand `
+        -Port $rconPort `
+        -Command "execute in minecraft:the_end positioned 50000 80 50000 if entity @e[distance=..8] run say unloaded"
+    if ($rconUnloadedResponse -notmatch "is not loaded") {
+        throw "RCON unloaded selector target was not rejected clearly: $rconUnloadedResponse"
+    }
+
+    $interactive.Process.StandardInput.WriteLine(
+        "execute in minecraft:overworld positioned 736 80 736 run kill @e[type=minecraft:armor_stand,distance=..8]"
+    )
+    $interactive.Process.StandardInput.WriteLine(
+        "execute in minecraft:overworld positioned 736 80 736 unless entity @e[type=minecraft:armor_stand,distance=..8] run tessera-console-context selector-kill-empty"
+    )
+    $interactive.Process.StandardInput.Flush()
+    Wait-LogPattern `
+        -Server $interactive `
+        -Pattern "TESSERA_CONSOLE_CONTEXT_OK.*selector-kill-empty" `
+        -TimeoutSeconds $CommandTimeoutSeconds | Out-Null
     Wait-LogPattern `
         -Server $interactive `
         -Pattern "TESSERA_CONSOLE_CONTEXT_OK.*rcon-dimension" `
