@@ -6,48 +6,72 @@ Subject: [PATCH] Test region-safe vanilla entity selectors
 
 diff --git a/src/test/java/net/minecraft/commands/arguments/selector/EntitySelectorRegionSafetyTestSuite.java b/src/test/java/net/minecraft/commands/arguments/selector/EntitySelectorRegionSafetyTestSuite.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f2973f9516941440464f55bde39901fee8e88215
+index 0000000000000000000000000000000000000000..1533ca20a73ad66db041bb10d70181afbba19b87
 --- /dev/null
 +++ b/src/test/java/net/minecraft/commands/arguments/selector/EntitySelectorRegionSafetyTestSuite.java
-@@ -0,0 +1,66 @@
+@@ -0,0 +1,113 @@
 +package net.minecraft.commands.arguments.selector;
 +
 +import com.mojang.brigadier.exceptions.CommandSyntaxException;
 +import java.util.List;
++import java.util.UUID;
 +import net.minecraft.commands.CommandSourceStack;
++import net.minecraft.server.MinecraftServer;
 +import net.minecraft.server.level.ServerLevel;
++import net.minecraft.world.entity.Entity;
++import net.minecraft.world.entity.EntityType;
 +import net.minecraft.world.flag.FeatureFlagSet;
 +import net.minecraft.world.phys.AABB;
 +import net.minecraft.world.phys.Vec3;
 +import org.bukkit.support.environment.Normal;
 +import org.junit.jupiter.api.Test;
 +
-+import static org.junit.jupiter.api.Assertions.assertTrue;
++import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
++import static org.junit.jupiter.api.Assertions.assertSame;
 +import static org.junit.jupiter.api.Assertions.assertThrows;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++import static org.mockito.ArgumentMatchers.any;
++import static org.mockito.ArgumentMatchers.anyInt;
++import static org.mockito.ArgumentMatchers.anyList;
 +import static org.mockito.Mockito.mock;
++import static org.mockito.Mockito.verify;
 +import static org.mockito.Mockito.when;
 +
 +@Normal
 +class EntitySelectorRegionSafetyTestSuite {
 +
 +    @Test
-+    void rejectsUnboundedEntityQueryBeforeWorldLookup() {
-+        final CommandSyntaxException failure = assertThrows(
-+            CommandSyntaxException.class,
-+            () -> selector(null).findEntities(source())
-+        );
++    void usesConcurrentWorldLookupForUnboundedEntityQuery() {
++        final ServerLevel level = mock(ServerLevel.class);
 +
-+        assertTrue(failure.getRawMessage().getString().contains("Unbounded entity selectors"));
++        assertDoesNotThrow(() -> selector((AABB) null).findEntities(source(level)));
++
++        verify(level).getEntities(any(), any(), anyList(), anyInt());
 +    }
 +
 +    @Test
 +    void rejectsBoundedEntityQueryOutsideAnOwningRegionBeforeWorldLookup() {
 +        final CommandSyntaxException failure = assertThrows(
 +            CommandSyntaxException.class,
-+            () -> selector(new AABB(-8.0, -8.0, -8.0, 9.0, 9.0, 9.0)).findEntities(source())
++            () -> selector(new AABB(-8.0, -8.0, -8.0, 9.0, 9.0, 9.0)).findEntities(source(mock(ServerLevel.class)))
 +        );
 +
 +        assertTrue(failure.getRawMessage().getString().contains("crosses region boundaries"));
++    }
++
++    @Test
++    void resolvesEntityUuidAcrossWorldsWithoutSpatialRegionRouting() throws CommandSyntaxException {
++        final UUID uuid = UUID.randomUUID();
++        final Entity entity = mock(Entity.class);
++        final EntityType<?> entityType = mock(EntityType.class);
++        final ServerLevel level = mock(ServerLevel.class);
++        final MinecraftServer server = mock(MinecraftServer.class);
++        org.mockito.Mockito.doReturn(entityType).when(entity).getType();
++        when(entityType.isEnabled(any())).thenReturn(true);
++        when(level.getEntity(uuid)).thenReturn(entity);
++        when(server.getAllLevels()).thenReturn(List.of(level));
++
++        assertSame(entity, selector(uuid).findSingleEntity(source(level, server)));
 +    }
 +
 +    private static EntitySelector selector(final AABB aabb) {
@@ -68,10 +92,33 @@ index 0000000000000000000000000000000000000000..f2973f9516941440464f55bde39901fe
 +        );
 +    }
 +
-+    private static CommandSourceStack source() {
++    private static EntitySelector selector(final UUID uuid) {
++        return new EntitySelector(
++            1,
++            true,
++            false,
++            List.of(),
++            null,
++            position -> position,
++            null,
++            EntitySelector.ORDER_ARBITRARY,
++            false,
++            null,
++            uuid,
++            null,
++            false
++        );
++    }
++
++    private static CommandSourceStack source(final ServerLevel level) {
++        return source(level, null);
++    }
++
++    private static CommandSourceStack source(final ServerLevel level, final MinecraftServer server) {
 +        final CommandSourceStack source = mock(CommandSourceStack.class);
 +        when(source.getPosition()).thenReturn(Vec3.ZERO);
-+        when(source.getLevel()).thenReturn(mock(ServerLevel.class));
++        when(source.getLevel()).thenReturn(level);
++        when(source.getServer()).thenReturn(server);
 +        when(source.enabledFeatures()).thenReturn(mock(FeatureFlagSet.class));
 +        return source;
 +    }

@@ -206,7 +206,7 @@ index bdf75ad1d720a2409a6ae8a50522a7f868b4337b..a56c76fc57b4fb51eceeae45b0d9e3e3
          final ParseResults<CommandSourceStack> command, final String commandString, final CommandSourceStack sender
      ) {
 diff --git a/net/minecraft/commands/arguments/selector/EntitySelector.java b/net/minecraft/commands/arguments/selector/EntitySelector.java
-index 6c05b9276bdc267a36376f6c64592a50e4b2b36e..01f0713224deb846c865c25fe0ef31bf67c78c94 100644
+index 6c05b9276bdc267a36376f6c64592a50e4b2b36e..a5890223c91c274bf95df4ff099d5756bd768da5 100644
 --- a/net/minecraft/commands/arguments/selector/EntitySelector.java
 +++ b/net/minecraft/commands/arguments/selector/EntitySelector.java
 @@ -2,6 +2,7 @@ package net.minecraft.commands.arguments.selector;
@@ -217,14 +217,11 @@ index 6c05b9276bdc267a36376f6c64592a50e4b2b36e..01f0713224deb846c865c25fe0ef31bf
  import com.mojang.serialization.Codec;
  import it.unimi.dsi.fastutil.objects.ObjectArrayList;
  import java.util.List;
-@@ -30,6 +31,14 @@ import org.jspecify.annotations.Nullable;
+@@ -30,6 +31,11 @@ import org.jspecify.annotations.Nullable;
  public class EntitySelector {
      public static final int INFINITE = Integer.MAX_VALUE;
      public static final BiConsumer<Vec3, List<? extends Entity>> ORDER_ARBITRARY = (p, c) -> {};
 +    // Tessera start - reject unsafe cross-region entity selectors cleanly
-+    private static final SimpleCommandExceptionType ERROR_UNBOUNDED_REGION_QUERY = new SimpleCommandExceptionType(
-+        Component.literal("Unbounded entity selectors cannot be used by a region-bound command; add a finite distance or volume")
-+    );
 +    private static final SimpleCommandExceptionType ERROR_CROSS_REGION_QUERY = new SimpleCommandExceptionType(
 +        Component.literal("The entity selector search area crosses region boundaries and is not supported")
 +    );
@@ -232,7 +229,7 @@ index 6c05b9276bdc267a36376f6c64592a50e4b2b36e..01f0713224deb846c865c25fe0ef31bf
      private static final EntityTypeTest<Entity, ?> ANY_TYPE = new EntityTypeTest<Entity, Entity>() {
          @Override
          public Entity tryCast(final Entity entity) {
-@@ -169,26 +178,44 @@ public class EntitySelector {
+@@ -169,26 +175,48 @@ public class EntitySelector {
  
              Predicate<Entity> predicate = this.getPredicate(pos, absoluteAabb, sender.enabledFeatures());
              List<Entity> result = new ObjectArrayList<>();
@@ -252,7 +249,7 @@ index 6c05b9276bdc267a36376f6c64592a50e4b2b36e..01f0713224deb846c865c25fe0ef31bf
 +            } catch (final CommandSyntaxException failure) {
 +                // Brigadier suppresses exceptions raised by forked execute conditions. Send the
 +                // actionable region-safety error before rethrowing so console and RCON still see it.
-+                if (failure.getType() == ERROR_UNBOUNDED_REGION_QUERY || failure.getType() == ERROR_CROSS_REGION_QUERY) {
++                if (failure.getType() == ERROR_CROSS_REGION_QUERY) {
 +                    sender.sendFailure(ComponentUtils.fromMessage(failure.getRawMessage()));
 +                }
 +                throw failure;
@@ -271,19 +268,19 @@ index 6c05b9276bdc267a36376f6c64592a50e4b2b36e..01f0713224deb846c865c25fe0ef31bf
 +    ) throws CommandSyntaxException {
          int limit = this.getResultLimit();
          if (result.size() < limit) {
--            if (absoluteAABB != null) {
--                level.getEntities(this.type, absoluteAABB, predicate, result, limit);
--            } else {
--                level.getEntities(this.type, predicate, result, limit);
 +            // Tessera start - reject unsafe cross-region entity selectors cleanly
-+            if (absoluteAABB == null) {
-+                throw ERROR_UNBOUNDED_REGION_QUERY.create();
-+            }
-+            if (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(level, absoluteAABB)) {
-+                throw ERROR_CROSS_REGION_QUERY.create();
+             if (absoluteAABB != null) {
++                if (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(level, absoluteAABB)) {
++                    throw ERROR_CROSS_REGION_QUERY.create();
++                }
+                 level.getEntities(this.type, absoluteAABB, predicate, result, limit);
+             } else {
++                // The unbounded ServerLevel lookup is backed by Moonrise's concurrent
++                // entity index. Commands such as kill schedule mutations on each
++                // selected entity's owning region.
+                 level.getEntities(this.type, predicate, result, limit);
              }
 +            // Tessera end - reject unsafe cross-region entity selectors cleanly
-+            level.getEntities(this.type, absoluteAABB, predicate, result, limit);
          }
      }
  
