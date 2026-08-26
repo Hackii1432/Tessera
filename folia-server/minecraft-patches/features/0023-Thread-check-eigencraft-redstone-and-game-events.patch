@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Wed, 26 Aug 2026 17:31:04 +0200
+Subject: [PATCH] Thread check eigencraft redstone and game events
+
+
+diff --git a/io/papermc/paper/redstone/RedstoneWireTurbo.java b/io/papermc/paper/redstone/RedstoneWireTurbo.java
+index b3c466fd7cb6810995f95bed66a86f2b5825a8df..c78a5b8b540af7465aa3c5218cecf81f7387b81c 100644
+--- a/io/papermc/paper/redstone/RedstoneWireTurbo.java
++++ b/io/papermc/paper/redstone/RedstoneWireTurbo.java
+@@ -622,6 +622,11 @@ public final class RedstoneWireTurbo {
+             // this is a List, preserving the insertion order of
+             // left-to-right based on direction of information flow.
+             for (UpdateNode upd : thisLayer) {
++                // Folia start - thread check redstone updates
++                if (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(worldIn, upd.self, 24)) {
++                    continue;
++                }
++                // Folia end - thread check redstone updates
+                 if (upd.type == UpdateNode.Type.REDSTONE) {
+                     // If the node is is redstone wire,
+                     // schedule updates to neighbors if its value
+diff --git a/net/minecraft/world/level/gameevent/GameEventDispatcher.java b/net/minecraft/world/level/gameevent/GameEventDispatcher.java
+index f8c4b24e603abb85c804cccec2c34c47f2670aba..ae5983e5a173145c44b62f9fb6bb9a0c31924b00 100644
+--- a/net/minecraft/world/level/gameevent/GameEventDispatcher.java
++++ b/net/minecraft/world/level/gameevent/GameEventDispatcher.java
+@@ -49,6 +49,11 @@ public class GameEventDispatcher {
+ 
+         for (int chunkX = sectionMinX; chunkX <= sectionMaxX; chunkX++) {
+             for (int chunkZ = sectionMinZ; chunkZ <= sectionMaxZ; chunkZ++) {
++                // Folia start - thread check game events
++                if (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this.level, chunkX, chunkZ, 1)) {
++                    continue;
++                }
++                // Folia end - thread check game events
+                 ChunkAccess chunk = this.level.getChunkIfLoadedImmediately(chunkX, chunkZ); // Paper - Use getChunkIfLoadedImmediately
+                 if (chunk != null) {
+                     for (int section = sectionMinY; section <= sectionMaxY; section++) {
