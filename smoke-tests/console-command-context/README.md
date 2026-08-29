@@ -17,16 +17,22 @@ The second launch verifies:
 - plugin commands through RCON;
 - region-bound entity selectors in the Overworld, Nether, and End;
 - empty, single-result, and multiple-result selectors with radii 8 and 128;
-- `if entity`, `as`, `at`, `data get entity`, and `kill` selector paths;
-- clear RCON rejection of unbounded, cross-region, and unloaded-region queries;
-- absence of entity-query thread-check exceptions;
+- `if entity`, `as`, `at`, and `kill` selector paths;
+- safe unbounded entity selectors and clear rejection of unsafe cross-region
+  and unloaded-region selector queries;
+- `if block`, `unless block`, and block-tag predicates from Console and RCON;
+- loaded block reads in the Overworld, Nether, and End;
+- the read-only `data get block` path and clear rejection of unloaded block
+  regions;
+- absence of entity-query thread checks, block-query thread checks, and the
+  null `captureTreeGeneration` world-data failure;
 - clean shutdown.
 
 Run with Java 25:
 
 ```powershell
 .\smoke-tests\console-command-context\run.ps1 `
-    -JarPath .\folia-server\build\libs\tessera-server-26.2.build-012-stable.jar `
+    -JarPath .\build\libs\tessera-server-26.2.build.014-stable.jar `
     -SkipBuild
 ```
 

@@ -704,6 +704,9 @@ public final class RuntimeWorldLifecycleSmokePlugin extends JavaPlugin {
         if (args.length == 6 && args[0].equals("fixture")) {
             return this.prepareSelectorFixture(sender, args);
         }
+        if (args.length == 5 && args[0].equals("block-fixture")) {
+            return this.prepareBlockFixture(sender, args);
+        }
         final String marker = "TESSERA_CONSOLE_CONTEXT_OK sender="
             + sender.getClass().getSimpleName()
             + " args="
@@ -759,6 +762,50 @@ public final class RuntimeWorldLifecycleSmokePlugin extends JavaPlugin {
                     sender.sendMessage(ready);
                 } catch (final Throwable fixtureFailure) {
                     this.getLogger().severe("TESSERA_SELECTOR_FIXTURE_FAILED world=" + args[1] + " error=" + fixtureFailure);
+                }
+            });
+        });
+        return true;
+    }
+
+    private boolean prepareBlockFixture(final CommandSender sender, final String[] args) {
+        final NamespacedKey worldKey = NamespacedKey.fromString(args[1]);
+        final World world = worldKey == null ? null : Bukkit.getWorld(worldKey);
+        if (world == null) {
+            sender.sendMessage("Unknown block fixture world: " + args[1]);
+            return true;
+        }
+
+        final int x;
+        final int y;
+        final int z;
+        try {
+            x = Integer.parseInt(args[2]);
+            y = Integer.parseInt(args[3]);
+            z = Integer.parseInt(args[4]);
+        } catch (final NumberFormatException invalidNumber) {
+            sender.sendMessage("Invalid block fixture coordinates");
+            return true;
+        }
+
+        final int chunkX = x >> 4;
+        final int chunkZ = z >> 4;
+        world.getChunkAtAsync(chunkX, chunkZ, true).whenComplete((chunk, loadFailure) -> {
+            if (loadFailure != null) {
+                this.getLogger().severe("TESSERA_BLOCK_FIXTURE_FAILED world=" + args[1] + " error=" + loadFailure);
+                return;
+            }
+            chunk.addPluginChunkTicket(this);
+            Bukkit.getRegionScheduler().execute(this, world, chunkX, chunkZ, () -> {
+                try {
+                    world.getBlockAt(x, y, z).setType(Material.STONE, false);
+                    world.getBlockAt(x + 1, y, z).setType(Material.CHEST, false);
+                    final String ready = "TESSERA_BLOCK_FIXTURE_READY world=" + args[1]
+                        + " block=" + x + "," + y + "," + z;
+                    this.getLogger().info(ready);
+                    sender.sendMessage(ready);
+                } catch (final Throwable fixtureFailure) {
+                    this.getLogger().severe("TESSERA_BLOCK_FIXTURE_FAILED world=" + args[1] + " error=" + fixtureFailure);
                 }
             });
         });

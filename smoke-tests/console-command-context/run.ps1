@@ -184,6 +184,8 @@ function Assert-NoCommandContextFailure {
         "Command source .* has no world context"
         "Thread failed main thread check"
         "Cannot getEntities asynchronously"
+        "captureTreeGeneration"
+        "getCurrentWorldData\(\).*null"
     )
     foreach ($pattern in $unsafe) {
         if ($content -match $pattern) {
@@ -350,6 +352,73 @@ try {
             -TimeoutSeconds $CommandTimeoutSeconds | Out-Null
     }
 
+    $blockFixtures = @(
+        "tessera-console-context block-fixture minecraft:overworld 15 30 15"
+        "tessera-console-context block-fixture minecraft:overworld 736 80 736"
+        "tessera-console-context block-fixture minecraft:the_nether 736 80 736"
+        "tessera-console-context block-fixture minecraft:the_end 736 80 736"
+    )
+    foreach ($blockFixture in $blockFixtures) {
+        $interactive.Process.StandardInput.WriteLine($blockFixture)
+    }
+    $interactive.Process.StandardInput.Flush()
+    foreach ($blockFixtureReady in @(
+        "world=minecraft:overworld block=15,30,15",
+        "world=minecraft:overworld block=736,80,736",
+        "world=minecraft:the_nether block=736,80,736",
+        "world=minecraft:the_end block=736,80,736"
+    )) {
+        Wait-LogPattern `
+            -Server $interactive `
+            -Pattern ("TESSERA_BLOCK_FIXTURE_READY " + [regex]::Escape($blockFixtureReady)) `
+            -TimeoutSeconds $CommandTimeoutSeconds | Out-Null
+    }
+
+    $blockCommands = @(
+        "execute in minecraft:overworld run forceload add 0 0"
+        "execute in minecraft:overworld if block 15 30 15 minecraft:stone run tessera-console-context block-if-overworld"
+        "execute in minecraft:overworld unless block 15 30 15 minecraft:barrier run tessera-console-context block-unless-overworld"
+        "execute in minecraft:overworld if block 15 30 15 #minecraft:mineable/pickaxe run tessera-console-context block-tag-overworld"
+        "execute in minecraft:the_nether if block 736 80 736 minecraft:stone run tessera-console-context block-if-nether"
+        "execute in minecraft:the_end if block 736 80 736 minecraft:stone run tessera-console-context block-if-end"
+        "execute in minecraft:overworld run data get block 16 30 15 id"
+        "execute in minecraft:the_nether run data get block 737 80 736 id"
+        "execute in minecraft:the_end run data get block 737 80 736 id"
+    )
+    foreach ($blockCommand in $blockCommands) {
+        $interactive.Process.StandardInput.WriteLine($blockCommand)
+    }
+    $interactive.Process.StandardInput.Flush()
+    foreach ($marker in @(
+        "block-if-overworld",
+        "block-unless-overworld",
+        "block-tag-overworld",
+        "block-if-nether",
+        "block-if-end"
+    )) {
+        Wait-LogPattern `
+            -Server $interactive `
+            -Pattern ("TESSERA_CONSOLE_CONTEXT_OK.*" + $marker) `
+            -TimeoutSeconds $CommandTimeoutSeconds | Out-Null
+    }
+    Wait-LogPattern `
+        -Server $interactive `
+        -Pattern 'minecraft:chest' `
+        -TimeoutSeconds $CommandTimeoutSeconds | Out-Null
+    $blockDataLog = Get-Content -LiteralPath $interactive.Log -Raw
+    $blockDataResponses = [regex]::Matches($blockDataLog, "minecraft:chest").Count
+    if ($blockDataResponses -lt 3) {
+        throw "Expected block data responses from all three dimensions, got $blockDataResponses."
+    }
+    $interactive.Process.StandardInput.WriteLine(
+        "execute in minecraft:the_end if block 50000 80 50000 minecraft:stone run say unloaded-console-block"
+    )
+    $interactive.Process.StandardInput.Flush()
+    Wait-LogPattern `
+        -Server $interactive `
+        -Pattern 'Cannot run a region-bound command: target region minecraft:the_end.*is not loaded' `
+        -TimeoutSeconds $CommandTimeoutSeconds | Out-Null
+
     $selectorCommands = @(
         "execute in minecraft:overworld positioned 736 80 736 if entity @e[type=minecraft:armor_stand,distance=..8] run tessera-console-context selector-overworld-local"
         "execute in minecraft:the_nether positioned 736 80 736 if entity @e[type=minecraft:armor_stand,distance=..8] run tessera-console-context selector-nether-local"
@@ -414,6 +483,28 @@ try {
     if ($rconSelectorResponse -notmatch "TESSERA_CONSOLE_CONTEXT_OK.*rcon-selector") {
         throw "RCON local selector returned an unexpected response: $rconSelectorResponse"
     }
+    $rconBlockResponses = @(
+        (Invoke-RconCommand -Port $rconPort -Command "execute in minecraft:overworld if block 15 30 15 minecraft:stone run tessera-console-context rcon-block-if"),
+        (Invoke-RconCommand -Port $rconPort -Command "execute in minecraft:overworld unless block 15 30 15 minecraft:barrier run tessera-console-context rcon-block-unless"),
+        (Invoke-RconCommand -Port $rconPort -Command "execute in minecraft:overworld if block 15 30 15 #minecraft:mineable/pickaxe run tessera-console-context rcon-block-tag"),
+        (Invoke-RconCommand -Port $rconPort -Command "execute in minecraft:the_nether if block 736 80 736 minecraft:stone run tessera-console-context rcon-block-nether"),
+        (Invoke-RconCommand -Port $rconPort -Command "execute in minecraft:the_end if block 736 80 736 minecraft:stone run tessera-console-context rcon-block-end")
+    )
+    foreach ($index in 0..($rconBlockResponses.Count - 1)) {
+        if ($rconBlockResponses[$index] -notmatch "TESSERA_CONSOLE_CONTEXT_OK") {
+            throw "RCON block command $index returned an unexpected response: $($rconBlockResponses[$index])"
+        }
+    }
+    $rconBlockDataResponses = @(
+        (Invoke-RconCommand -Port $rconPort -Command "execute in minecraft:overworld run data get block 16 30 15 id"),
+        (Invoke-RconCommand -Port $rconPort -Command "execute in minecraft:the_nether run data get block 737 80 736 id"),
+        (Invoke-RconCommand -Port $rconPort -Command "execute in minecraft:the_end run data get block 737 80 736 id")
+    )
+    foreach ($index in 0..($rconBlockDataResponses.Count - 1)) {
+        if ($rconBlockDataResponses[$index] -notmatch "minecraft:chest") {
+            throw "RCON block data-get $index returned an unexpected response: $($rconBlockDataResponses[$index])"
+        }
+    }
     $rconLimitedDataResponse = Invoke-RconCommand `
         -Port $rconPort `
         -Command "execute in minecraft:overworld positioned 736 80 736 run data get entity @e[type=minecraft:armor_stand,limit=1]"
@@ -422,9 +513,9 @@ try {
     }
     $rconUnboundedResponse = Invoke-RconCommand `
         -Port $rconPort `
-        -Command "execute in minecraft:overworld positioned 736 80 736 if entity @e[type=minecraft:armor_stand] run say unsafe-unbounded"
-    if ($rconUnboundedResponse -notmatch "Unbounded entity selectors") {
-        throw "RCON executable unbounded selector was not rejected clearly: $rconUnboundedResponse"
+        -Command "execute in minecraft:overworld positioned 736 80 736 as @e[type=minecraft:armor_stand] run tessera-console-context rcon-selector-unbounded"
+    if ($rconUnboundedResponse -notmatch "TESSERA_CONSOLE_CONTEXT_OK.*rcon-selector-unbounded") {
+        throw "RCON unbounded selector returned an unexpected response: $rconUnboundedResponse"
     }
     $rconCrossRegionResponse = Invoke-RconCommand `
         -Port $rconPort `
@@ -437,6 +528,12 @@ try {
         -Command "execute in minecraft:the_end positioned 50000 80 50000 if entity @e[distance=..8] run say unloaded"
     if ($rconUnloadedResponse -notmatch "is not loaded") {
         throw "RCON unloaded selector target was not rejected clearly: $rconUnloadedResponse"
+    }
+    $rconUnloadedBlockResponse = Invoke-RconCommand `
+        -Port $rconPort `
+        -Command "execute in minecraft:the_end if block 50000 80 50000 minecraft:stone run say unloaded-block"
+    if ($rconUnloadedBlockResponse -notmatch "is not loaded") {
+        throw "RCON unloaded block target was not rejected clearly: $rconUnloadedBlockResponse"
     }
 
     $interactive.Process.StandardInput.WriteLine(
@@ -459,4 +556,4 @@ try {
     Stop-SmokeProcess -Server $interactive
 }
 
-Write-Host "PASS: startup-buffered console, interactive console, explicit dimensions, RCON, and stop commands succeeded."
+Write-Host "PASS: startup-buffered console, entity selectors, regional block reads, explicit dimensions, RCON, and stop commands succeeded."
