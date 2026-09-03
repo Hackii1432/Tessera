@@ -1,0 +1,206 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Thu, 3 Sep 2026 21:56:12 +0200
+Subject: [PATCH] Support region-safe runtime chunk post-processing
+
+
+diff --git a/net/minecraft/world/level/chunk/LevelChunk.java b/net/minecraft/world/level/chunk/LevelChunk.java
+index 64e0c4a60a74cd33f2b99f34fa2a419abf3a0c02..8c308a236cf97c3ba26c1060c60f61b44b4bc04b 100644
+--- a/net/minecraft/world/level/chunk/LevelChunk.java
++++ b/net/minecraft/world/level/chunk/LevelChunk.java
+@@ -11,6 +11,8 @@ import java.util.Collections;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.Map.Entry;
++import java.util.concurrent.TimeUnit;
++import java.util.concurrent.atomic.AtomicLong;
+ import java.util.function.Consumer;
+ import java.util.function.Supplier;
+ import net.minecraft.CrashReport;
+@@ -111,6 +113,12 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
+     // Paper end
+     // Paper start - rewrite chunk system
+     private boolean postProcessingDone;
++    // Tessera start - region-safe post-processing for runtime structures
++    private boolean runtimePostProcessingScheduled;
++    private static final long POST_PROCESSING_WARNING_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(30L);
++    private static final AtomicLong NEXT_POST_PROCESSING_WARNING_NANOS = new AtomicLong();
++    private static final AtomicLong SUPPRESSED_POST_PROCESSING_WARNINGS = new AtomicLong();
++    // Tessera end - region-safe post-processing for runtime structures
+     private ca.spottedleaf.moonrise.patches.chunk_system.scheduling.NewChunkHolder chunkAndHolder;
+ 
+     @Override
+@@ -763,34 +771,156 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
+         return this.blockEntities;
+     }
+ 
+-    public void postProcessGeneration(final ServerLevel level) {
++    // Tessera start - region-safe post-processing for runtime structures
++    @Override
++    public void markPosForPostProcessing(final BlockPos blockPos) {
++        if (!this.isInsideBuildHeight(blockPos)
++            || SectionPos.blockToSectionCoord(blockPos.getX()) != this.locX
++            || SectionPos.blockToSectionCoord(blockPos.getZ()) != this.locZ) {
++            warnPostProcessingRejected("position is outside the target chunk or build height", blockPos, this.chunkPos);
++            return;
++        }
++
++        // Never mutate a live chunk from the global thread or another region. Legitimate runtime structure calls
++        // already execute on the owning region and therefore take the fast path below.
++        if (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this.level, this.locX, this.locZ)) {
++            warnPostProcessingRejected("caller does not own the target region", blockPos, this.chunkPos);
++            return;
++        }
++
++        if (this.level.getChunkIfLoaded(this.locX, this.locZ) != this) {
++            warnPostProcessingRejected("target chunk is no longer loaded", blockPos, this.chunkPos);
++            return;
++        }
++
++        ChunkAccess.getOrCreateOffsetList(this.postProcessing, this.getSectionIndex(blockPos.getY()))
++            .add(ProtoChunk.packOffsetCoordinates(blockPos));
++        this.markUnsaved();
++
++        // During normal generation Moonrise invokes postProcessGeneration after all pieces are placed. For an
++        // already post-processed LevelChunk, defer one coalesced pass until the current region task returns so that
++        // all blocks from StructurePiece#postProcess are present before neighbour shapes are evaluated.
++        if (this.postProcessingDone && !this.runtimePostProcessingScheduled) {
++            this.runtimePostProcessingScheduled = true;
++            io.papermc.paper.threadedregions.RegionizedServer.getInstance().taskQueue.queueTickTaskQueue(
++                this.level,
++                this.locX,
++                this.locZ,
++                this::runRuntimePostProcessing
++            );
++        }
++    }
++
++    private void runRuntimePostProcessing() {
++        this.runtimePostProcessingScheduled = false;
++        if (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this.level, this.locX, this.locZ)) {
++            throw new IllegalStateException("Runtime chunk post-processing executed outside its owning region for " + this.chunkPos);
++        }
++        if (this.level.getChunkIfLoaded(this.locX, this.locZ) != this) {
++            warnPostProcessingRejected("target chunk unloaded before its deferred pass", this.chunkPos.getWorldPosition(), this.chunkPos);
++            return;
++        }
++
++        if (!this.processPostProcessingPositions(this.level, true)) {
++            warnPostProcessingRejected(
++                "a neighbouring chunk required for shape updates is not loaded or not owned by this region",
++                this.chunkPos.getWorldPosition(),
++                this.chunkPos
++            );
++        }
++    }
++
++    private boolean processPostProcessingPositions(final ServerLevel level, final boolean runtime) {
++        boolean processedAll = true;
+         ChunkPos chunkPos = this.getPos();
+ 
+         for (int sectionIndex = 0; sectionIndex < this.postProcessing.length; sectionIndex++) {
+             ShortList postProcessingSection = this.postProcessing[sectionIndex];
+-            if (postProcessingSection != null) {
++            if (postProcessingSection == null) {
++                continue;
++            }
++
++            if (!runtime) {
+                 for (Short packedOffset : postProcessingSection) {
+-                    BlockPos blockPos = ProtoChunk.unpackOffsetCoordinates(packedOffset, this.getSectionYFromSectionIndex(sectionIndex), chunkPos);
+-                    BlockState blockState = this.getBlockState(blockPos);
+-                    FluidState fluidState = blockState.getFluidState();
+-                    if (!fluidState.isEmpty()) {
+-                        fluidState.tick(level, blockPos, blockState);
+-                    }
++                    this.processPostProcessingPosition(
++                        level,
++                        ProtoChunk.unpackOffsetCoordinates(packedOffset, this.getSectionYFromSectionIndex(sectionIndex), chunkPos)
++                    );
++                }
++                postProcessingSection.clear();
++                continue;
++            }
+ 
+-                    if (blockState.getBlock() instanceof LiquidBlock) {
+-                        blockState.tick(level, blockPos, level.getRandom());
+-                    } else {
+-                        BlockState blockStateNew = Block.updateFromNeighbourShapes(blockState, level, blockPos);
+-                        if (blockStateNew != blockState) {
+-                            level.setBlock(blockPos, blockStateNew, Block.UPDATE_NONE | Block.UPDATE_KNOWN_SHAPE);
+-                        }
+-                    }
++            for (int index = 0; index < postProcessingSection.size();) {
++                short packedOffset = postProcessingSection.getShort(index);
++                BlockPos blockPos = ProtoChunk.unpackOffsetCoordinates(packedOffset, this.getSectionYFromSectionIndex(sectionIndex), chunkPos);
++                if (!this.canSafelyUpdateNeighbourShapes(blockPos)) {
++                    processedAll = false;
++                    index++;
++                    continue;
+                 }
+ 
+-                postProcessingSection.clear();
++                this.processPostProcessingPosition(level, blockPos);
++                postProcessingSection.removeShort(index);
+             }
+         }
+ 
++        return processedAll;
++    }
++
++    private void processPostProcessingPosition(final ServerLevel level, final BlockPos blockPos) {
++        BlockState blockState = this.getBlockState(blockPos);
++        FluidState fluidState = blockState.getFluidState();
++        if (!fluidState.isEmpty()) {
++            fluidState.tick(level, blockPos, blockState);
++        }
++
++        if (blockState.getBlock() instanceof LiquidBlock) {
++            blockState.tick(level, blockPos, level.getRandom());
++        } else {
++            BlockState blockStateNew = Block.updateFromNeighbourShapes(blockState, level, blockPos);
++            if (blockStateNew != blockState) {
++                level.setBlock(blockPos, blockStateNew, Block.UPDATE_NONE | Block.UPDATE_KNOWN_SHAPE);
++            }
++        }
++    }
++
++    private boolean canSafelyUpdateNeighbourShapes(final BlockPos blockPos) {
++        for (net.minecraft.core.Direction direction : net.minecraft.core.Direction.values()) {
++            BlockPos neighbourPos = blockPos.relative(direction);
++            int neighbourChunkX = SectionPos.blockToSectionCoord(neighbourPos.getX());
++            int neighbourChunkZ = SectionPos.blockToSectionCoord(neighbourPos.getZ());
++            if (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this.level, neighbourChunkX, neighbourChunkZ)
++                || this.level.getChunkIfLoaded(neighbourChunkX, neighbourChunkZ) == null) {
++                return false;
++            }
++        }
++        return true;
++    }
++
++    private static void warnPostProcessingRejected(final String reason, final BlockPos blockPos, final ChunkPos chunkPos) {
++        long now = System.nanoTime();
++        long nextWarning = NEXT_POST_PROCESSING_WARNING_NANOS.get();
++        if (now < nextWarning
++            || !NEXT_POST_PROCESSING_WARNING_NANOS.compareAndSet(nextWarning, now + POST_PROCESSING_WARNING_INTERVAL_NANOS)) {
++            SUPPRESSED_POST_PROCESSING_WARNINGS.incrementAndGet();
++            return;
++        }
++
++        long suppressed = SUPPRESSED_POST_PROCESSING_WARNINGS.getAndSet(0L);
++        LOGGER.warn(
++            "Skipped unsafe runtime block post-processing at {} in chunk {}: {} ({} similar warnings suppressed)",
++            blockPos,
++            chunkPos,
++            reason,
++            suppressed
++        );
++    }
++    // Tessera end - region-safe post-processing for runtime structures
++
++    public void postProcessGeneration(final ServerLevel level) {
++        this.processPostProcessingPositions(level, false); // Tessera - share Vanilla processing with runtime structures
++
+         for (BlockPos pos : ImmutableList.copyOf(this.pendingBlockEntities.keySet())) {
+             this.getBlockEntity(pos);
+         }
