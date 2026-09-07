@@ -1,0 +1,21 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Mon, 7 Sep 2026 10:59:17 +0200
+Subject: [PATCH] Clear Nether travel origin on player death
+
+
+diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+index 6071ea07ac8b76ef38ccf7ad7dea90399c161e78..fd584681f27624f704290b40921c9bfca2766530 100644
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -3694,6 +3694,10 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+             this.newLevel = this.experienceLevel;
+         }
+ 
++        // Tessera start - clear Nether travel origin on death
++        this.enteredNetherPosition = null;
++        // Tessera end - clear Nether travel origin on death
++
+         this.setHealth(this.getMaxHealth());
+         this.stopUsingItem(); // CraftBukkit - SPIGOT-6682: Clear active item on reset
+         this.setAirSupply(this.getMaxAirSupply()); // Paper - Reset players airTicks on respawn
