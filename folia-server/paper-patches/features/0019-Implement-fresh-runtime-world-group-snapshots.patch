@@ -1,0 +1,548 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Thu, 10 Sep 2026 00:45:32 +0200
+Subject: [PATCH] Implement fresh runtime world group snapshots
+
+---
+ .../world/CraftRuntimeWorldManager.java       | 443 ++++++++++++++++++
+ .../world/CraftRuntimeWorldManagerTest.java   |  33 ++
+ 2 files changed, 476 insertions(+)
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java b/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
+index a04a098f5..0ede96ce5 100644
+--- a/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
++++ b/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
+@@ -6,6 +6,7 @@ import io.papermc.paper.world.RuntimeWorldManager;
+ import io.papermc.paper.world.WorldCloneOptions;
+ import io.papermc.paper.world.WorldCloneResult;
+ import io.papermc.paper.world.WorldLoadResult;
++import io.papermc.paper.world.WorldSnapshotResult;
+ import io.papermc.paper.world.WorldUnloadOptions;
+ import io.papermc.paper.world.WorldUnloadResult;
+ import java.io.IOException;
+@@ -42,6 +43,7 @@ import java.util.concurrent.locks.StampedLock;
+ import java.util.function.Supplier;
+ import java.util.regex.Pattern;
+ import net.minecraft.server.level.ServerLevel;
++import net.minecraft.world.level.storage.LevelResource;
+ import org.bukkit.Chunk;
+ import org.bukkit.Location;
+ import org.bukkit.NamespacedKey;
+@@ -341,6 +343,421 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+         ));
+     }
+ 
++    @Override
++    public CompletionStage<WorldSnapshotResult> snapshotWorldsAsync(
++        final List<World> worlds,
++        final Path requestedSnapshotPath
++    ) {
++        final Path snapshotPath = requestedSnapshotPath == null
++            ? this.server.getWorldContainer().toPath().toAbsolutePath().normalize()
++            : requestedSnapshotPath.toAbsolutePath().normalize();
++        if (worlds == null || worlds.isEmpty() || requestedSnapshotPath == null) {
++            return CompletableFuture.completedFuture(new WorldSnapshotResult(
++                WorldSnapshotResult.Status.INVALID_REQUEST,
++                snapshotPath,
++                "Worlds and snapshotPath are required, and worlds must not be empty",
++                null
++            ));
++        }
++
++        final List<CraftWorld> sources = new ArrayList<>(worlds.size());
++        final Set<UUID> identities = new HashSet<>();
++        for (final World world : worlds) {
++            if (!(world instanceof CraftWorld craftWorld)) {
++                return CompletableFuture.completedFuture(new WorldSnapshotResult(
++                    WorldSnapshotResult.Status.INVALID_REQUEST,
++                    snapshotPath,
++                    "Every source must be a CraftWorld owned by this server",
++                    null
++                ));
++            }
++            if (!identities.add(craftWorld.getUID())) {
++                return CompletableFuture.completedFuture(new WorldSnapshotResult(
++                    WorldSnapshotResult.Status.INVALID_REQUEST,
++                    snapshotPath,
++                    "The source world list contains a duplicate: " + craftWorld.getKey(),
++                    null
++                ));
++            }
++            sources.add(craftWorld);
++        }
++
++        final List<LockRequest> locks = sources.stream()
++            .map(world -> new LockRequest(normalizeName(world.getName()), true))
++            .toList();
++        return this.trackOperation(this.withLocks(locks, () -> this.snapshotWorldsLocked(sources, snapshotPath)), () ->
++            new WorldSnapshotResult(
++                WorldSnapshotResult.Status.SERVER_STOPPING,
++                snapshotPath,
++                "Server stopped during runtime world snapshot",
++                null
++            )
++        );
++    }
++
++    private CompletionStage<WorldSnapshotResult> snapshotWorldsLocked(
++        final List<CraftWorld> sources,
++        final Path snapshotPath
++    ) {
++        final SnapshotPlan plan;
++        try {
++            plan = this.validateSnapshotPlan(sources, snapshotPath);
++        } catch (final SnapshotFailure failure) {
++            return CompletableFuture.completedFuture(new WorldSnapshotResult(
++                failure.status, snapshotPath, failure.getMessage(), failure.getCause()
++            ));
++        } catch (final Throwable throwable) {
++            return CompletableFuture.completedFuture(new WorldSnapshotResult(
++                WorldSnapshotResult.Status.INVALID_REQUEST,
++                snapshotPath,
++                "Could not validate snapshot destination",
++                throwable
++            ));
++        }
++
++        final List<ServerLevel> frozen = new ArrayList<>(sources.size());
++        CompletionStage<WorldSnapshotResult> operation = this.onGlobal(() -> {
++            this.ensureRunning();
++            for (final CraftWorld source : sources) {
++                final ServerLevel handle = source.getHandle();
++                if (this.server.getServer().getLevel(handle.dimension()) != handle) {
++                    throw new SnapshotFailure(
++                        WorldSnapshotResult.Status.SOURCE_NOT_LOADED,
++                        "Source world is no longer registered: " + source.getKey()
++                    );
++                }
++                if (!handle.tessera$transitionRuntimeLifecycle(
++                    ServerLevel.RuntimeLifecycleState.ACTIVE,
++                    ServerLevel.RuntimeLifecycleState.SNAPSHOTTING
++                )) {
++                    throw new SnapshotFailure(
++                        WorldSnapshotResult.Status.SOURCE_BUSY,
++                        "Source world is busy: " + source.getKey() + " (" + handle.tessera$getRuntimeLifecycleState() + ")"
++                    );
++                }
++                frozen.add(handle);
++            }
++            return null;
++        }).thenCompose(ignored -> CompletableFuture.allOf(
++            frozen.stream()
++                .map(world -> RegionizedServer.getInstance().awaitWorldRegionTasks(world))
++                .toArray(CompletableFuture[]::new)
++        ).orTimeout(30L, TimeUnit.SECONDS)).thenCompose(ignored -> this.flushSnapshotPlayers())
++            .thenCompose(ignored -> this.onGlobal(() -> {
++                for (final CraftWorld source : sources) {
++                    new WorldSaveEvent(source).callEvent();
++                }
++                return null;
++            }))
++            .thenCompose(ignored -> CompletableFuture.allOf(
++                frozen.stream()
++                    .map(RegionShutdownThread::flushRuntimeWorldSnapshot)
++                    .toArray(CompletableFuture[]::new)
++            ))
++            .thenApplyAsync(ignored -> {
++                try {
++                    this.copyAndPublishSnapshot(plan);
++                    return new WorldSnapshotResult(
++                        WorldSnapshotResult.Status.SUCCESS,
++                        snapshotPath,
++                        "Saved " + sources.size() + " world(s) and player storage to a fresh snapshot",
++                        null
++                    );
++                } catch (final IOException exception) {
++                    throw new CompletionException(new SnapshotFailure(
++                        WorldSnapshotResult.Status.COPY_FAILED,
++                        "Could not copy or publish the runtime world snapshot",
++                        exception
++                    ));
++                }
++            }, this.lifecycleExecutor);
++
++        operation = operation.handle((result, failure) -> this.onGlobal(() -> {
++            Throwable resumeFailure = null;
++            for (final ServerLevel handle : frozen) {
++                if (!handle.tessera$transitionRuntimeLifecycle(
++                    ServerLevel.RuntimeLifecycleState.SNAPSHOTTING,
++                    ServerLevel.RuntimeLifecycleState.ACTIVE
++                ) && handle.tessera$getRuntimeLifecycleState() != ServerLevel.RuntimeLifecycleState.ACTIVE) {
++                    resumeFailure = append(resumeFailure, new IllegalStateException(
++                        "Could not resume snapshot world " + handle.dimension().identifier()
++                            + " from " + handle.tessera$getRuntimeLifecycleState()
++                    ));
++                }
++            }
++            if (resumeFailure != null) {
++                if (failure != null) {
++                    resumeFailure.addSuppressed(unwrap(failure));
++                }
++                return new WorldSnapshotResult(
++                    WorldSnapshotResult.Status.CLEANUP_FAILED,
++                    snapshotPath,
++                    "Snapshot cleanup could not resume every source world",
++                    resumeFailure
++                );
++            }
++            if (failure == null) {
++                return result;
++            }
++            final Throwable cause = unwrap(failure);
++            final WorldSnapshotResult.Status status;
++            if (cause instanceof SnapshotFailure snapshotFailure) {
++                status = snapshotFailure.status;
++            } else if (cause instanceof java.util.concurrent.TimeoutException) {
++                status = WorldSnapshotResult.Status.TIMEOUT;
++            } else if (cause instanceof java.util.concurrent.CancellationException) {
++                status = WorldSnapshotResult.Status.CANCELLED;
++            } else {
++                status = WorldSnapshotResult.Status.SAVE_FAILED;
++            }
++            return new WorldSnapshotResult(status, snapshotPath, "Runtime world snapshot failed: " + cause.getMessage(), cause);
++        })).thenCompose(stage -> stage);
++
++        return operation;
++    }
++
++    private CompletionStage<Void> flushSnapshotPlayers() {
++        final List<net.minecraft.server.level.ServerPlayer> players = List.copyOf(
++            this.server.getServer().getPlayerList().getPlayers()
++        );
++        final List<CompletableFuture<Void>> saves = new ArrayList<>(players.size());
++        for (final net.minecraft.server.level.ServerPlayer player : players) {
++            final CompletableFuture<Void> save = new CompletableFuture<>();
++            saves.add(save);
++            final boolean scheduled = player.getBukkitEntity().taskScheduler.schedule(
++                current -> {
++                    try {
++                        this.server.getServer().getPlayerList().tessera$savePlayerSnapshot(
++                            (net.minecraft.server.level.ServerPlayer)current
++                        );
++                        save.complete(null);
++                    } catch (final Throwable throwable) {
++                        save.completeExceptionally(throwable);
++                    }
++                },
++                retired -> save.complete(null),
++                1L
++            );
++            if (!scheduled) {
++                // PlayerList#remove saves synchronously before retiring the
++                // scheduler. A scheduler which is already retired therefore
++                // has no outstanding logout write for this player.
++                save.complete(null);
++            }
++        }
++        return CompletableFuture.allOf(saves.toArray(CompletableFuture[]::new))
++            .orTimeout(30L, TimeUnit.SECONDS);
++    }
++
++    private SnapshotPlan validateSnapshotPlan(
++        final List<CraftWorld> sources,
++        final Path snapshotPath
++    ) throws IOException {
++        if (this.isStopping()) {
++            throw new SnapshotFailure(WorldSnapshotResult.Status.SERVER_STOPPING, "Server is stopping");
++        }
++        ensureNoLinkOrJunction(snapshotPath);
++        if (Files.exists(snapshotPath, LinkOption.NOFOLLOW_LINKS)
++            && !Files.isDirectory(snapshotPath, LinkOption.NOFOLLOW_LINKS)) {
++            throw new SnapshotFailure(WorldSnapshotResult.Status.INVALID_REQUEST, "Snapshot path is not a directory: " + snapshotPath);
++        }
++        final Path worldsTarget = snapshotPath.resolve("worlds");
++        final Path playersTarget = snapshotPath.resolve("players");
++        if (Files.exists(worldsTarget, LinkOption.NOFOLLOW_LINKS) || Files.exists(playersTarget, LinkOption.NOFOLLOW_LINKS)) {
++            throw new SnapshotFailure(
++                WorldSnapshotResult.Status.TARGET_EXISTS,
++                "Snapshot path already contains worlds/ or players/"
++            );
++        }
++
++        final List<Path> sourcePaths = new ArrayList<>(sources.size());
++        for (final CraftWorld source : sources) {
++            final Path sourcePath = source.getWorldPath().toRealPath(LinkOption.NOFOLLOW_LINKS);
++            ensureNoLinkOrJunction(sourcePath);
++            if (snapshotPath.startsWith(sourcePath) || sourcePath.startsWith(snapshotPath)) {
++                throw new SnapshotFailure(
++                    WorldSnapshotResult.Status.INVALID_REQUEST,
++                    "Snapshot destination overlaps source world " + source.getKey()
++                );
++            }
++            sourcePaths.add(sourcePath);
++        }
++
++        final List<Path> playerPaths = List.of(
++            this.server.getServer().getWorldPath(LevelResource.PLAYER_DATA_DIR).toAbsolutePath().normalize(),
++            this.server.getServer().getWorldPath(LevelResource.PLAYER_STATS_DIR).toAbsolutePath().normalize(),
++            this.server.getServer().getWorldPath(LevelResource.PLAYER_ADVANCEMENTS_DIR).toAbsolutePath().normalize()
++        );
++        for (final Path playerPath : playerPaths) {
++            ensureNoLinkOrJunction(playerPath);
++            if (snapshotPath.startsWith(playerPath) || playerPath.startsWith(snapshotPath)) {
++                throw new SnapshotFailure(
++                    WorldSnapshotResult.Status.INVALID_REQUEST,
++                    "Snapshot destination overlaps player storage " + playerPath
++                );
++            }
++        }
++
++        final Path staging = snapshotPath.resolve(".tessera-snapshot-" + UUID.randomUUID()).normalize();
++        if (!staging.getParent().equals(snapshotPath)) {
++            throw new SnapshotFailure(WorldSnapshotResult.Status.INVALID_REQUEST, "Invalid snapshot staging path");
++        }
++        return new SnapshotPlan(snapshotPath, staging, sourcePaths, playerPaths);
++    }
++
++    private void copyAndPublishSnapshot(final SnapshotPlan plan) throws IOException {
++        Files.createDirectories(plan.target);
++        ensureNoLinkOrJunction(plan.target);
++        if (Files.exists(plan.target.resolve("worlds"), LinkOption.NOFOLLOW_LINKS)
++            || Files.exists(plan.target.resolve("players"), LinkOption.NOFOLLOW_LINKS)) {
++            throw new SnapshotFailure(WorldSnapshotResult.Status.TARGET_EXISTS, "Snapshot target was populated while saving");
++        }
++        Files.createDirectory(plan.staging);
++        Throwable operationFailure = null;
++        try {
++            final Path stagedWorlds = plan.staging.resolve("worlds");
++            final Path stagedPlayers = plan.staging.resolve("players");
++            Files.createDirectory(stagedWorlds);
++            Files.createDirectory(stagedPlayers);
++
++            for (int index = 0; index < plan.worldSources.size(); ++index) {
++                this.copyCompleteWorldSnapshot(plan.worldSources.get(index), stagedWorlds.resolve(Integer.toString(index)));
++            }
++            this.copyPlayerSnapshotDirectory(plan.playerSources.get(0), stagedPlayers.resolve("data"));
++            this.copyPlayerSnapshotDirectory(plan.playerSources.get(1), stagedPlayers.resolve("stats"));
++            this.copyPlayerSnapshotDirectory(plan.playerSources.get(2), stagedPlayers.resolve("advancements"));
++
++            final Path publishedWorlds = plan.target.resolve("worlds");
++            final Path publishedPlayers = plan.target.resolve("players");
++            boolean worldsPublished = false;
++            boolean playersPublished = false;
++            try {
++                moveSnapshotDirectory(stagedWorlds, publishedWorlds);
++                worldsPublished = true;
++                moveSnapshotDirectory(stagedPlayers, publishedPlayers);
++                playersPublished = true;
++            } catch (final Throwable throwable) {
++                if (worldsPublished) {
++                    deleteTreeStrict(publishedWorlds);
++                }
++                if (playersPublished) {
++                    deleteTreeStrict(publishedPlayers);
++                }
++                if (throwable instanceof IOException exception) {
++                    throw exception;
++                }
++                throw new IOException("Could not publish snapshot", throwable);
++            }
++        } catch (final IOException | RuntimeException | Error failure) {
++            operationFailure = failure;
++            throw failure;
++        } finally {
++            try {
++                deleteTreeStrict(plan.staging);
++            } catch (final IOException cleanupFailure) {
++                if (operationFailure != null) {
++                    operationFailure.addSuppressed(cleanupFailure);
++                } else {
++                    throw new SnapshotFailure(
++                        WorldSnapshotResult.Status.CLEANUP_FAILED,
++                        "Could not remove snapshot staging path " + plan.staging,
++                        cleanupFailure
++                    );
++                }
++            }
++        }
++    }
++
++    static void copyCompleteWorldSnapshot(final Path source, final Path target) throws IOException {
++        Files.createDirectory(target);
++        try (var children = Files.newDirectoryStream(source)) {
++            for (final Path child : children) {
++                final BasicFileAttributes attributes = Files.readAttributes(
++                    child, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS
++                );
++                if (Files.isSymbolicLink(child) || attributes.isOther()) {
++                    throw new IOException("Links and special files are not allowed in world snapshots: " + child);
++                }
++                final String name = child.getFileName().toString();
++                if (attributes.isRegularFile()) {
++                    if (!name.equalsIgnoreCase("session.lock")) {
++                        Files.copy(child, target.resolve(name), StandardCopyOption.COPY_ATTRIBUTES);
++                    }
++                } else if (attributes.isDirectory()
++                    && (SNAPSHOT_DIRECTORIES.contains(name) || name.equals("datapacks"))) {
++                    copySnapshotTree(child, target.resolve(name), true);
++                }
++            }
++        }
++    }
++
++    static void copyPlayerSnapshotDirectory(final Path source, final Path target) throws IOException {
++        if (!Files.exists(source, LinkOption.NOFOLLOW_LINKS)) {
++            Files.createDirectories(target);
++            return;
++        }
++        copySnapshotTree(source, target, false);
++    }
++
++    static void copySnapshotTree(final Path source, final Path target, final boolean validateRegions) throws IOException {
++        Files.walkFileTree(source, new SimpleFileVisitor<>() {
++            @Override
++            public FileVisitResult preVisitDirectory(final Path directory, final BasicFileAttributes attributes) throws IOException {
++                if (Files.isSymbolicLink(directory) || attributes.isOther()) {
++                    throw new IOException("Links and special directories are not allowed in snapshots: " + directory);
++                }
++                Files.createDirectories(target.resolve(source.relativize(directory)));
++                return FileVisitResult.CONTINUE;
++            }
++
++            @Override
++            public FileVisitResult visitFile(final Path file, final BasicFileAttributes attributes) throws IOException {
++                if (!attributes.isRegularFile() || Files.isSymbolicLink(file) || attributes.isOther()) {
++                    throw new IOException("Links and special files are not allowed in snapshots: " + file);
++                }
++                if (validateRegions && file.getFileName().toString().endsWith(".mca")) {
++                    validateRegionFile(file);
++                }
++                Files.copy(file, target.resolve(source.relativize(file)), StandardCopyOption.COPY_ATTRIBUTES);
++                return FileVisitResult.CONTINUE;
++            }
++        });
++    }
++
++    static void ensureNoLinkOrJunction(final Path path) throws IOException {
++        Path current = path.toAbsolutePath().normalize();
++        while (current != null) {
++            if (Files.exists(current, LinkOption.NOFOLLOW_LINKS)) {
++                final BasicFileAttributes attributes = Files.readAttributes(
++                    current, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS
++                );
++                if (Files.isSymbolicLink(current) || attributes.isOther()) {
++                    throw new IOException("Snapshot path contains a link or junction: " + current);
++                }
++            }
++            current = current.getParent();
++        }
++    }
++
++    private static void moveSnapshotDirectory(final Path source, final Path target) throws IOException {
++        try {
++            Files.move(source, target, StandardCopyOption.ATOMIC_MOVE);
++        } catch (final java.nio.file.AtomicMoveNotSupportedException ignored) {
++            Files.move(source, target);
++        }
++    }
++
++    private static void deleteTreeStrict(final Path path) throws IOException {
++        if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
++            return;
++        }
++        try (var entries = Files.walk(path)) {
++            for (final Path entry : entries.sorted(Comparator.reverseOrder()).toList()) {
++                Files.deleteIfExists(entry);
++            }
++        }
++    }
++
+     private CompletionStage<WorldCloneResult> cloneWorldLocked(
+         final CraftWorld source,
+         final WorldCreator targetCreator,
+@@ -1331,6 +1748,14 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+     private record TemplateSnapshot(Path path) {
+     }
+ 
++    private record SnapshotPlan(
++        Path target,
++        Path staging,
++        List<Path> worldSources,
++        List<Path> playerSources
++    ) {
++    }
++
+     private record CloseOutcome(@Nullable Throwable failure) {
+     }
+ 
+@@ -1371,6 +1796,24 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+         }
+     }
+ 
++    private static final class SnapshotFailure extends RuntimeException {
++        private final WorldSnapshotResult.Status status;
++
++        private SnapshotFailure(final WorldSnapshotResult.Status status, final String message) {
++            super(message);
++            this.status = status;
++        }
++
++        private SnapshotFailure(
++            final WorldSnapshotResult.Status status,
++            final String message,
++            final Throwable cause
++        ) {
++            super(message, cause);
++            this.status = status;
++        }
++    }
++
+     private static final class CorruptRegionFileException extends IOException {
+         private CorruptRegionFileException(final Path file, final String message) {
+             super("Corrupt region file " + file + ": " + message);
+diff --git a/src/test/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManagerTest.java b/src/test/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManagerTest.java
+index 94182d3e7..2b28dfe4e 100644
+--- a/src/test/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManagerTest.java
++++ b/src/test/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManagerTest.java
+@@ -13,8 +13,10 @@ import org.junit.jupiter.api.io.TempDir;
+ 
+ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+ import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertFalse;
+ import static org.junit.jupiter.api.Assertions.assertNull;
+ import static org.junit.jupiter.api.Assertions.assertThrows;
++import static org.junit.jupiter.api.Assertions.assertTrue;
+ 
+ @Tag("Normal")
+ class CraftRuntimeWorldManagerTest {
+@@ -81,6 +83,37 @@ class CraftRuntimeWorldManagerTest {
+         ));
+     }
+ 
++    @Test
++    void completeSnapshotKeepsIdentityAndMetadataButExcludesLockAndForeignTrees() throws Exception {
++        final Path source = this.tempDir.resolve("source");
++        final Path target = this.tempDir.resolve("target");
++        Files.createDirectories(source.resolve("region"));
++        Files.createDirectories(source.resolve("entities"));
++        Files.createDirectories(source.resolve("poi"));
++        Files.createDirectories(source.resolve("data").resolve("paper"));
++        Files.createDirectories(source.resolve("dimensions").resolve("foreign"));
++        Files.writeString(source.resolve("level.dat"), "level");
++        Files.writeString(source.resolve("uid.dat"), "uuid");
++        Files.writeString(source.resolve("session.lock"), "locked");
++        Files.writeString(source.resolve("data").resolve("paper").resolve("metadata.dat"), "metadata");
++        Files.writeString(source.resolve("dimensions").resolve("foreign").resolve("do-not-copy"), "foreign");
++
++        CraftRuntimeWorldManager.copyCompleteWorldSnapshot(source, target);
++
++        assertTrue(Files.isRegularFile(target.resolve("level.dat")));
++        assertTrue(Files.isRegularFile(target.resolve("uid.dat")));
++        assertTrue(Files.isRegularFile(target.resolve("data").resolve("paper").resolve("metadata.dat")));
++        assertFalse(Files.exists(target.resolve("session.lock")));
++        assertFalse(Files.exists(target.resolve("dimensions")));
++    }
++
++    @Test
++    void absentPlayerDirectoryStillProducesRequiredEmptyDirectory() throws Exception {
++        final Path target = this.tempDir.resolve("players").resolve("advancements");
++        CraftRuntimeWorldManager.copyPlayerSnapshotDirectory(this.tempDir.resolve("missing"), target);
++        assertTrue(Files.isDirectory(target));
++    }
++
+     private Path writeRegion(
+         final boolean overlap,
+         final int chunkLength,
+-- 
+2.45.1.windows.1
+

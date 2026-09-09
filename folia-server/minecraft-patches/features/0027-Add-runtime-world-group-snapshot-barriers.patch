@@ -1,0 +1,60 @@
+From a6e2784034635c22a8a70b3fff939f6cb9728db7 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Thu, 10 Sep 2026 00:52:10 +0200
+Subject: [PATCH 27/29] Add runtime world group snapshot barriers
+
+---
+ net/minecraft/server/level/ServerLevel.java  |  6 +++++-
+ net/minecraft/server/players/PlayerList.java | 12 ++++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
+index 08e3187..c162e35 100644
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -731,6 +731,7 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+         ACTIVE,
+         INITIALIZING,
+         QUIESCING,
++        SNAPSHOTTING,
+         UNLOADING,
+         CLOSED
+     }
+@@ -761,7 +762,10 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+         final RuntimeLifecycleState state = this.tessera$runtimeLifecycleState.get();
+         // INITIALIZING must process chunk preparation, and QUIESCING must
+         // drain already accepted work up to the lifecycle barrier. New API
+-        // admission remains restricted to ACTIVE in both cases.
++        // admission remains restricted to ACTIVE in both cases. SNAPSHOTTING
++        // deliberately suppresses normal ticks; TickRegions still drains its
++        // intermediate region/chunk/packet queues so snapshot barriers and
++        // owner-thread player saves can complete without blocking a region.
+         return state == RuntimeLifecycleState.ACTIVE
+             || state == RuntimeLifecycleState.INITIALIZING
+             || state == RuntimeLifecycleState.QUIESCING;
+diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
+index 40dc883..fcd0763 100644
+--- a/net/minecraft/server/players/PlayerList.java
++++ b/net/minecraft/server/players/PlayerList.java
+@@ -499,6 +499,18 @@ public abstract class PlayerList {
+         }
+     }
+ 
++    // Tessera start - fresh runtime world group snapshots
++    /**
++     * Flushes one connected player's vanilla data files for a runtime-world
++     * snapshot. The caller must schedule this method through the player's
++     * transferred entity scheduler, which supplies the current live handle.
++     */
++    public void tessera$savePlayerSnapshot(final ServerPlayer player) {
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(player, "Cannot snapshot player data off the owning region");
++        this.save(player);
++    }
++    // Tessera end - fresh runtime world group snapshots
++
+     public net.kyori.adventure.text.@Nullable Component remove(final ServerPlayer player) { // CraftBukkit - return string // Paper - return Component
+         // Paper start - Fix kick event leave message not being sent
+         return this.remove(player, net.kyori.adventure.text.Component.translatable("multiplayer.player.left", net.kyori.adventure.text.format.NamedTextColor.YELLOW, io.papermc.paper.configuration.GlobalConfiguration.get().messages.useDisplayNameInQuitMessage ? player.getBukkitEntity().displayName() : io.papermc.paper.adventure.PaperAdventure.asAdventure(player.getDisplayName())));
+-- 
+2.45.1.windows.1
+

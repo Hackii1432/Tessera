@@ -1,0 +1,124 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Thu, 10 Sep 2026 00:45:32 +0200
+Subject: [PATCH] Add fresh runtime world snapshot API
+
+
+diff --git a/src/main/java/io/papermc/paper/world/RuntimeWorldManager.java b/src/main/java/io/papermc/paper/world/RuntimeWorldManager.java
+index d8004d9b75f9adb17b736482f84c74a9344d3cdd..2a8405c47fc067361ca64ada9ca38d6a4a092a06 100644
+--- a/src/main/java/io/papermc/paper/world/RuntimeWorldManager.java
++++ b/src/main/java/io/papermc/paper/world/RuntimeWorldManager.java
+@@ -1,5 +1,7 @@
+ package io.papermc.paper.world;
+ 
++import java.nio.file.Path;
++import java.util.List;
+ import java.util.Objects;
+ import java.util.concurrent.CompletionStage;
+ import org.bukkit.NamespacedKey;
+@@ -57,6 +59,29 @@ public interface RuntimeWorldManager {
+         WorldCloneOptions options
+     );
+ 
++    /**
++     * Creates a fresh, group-consistent snapshot of the supplied loaded worlds.
++     *
++     * <p>The input order defines the {@code worlds/0}, {@code worlds/1}, ...
++     * layout below {@code snapshotPath}. The existing {@code runtime/} child is
++     * owned by the caller and is never read or modified. Connected players are
++     * allowed; their data, statistics and advancements are flushed before the
++     * snapshot is published below {@code players/}.</p>
++     *
++     * <p>This method does not use the immutable-template cache used by
++     * {@link #cloneWorldAsync(World, NamespacedKey, WorldCloneOptions)}. Every
++     * invocation saves and copies a new state. The operation is asynchronous
++     * and may be invoked from any thread.</p>
++     *
++     * @param worlds loaded source worlds in their required snapshot order
++     * @param snapshotPath caller-owned snapshot staging root
++     * @return terminal snapshot result
++     */
++    CompletionStage<WorldSnapshotResult> snapshotWorldsAsync(
++        List<World> worlds,
++        Path snapshotPath
++    );
++
+     /**
+      * Quiesces, flushes, closes, and unregisters a runtime world.
+      */
+diff --git a/src/main/java/io/papermc/paper/world/WorldSnapshotResult.java b/src/main/java/io/papermc/paper/world/WorldSnapshotResult.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d1f77d10cc563c56033dfd5cc99f040e9bce6571
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/world/WorldSnapshotResult.java
+@@ -0,0 +1,41 @@
++package io.papermc.paper.world;
++
++import java.nio.file.Path;
++import org.jspecify.annotations.NullMarked;
++import org.jspecify.annotations.Nullable;
++
++/**
++ * Terminal result of a fresh runtime-world group snapshot.
++ *
++ * @param status terminal status
++ * @param snapshotPath normalized absolute requested snapshot root
++ * @param message human-readable diagnostic
++ * @param cause failure cause, when available
++ */
++@NullMarked
++public record WorldSnapshotResult(
++    Status status,
++    Path snapshotPath,
++    String message,
++    @Nullable Throwable cause
++) {
++
++    public boolean successful() {
++        return this.status == Status.SUCCESS;
++    }
++
++    public enum Status {
++        SUCCESS,
++        UNSUPPORTED,
++        SERVER_STOPPING,
++        INVALID_REQUEST,
++        SOURCE_NOT_LOADED,
++        SOURCE_BUSY,
++        TARGET_EXISTS,
++        SAVE_FAILED,
++        COPY_FAILED,
++        TIMEOUT,
++        CANCELLED,
++        CLEANUP_FAILED
++    }
++}
+diff --git a/src/test/java/io/papermc/paper/world/RuntimeWorldApiTest.java b/src/test/java/io/papermc/paper/world/RuntimeWorldApiTest.java
+index eac28352f5eaef808d9894d9f2bfaeb8727b79af..9f9f4ed57697bb26dc6e8fdfd4b0c3f495de48f2 100644
+--- a/src/test/java/io/papermc/paper/world/RuntimeWorldApiTest.java
++++ b/src/test/java/io/papermc/paper/world/RuntimeWorldApiTest.java
+@@ -70,6 +70,9 @@ class RuntimeWorldApiTest {
+         assertTrue(new WorldCloneResult(WorldCloneResult.Status.SUCCESS, null, "ok", null).successful());
+         assertTrue(new WorldUnloadResult(WorldUnloadResult.Status.SUCCESS, "ok", null).successful());
+         assertFalse(new WorldUnloadResult(WorldUnloadResult.Status.TIMEOUT, "late", null).successful());
++        final Path snapshot = Path.of("snapshot").toAbsolutePath().normalize();
++        assertTrue(new WorldSnapshotResult(WorldSnapshotResult.Status.SUCCESS, snapshot, "ok", null).successful());
++        assertFalse(new WorldSnapshotResult(WorldSnapshotResult.Status.TIMEOUT, snapshot, "late", null).successful());
+     }
+ 
+     @Test
+@@ -110,6 +113,14 @@ class RuntimeWorldApiTest {
+             ) {
+                 throw new UnsupportedOperationException();
+             }
++
++            @Override
++            public CompletionStage<WorldSnapshotResult> snapshotWorldsAsync(
++                final java.util.List<World> worlds,
++                final Path snapshotPath
++            ) {
++                throw new UnsupportedOperationException();
++            }
+         };
+ 
+         assertSame(expected, manager.loadWorldAsync(key).toCompletableFuture().join());

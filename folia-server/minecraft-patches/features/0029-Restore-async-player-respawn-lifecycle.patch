@@ -1,0 +1,432 @@
+From 2565e42f259dc5b4239aa7db56c1d5dabc6d58d5 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Thu, 10 Sep 2026 00:52:52 +0200
+Subject: [PATCH] Restore async player respawn lifecycle
+
+---
+ net/minecraft/server/level/ServerPlayer.java | 381 +++++++++++++++----
+ 1 file changed, 297 insertions(+), 84 deletions(-)
+
+diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+index 93f8218..bd6a7ff 100644
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -288,6 +288,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+     // therefore concurrent; entity data itself is read through region-owned NBT
+     // snapshots maintained by ThrownEnderpearl.
+     private final Set<ThrownEnderpearl> enderPearls = ConcurrentHashMap.newKeySet();
++    private static final ConcurrentHashMap<AsyncAnchorKey, Integer> ASYNC_ANCHOR_RESERVATIONS = new ConcurrentHashMap<>();
+     // Tessera end - restore vanilla ender pearl ownership
+     private long timeEntitySatOnShoulder;
+     private CompoundTag shoulderEntityLeft = new CompoundTag();
+@@ -1688,7 +1689,24 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+             Runnable consumeAnchorCharge = null; // Paper - Fix SPIGOT-5989 (don't use charge until after respawn event)
+             Optional<Vec3> standUpPosition = RespawnAnchorBlock.findStandUpPosition(EntityTypes.PLAYER, level, pos);
+             if (!forced && consumeSpawnBlock && standUpPosition.isPresent()) {
+-                consumeAnchorCharge = () -> level.setBlock(pos, blockState.setValue(RespawnAnchorBlock.CHARGE, blockState.getValue(RespawnAnchorBlock.CHARGE) - 1), Block.UPDATE_ALL); // Paper - Fix SPIGOT-5989 (don't use charge until after respawn event)
++                // Resolve the current state when the delayed callback runs.
++                // Async respawn crosses an event/region hand-off; using the
++                // earlier captured state could restore a stale charge count
++                // when two players use the same anchor concurrently.
++                consumeAnchorCharge = () -> {
++                    final BlockState currentState = level.getBlockState(pos);
++                    if (currentState.is(net.minecraft.world.level.block.Blocks.RESPAWN_ANCHOR)
++                        && currentState.getValue(RespawnAnchorBlock.CHARGE) > 0) {
++                        level.setBlock(
++                            pos,
++                            currentState.setValue(
++                                RespawnAnchorBlock.CHARGE,
++                                currentState.getValue(RespawnAnchorBlock.CHARGE) - 1
++                            ),
++                            Block.UPDATE_ALL
++                        );
++                    }
++                }; // Paper - Fix SPIGOT-5989 (don't use charge until after respawn event)
+             }
+             final Runnable finalConsumeAnchorCharge = consumeAnchorCharge; // Paper - Fix SPIGOT-5989
+ 
+@@ -1762,103 +1780,298 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+             throw new IllegalStateException("Dead player should not be a vehicle or passenger");
+         }
+ 
+-        ServerLevel origin = this.level();
+-        ServerPlayer.RespawnConfig respawnConfig = this.getRespawnConfig();
+-        ServerLevel respawnWorld = this.server.getLevel(ServerPlayer.RespawnConfig.getDimensionOrDefault(respawnConfig));
++        final ServerLevel origin = this.level();
++        final ServerPlayer.RespawnConfig respawnConfig = this.getRespawnConfig();
++        final ServerLevel respawnWorld = this.server.getLevel(ServerPlayer.RespawnConfig.getDimensionOrDefault(respawnConfig));
++        final ca.spottedleaf.concurrentutil.completable.CallbackCompletable<AsyncRespawnTarget> targetComplete =
++            new ca.spottedleaf.concurrentutil.completable.CallbackCompletable<>();
++
++        targetComplete.addWaiter((target, throwable) -> {
++            final boolean scheduled = ServerPlayer.this.getBukkitEntity().taskScheduler.schedule(
++                currentEntity -> {
++                    final ServerPlayer current = (ServerPlayer)currentEntity;
++                    if (throwable != null || target == null || current.connection.isDisconnected()
++                        || alive != current.isAlive()) {
++                        if (target != null) {
++                            target.releaseAnchorReservation();
++                        }
++                        return;
++                    }
++                    current.finishRespawnSelection(origin, target, respawnComplete, reason, alive);
++                },
++                retired -> {
++                    // Logout is terminal. PlayerList#remove performs its final
++                    // synchronous save before the entity scheduler is retired.
++                    if (target != null) {
++                        target.releaseAnchorReservation();
++                    }
++                },
++                1L
++            );
++            if (!scheduled) {
++                if (target != null) {
++                    target.releaseAnchorReservation();
++                }
++                return;
++            }
++        });
++
++        if (respawnWorld == null || respawnConfig == null) {
++            this.completeDefaultRespawnTarget(false, targetComplete);
++            return;
++        }
++
++        respawnWorld.moonrise$loadChunksAsync(
++            respawnConfig.respawnData.pos(),
++            16,
++            ca.spottedleaf.concurrentutil.util.Priority.HIGHER,
++            chunks -> {
++                final ServerPlayer.RespawnPosAngle spawnPos = ServerPlayer.findRespawnAndUseSpawnBlock(
++                    respawnWorld, respawnConfig, !alive
++                ).orElse(null);
++                if (spawnPos == null) {
++                    ServerPlayer.this.completeDefaultRespawnTarget(true, targetComplete);
++                    return;
++                }
++                final AsyncAnchorReservation anchorReservation;
++                if (spawnPos.consumeAnchorCharge() == null) {
++                    anchorReservation = null;
++                } else {
++                    anchorReservation = reserveAsyncAnchor(respawnWorld, respawnConfig.respawnData.pos());
++                    if (anchorReservation == null) {
++                        ServerPlayer.this.completeDefaultRespawnTarget(true, targetComplete);
++                        return;
++                    }
++                }
++                targetComplete.complete(new AsyncRespawnTarget(
++                    io.papermc.paper.util.MCUtil.toLocation(
++                        respawnWorld, spawnPos.position(), spawnPos.yaw(), spawnPos.pitch()
++                    ),
++                    spawnPos.isBedSpawn(),
++                    spawnPos.isAnchorSpawn(),
++                    false,
++                    spawnPos.consumeAnchorCharge(),
++                    spawnPos.consumeAnchorCharge() == null ? null : respawnWorld,
++                    spawnPos.consumeAnchorCharge() == null ? null : respawnConfig.respawnData.pos(),
++                    anchorReservation
++                ));
++            }
++        );
++    }
+ 
+-        // modified based off PlayerList#respawn
++    private void completeDefaultRespawnTarget(
++        final boolean missingRespawnBlock,
++        final ca.spottedleaf.concurrentutil.completable.CallbackCompletable<AsyncRespawnTarget> targetComplete
++    ) {
++        final ca.spottedleaf.concurrentutil.completable.CallbackCompletable<org.bukkit.Location> defaultComplete =
++            new ca.spottedleaf.concurrentutil.completable.CallbackCompletable<>();
++        defaultComplete.addWaiter((location, throwable) -> {
++            if (throwable != null || location == null) {
++                targetComplete.complete(null);
++                return;
++            }
++            targetComplete.complete(new AsyncRespawnTarget(
++                location, false, false, missingRespawnBlock, null, null, null, null
++            ));
++        });
++        fudgeSpawnLocation(this.server.getLevel(Level.OVERWORLD), defaultComplete);
++    }
++
++    private void finishRespawnSelection(
++        final ServerLevel origin,
++        final AsyncRespawnTarget target,
++        final java.util.function.Consumer<ServerPlayer> respawnComplete,
++        final org.bukkit.event.player.PlayerRespawnEvent.RespawnReason reason,
++        final boolean alive
++    ) {
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this, "Cannot fire respawn event off the player region");
++        final org.bukkit.Location originalLocation = target.location().clone();
++        final org.bukkit.event.player.PlayerRespawnEvent event = new org.bukkit.event.player.PlayerRespawnEvent(
++            this.getBukkitEntity(),
++            originalLocation,
++            target.bedSpawn(),
++            target.anchorSpawn(),
++            target.missingRespawnBlock(),
++            reason
++        );
++        this.level().getCraftServer().getPluginManager().callEvent(event);
++        if (this.connection.isDisconnected()) {
++            target.releaseAnchorReservation();
++            return;
++        }
+ 
+-        EntityTreeNode passengerTree = this.makePassengerTree();
++        final org.bukkit.Location selected = event.getRespawnLocation();
++        if (selected == null
++            || !(selected.getWorld() instanceof org.bukkit.craftbukkit.CraftWorld craftWorld)
++            || !craftWorld.getHandle().tessera$isRuntimeWorldActive()
++            || craftWorld.getHandle().getServer().getLevel(craftWorld.getHandle().dimension()) != craftWorld.getHandle()) {
++            target.releaseAnchorReservation();
++            return;
++        }
+ 
++        final Runnable continueRespawn = () -> {
++            final boolean scheduled = this.getBukkitEntity().taskScheduler.schedule(
++                current -> ((ServerPlayer)current).placeAfterRespawnEvent(
++                    origin, selected, target, respawnComplete, reason, alive
++                ),
++                retired -> target.releaseAnchorReservation(),
++                1L
++            );
++            if (!scheduled) {
++                target.releaseAnchorReservation();
++                return;
++            }
++        };
++
++        if (target.consumeAnchorCharge() != null && originalLocation.equals(selected)) {
++            final BlockPos anchorPos = java.util.Objects.requireNonNull(target.anchorPos());
++            final ServerLevel anchorWorld = java.util.Objects.requireNonNull(target.anchorWorld());
++            io.papermc.paper.threadedregions.RegionizedServer.getInstance().taskQueue.queueTickTaskQueue(
++                anchorWorld,
++                anchorPos.getX() >> 4,
++                anchorPos.getZ() >> 4,
++                () -> {
++                    try {
++                        target.consumeAnchorCharge().run();
++                    } finally {
++                        target.releaseAnchorReservation();
++                    }
++                    continueRespawn.run();
++                }
++            );
++        } else {
++            target.releaseAnchorReservation();
++            continueRespawn.run();
++        }
++    }
++
++    private void placeAfterRespawnEvent(
++        final ServerLevel origin,
++        final org.bukkit.Location selected,
++        final AsyncRespawnTarget target,
++        final java.util.function.Consumer<ServerPlayer> respawnComplete,
++        final org.bukkit.event.player.PlayerRespawnEvent.RespawnReason reason,
++        final boolean alive
++    ) {
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this, "Cannot place respawned player off the player region");
++        if (this.connection.isDisconnected() || alive != this.isAlive() || this.level() != origin
++            || !(selected.getWorld() instanceof org.bukkit.craftbukkit.CraftWorld craftWorld)) {
++            return;
++        }
++        final ServerLevel destination = craftWorld.getHandle();
++        if (!destination.tessera$isRuntimeWorldActive()
++            || destination.getServer().getLevel(destination.dimension()) != destination) {
++            return;
++        }
++
++        final EntityTreeNode passengerTree = this.makePassengerTree();
+         this.isChangingDimension = true;
+         origin.removePlayerImmediately(this, RemovalReason.CHANGED_DIMENSION);
+-        // reset player if needed, only after removal from world
+         if (!alive) {
+-            ServerPlayer.this.reset();
++            this.reset();
+         }
+-        // must be manually removed from connections, delay until after reset() so that we do not trip any thread checks
+         this.level().getCurrentWorldData().connections.remove(this.connection.connection);
++        if (target.missingRespawnBlock()) {
++            this.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.NO_RESPAWN_BLOCK_AVAILABLE, 0.0F));
++            this.setRespawnPosition(
++                null, false, com.destroystokyo.paper.event.player.PlayerSetSpawnEvent.Cause.PLAYER_RESPAWN
++            );
++        }
+ 
+-        ca.spottedleaf.concurrentutil.completable.CallbackCompletable<org.bukkit.Location> spawnPosComplete =
+-            new ca.spottedleaf.concurrentutil.completable.CallbackCompletable<>();
+-        boolean[] usedRespawnAnchor = new boolean[1];
+-
+-        // set up post spawn location logic
+-        spawnPosComplete.addWaiter((spawnLoc, throwable) -> {
+-            // update pos and velocity
+-            ServerPlayer.this.setPosRaw(spawnLoc.getX(), spawnLoc.getY(), spawnLoc.getZ());
+-            ServerPlayer.this.setYRot(spawnLoc.getYaw());
+-            ServerPlayer.this.setYHeadRot(spawnLoc.getYaw());
+-            ServerPlayer.this.setXRot(spawnLoc.getPitch());
+-            ServerPlayer.this.setDeltaMovement(Vec3.ZERO);
+-            // placeInAsync will update the world
+-
+-            this.placeInAsync(
+-                origin,
+-                // use the load chunk flag just in case the spawn loc isn't loaded, and to ensure the chunks
+-                // stay loaded for a bit with the teleport ticket
+-                ((org.bukkit.craftbukkit.CraftWorld)spawnLoc.getWorld()).getHandle(),
+-                TELEPORT_FLAG_LOAD_CHUNK | TELEPORT_FLAGS_PLAYER_RESPAWN,
+-                passengerTree, // note: we expect this to just be the player, no passengers
+-                (entity) -> {
+-                    // now the player is in the world, and can receive sound
+-                    if (usedRespawnAnchor[0]) {
+-                        ServerPlayer.this.connection.send(
+-                            new net.minecraft.network.protocol.game.ClientboundSoundPacket(
+-                                net.minecraft.sounds.SoundEvents.RESPAWN_ANCHOR_DEPLETE, net.minecraft.sounds.SoundSource.BLOCKS,
+-                                ServerPlayer.this.getX(), ServerPlayer.this.getY(), ServerPlayer.this.getZ(),
+-                                1.0F, 1.0F, ServerPlayer.this.level().getRandom().nextLong()
+-                            )
+-                        );
+-                    }
+-                    ServerPlayer.this.connection.restartClientLoadTimerAfterRespawn();
+-                    // now the respawn logic is complete
+-
+-                    // last, call the function callback
+-                    if (respawnComplete != null) {
+-                        respawnComplete.accept(ServerPlayer.this);
+-                    }
++        this.setPosRaw(selected.getX(), selected.getY(), selected.getZ());
++        this.setYRot(selected.getYaw());
++        this.setYHeadRot(selected.getYaw());
++        this.setXRot(selected.getPitch());
++        this.setDeltaMovement(Vec3.ZERO);
++        this.placeInAsync(
++            origin,
++            destination,
++            TELEPORT_FLAG_LOAD_CHUNK | TELEPORT_FLAGS_PLAYER_RESPAWN,
++            passengerTree,
++            entity -> {
++                if (target.consumeAnchorCharge() != null && target.location().equals(selected)) {
++                    this.connection.send(new net.minecraft.network.protocol.game.ClientboundSoundPacket(
++                        net.minecraft.sounds.SoundEvents.RESPAWN_ANCHOR_DEPLETE,
++                        net.minecraft.sounds.SoundSource.BLOCKS,
++                        this.getX(), this.getY(), this.getZ(),
++                        1.0F, 1.0F, this.level().getRandom().nextLong()
++                    ));
+                 }
+-            );
++                this.connection.restartClientLoadTimerAfterRespawn();
++                final org.bukkit.Location actual = this.getBukkitEntity().getLocation();
++                new com.destroystokyo.paper.event.player.PlayerPostRespawnEvent(
++                    this.getBukkitEntity(),
++                    actual,
++                    target.bedSpawn(),
++                    target.anchorSpawn(),
++                    target.missingRespawnBlock(),
++                    reason
++                ).callEvent();
++                if (respawnComplete != null) {
++                    respawnComplete.accept(this);
++                }
++            }
++        );
++    }
++
++    private record AsyncRespawnTarget(
++        org.bukkit.Location location,
++        boolean bedSpawn,
++        boolean anchorSpawn,
++        boolean missingRespawnBlock,
++        @Nullable Runnable consumeAnchorCharge,
++        @Nullable ServerLevel anchorWorld,
++        @Nullable BlockPos anchorPos,
++        @Nullable AsyncAnchorReservation anchorReservation
++    ) {
++        private void releaseAnchorReservation() {
++            if (this.anchorReservation != null) {
++                this.anchorReservation.release();
++            }
++        }
++    }
++
++    private static @Nullable AsyncAnchorReservation reserveAsyncAnchor(final ServerLevel world, final BlockPos pos) {
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(world, pos, "Cannot reserve respawn anchor off its region");
++        final BlockState state = world.getBlockState(pos);
++        if (!state.is(net.minecraft.world.level.block.Blocks.RESPAWN_ANCHOR)) {
++            return null;
++        }
++        final int charges = state.getValue(RespawnAnchorBlock.CHARGE);
++        if (charges <= 0) {
++            return null;
++        }
++
++        final AsyncAnchorKey key = new AsyncAnchorKey(world, pos.immutable());
++        final java.util.concurrent.atomic.AtomicBoolean acquired = new java.util.concurrent.atomic.AtomicBoolean();
++        ASYNC_ANCHOR_RESERVATIONS.compute(key, (ignored, reservations) -> {
++            final int current = reservations == null ? 0 : reservations;
++            if (current >= charges) {
++                return current;
++            }
++            acquired.set(true);
++            return current + 1;
+         });
++        return acquired.get() ? new AsyncAnchorReservation(key) : null;
++    }
+ 
+-        // find and modify respawn block state
+-        if (respawnWorld == null || respawnConfig == null) {
+-            // default to regular spawn
+-            fudgeSpawnLocation(this.server.getLevel(Level.OVERWORLD), spawnPosComplete);
+-        } else {
+-            // load chunk for block
+-            // give at least 1 radius of loaded chunks so that we do not sync load anything
+-            int radiusBlocks = 16;
+-            respawnWorld.moonrise$loadChunksAsync(respawnConfig.respawnData.pos(), radiusBlocks,
+-                ca.spottedleaf.concurrentutil.util.Priority.HIGHER,
+-                (chunks) -> {
+-                    ServerPlayer.RespawnPosAngle spawnPos = ServerPlayer.findRespawnAndUseSpawnBlock(
+-                        respawnWorld, respawnConfig, !alive
+-                    ).orElse(null);
+-                    if (spawnPos == null) {
+-                        // no spawn
+-                        ServerPlayer.this.connection.send(
+-                            new ClientboundGameEventPacket(ClientboundGameEventPacket.NO_RESPAWN_BLOCK_AVAILABLE, 0.0F)
+-                        );
+-                        ServerPlayer.this.setRespawnPosition(
+-                            null, false, com.destroystokyo.paper.event.player.PlayerSetSpawnEvent.Cause.PLAYER_RESPAWN
+-                        );
+-                        // default to regular spawn
+-                        fudgeSpawnLocation(this.server.getLevel(Level.OVERWORLD), spawnPosComplete);
+-                        return;
+-                    }
++    private record AsyncAnchorKey(ServerLevel world, BlockPos pos) {
++    }
+ 
+-                    boolean isRespawnAnchor = respawnWorld.getBlockState(respawnConfig.respawnData.pos()).is(net.minecraft.world.level.block.Blocks.RESPAWN_ANCHOR);
+-                    boolean isBed = respawnWorld.getBlockState(respawnConfig.respawnData.pos()).is(net.minecraft.tags.BlockTags.BEDS);
+-                    usedRespawnAnchor[0] = !alive && isRespawnAnchor;
++    private static final class AsyncAnchorReservation {
++        private final AsyncAnchorKey key;
++        private final java.util.concurrent.atomic.AtomicBoolean released = new java.util.concurrent.atomic.AtomicBoolean();
+ 
+-                    // finished now, pass the location on
+-                    spawnPosComplete.complete(
+-                        io.papermc.paper.util.MCUtil.toLocation(respawnWorld, spawnPos.position(), spawnPos.yaw(), 0.0f)
+-                    );
+-                    return;
+-                }
++        private AsyncAnchorReservation(final AsyncAnchorKey key) {
++            this.key = key;
++        }
++
++        private void release() {
++            if (!this.released.compareAndSet(false, true)) {
++                return;
++            }
++            ASYNC_ANCHOR_RESERVATIONS.computeIfPresent(this.key, (ignored, reservations) ->
++                reservations <= 1 ? null : reservations - 1
+             );
+         }
+     }
+-- 
+2.45.1.windows.1
+

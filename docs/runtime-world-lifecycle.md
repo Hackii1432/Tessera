@@ -91,12 +91,21 @@ The state machine is:
 INITIALIZING -> ACTIVE -> QUIESCING -> UNLOADING -> CLOSED
                     ^          |
                     +----------+  reversible failure before close
+
+                    +-> SNAPSHOTTING -+
+                    ^                 |
+                    +-----------------+  fresh group snapshot
 ```
 
 `INITIALIZING` admits only internal chunk preparation. `QUIESCING` rejects new
 plugin region tasks, teleports into the world, force-loaded chunks, plugin
 chunk tickets, and new chunk API requests. `UNLOADING` is irreversible.
 `CLOSED` is required before registrations are removed.
+
+`SNAPSHOTTING` is a reversible group barrier. Normal world ticks and new API,
+chunk and teleport admission stop, while intermediate region/chunk/packet
+queues continue draining. This permits owner-thread player saves and lifecycle
+barriers to complete without a region thread waiting for another region.
 
 Operations using the same normalized world name are serialized. Clone holds a
 read lock for the template and a write lock for the target, acquired in sorted
@@ -204,6 +213,52 @@ world during clone**. Tessera quiesces region admission while taking the
 snapshot, but plugin code must not treat the template as a playable arena or
 mutate its files externally. If a source acquires a player or changes lifecycle
 state, cloning fails without exposing a partial target.
+
+## Fresh mutable-world group snapshot
+
+Build 26.2-017 adds a separate operation for live, mutable worlds:
+
+```java
+CompletionStage<WorldSnapshotResult> snapshotWorldsAsync(
+    List<World> worlds,
+    Path snapshotPath
+);
+```
+
+Every invocation performs a new save and never uses the template-clone cache.
+The complete input group enters `SNAPSHOTTING` on the global region before its
+region barriers are installed. Connected players are then saved through their
+transferred entity schedulers; `PlayerList#remove` saves before scheduler
+retirement, so an already-retired scheduler represents a completed logout
+save. Chunks, entities, POIs, saved data and region-file workers are flushed
+before a lifecycle I/O worker begins copying.
+
+The input order is authoritative and produces this layout:
+
+```text
+snapshotPath/
+  runtime/                 # caller-owned; never modified by Tessera
+  worlds/0/
+  worlds/1/
+  players/data/
+  players/stats/
+  players/advancements/
+```
+
+World copies retain `level.dat`, UUID and Paper metadata and copy `region`,
+`entities`, `poi`, `data` and `datapacks`; `session.lock`, unrelated nested
+dimension trees and shared primary player directories are excluded. Empty
+player directories are created. All MCA files are structurally validated.
+
+The copy is assembled below a hidden, invocation-specific staging child.
+`worlds/` and `players/` are published only after the entire copy succeeds.
+Pre-existing targets, source/destination overlap, symbolic links, junctions
+and special files fail the operation. A caller cancellation is cooperative:
+the exposed future can be cancelled, but Tessera continues the already-owned
+save/cleanup until every world is back in `ACTIVE`; it never abandons locks or
+publishes partial output. Region/player barriers have a 30-second timeout.
+Once a storage flush has started it is deliberately not force-interrupted,
+because resuming ticks over an interrupted region-file flush would be unsafe.
 
 ## Unload
 

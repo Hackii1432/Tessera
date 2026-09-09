@@ -1,0 +1,440 @@
+From 8f04f38f4c7da51cdc41ecb7174c51240d2edd85 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Thu, 10 Sep 2026 00:52:40 +0200
+Subject: [PATCH] Restore region-safe async portal routing events
+
+---
+ net/minecraft/server/level/ServerPlayer.java |   5 +
+ net/minecraft/world/entity/Entity.java       | 298 +++++++++++++------
+ 2 files changed, 219 insertions(+), 84 deletions(-)
+
+diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+index fd58468..93f8218 100644
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -1998,6 +1998,11 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+             // finished
+ 
+             this.postChangeDimension();
++            if (originWorld != destination) {
++                new org.bukkit.event.player.PlayerChangedWorldEvent(
++                    this.getBukkitEntity(), originWorld.getWorld()
++                ).callEvent();
++            }
+         }
+     }
+ 
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index d973aae..c25c3e9 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -131,6 +131,7 @@ import net.minecraft.world.level.portal.PortalShape;
+ import net.minecraft.world.level.portal.TeleportTransition;
+ import net.minecraft.world.level.storage.TagValueInput;
+ import net.minecraft.world.level.storage.TagValueOutput;
++import net.minecraft.world.level.storage.LevelData;
+ import net.minecraft.world.level.storage.ValueInput;
+ import net.minecraft.world.level.storage.ValueOutput;
+ import net.minecraft.world.level.storage.loot.LootTable;
+@@ -4573,28 +4574,147 @@ public abstract class Entity
+         NETHER, END;
+     }
+ 
++    private record AsyncPortalTarget(
++        ServerLevel world,
++        Vec3 position,
++        float yaw,
++        float pitch,
++        int searchRadius,
++        int createRadius,
++        boolean canCreatePortal,
++        boolean adjustEndExit
++    ) {
++    }
++
++    private boolean tessera$portalTransferPending;
++
+     public boolean endPortalLogicAsync(BlockPos portalPos) {
+         ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this, "Cannot portal entity async");
+ 
+-        ServerLevel destination = this.level().getServer().getLevel(this.level().getTypeKey() == net.minecraft.world.level.dimension.LevelStem.END ? Level.OVERWORLD : Level.END);
++        final boolean fromEnd = this.level().getTypeKey() == net.minecraft.world.level.dimension.LevelStem.END;
++        final LevelData.RespawnData respawnData = this.level().getRespawnData();
++        ServerLevel destination = this.level().getServer().getLevel(fromEnd ? respawnData.dimension() : Level.END);
+         if (destination == null) {
+-            // wat
+             return false;
+         }
+ 
+-        return this.portalToAsync(destination, portalPos, true, PortalType.END, null);
++        final Vec3 defaultPosition = fromEnd
++            ? Vec3.atBottomCenterOf(respawnData.pos())
++            : Vec3.atBottomCenterOf(ServerLevel.END_SPAWN_POINT.below());
++        final float defaultYaw = fromEnd ? this.getYRot() + respawnData.yaw() : Direction.WEST.toYRot();
++        final float defaultPitch = fromEnd ? this.getXRot() + respawnData.pitch() : 0.0F;
++        final org.bukkit.craftbukkit.event.PortalEventResult eventResult =
++            org.bukkit.craftbukkit.event.CraftEventFactory.handlePortalEvents(
++                this,
++                org.bukkit.craftbukkit.util.CraftLocation.toBukkit(defaultPosition, destination, defaultYaw, defaultPitch),
++                org.bukkit.PortalType.ENDER,
++                0,
++                0
++            );
++        if (eventResult == null || !(eventResult.to().getWorld() instanceof org.bukkit.craftbukkit.CraftWorld craftWorld)) {
++            return false;
++        }
++        destination = craftWorld.getHandle();
++        if (!isUsablePortalTarget(destination)) {
++            return false;
++        }
++        final org.bukkit.Location to = eventResult.to();
++        return this.portalToAsync(
++            destination,
++            portalPos,
++            true,
++            PortalType.END,
++            new AsyncPortalTarget(
++                destination,
++                org.bukkit.craftbukkit.util.CraftLocation.toVec3(to),
++                to.getYaw(),
++                to.getPitch(),
++                0,
++                0,
++                false,
++                fromEnd && to.getWorld() == destination.getWorld()
++                    && to.getX() == defaultPosition.x && to.getY() == defaultPosition.y && to.getZ() == defaultPosition.z
++            ),
++            null
++        );
+     }
+ 
+     public boolean netherPortalLogicAsync(BlockPos portalPos) {
+         ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this, "Cannot portal entity async");
+ 
+-        ServerLevel destination = this.level().getServer().getLevel(this.level().getTypeKey() == net.minecraft.world.level.dimension.LevelStem.NETHER ? Level.OVERWORLD : Level.NETHER);
+-        if (destination == null) {
+-            // wat
++        ServerLevel destination = this.level().getServer().getLevel(
++            this.level().getTypeKey() == net.minecraft.world.level.dimension.LevelStem.NETHER ? Level.OVERWORLD : Level.NETHER
++        );
++        final io.papermc.paper.event.entity.EntityPortalReadyEvent readyEvent =
++            new io.papermc.paper.event.entity.EntityPortalReadyEvent(
++                this.getBukkitEntity(),
++                destination == null ? null : destination.getWorld(),
++                org.bukkit.PortalType.NETHER
++            );
++        if (!readyEvent.callEvent()
++            || !(readyEvent.getTargetWorld() instanceof org.bukkit.craftbukkit.CraftWorld craftReadyWorld)) {
++            this.portalProcess = null;
++            return false;
++        }
++        destination = craftReadyWorld.getHandle();
++        if (!isUsablePortalTarget(destination)) {
+             return false;
+         }
+ 
+-        return this.portalToAsync(destination, portalPos, true, PortalType.NETHER, null);
++        final boolean destinationIsNether = destination.getTypeKey() == net.minecraft.world.level.dimension.LevelStem.NETHER;
++        int searchRadius = destination.paperConfig().environment.portalSearchRadius;
++        if (this.level().paperConfig().environment.portalSearchVanillaDimensionScaling && destinationIsNether) {
++            searchRadius = (int)(searchRadius / destination.dimensionType().coordinateScale());
++        }
++        final double scale = net.minecraft.world.level.dimension.DimensionType.getTeleportationScale(
++            this.level().dimensionType(), destination.dimensionType()
++        );
++        final BlockPos approximate = destination.getWorldBorder().clampToBounds(
++            this.getX() * scale, this.getY(), this.getZ() * scale
++        );
++        final org.bukkit.craftbukkit.event.PortalEventResult eventResult =
++            org.bukkit.craftbukkit.event.CraftEventFactory.handlePortalEvents(
++                this,
++                org.bukkit.craftbukkit.util.CraftLocation.toBukkit(approximate, destination),
++                org.bukkit.PortalType.NETHER,
++                searchRadius,
++                destination.paperConfig().environment.portalCreateRadius
++            );
++        if (eventResult == null || !(eventResult.to().getWorld() instanceof org.bukkit.craftbukkit.CraftWorld craftWorld)) {
++            return false;
++        }
++        destination = craftWorld.getHandle();
++        if (!isUsablePortalTarget(destination)) {
++            return false;
++        }
++        final org.bukkit.Location to = eventResult.to();
++        final Vec3 requestedPosition = org.bukkit.craftbukkit.util.CraftLocation.toVec3(to);
++        final BlockPos targetPos = destination.getWorldBorder().clampToBounds(
++            requestedPosition.x, requestedPosition.y, requestedPosition.z
++        );
++
++        return this.portalToAsync(
++            destination,
++            portalPos,
++            true,
++            PortalType.NETHER,
++            new AsyncPortalTarget(
++                destination,
++                Vec3.atCenterOf(targetPos),
++                to.getYaw(),
++                to.getPitch(),
++                Math.max(0, eventResult.searchRadius()),
++                Math.max(0, eventResult.createRadius()),
++                eventResult.canCreatePortal(),
++                false
++            ),
++            null
++        );
++    }
++
++    private static boolean isUsablePortalTarget(final ServerLevel destination) {
++        return destination.tessera$isRuntimeWorldActive()
++            && destination.getServer().getLevel(destination.dimension()) == destination;
+     }
+ 
+     private static final java.util.concurrent.atomic.AtomicLong CREATE_PORTAL_DOUBLE_CHECK = new java.util.concurrent.atomic.AtomicLong();
+@@ -4607,25 +4727,25 @@ public abstract class Entity
+     // If we have to worry about whether the entity may not teleport,
+     // we need to first search, then report back, ...
+     protected void findOrCreatePortalAsync(ServerLevel origin, BlockPos originPortal, ServerLevel destination, PortalType type,
++                                           AsyncPortalTarget target,
+                                            ca.spottedleaf.concurrentutil.completable.CallbackCompletable<TeleportTransition> portalInfoCompletable) {
+         switch (type) {
+             // end portal logic is quite simple, the spawn in the end is fixed and when returning to the overworld
+             // we just select the spawn position
+             case END: {
+                 if (destination.getTypeKey() == net.minecraft.world.level.dimension.LevelStem.END) {
+-                    BlockPos targetPos = ServerLevel.END_SPAWN_POINT;
++                    BlockPos targetPos = BlockPos.containing(target.position());
+                     // need to load chunks so we can create the platform
+                     destination.moonrise$loadChunksAsync(
+                         targetPos, 16, // load 16 blocks to be safe from block physics
+                         ca.spottedleaf.concurrentutil.util.Priority.HIGH,
+                         (chunks) -> {
+-                            net.minecraft.world.level.levelgen.feature.EndPlatformFeature.createEndPlatform(destination, targetPos.below(), true, null);
++                            net.minecraft.world.level.levelgen.feature.EndPlatformFeature.createEndPlatform(destination, targetPos, true, null);
+ 
+-                            // the portal obsidian is placed at targetPos.y - 2, so if we want to place the entity
+-                            // on the obsidian, we need to spawn at targetPos.y - 1
++                            // EndPlatformFeature places obsidian one block below the requested spawn position.
+                             portalInfoCompletable.complete(
+                                 new net.minecraft.world.level.portal.TeleportTransition(
+-                                    destination, Vec3.atBottomCenterOf(targetPos.below()), Vec3.ZERO, Direction.WEST.toYRot(), 0.0f,
++                                    destination, target.position(), Vec3.ZERO, target.yaw(), target.pitch(),
+                                     Relative.union(Relative.DELTA, Set.of(Relative.X_ROT)),
+                                     TeleportTransition.PLAY_PORTAL_SOUND.then(TeleportTransition.PLACE_PORTAL_TICKET)
+                                 ).withCause(org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.END_PORTAL)
+@@ -4633,18 +4753,23 @@ public abstract class Entity
+                         }
+                     );
+                 } else {
+-                    BlockPos spawnPos = destination.getRespawnData().pos();
++                    BlockPos spawnPos = BlockPos.containing(target.position());
+                     // need to load chunk for heightmap
+                     destination.moonrise$loadChunksAsync(
+                         spawnPos, 0,
+                         ca.spottedleaf.concurrentutil.util.Priority.HIGH,
+                         (chunks) -> {
+-                            BlockPos adjustedSpawn = destination.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, spawnPos);
++                            BlockPos adjustedSpawn = target.adjustEndExit()
++                                ? destination.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, spawnPos)
++                                : spawnPos;
+ 
+                             // done
+                             portalInfoCompletable.complete(
+                                 new net.minecraft.world.level.portal.TeleportTransition(
+-                                    destination, Vec3.atBottomCenterOf(adjustedSpawn), Vec3.ZERO, 0.0f, 0.0f,
++                                    destination,
++                                    target.adjustEndExit() ? Vec3.atBottomCenterOf(adjustedSpawn) : target.position(),
++                                    Vec3.ZERO,
++                                    target.yaw(), target.pitch(),
+                                     Relative.union(Relative.DELTA, Relative.ROTATION),
+                                     TeleportTransition.PLAY_PORTAL_SOUND.then(TeleportTransition.PLACE_PORTAL_TICKET)
+                                 ).withCause(org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.END_PORTAL)
+@@ -4674,16 +4799,13 @@ public abstract class Entity
+                             }
+                         );
+ 
+-                boolean destinationIsNether = destination.getTypeKey() == net.minecraft.world.level.dimension.LevelStem.NETHER;
+-
+-                int portalSearchRadius = origin.paperConfig().environment.portalSearchVanillaDimensionScaling && destinationIsNether ?
+-                    (int)(destination.paperConfig().environment.portalSearchRadius / destination.dimensionType().coordinateScale()) :
+-                    destination.paperConfig().environment.portalSearchRadius;
+-                int portalCreateRadius = destination.paperConfig().environment.portalCreateRadius;
++                int portalSearchRadius = target.searchRadius();
++                int portalCreateRadius = target.createRadius();
+ 
+                 WorldBorder destinationBorder = destination.getWorldBorder();
+-                double dimensionScale = net.minecraft.world.level.dimension.DimensionType.getTeleportationScale(origin.dimensionType(), destination.dimensionType());
+-                BlockPos targetPos = destination.getWorldBorder().clampToBounds(this.getX() * dimensionScale, this.getY(), this.getZ() * dimensionScale);
++                BlockPos targetPos = destination.getWorldBorder().clampToBounds(
++                    target.position().x, target.position().y, target.position().z
++                );
+ 
+                 ca.spottedleaf.concurrentutil.completable.CallbackCompletable<BlockUtil.FoundRectangle> portalFound
+                     = new ca.spottedleaf.concurrentutil.completable.CallbackCompletable<>();
+@@ -4728,6 +4850,11 @@ public abstract class Entity
+                             return;
+                         }
+ 
++                        if (!target.canCreatePortal()) {
++                            portalFound.complete(null);
++                            return;
++                        }
++
+                         // add tickets so that we can re-search for a portal once the chunks are loaded
+                         Long ticketId = Long.valueOf(CREATE_PORTAL_DOUBLE_CHECK.getAndIncrement());
+                         for (net.minecraft.world.level.chunk.ChunkAccess chunk : chunks) {
+@@ -4816,87 +4943,90 @@ public abstract class Entity
+     }
+ 
+     protected boolean portalToAsync(ServerLevel destination, BlockPos portalPos, boolean takePassengers,
+-                                    PortalType type, java.util.function.Consumer<Entity> teleportComplete) {
++                                    PortalType type, AsyncPortalTarget target,
++                                    java.util.function.Consumer<Entity> teleportComplete) {
+         ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this, "Cannot portal entity async");
+-        if (!this.canPortalAsync(destination, takePassengers)) {
++        if (this.tessera$portalTransferPending || !isUsablePortalTarget(destination)
++            || !this.canPortalAsync(destination, takePassengers)) {
+             return false;
+         }
+ 
+-        Vec3 initialPosition = this.position();
+-        ChunkPos initialPositionChunk = new ChunkPos(
+-            ca.spottedleaf.moonrise.common.util.CoordinateUtils.getChunkX(initialPosition),
+-            ca.spottedleaf.moonrise.common.util.CoordinateUtils.getChunkZ(initialPosition)
+-        );
++        this.tessera$portalTransferPending = true;
+ 
+-        // first, remove entity/passengers from world
+-        EntityTreeNode passengerTree = this.detachPassengers();
+-        List<EntityTreeNode> fullPassengerTree = passengerTree.getFullTree();
+         ServerLevel originWorld = (ServerLevel)this.level;
+ 
+-        for (EntityTreeNode node : fullPassengerTree) {
+-            node.root.preChangeDimension();
+-            node.root.prePortalLogic(originWorld, destination, type);
+-        }
+-
+-        for (EntityTreeNode node : fullPassengerTree) {
+-            // we will update pos/rot/speed later
+-            node.root = node.root.transformForAsyncTeleport(destination, null, null, null, null);
+-            // set portal cooldown
+-            node.root.setPortalCooldown();
+-        }
+-
+-        // ensure the region is always ticking in case of a shutdown
+-        // otherwise, the shutdown will not be able to complete the shutdown as it requires a ticking region
+-        Long teleportHoldId = Long.valueOf(TELEPORT_HOLD_TICKET_GEN.getAndIncrement());
+-        originWorld.moonrise$getChunkTaskScheduler().chunkHolderManager.addTicketAtLevel(
+-            TicketType.TELEPORT_HOLD_TICKET, initialPositionChunk,
+-            ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkHolderManager.MAX_TICKET_LEVEL,
+-            teleportHoldId
+-        );
+-
+-        ServerLevel.PendingTeleport beforeFindDestination = new ServerLevel.PendingTeleport(passengerTree, initialPosition);
+-        originWorld.pushPendingTeleport(beforeFindDestination);
+-
+         ca.spottedleaf.concurrentutil.completable.CallbackCompletable<TeleportTransition> portalInfoCompletable
+             = new ca.spottedleaf.concurrentutil.completable.CallbackCompletable<>();
+ 
+         portalInfoCompletable.addWaiter((TeleportTransition info, Throwable throwable) -> {
+-            if (!originWorld.removePendingTeleport(beforeFindDestination)) {
+-                // the shutdown thread has placed us back into the origin world at the original position
+-                // we just have to abandon this teleport to prevent duplication
+-                return;
+-            }
+-            originWorld.moonrise$getChunkTaskScheduler().chunkHolderManager.removeTicketAtLevel(
+-                TicketType.TELEPORT_HOLD_TICKET, initialPositionChunk,
+-                ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkHolderManager.MAX_TICKET_LEVEL,
+-                teleportHoldId
+-            );
+-            // adjust passenger tree to final pos/rot/speed
+-            for (EntityTreeNode node : fullPassengerTree) {
+-                node.root.transform(info);
+-            }
+-
+-            // place
+-            passengerTree.root.placeInAsync(
+-                originWorld, destination, Entity.TELEPORT_FLAG_LOAD_CHUNK | (takePassengers ? Entity.TELEPORT_FLAG_TELEPORT_PASSENGERS : 0L),
+-                passengerTree,
+-                (Entity teleported) -> {
+-                    if (info.postTeleportTransition() != null) {
+-                        info.postTeleportTransition().onTransition(teleported);
++            final boolean scheduled = Entity.this.getBukkitEntity().taskScheduler.schedule(
++                currentEntity -> {
++                    final Entity current = (Entity)currentEntity;
++                    current.tessera$portalTransferPending = false;
++                    if (throwable != null || info == null || current.level() != originWorld
++                        || !isUsablePortalTarget(destination)
++                        || !current.canPortalAsync(destination, takePassengers)) {
++                        if (teleportComplete != null) {
++                            teleportComplete.accept(null);
++                        }
++                        return;
+                     }
+-
++                    current.completePortalTransferAsync(
++                        originWorld, destination, info, takePassengers, type, teleportComplete
++                    );
++                },
++                retired -> {
+                     if (teleportComplete != null) {
+-                        teleportComplete.accept(teleported);
++                        teleportComplete.accept(null);
+                     }
+-                }
++                },
++                1L
+             );
++            if (!scheduled && teleportComplete != null) {
++                teleportComplete.accept(null);
++            }
+         });
+ 
+-
+-        passengerTree.root.findOrCreatePortalAsync(originWorld, portalPos, destination, type, portalInfoCompletable);
++        this.findOrCreatePortalAsync(originWorld, portalPos, destination, type, target, portalInfoCompletable);
+ 
+         return true;
+     }
++
++    private void completePortalTransferAsync(
++        final ServerLevel originWorld,
++        final ServerLevel destination,
++        final TeleportTransition info,
++        final boolean takePassengers,
++        final PortalType type,
++        final java.util.function.Consumer<Entity> teleportComplete
++    ) {
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this, "Cannot complete portal transfer off the owning region");
++        final EntityTreeNode passengerTree = this.detachPassengers();
++        final List<EntityTreeNode> fullPassengerTree = passengerTree.getFullTree();
++        for (final EntityTreeNode node : fullPassengerTree) {
++            node.root.preChangeDimension();
++            node.root.prePortalLogic(originWorld, destination, type);
++        }
++        for (final EntityTreeNode node : fullPassengerTree) {
++            node.root = node.root.transformForAsyncTeleport(destination, null, null, null, null);
++            node.root.transform(info);
++            node.root.setPortalCooldown();
++        }
++        passengerTree.root.placeInAsync(
++            originWorld,
++            destination,
++            Entity.TELEPORT_FLAG_LOAD_CHUNK | (takePassengers ? Entity.TELEPORT_FLAG_TELEPORT_PASSENGERS : 0L),
++            passengerTree,
++            teleported -> {
++                if (info.postTeleportTransition() != null) {
++                    info.postTeleportTransition().onTransition(teleported);
++                }
++                if (teleportComplete != null) {
++                    teleportComplete.accept(teleported);
++                }
++            }
++        );
++    }
+     // Folia end - region threading
+ 
+     public @Nullable Entity teleport(TeleportTransition transition) { // Paper - remove param final
+-- 
+2.45.1.windows.1
+
