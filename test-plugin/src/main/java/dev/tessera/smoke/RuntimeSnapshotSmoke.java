@@ -128,16 +128,43 @@ final class RuntimeSnapshotSmoke implements Listener {
         final long start = System.nanoTime();
         final Path target = this.output.resolve(label);
         this.snapshotEventExpected = true;
-        return global(() -> Bukkit.getRuntimeWorldManager().snapshotWorldsAsync(worlds, target))
+        return global(() -> {
+            setGlobalStorageMarker(label);
+            return Bukkit.getRuntimeWorldManager().snapshotWorldsAsync(worlds, target);
+        })
             .thenCompose(stage -> stage).thenAcceptAsync(result -> {
                 this.snapshotEventExpected = false;
-                require(result.successful(), result.toString());
+                if (!result.successful()) throw new AssertionError(result.toString(), result.cause());
+                for (final String required : List.of("level/level.dat", "level/data", "level/datapacks", "worlds", "players")) {
+                    require(Files.exists(target.resolve(required)), "Missing snapshot output " + required);
+                }
+                for (final String excluded : List.of("level/session.lock", "level/dimensions", "level/players")) {
+                    require(!Files.exists(target.resolve(excluded)), "Duplicated or unsafe snapshot output " + excluded);
+                }
                 for (final Player player : players) {
                     require(Files.isRegularFile(target.resolve("players/data/" + player.getUniqueId() + ".dat")), "Missing player " + player.getUniqueId());
                 }
                 this.plugin.getLogger().info("SNAPSHOT_OK " + label + " players=" + players.size()
                     + " elapsedMs=" + TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
             });
+    }
+
+    private static void setGlobalStorageMarker(final String label) {
+        // Test-only NMS access on the global owner: Folia deliberately does not
+        // register /data merge storage. Do not enable a command just for a test.
+        try {
+            final Object server = Bukkit.getServer().getClass().getMethod("getServer").invoke(Bukkit.getServer());
+            final Object storage = server.getClass().getMethod("getCommandStorage").invoke(server);
+            final Class<?> identifier = Class.forName("net.minecraft.resources.Identifier");
+            final Object key = identifier.getMethod("fromNamespaceAndPath", String.class, String.class)
+                .invoke(null, "tessera", "snapshot_smoke");
+            final Class<?> compound = Class.forName("net.minecraft.nbt.CompoundTag");
+            final Object tag = compound.getConstructor().newInstance();
+            compound.getMethod("putString", String.class, String.class).invoke(tag, "marker", label);
+            storage.getClass().getMethod("set", identifier, compound).invoke(storage, key, tag);
+        } catch (ReflectiveOperationException failure) {
+            throw new IllegalStateException("Could not set global saved-data smoke marker", failure);
+        }
     }
 
     private CompletionStage<List<Player>> awaitPlayers(final int count) {

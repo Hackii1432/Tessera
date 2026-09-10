@@ -5,6 +5,11 @@ die zusätzlichen Patches Server `0020` und Minecraft `0030` behoben. Der
 korrigierte Ablauf und die Prüfungen stehen in
 [Online-Snapshot-Fix](runtime-snapshot-online-fix-26.2-017.md).
 
+Weiterer Nachtrag: API `0011`, Server `0021` und Minecraft `0031` ergänzen
+den gemeinsamen Level-Root als verpflichtendes `level/`. Details und die
+aktuellen Prüfergebnisse stehen im
+[Level-Root-Snapshot-Bericht](runtime-snapshot-level-root-26.2-017.md).
+
 ## Bezugsstand
 
 - Ausgang: Tessera 26.2-016, Commit `9b2f0ff`, Branch `ver/26.2.x`.
@@ -62,6 +67,9 @@ Die folgende Reihenfolge enthält den Online-Snapshot-Nachtrag (`0020`/`0030`):
    über `flushRuntimeWorldSnapshot` gespeichert und vollständig geflusht.
 7. Erst danach kopieren Lifecycle-I/O-Worker die Dateien. Kein Region- oder
    Global-Thread wartet synchron auf eine andere Region oder auf die Großkopie.
+   Der Level-Root-Nachtrag erfasst zuvor zusätzlich globale Level-/SavedData
+   auf ihrem Global-Owner, wartet auf deren Datei-I/O und sperrt konkurrierende
+   globale Saves bis nach der gemeinsamen Veröffentlichung.
 8. Nach Erfolg oder Fehler wechseln alle beteiligten Welten zurück nach `ACTIVE` und die
    World-Locks werden freigegeben.
 
@@ -73,6 +81,12 @@ unverändert.
 ```text
 snapshotPath/
   runtime/                 # bestehender MCC-Inhalt bleibt unverändert
+  level/level.dat          # verpflichtender gemeinsamer Level-Root
+  level/level.dat_old      # falls vorhanden
+  level/data/
+  level/datapacks/
+  level/generated/         # falls vorhanden
+  level/resourcepacks/     # falls vorhanden
   worlds/0/                # worlds.get(0)
   worlds/1/                # worlds.get(1)
   players/data/
@@ -88,8 +102,13 @@ werden angelegt. Entity-NBT, Position und Motion werden nicht umgeschrieben;
 es gibt keinen zweiten Entity-Save.
 
 Die Ausgabe entsteht zuerst in `.tessera-snapshot-<uuid>`. Erst nach kompletter
-Kopie werden `worlds/` und `players/` veröffentlicht. Bereits vorhandene Ziele,
+Kopie werden `level/`, `worlds/` und `players/` veröffentlicht. Bereits vorhandene Ziele,
 Quell-/Zielüberlappung, Symlinks, Junctions und Sonderdateien werden abgelehnt.
+`level/` enthält zusätzlich sichere reguläre Root-Dateien, aber keine
+`session.lock`, `dimensions/` oder `players/`. Fehlende Root-`level.dat` ergibt
+`SAVE_FAILED`. Bei Publikationsfehlern werden eigene veröffentlichte Teile
+zurückgenommen; Konsumenten müssen das erfolgreiche Future abwarten. Die
+drei Verzeichnis-Moves sind keine absturzatomare Dateisystemtransaktion.
 
 ### Fehler und Abbruch
 
@@ -216,7 +235,7 @@ SHA-256: e35939aaeeffa242e09f03cf124d89979cac3e36d492657a9b84d2561f243402
 > Werte am Ergebnis `successful()`, `message()` und `snapshotPath()` aus und
 > veröffentliche MCCs Manifest/Slot nur bei `successful()==true`. Übergib alle
 > Challenge-, Farm- und Arenawelten in verbindlicher Manifestreihenfolge und
-> stelle vor dem Aufruf sicher, dass `snapshotPath/worlds` und
+> stelle vor dem Aufruf sicher, dass `snapshotPath/level`, `snapshotPath/worlds` und
 > `snapshotPath/players` fehlen; `snapshotPath/runtime` darf bereits den
 > MCC-Checkpoint enthalten. Prüfe A/B-Frische, Player-NBT/Stats/Advancements,
 > Kiste/Mob/Item/POI/PDC, exakte Entity-Position/Motion, Logout-Race sowie

@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <tessera@localhost>
+Date: Thu, 10 Sep 2026 18:25:14 +0200
+Subject: [PATCH] Document shared level root in runtime snapshots
+
+
+diff --git a/src/main/java/io/papermc/paper/world/RuntimeWorldManager.java b/src/main/java/io/papermc/paper/world/RuntimeWorldManager.java
+index 2a8405c47..366487960 100644
+--- a/src/main/java/io/papermc/paper/world/RuntimeWorldManager.java
++++ b/src/main/java/io/papermc/paper/world/RuntimeWorldManager.java
+@@ -68,6 +68,22 @@ public interface RuntimeWorldManager {
+      * allowed; their data, statistics and advancements are flushed before the
+      * snapshot is published below {@code players/}.</p>
+      *
++     * <p>The required {@code level/} output contains the shared level root:
++     * {@code level.dat}, optional {@code level.dat_old}, {@code data/},
++     * {@code datapacks/}, optional {@code generated/} and {@code resourcepacks/},
++     * and safe regular root files. {@code session.lock}, {@code dimensions/},
++     * {@code players/}, links and special files are not copied into it.
++     * Missing {@code level.dat} fails the operation. All loaded worlds are
++     * temporarily frozen because level and player storage are shared.</p>
++     *
++     * <p>{@code level/}, {@code worlds/} and {@code players/} are staged together
++     * inside the same protected snapshot phase. Existing output children cause
++     * a collision before saving. Success is returned only after all three have
++     * been published; a publication failure rolls back outputs created by this
++     * invocation. Unrelated caller-owned children remain untouched. Readers
++     * must wait for the returned result: publication consists of three directory
++     * moves, not a crash-atomic filesystem transaction.</p>
++     *
+      * <p>This method does not use the immutable-template cache used by
+      * {@link #cloneWorldAsync(World, NamespacedKey, WorldCloneOptions)}. Every
+      * invocation saves and copies a new state. The operation is asynchronous
+-- 
+2.45.1.windows.1
+

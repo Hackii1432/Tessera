@@ -241,11 +241,23 @@ before a lifecycle I/O worker begins copying. Gates and world admission reopen
 after success or failure. See the [online-snapshot fix report](runtime-snapshot-online-fix-26.2-017.md)
 for failure semantics, tests and build instructions.
 
+The level-root extension (API 0011 / server 0021 / Minecraft 0031) also captures
+the shared `MinecraftServer.getWorldPath(LevelResource.ROOT)` in that same
+protected phase. Global data is serialized on its global owner; existing and
+new asynchronous writes finish before copying. Competing global saves are
+deferred until publication/cleanup, without blocking a tick thread.
+
 The input order is authoritative and produces this layout:
 
 ```text
 snapshotPath/
   runtime/                 # caller-owned; never modified by Tessera
+  level/level.dat          # required shared level metadata
+  level/level.dat_old      # if present
+  level/data/
+  level/datapacks/
+  level/generated/         # if present
+  level/resourcepacks/     # if present
   worlds/0/
   worlds/1/
   players/data/
@@ -259,7 +271,15 @@ dimension trees and shared primary player directories are excluded. Empty
 player directories are created. All MCA files are structurally validated.
 
 The copy is assembled below a hidden, invocation-specific staging child.
-`worlds/` and `players/` are published only after the entire copy succeeds.
+`level/`, `worlds/` and `players/` are published only after the entire copy succeeds.
+`level/` also includes safe regular root files, but never `session.lock`,
+`dimensions/`, `players/`, links or special files. Unknown root directories are
+not included. Missing root `level.dat` fails with `SAVE_FAILED` and
+`LEVEL_ROOT_MISSING_LEVEL_DAT`; no incomplete success is returned.
+Publication failure rolls back this invocation's published siblings, leaving
+caller-owned children untouched. Failure to remove an owned output is reported
+as `CLEANUP_FAILED`. Consumers must await successful completion: the three
+directory moves are not one crash-atomic filesystem transaction.
 Pre-existing targets, source/destination overlap, symbolic links, junctions
 and special files fail the operation. A caller cancellation is cooperative:
 the exposed future can be cancelled, but Tessera continues the already-owned

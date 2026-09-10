@@ -10,11 +10,17 @@ const java = process.argv[2];
 if (!java) throw Error('Usage: node smoke-tests/runtime-snapshot/run.mjs <absolute Java 25 executable>');
 const work = path.join(repo, 'build', 'snapshot-smoke-' + Date.now());
 const port = Number(process.env.SNAPSHOT_SMOKE_PORT || 25584);
+const levelName = 'tessera_snapshot_root'; // Deliberately not the conventional "world" folder.
 const flat = JSON.stringify({biome: 'minecraft:plains', lakes: false, features: false, structure_overrides: [],
   layers: [{block: 'minecraft:bedrock', height: 1}, {block: 'minecraft:dirt', height: 2}, {block: 'minecraft:grass_block', height: 1}]});
 mkdirSync(path.join(work, 'plugins'), {recursive: true});
 writeFileSync(path.join(work, 'eula.txt'), 'eula=true\n');
-writeFileSync(path.join(work, 'server.properties'), `server-ip=127.0.0.1\nserver-port=${port}\nonline-mode=false\nenforce-secure-profile=false\nnetwork-compression-threshold=-1\nview-distance=2\nsimulation-distance=2\nspawn-protection=0\nlevel-type=minecraft:flat\ngenerator-settings=${flat}\n`);
+writeFileSync(path.join(work, 'server.properties'), `server-ip=127.0.0.1\nserver-port=${port}\nlevel-name=${levelName}\nonline-mode=false\nenforce-secure-profile=false\nnetwork-compression-threshold=-1\nview-distance=2\nsimulation-distance=2\nspawn-protection=0\nlevel-type=minecraft:flat\ngenerator-settings=${flat}\n`);
+for (const directory of ['datapacks', 'generated', 'resourcepacks']) {
+  mkdirSync(path.join(work, levelName, directory), {recursive: true});
+  writeFileSync(path.join(work, levelName, directory, 'snapshot-marker.txt'), directory);
+}
+writeFileSync(path.join(work, levelName, 'snapshot-root-marker.txt'), 'shared root');
 copyFileSync(path.join(repo, 'test-plugin/build/libs/tessera-runtime-world-smoke.jar'), path.join(work, 'plugins/smoke.jar'));
 // Reuse the locally available vanilla bootstrap cache, if present.
 for (const prior of ['selector-smoke', 'dragon-region-smoke']) {
@@ -54,6 +60,22 @@ server.on('exit', code => {
       throw Error('Thread-safety failure in server log');
     }
     // Read real compressed NBT, not just file presence/timestamps.
+    for (const label of ['zero', 'one', 'repeat', 'many', 'after-failure', 'after-disconnect']) {
+      const level = path.join(work, 'snapshot-smoke', label, 'level');
+      const data = nbt(gunzipSync(readFileSync(path.join(level, 'level.dat'))));
+      if (data.Data.LevelName !== levelName) throw Error('Incorrect shared level root');
+      if (!existsSync(path.join(level, 'level.dat_old'))) throw Error('Missing level.dat_old');
+      for (const excluded of ['session.lock', 'dimensions', 'players']) {
+        if (existsSync(path.join(level, excluded))) throw Error('Unsafe/duplicated level child: ' + excluded);
+      }
+      for (const directory of ['datapacks', 'generated', 'resourcepacks']) {
+        if (readFileSync(path.join(level, directory, 'snapshot-marker.txt'), 'utf8') !== directory) throw Error('Missing optional tree');
+      }
+      if (readFileSync(path.join(level, 'snapshot-root-marker.txt'), 'utf8') !== 'shared root') throw Error('Missing root file');
+      const saved = nbt(gunzipSync(readFileSync(path.join(level, 'data/tessera/command_storage.dat'))));
+      if (saved.data.contents.snapshot_smoke.marker !== label) throw Error('Global saved data is stale: ' + label);
+      console.log('LEVEL_ROOT_VERIFIED', label, 'fresh global data, level.dat, optional trees, exclusions');
+    }
     for (const [label, expected] of [['one', 73], ['repeat', 147]]) {
       const dir = path.join(work, 'snapshot-smoke', label, 'players/data');
       const file = readdirSync(dir).find(n => n.endsWith('.dat'));

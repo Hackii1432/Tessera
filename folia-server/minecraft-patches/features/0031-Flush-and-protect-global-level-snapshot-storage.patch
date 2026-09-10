@@ -1,0 +1,173 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <tessera@localhost>
+Date: Thu, 10 Sep 2026 18:25:21 +0200
+Subject: [PATCH] Flush and protect global level snapshot storage
+
+
+diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
+index ce428a6..b202882 100644
+--- a/net/minecraft/server/MinecraftServer.java
++++ b/net/minecraft/server/MinecraftServer.java
+@@ -1017,7 +1017,36 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+     }
+ 
+     // Paper start - split out global level data
++    private volatile boolean tessera$levelRootSnapshot;
++
++    // Tessera - capture global mutable data on its owner, write only detached
++    // NBT on I/O workers, and suppress competing global saves until publication.
++    public CompletableFuture<Void> tessera$beginLevelRootSnapshot(final java.util.concurrent.Executor ioExecutor) {
++        io.papermc.paper.threadedregions.RegionizedServer.ensureGlobalTickThread("Level snapshot capture requires the global region");
++        if (this.tessera$levelRootSnapshot) throw new IllegalStateException("Level root snapshot already in progress");
++        this.tessera$levelRootSnapshot = true;
++        final List<CompletableFuture<?>> writes = new java.util.ArrayList<>();
++        try {
++            this.scoreboard.storeToSaveDataIfDirty(this.getDataStorage().computeIfAbsent(ScoreboardSaveData.TYPE));
++            writes.add(this.savedDataStorage.tessera$beginSnapshotSave());
++            final GameProfile profile = this.getSingleplayerProfile();
++            writes.add(this.storageSource.tessera$saveSnapshotDataTag(this.worldData, profile == null ? null : profile.id(), ioExecutor));
++        } catch (final Throwable failure) {
++            writes.add(CompletableFuture.failedFuture(failure));
++        }
++        // Even when preparing one write fails, wait for all writes already
++        // started before allowing the existing pipeline to reopen its gates.
++        return CompletableFuture.allOf(writes.toArray(CompletableFuture[]::new));
++    }
++
++    public void tessera$endLevelRootSnapshot() {
++        io.papermc.paper.threadedregions.RegionizedServer.ensureGlobalTickThread("Level snapshot release requires the global region");
++        this.savedDataStorage.tessera$endSnapshotSave();
++        this.tessera$levelRootSnapshot = false;
++    }
++
+     public void saveGlobalData(final boolean flush) {
++        if (this.tessera$levelRootSnapshot) return; // Tessera - retain dirtiness for the next normal save
+         this.scoreboard.storeToSaveDataIfDirty(this.getDataStorage().computeIfAbsent(ScoreboardSaveData.TYPE));
+ 
+         GameProfile singleplayerProfile = this.getSingleplayerProfile();
+diff --git a/net/minecraft/world/level/storage/LevelStorageSource.java b/net/minecraft/world/level/storage/LevelStorageSource.java
+index 6f24eb3..b34a1f4 100644
+--- a/net/minecraft/world/level/storage/LevelStorageSource.java
++++ b/net/minecraft/world/level/storage/LevelStorageSource.java
+@@ -596,7 +596,18 @@ public class LevelStorageSource {
+             this.saveLevelData(root);
+         }
+ 
++        public CompletableFuture<Void> tessera$saveSnapshotDataTag(final WorldData data, final @Nullable UUID singleplayerUUID,
++                                                                   final java.util.concurrent.Executor ioExecutor) {
++            final CompoundTag root = new CompoundTag();
++            root.put("Data", data.createTag(singleplayerUUID).copy());
++            return CompletableFuture.runAsync(() -> this.saveLevelData(root, true), ioExecutor);
++        }
++
+         private void saveLevelData(final CompoundTag root) {
++            this.saveLevelData(root, false);
++        }
++
++        private void saveLevelData(final CompoundTag root, final boolean snapshot) {
+             Path worldDir = this.levelDirectory.path();
+ 
+             try {
+@@ -604,8 +615,11 @@ public class LevelStorageSource {
+                 NbtIo.writeCompressed(root, dataFile);
+                 Path oldDataFile = this.levelDirectory.oldDataFile();
+                 Path currentFile = this.levelDirectory.dataFile();
+-                Util.safeReplaceFile(currentFile, dataFile, oldDataFile);
++                if (!Util.safeReplaceOrMoveFile(currentFile, dataFile, oldDataFile, false) && snapshot) {
++                    throw new IOException("Could not replace level.dat in " + worldDir);
++                }
+             } catch (Exception e) {
++                if (snapshot) throw new IllegalStateException("LEVEL_ROOT_SAVE_FAILED: " + worldDir, e);
+                 LevelStorageSource.LOGGER.error("Failed to save level {}", worldDir, e);
+             }
+         }
+diff --git a/net/minecraft/world/level/storage/SavedDataStorage.java b/net/minecraft/world/level/storage/SavedDataStorage.java
+index 81c1541..ee6a5b0 100644
+--- a/net/minecraft/world/level/storage/SavedDataStorage.java
++++ b/net/minecraft/world/level/storage/SavedDataStorage.java
+@@ -46,6 +46,7 @@ public class SavedDataStorage implements AutoCloseable {
+     private final Path dataFolder;
+     private CompletableFuture<?> pendingWriteFuture = CompletableFuture.completedFuture(null);
+     private boolean closed;
++    private boolean tessera$snapshotSave;
+ 
+     public SavedDataStorage(final Path dataFolder, final DataFixer fixerUpper, final HolderLookup.Provider registries) {
+         this.fixerUpper = fixerUpper;
+@@ -184,6 +185,7 @@ public class SavedDataStorage implements AutoCloseable {
+ 
+     // Folia start - region threading
+     public CompletableFuture<?> saveMaps() {
++        if (this.tessera$snapshotSave) return this.pendingWriteFuture;
+         Map<SavedDataType<?>, CompoundTag> savedData = new HashMap<>();
+         RegistryOps<Tag> registryOps = this.registries.createSerializationContext(NbtOps.INSTANCE);
+         for (Map.Entry<SavedDataType<?>, Optional<SavedData>> entry : this.cache.entrySet()) {
+@@ -218,6 +220,7 @@ public class SavedDataStorage implements AutoCloseable {
+     // Folia end - region threading
+ 
+     public CompletableFuture<?> scheduleSave() {
++        if (this.tessera$snapshotSave) return this.pendingWriteFuture;
+         if (this.closed) {
+             throw new IllegalStateException("Trying to schedule save when SavedDataStorage is already closed");
+         }
+@@ -259,6 +262,40 @@ public class SavedDataStorage implements AutoCloseable {
+         return this.pendingWriteFuture;
+     }
+ 
++    // Tessera - global snapshot only; normal world/player save scheduling stays unchanged.
++    public CompletableFuture<?> tessera$beginSnapshotSave() {
++        if (this.closed || this.tessera$snapshotSave) throw new IllegalStateException("Saved data storage cannot begin a snapshot");
++        this.tessera$snapshotSave = true;
++        final Map<SavedDataType<?>, CompoundTag> tags;
++        try {
++            tags = this.collectDirtyTagsToSave();
++            // NBT codecs may retain CompoundTag values owned by live saved data.
++            tags.replaceAll((type, tag) -> tag.copy());
++        } catch (final Throwable failure) {
++            this.cache.values().forEach(value -> value.ifPresent(data -> data.setDirty(true)));
++            return this.pendingWriteFuture.handle((ignored, priorFailure) -> {
++                if (priorFailure != null) failure.addSuppressed(priorFailure);
++                throw new java.util.concurrent.CompletionException(failure);
++            });
++        }
++        final CompletableFuture<?> snapshot = this.pendingWriteFuture.thenCompose(ignored -> CompletableFuture.allOf(
++            tags.entrySet().stream().map(entry -> CompletableFuture.runAsync(
++                () -> this.tryWrite(entry.getKey(), entry.getValue(), true), Util.DIMENSION_DATA_IO_POOL
++            )).toArray(CompletableFuture[]::new)
++        )).whenComplete((ignored, failure) -> {
++            if (failure != null) {
++                tags.keySet().forEach(type -> this.cache.getOrDefault(type, Optional.empty()).ifPresent(data -> data.setDirty(true)));
++            }
++        });
++        // Keep a failed snapshot from poisoning all subsequent ordinary saves.
++        this.pendingWriteFuture = snapshot.handle((ignored, failure) -> null);
++        return snapshot;
++    }
++
++    public void tessera$endSnapshotSave() {
++        this.tessera$snapshotSave = false;
++    }
++
+     private Map<SavedDataType<?>, CompoundTag> collectDirtyTagsToSave() {
+         Map<SavedDataType<?>, CompoundTag> tagsToSave = new Object2ObjectArrayMap<>();
+         RegistryOps<Tag> ops = this.registries.createSerializationContext(NbtOps.INSTANCE);
+@@ -281,12 +318,17 @@ public class SavedDataStorage implements AutoCloseable {
+     }
+ 
+     private void tryWrite(final SavedDataType<?> type, final CompoundTag tag) {
++        this.tryWrite(type, tag, false);
++    }
++
++    private void tryWrite(final SavedDataType<?> type, final CompoundTag tag, final boolean snapshot) {
+         Path path = this.getDataFile(type.id());
+ 
+         try {
+             FileUtil.createDirectoriesSafe(path.getParent());
+             NbtIo.writeCompressed(tag, path);
+         } catch (IOException e) {
++            if (snapshot) throw new java.io.UncheckedIOException("Could not snapshot global data " + path, e);
+             LOGGER.error("Could not save data to {}", path.getFileName(), e);
+         }
+     }
+-- 
+2.45.1.windows.1
+
