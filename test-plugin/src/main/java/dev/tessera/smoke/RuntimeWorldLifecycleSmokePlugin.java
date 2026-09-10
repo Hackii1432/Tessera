@@ -89,6 +89,10 @@ public final class RuntimeWorldLifecycleSmokePlugin extends JavaPlugin {
             return;
         }
         this.worlds = Bukkit.getRuntimeWorldManager();
+        if (this.mode.equals("snapshot-online")) {
+            new RuntimeSnapshotSmoke(this).start();
+            return;
+        }
         if (this.mode.equals("console-context")) {
             this.getLogger().info("TESSERA_CONSOLE_CONTEXT_PLUGIN_READY");
             return;

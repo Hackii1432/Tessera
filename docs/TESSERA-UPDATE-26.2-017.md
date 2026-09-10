@@ -1,5 +1,10 @@
 # Tessera 26.2-017 – Live-Snapshots, Portale und Respawn
 
+Nachtrag: Der Online-Snapshot-Deadlock dieses ursprünglichen Stands wird durch
+die zusätzlichen Patches Server `0020` und Minecraft `0030` behoben. Der
+korrigierte Ablauf und die Prüfungen stehen in
+[Online-Snapshot-Fix](runtime-snapshot-online-fix-26.2-017.md).
+
 ## Bezugsstand
 
 - Ausgang: Tessera 26.2-016, Commit `9b2f0ff`, Branch `ver/26.2.x`.
@@ -39,20 +44,25 @@ spielerfreie Vorlagen erhalten.
 
 ### Konsistenz- und Threadvertrag
 
-1. Alle Quellen werden unter sortiert erworbenen World-Write-Locks geprüft.
-2. Die komplette Weltgruppe wechselt atomar auf dem Global-Region-Thread von
+Die folgende Reihenfolge enthält den Online-Snapshot-Nachtrag (`0020`/`0030`):
+
+1. Wegen des gemeinsamen Spielerspeichers werden alle geladenen Welten unter
+   sortiert erworbenen World-Write-Locks einbezogen; kopiert werden nur die Quellen.
+2. Die beteiligten Welten wechseln auf dem Global-Region-Thread von
    `ACTIVE` nach `SNAPSHOTTING`.
-3. Normale Ticks und neue API-/Chunk-/Teleport-Aufnahmen stoppen. Bereits
-   angenommene Region-, Chunk- und Paketworkqueues werden weiter abgearbeitet.
-4. Barrieren werden hinter alle bekannten Regionsqueues gesetzt.
-5. Verbundene Spieler werden über ihren übertragbaren EntityScheduler auf dem
-   aktuellen Besitzerthread gespeichert: Player-NBT, Statistiken und
-   Advancements. Ein Logout speichert vor der Scheduler-Stilllegung.
-6. Weltleveldaten, Chunks, Entities, POIs und Region-Storage werden genau einmal
+3. Normale Ticks, Spielerpakete und neue API-/Chunk-/Teleport-Aufnahmen stoppen.
+   Interne Region-/Chunk-Queues werden zunächst noch abgearbeitet.
+4. Verbundene Spieler werden ohne Entity-Tick-Verzögerung über eine eigene
+   interne Queue ihres übertragbaren EntitySchedulers auf dem Besitzerthread
+   gespeichert. Ein Logout speichert vor der Scheduler-Stilllegung.
+5. Erst danach werden Region-Barrieren ausgeführt. Anschließend sperrt das
+   Snapshot-Gate weitere Region-Arbeit und wartet auf laufende Owner-Abschnitte
+   einschließlich ihrer Merge-/Split-Freigabe.
+6. Weltleveldaten, Chunks, Entities, POIs und Region-Storage der Quellen werden
    über `flushRuntimeWorldSnapshot` gespeichert und vollständig geflusht.
 7. Erst danach kopieren Lifecycle-I/O-Worker die Dateien. Kein Region- oder
    Global-Thread wartet synchron auf eine andere Region oder auf die Großkopie.
-8. Nach Erfolg oder Fehler wechseln alle Quellen zurück nach `ACTIVE` und die
+8. Nach Erfolg oder Fehler wechseln alle beteiligten Welten zurück nach `ACTIVE` und die
    World-Locks werden freigegeben.
 
 Startup-Welten dürfen gelesen werden. Ihr Schutz vor Unload/Unregister bleibt

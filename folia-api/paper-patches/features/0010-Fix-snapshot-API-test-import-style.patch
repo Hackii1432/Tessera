@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <tessera@localhost>
+Date: Thu, 10 Sep 2026 15:05:22 +0200
+Subject: [PATCH] Fix snapshot API test import style
+
+
+diff --git a/src/test/java/io/papermc/paper/world/RuntimeWorldApiTest.java b/src/test/java/io/papermc/paper/world/RuntimeWorldApiTest.java
+index 9f9f4ed57..89f865861 100644
+--- a/src/test/java/io/papermc/paper/world/RuntimeWorldApiTest.java
++++ b/src/test/java/io/papermc/paper/world/RuntimeWorldApiTest.java
+@@ -3,6 +3,7 @@ package io.papermc.paper.world;
+ import java.lang.reflect.Proxy;
+ import java.nio.file.Path;
+ import java.time.Duration;
++import java.util.List;
+ import java.util.concurrent.CompletableFuture;
+ import java.util.concurrent.CompletionStage;
+ import java.util.concurrent.atomic.AtomicReference;
+@@ -116,7 +117,7 @@ class RuntimeWorldApiTest {
+ 
+             @Override
+             public CompletionStage<WorldSnapshotResult> snapshotWorldsAsync(
+-                final java.util.List<World> worlds,
++                final List<World> worlds,
+                 final Path snapshotPath
+             ) {
+                 throw new UnsupportedOperationException();
+-- 
+2.45.1.windows.1
+

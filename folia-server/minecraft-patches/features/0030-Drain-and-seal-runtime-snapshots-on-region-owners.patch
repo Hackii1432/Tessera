@@ -1,0 +1,269 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <tessera@localhost>
+Date: Thu, 10 Sep 2026 14:57:47 +0200
+Subject: [PATCH] Drain and seal runtime snapshots on region owners
+
+
+diff --git a/io/papermc/paper/threadedregions/RegionizedServer.java b/io/papermc/paper/threadedregions/RegionizedServer.java
+index ef62b14..1aedc65 100644
+--- a/io/papermc/paper/threadedregions/RegionizedServer.java
++++ b/io/papermc/paper/threadedregions/RegionizedServer.java
+@@ -170,7 +170,7 @@ public final class RegionizedServer {
+ 
+     private boolean hasAnyGlobalChunkTasks() {
+         for (final ServerLevel world : this.worlds) {
+-            if (world.taskQueueRegionData.hasGlobalChunkTasks()) {
++            if (!world.tessera$snapshotGate.isSealed() && world.taskQueueRegionData.hasGlobalChunkTasks()) {
+                 return true;
+             }
+         }
+@@ -295,7 +295,13 @@ public final class RegionizedServer {
+         private boolean runGlobalTask() {
+             boolean ret = false;
+             for (final ServerLevel world : this.server.worlds) {
+-                ret |= world.taskQueueRegionData.executeGlobalChunkTask();
++                if (world.tessera$snapshotGate.enter()) {
++                    try {
++                        ret |= world.taskQueueRegionData.executeGlobalChunkTask();
++                    } finally {
++                        world.tessera$snapshotGate.exit();
++                    }
++                }
+             }
+             return ret;
+         }
+diff --git a/io/papermc/paper/threadedregions/TickRegionScheduler.java b/io/papermc/paper/threadedregions/TickRegionScheduler.java
+index d4dfe52..b062561 100644
+--- a/io/papermc/paper/threadedregions/TickRegionScheduler.java
++++ b/io/papermc/paper/threadedregions/TickRegionScheduler.java
+@@ -382,6 +382,18 @@ public final class TickRegionScheduler {
+ 
+         @Override
+         public final boolean runTasks(final BooleanSupplier canContinue) {
++            final SnapshotTaskGate gate = this.region == null ? null : this.region.world.tessera$snapshotGate;
++            if (gate != null && !gate.enter()) {
++                return !this.cancelled.get();
++            }
++            try {
++                return this.runTasksWithSnapshotAdmission(canContinue);
++            } finally {
++                if (gate != null) gate.exit();
++            }
++        }
++
++        private boolean runTasksWithSnapshotAdmission(final BooleanSupplier canContinue) {
+             if (this.cancelled.get()) {
+                 return false;
+             }
+@@ -437,6 +449,23 @@ public final class TickRegionScheduler {
+ 
+         @Override
+         public final boolean runTick() {
++            // Include tryMarkTicking/markNotTicking: releasing a region can
++            // merge or split its data, which must finish before snapshot I/O.
++            final SnapshotTaskGate gate = this.region == null ? null : this.region.world.tessera$snapshotGate;
++            if (gate != null && !gate.enter()) {
++                final long now = System.nanoTime();
++                this.tickSchedule.setLastPeriod(now);
++                this.setScheduledStart(now + getSchedulingTickPeriodNanos());
++                return !this.cancelled.get();
++            }
++            try {
++                return this.runTickWithSnapshotAdmission();
++            } finally {
++                if (gate != null) gate.exit();
++            }
++        }
++
++        private boolean runTickWithSnapshotAdmission() {
+             // Remember, we are supposed use setScheduledStart if we return true here, otherwise
+             // the scheduler will try to schedule for the same time.
+             if (this.cancelled.get()) {
+diff --git a/io/papermc/paper/threadedregions/TickRegions.java b/io/papermc/paper/threadedregions/TickRegions.java
+index c059d19..96e526f 100644
+--- a/io/papermc/paper/threadedregions/TickRegions.java
++++ b/io/papermc/paper/threadedregions/TickRegions.java
+@@ -498,6 +498,13 @@ public final class TickRegions implements ThreadedRegionizer.RegionCallbacks<Tic
+ 
+         @Override
+         protected void tickRegion(final long tickCount, final long startTime, final long scheduledEnd) {
++            if (this.region.world.tessera$getRuntimeLifecycleState() == ServerLevel.RuntimeLifecycleState.SNAPSHOTTING) {
++                this.runSnapshotPlayerSaves();
++                // Intermediate execution is opportunistic in EDF. A frozen
++                // region must also make bounded progress from its tick slot.
++                final long drainUntil = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(1L);
++                this.runRegionTasks(() -> System.nanoTime() < drainUntil);
++            }
+             // Tessera - INITIALIZING regions must tick internal chunk-system
+             // work while public API admission remains closed until WorldLoadEvent.
+             if (!this.region.world.tessera$isRuntimeWorldTickable()) {
+@@ -509,6 +516,14 @@ public final class TickRegions implements ThreadedRegionizer.RegionCallbacks<Tic
+             } finally { profiler.stopTick(); } // Folia - profiler
+         }
+ 
++        private void runSnapshotPlayerSaves() {
++            for (final ServerPlayer player : new java.util.ArrayList<>(this.region.world.getCurrentWorldData().getLocalPlayers())) {
++                if (TickThread.isTickThreadFor(player)) {
++                    player.getBukkitEntity().taskScheduler.executeSnapshotSaves();
++                }
++            }
++        }
++
+         @Override
+         protected void runRegionTasks(final BooleanSupplier canContinue) {
+             final ca.spottedleaf.leafprofiler.RegionizedProfiler.Handle profiler = io.papermc.paper.threadedregions.TickRegionScheduler.getProfiler(); // Folia start - profiler
+@@ -523,10 +538,12 @@ public final class TickRegions implements ThreadedRegionizer.RegionCallbacks<Tic
+             do {
+                 executeTickTask = queue.executeTickTask();
+                 executeChunkTask = queue.executeChunkTask();
+-                executePacketTask = this.region.drainOnePacket();
++                executePacketTask = this.region.world.tessera$getRuntimeLifecycleState() != ServerLevel.RuntimeLifecycleState.SNAPSHOTTING
++                    && this.region.drainOnePacket();
+ 
+                 processedChunkTask |= executeChunkTask;
+-            } while ((executeChunkTask | executeTickTask | executePacketTask) && canContinue.getAsBoolean());
++            } while ((executeChunkTask | executeTickTask | executePacketTask) && canContinue.getAsBoolean()
++                && !this.region.world.tessera$snapshotGate.isSealed());
+ 
+             if (processedChunkTask) {
+                 // if we processed any chunk tasks, try to process ticket level updates for full status changes
+@@ -537,7 +554,10 @@ public final class TickRegions implements ThreadedRegionizer.RegionCallbacks<Tic
+ 
+         @Override
+         protected boolean hasIntermediateTasks() {
+-            return this.region.taskQueueData.hasTasks() || this.region.hasPackets.get();
++            return !this.region.world.tessera$snapshotGate.isSealed()
++                && (this.region.taskQueueData.hasTasks()
++                    || (this.region.world.tessera$getRuntimeLifecycleState() != ServerLevel.RuntimeLifecycleState.SNAPSHOTTING
++                        && this.region.hasPackets.get()));
+         }
+     }
+ }
+diff --git a/net/minecraft/server/PlayerAdvancements.java b/net/minecraft/server/PlayerAdvancements.java
+index d447b44..f929a5d 100644
+--- a/net/minecraft/server/PlayerAdvancements.java
++++ b/net/minecraft/server/PlayerAdvancements.java
+@@ -127,6 +127,10 @@ public class PlayerAdvancements {
+     }
+ 
+     public void save() {
++        this.tessera$save(false);
++    }
++
++    public void tessera$save(final boolean snapshot) {
+         if (org.spigotmc.SpigotConfig.disableAdvancementSaving) return; // Spigot
+         JsonElement json = this.codec.encodeStart(JsonOps.INSTANCE, this.asData()).getOrThrow();
+ 
+@@ -137,6 +141,9 @@ public class PlayerAdvancements {
+                 GSON.toJson(json, GSON.newJsonWriter(outputWriter));
+             }
+         } catch (IOException | JsonIOException e) {
++            if (snapshot) {
++                throw new IllegalStateException("Could not snapshot player advancements " + this.playerSavePath, e);
++            }
+             LOGGER.error("Couldn't save player advancements to {}", this.playerSavePath, e);
+         }
+     }
+diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
+index c162e35..3b5cf08 100644
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -739,6 +739,9 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+     private final java.util.concurrent.atomic.AtomicReference<RuntimeLifecycleState> tessera$runtimeLifecycleState =
+         new java.util.concurrent.atomic.AtomicReference<>(RuntimeLifecycleState.ACTIVE);
+ 
++    public final io.papermc.paper.threadedregions.SnapshotTaskGate tessera$snapshotGate =
++        new io.papermc.paper.threadedregions.SnapshotTaskGate();
++
+     public RuntimeLifecycleState tessera$getRuntimeLifecycleState() {
+         return this.tessera$runtimeLifecycleState.get();
+     }
+@@ -763,9 +766,8 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+         // INITIALIZING must process chunk preparation, and QUIESCING must
+         // drain already accepted work up to the lifecycle barrier. New API
+         // admission remains restricted to ACTIVE in both cases. SNAPSHOTTING
+-        // deliberately suppresses normal ticks; TickRegions still drains its
+-        // intermediate region/chunk/packet queues so snapshot barriers and
+-        // owner-thread player saves can complete without blocking a region.
++        // suppresses normal ticks. TickRegions drains snapshot player saves
++        // and internal barriers (not packets) until the snapshot gate seals.
+         return state == RuntimeLifecycleState.ACTIVE
+             || state == RuntimeLifecycleState.INITIALIZING
+             || state == RuntimeLifecycleState.QUIESCING;
+diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
+index fcd0763..2503736 100644
+--- a/net/minecraft/server/players/PlayerList.java
++++ b/net/minecraft/server/players/PlayerList.java
+@@ -507,7 +507,13 @@ public abstract class PlayerList {
+      */
+     public void tessera$savePlayerSnapshot(final ServerPlayer player) {
+         ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(player, "Cannot snapshot player data off the owning region");
+-        this.save(player);
++        if (!player.getBukkitEntity().isPersistent()) return;
++        player.lastSave = System.nanoTime();
++        this.playerIo.tessera$save(player, true);
++        final ServerStatsCounter stats = player.getStats();
++        if (stats != null) stats.tessera$save(true);
++        final PlayerAdvancements advancements = player.getAdvancements();
++        if (advancements != null) advancements.tessera$save(true);
+     }
+     // Tessera end - fresh runtime world group snapshots
+ 
+diff --git a/net/minecraft/stats/ServerStatsCounter.java b/net/minecraft/stats/ServerStatsCounter.java
+index f5beb00..d2348dd 100644
+--- a/net/minecraft/stats/ServerStatsCounter.java
++++ b/net/minecraft/stats/ServerStatsCounter.java
+@@ -89,6 +89,10 @@ public class ServerStatsCounter extends StatsCounter {
+     }
+ 
+     public void save() {
++        this.tessera$save(false);
++    }
++
++    public void tessera$save(final boolean snapshot) {
+         if (org.spigotmc.SpigotConfig.disableStatSaving) return; // Spigot
+         try {
+             FileUtil.createDirectoriesSafe(this.file.getParent());
+@@ -97,6 +101,9 @@ public class ServerStatsCounter extends StatsCounter {
+                 GSON.toJson(this.toJson(), GSON.newJsonWriter(writer));
+             }
+         } catch (IOException | JsonIOException e) {
++            if (snapshot) {
++                throw new IllegalStateException("Could not snapshot player statistics " + this.file, e);
++            }
+             LOGGER.error("Couldn't save stats to {}", this.file, e);
+         }
+     }
+diff --git a/net/minecraft/world/level/storage/PlayerDataStorage.java b/net/minecraft/world/level/storage/PlayerDataStorage.java
+index eddb6eb..0b3ab02 100644
+--- a/net/minecraft/world/level/storage/PlayerDataStorage.java
++++ b/net/minecraft/world/level/storage/PlayerDataStorage.java
+@@ -31,6 +31,10 @@ public class PlayerDataStorage {
+     }
+ 
+     public void save(final Player player) {
++        this.tessera$save(player, false);
++    }
++
++    public void tessera$save(final Player player, final boolean snapshot) {
+         if (org.spigotmc.SpigotConfig.disablePlayerDataSaving) return; // Spigot
+         try (ProblemReporter.ScopedCollector reporter = new ProblemReporter.ScopedCollector(player.problemPath(), LOGGER)) {
+             TagValueOutput output = TagValueOutput.createWithContext(reporter, player.registryAccess());
+@@ -41,8 +45,13 @@ public class PlayerDataStorage {
+             NbtIo.writeCompressed(dataToStore, tmpFile);
+             Path realFile = playerDirPath.resolve(player.getStringUUID() + ".dat");
+             Path oldFile = playerDirPath.resolve(player.getStringUUID() + ".dat_old");
+-            Util.safeReplaceFile(realFile, tmpFile, oldFile);
++            if (!Util.safeReplaceOrMoveFile(realFile, tmpFile, oldFile, false) && snapshot) {
++                throw new java.io.IOException("Could not replace player data file " + realFile);
++            }
+         } catch (Exception ignored) {
++            if (snapshot) {
++                throw new IllegalStateException("Could not snapshot player data for " + player.getStringUUID(), ignored);
++            }
+             LOGGER.warn("Failed to save player data for {}", player.getPlainTextName(), ignored); // Paper - Print exception
+         }
+     }
+-- 
+2.45.1.windows.1
+

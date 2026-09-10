@@ -1,0 +1,759 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <tessera@localhost>
+Date: Thu, 10 Sep 2026 14:57:41 +0200
+Subject: [PATCH] Fix online runtime snapshot phase ordering
+
+
+diff --git a/src/main/java/io/papermc/paper/threadedregions/EntityScheduler.java b/src/main/java/io/papermc/paper/threadedregions/EntityScheduler.java
+index 9012d6649..2bc8a54d1 100644
+--- a/src/main/java/io/papermc/paper/threadedregions/EntityScheduler.java
++++ b/src/main/java/io/papermc/paper/threadedregions/EntityScheduler.java
+@@ -50,6 +50,46 @@ public final class EntityScheduler {
+     private boolean insideScheduledList;
+ 
+     private final ArrayDeque<ScheduledTask> currentlyExecuting = new ArrayDeque<>();
++    // Internal snapshot saves must run even while normal entity ticks are frozen.
++    private final List<java.util.concurrent.CompletableFuture<Void>> snapshotSaves = new ArrayList<>();
++
++    public java.util.concurrent.CompletableFuture<Void> scheduleSnapshotSave() {
++        final java.util.concurrent.CompletableFuture<Void> result = new java.util.concurrent.CompletableFuture<>();
++        synchronized (this.stateLock) {
++            if (this.tickCount == RETIRED_TICK_COUNT) {
++                result.complete(null); // PlayerList saves before retiring the scheduler.
++                return result;
++            }
++            this.snapshotSaves.add(result);
++        }
++        result.whenComplete((ignored, failure) -> {
++            synchronized (this.stateLock) {
++                this.snapshotSaves.remove(result);
++            }
++        });
++        return result;
++    }
++
++    public void executeSnapshotSaves() {
++        final Entity handle = this.entity.getHandleRaw();
++        TickThread.ensureTickThread(handle, "Cannot execute snapshot player save off the owning region");
++        final List<java.util.concurrent.CompletableFuture<Void>> saves;
++        synchronized (this.stateLock) {
++            saves = List.copyOf(this.snapshotSaves);
++        }
++        for (final java.util.concurrent.CompletableFuture<Void> save : saves) {
++            if (save.isDone()) {
++                continue;
++            }
++            try {
++                final net.minecraft.server.level.ServerPlayer player = (net.minecraft.server.level.ServerPlayer)handle;
++                player.level().getServer().getPlayerList().tessera$savePlayerSnapshot(player);
++                save.complete(null);
++            } catch (final Throwable failure) {
++                save.completeExceptionally(failure);
++            }
++        }
++    }
+ 
+     public EntityScheduler(final CraftEntity entity) {
+         this.entity = Objects.requireNonNull(entity);
+@@ -119,14 +159,19 @@ public final class EntityScheduler {
+      * @throws IllegalStateException If the scheduler is already retired.
+      */
+     public void retire() {
++        final List<java.util.concurrent.CompletableFuture<Void>> snapshotRetired;
+         synchronized (this.stateLock) {
+             if (this.tickCount == RETIRED_TICK_COUNT) {
+                 throw new IllegalStateException("Already retired");
+             }
+             this.tickCount = RETIRED_TICK_COUNT;
+             this.registerTo(null);
++            snapshotRetired = List.copyOf(this.snapshotSaves);
++            this.snapshotSaves.clear();
+         }
+ 
++        snapshotRetired.forEach(future -> future.complete(null));
++
+         final Entity thisEntity = this.entity.getHandleRaw();
+ 
+         // correctly handle and order retiring while running executeTick
+diff --git a/src/main/java/io/papermc/paper/threadedregions/SnapshotTaskGate.java b/src/main/java/io/papermc/paper/threadedregions/SnapshotTaskGate.java
+new file mode 100644
+index 000000000..c13f7204b
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/threadedregions/SnapshotTaskGate.java
+@@ -0,0 +1,48 @@
++package io.papermc.paper.threadedregions;
++
++import java.util.concurrent.CompletableFuture;
++
++/** Snapshot-only admission barrier; never holds a monitor while region work runs. */
++public final class SnapshotTaskGate {
++    private int running;
++    private boolean sealed;
++    private CompletableFuture<Void> drained;
++
++    public synchronized boolean enter() {
++        if (this.sealed) {
++            return false;
++        }
++        ++this.running;
++        return true;
++    }
++
++    public void exit() {
++        final CompletableFuture<Void> complete;
++        synchronized (this) {
++            if (--this.running < 0) {
++                throw new IllegalStateException("Unbalanced snapshot gate");
++            }
++            complete = this.running == 0 ? this.drained : null;
++        }
++        if (complete != null) {
++            complete.complete(null);
++        }
++    }
++
++    public synchronized CompletableFuture<Void> seal() {
++        this.sealed = true;
++        this.drained = new CompletableFuture<>();
++        if (this.running == 0) {
++            this.drained.complete(null);
++        }
++        return this.drained;
++    }
++
++    public synchronized boolean isSealed() {
++        return this.sealed;
++    }
++
++    public synchronized void reopen() {
++        this.sealed = false;
++    }
++}
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java b/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
+index 0ede96ce5..cae947b0b 100644
+--- a/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
++++ b/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
+@@ -382,10 +382,17 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+             sources.add(craftWorld);
+         }
+ 
+-        final List<LockRequest> locks = sources.stream()
+-            .map(world -> new LockRequest(normalizeName(world.getName()), true))
+-            .toList();
+-        return this.trackOperation(this.withLocks(locks, () -> this.snapshotWorldsLocked(sources, snapshotPath)), () ->
++        // Player storage is server-wide. Pause every loaded world while capturing
++        // it, even when only some of those worlds are copied into worlds/.
++        final CompletionStage<WorldSnapshotResult> snapshot = this.onGlobal(() -> List.copyOf(this.server.getWorlds()))
++            .thenCompose(worldsAtStart -> {
++                final List<CraftWorld> participants = worldsAtStart.stream().map(CraftWorld.class::cast).toList();
++                final List<LockRequest> locks = new ArrayList<>();
++                locks.add(new LockRequest("/snapshot-player-storage", true));
++                participants.forEach(world -> locks.add(new LockRequest(normalizeName(world.getName()), true)));
++                return this.withLocks(locks, () -> this.snapshotWorldsLocked(sources, participants, snapshotPath));
++            });
++        return this.trackOperation(snapshot, () ->
+             new WorldSnapshotResult(
+                 WorldSnapshotResult.Status.SERVER_STOPPING,
+                 snapshotPath,
+@@ -397,6 +404,7 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+ 
+     private CompletionStage<WorldSnapshotResult> snapshotWorldsLocked(
+         final List<CraftWorld> sources,
++        final List<CraftWorld> participants,
+         final Path snapshotPath
+     ) {
+         final SnapshotPlan plan;
+@@ -415,10 +423,16 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+             ));
+         }
+ 
+-        final List<ServerLevel> frozen = new ArrayList<>(sources.size());
+-        CompletionStage<WorldSnapshotResult> operation = this.onGlobal(() -> {
++        final List<ServerLevel> frozen = new ArrayList<>(participants.size());
++        final List<CompletableFuture<Void>> playerSaves = new ArrayList<>();
++        final SnapshotPipeline.Steps steps = new SnapshotPipeline.Steps(() -> this.onGlobal(() -> {
+             this.ensureRunning();
+-            for (final CraftWorld source : sources) {
++            if (!new HashSet<>(this.server.getWorlds()).equals(new HashSet<>(participants))
++                || !participants.containsAll(sources)) {
++                throw new SnapshotFailure(WorldSnapshotResult.Status.SOURCE_BUSY,
++                    "SNAPSHOT_PREPARE_FAILED: loaded world set changed before snapshot admission");
++            }
++            for (final CraftWorld source : participants) {
+                 final ServerLevel handle = source.getHandle();
+                 if (this.server.getServer().getLevel(handle.dimension()) != handle) {
+                     throw new SnapshotFailure(
+@@ -437,44 +451,57 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+                 }
+                 frozen.add(handle);
+             }
++            // Register before any completion barrier. These saves have no tick
++            // delay and use the internal snapshot drain on the player's owner.
++            for (final net.minecraft.server.level.ServerPlayer player : List.copyOf(this.server.getServer().getPlayerList().getPlayers())) {
++                try {
++                    playerSaves.add(player.getBukkitEntity().taskScheduler.scheduleSnapshotSave());
++                } catch (final Throwable failure) {
++                    throw new SnapshotPipeline.Failure(WorldSnapshotResult.Status.SAVE_FAILED,
++                        "PLAYER_SAVE_REJECTED: " + player.getUUID(), failure);
++                }
++            }
+             return null;
+-        }).thenCompose(ignored -> CompletableFuture.allOf(
++        }), () -> CompletableFuture.allOf(playerSaves.toArray(CompletableFuture[]::new)),
++        () -> CompletableFuture.allOf(
+             frozen.stream()
+                 .map(world -> RegionizedServer.getInstance().awaitWorldRegionTasks(world))
+                 .toArray(CompletableFuture[]::new)
+-        ).orTimeout(30L, TimeUnit.SECONDS)).thenCompose(ignored -> this.flushSnapshotPlayers())
+-            .thenCompose(ignored -> this.onGlobal(() -> {
++        ), () -> this.onGlobal(() -> {
++            final CompletableFuture<?>[] drains = frozen.stream()
++                .map(world -> world.tessera$snapshotGate.seal())
++                .toArray(CompletableFuture[]::new);
++            return CompletableFuture.allOf(drains);
++        }).thenCompose(stage -> stage),
++        () -> this.onGlobal(() -> {
+                 for (final CraftWorld source : sources) {
+                     new WorldSaveEvent(source).callEvent();
+                 }
+-                return null;
+-            }))
++                return (Void)null;
++            })
+             .thenCompose(ignored -> CompletableFuture.allOf(
+-                frozen.stream()
+-                    .map(RegionShutdownThread::flushRuntimeWorldSnapshot)
++                sources.stream()
++                    .map(source -> RegionShutdownThread.flushRuntimeWorldSnapshot(source.getHandle()))
+                     .toArray(CompletableFuture[]::new)
+-            ))
+-            .thenApplyAsync(ignored -> {
++            )),
++        () -> CompletableFuture.runAsync(() -> {
+                 try {
+                     this.copyAndPublishSnapshot(plan);
+-                    return new WorldSnapshotResult(
+-                        WorldSnapshotResult.Status.SUCCESS,
+-                        snapshotPath,
+-                        "Saved " + sources.size() + " world(s) and player storage to a fresh snapshot",
+-                        null
+-                    );
+                 } catch (final IOException exception) {
+-                    throw new CompletionException(new SnapshotFailure(
++                    throw new SnapshotPipeline.Failure(
+                         WorldSnapshotResult.Status.COPY_FAILED,
+-                        "Could not copy or publish the runtime world snapshot",
++                        "SNAPSHOT_COPY_FAILED: could not copy or publish snapshot",
+                         exception
+-                    ));
++                    );
+                 }
+-            }, this.lifecycleExecutor);
+-
+-        operation = operation.handle((result, failure) -> this.onGlobal(() -> {
++            }, this.lifecycleExecutor),
++        () -> this.onGlobal(() -> {
++            // Cancel queued saves so a timeout cannot cause a late write during
++            // the next snapshot. In-flight owner work is covered by the gate.
++            playerSaves.forEach(save -> save.cancel(false));
+             Throwable resumeFailure = null;
+             for (final ServerLevel handle : frozen) {
++                handle.tessera$snapshotGate.reopen();
+                 if (!handle.tessera$transitionRuntimeLifecycle(
+                     ServerLevel.RuntimeLifecycleState.SNAPSHOTTING,
+                     ServerLevel.RuntimeLifecycleState.ACTIVE
+@@ -484,25 +511,24 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+                             + " from " + handle.tessera$getRuntimeLifecycleState()
+                     ));
+                 }
++                handle.regioniser.computeForAllRegions(region -> region.getData().setHasTasks());
+             }
++            RegionizedServer.getInstance().notifyTasks();
+             if (resumeFailure != null) {
+-                if (failure != null) {
+-                    resumeFailure.addSuppressed(unwrap(failure));
+-                }
+-                return new WorldSnapshotResult(
+-                    WorldSnapshotResult.Status.CLEANUP_FAILED,
+-                    snapshotPath,
+-                    "Snapshot cleanup could not resume every source world",
+-                    resumeFailure
+-                );
++                throw new CompletionException(resumeFailure);
+             }
++            return null;
++        }));
++
++        return SnapshotPipeline.run(steps, 30L, TimeUnit.SECONDS).handle((ignored, failure) -> {
+             if (failure == null) {
+-                return result;
++                return new WorldSnapshotResult(WorldSnapshotResult.Status.SUCCESS, snapshotPath,
++                    "Saved " + sources.size() + " world(s) and player storage to a fresh snapshot", null);
+             }
+             final Throwable cause = unwrap(failure);
+             final WorldSnapshotResult.Status status;
+-            if (cause instanceof SnapshotFailure snapshotFailure) {
+-                status = snapshotFailure.status;
++            if (cause instanceof SnapshotPipeline.Failure phaseFailure) {
++                status = phaseFailure.status;
+             } else if (cause instanceof java.util.concurrent.TimeoutException) {
+                 status = WorldSnapshotResult.Status.TIMEOUT;
+             } else if (cause instanceof java.util.concurrent.CancellationException) {
+@@ -511,42 +537,7 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+                 status = WorldSnapshotResult.Status.SAVE_FAILED;
+             }
+             return new WorldSnapshotResult(status, snapshotPath, "Runtime world snapshot failed: " + cause.getMessage(), cause);
+-        })).thenCompose(stage -> stage);
+-
+-        return operation;
+-    }
+-
+-    private CompletionStage<Void> flushSnapshotPlayers() {
+-        final List<net.minecraft.server.level.ServerPlayer> players = List.copyOf(
+-            this.server.getServer().getPlayerList().getPlayers()
+-        );
+-        final List<CompletableFuture<Void>> saves = new ArrayList<>(players.size());
+-        for (final net.minecraft.server.level.ServerPlayer player : players) {
+-            final CompletableFuture<Void> save = new CompletableFuture<>();
+-            saves.add(save);
+-            final boolean scheduled = player.getBukkitEntity().taskScheduler.schedule(
+-                current -> {
+-                    try {
+-                        this.server.getServer().getPlayerList().tessera$savePlayerSnapshot(
+-                            (net.minecraft.server.level.ServerPlayer)current
+-                        );
+-                        save.complete(null);
+-                    } catch (final Throwable throwable) {
+-                        save.completeExceptionally(throwable);
+-                    }
+-                },
+-                retired -> save.complete(null),
+-                1L
+-            );
+-            if (!scheduled) {
+-                // PlayerList#remove saves synchronously before retiring the
+-                // scheduler. A scheduler which is already retired therefore
+-                // has no outstanding logout write for this player.
+-                save.complete(null);
+-            }
+-        }
+-        return CompletableFuture.allOf(saves.toArray(CompletableFuture[]::new))
+-            .orTimeout(30L, TimeUnit.SECONDS);
++        });
+     }
+ 
+     private SnapshotPlan validateSnapshotPlan(
+@@ -1796,12 +1787,10 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+         }
+     }
+ 
+-    private static final class SnapshotFailure extends RuntimeException {
+-        private final WorldSnapshotResult.Status status;
++    private static final class SnapshotFailure extends SnapshotPipeline.Failure {
+ 
+         private SnapshotFailure(final WorldSnapshotResult.Status status, final String message) {
+-            super(message);
+-            this.status = status;
++            super(status, message, null);
+         }
+ 
+         private SnapshotFailure(
+@@ -1809,8 +1798,7 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+             final String message,
+             final Throwable cause
+         ) {
+-            super(message, cause);
+-            this.status = status;
++            super(status, message, cause);
+         }
+     }
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/SnapshotPipeline.java b/src/main/java/org/bukkit/craftbukkit/world/SnapshotPipeline.java
+new file mode 100644
+index 000000000..e0f1c8d94
+--- /dev/null
++++ b/src/main/java/org/bukkit/craftbukkit/world/SnapshotPipeline.java
+@@ -0,0 +1,92 @@
++package org.bukkit.craftbukkit.world;
++
++import io.papermc.paper.world.WorldSnapshotResult;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.CompletionException;
++import java.util.concurrent.CompletionStage;
++import java.util.concurrent.TimeUnit;
++import java.util.concurrent.TimeoutException;
++import java.util.function.Supplier;
++
++/** The snapshot ordering is shared by the live implementation and deterministic regression tests. */
++final class SnapshotPipeline {
++    record Steps(
++        Supplier<CompletionStage<Void>> freeze,
++        Supplier<CompletionStage<Void>> savePlayers,
++        Supplier<CompletionStage<Void>> regionBarrier,
++        Supplier<CompletionStage<Void>> seal,
++        Supplier<CompletionStage<Void>> flush,
++        Supplier<CompletionStage<Void>> copy,
++        Supplier<CompletionStage<Void>> resume
++    ) {}
++
++    static CompletionStage<Void> run(final Steps steps, final long timeout, final TimeUnit unit) {
++        return phase("SNAPSHOT_PREPARE", steps.freeze, 0, unit)
++            .thenCompose(ignored -> phase("PLAYER_SAVE", steps.savePlayers, timeout, unit))
++            .thenCompose(ignored -> phase("REGION_BARRIER", steps.regionBarrier, timeout, unit))
++            .thenCompose(ignored -> phase("REGION_SEAL", steps.seal, timeout, unit))
++            .thenCompose(ignored -> phase("SNAPSHOT_FLUSH", steps.flush, 0, unit))
++            .thenCompose(ignored -> phase("SNAPSHOT_COPY", steps.copy, 0, unit))
++            .handle((ignored, failure) -> phase("SNAPSHOT_RESUME", steps.resume, 0, unit)
++                .handle((resumed, resumeFailure) -> {
++                    if (resumeFailure != null) {
++                        final Failure cleanup = new Failure(WorldSnapshotResult.Status.CLEANUP_FAILED,
++                            "SNAPSHOT_RESUME_FAILED", unwrap(resumeFailure));
++                        if (failure != null) {
++                            cleanup.addSuppressed(unwrap(failure));
++                        }
++                        throw cleanup;
++                    }
++                    if (failure != null) {
++                        throw new CompletionException(unwrap(failure));
++                    }
++                    return (Void)null;
++                }))
++            .thenCompose(stage -> stage);
++    }
++
++    private static CompletionStage<Void> phase(final String name, final Supplier<CompletionStage<Void>> action,
++                                               final long timeout, final TimeUnit unit) {
++        final CompletableFuture<Void> work;
++        try {
++            work = action.get().toCompletableFuture();
++        } catch (final Throwable failure) {
++            return CompletableFuture.failedFuture(describe(name, failure));
++        }
++        // Timeout the observer, not the underlying storage operation.
++        final CompletableFuture<Void> observed = work.copy();
++        if (timeout > 0) {
++            observed.orTimeout(timeout, unit);
++        }
++        return observed.exceptionallyCompose(failure -> CompletableFuture.failedFuture(describe(name, failure)));
++    }
++
++    private static Failure describe(final String phase, final Throwable failure) {
++        final Throwable cause = unwrap(failure);
++        if (cause instanceof Failure diagnosed) {
++            return diagnosed;
++        }
++        final boolean timeout = cause instanceof TimeoutException;
++        return new Failure(timeout ? WorldSnapshotResult.Status.TIMEOUT
++            : phase.equals("SNAPSHOT_COPY") ? WorldSnapshotResult.Status.COPY_FAILED : WorldSnapshotResult.Status.SAVE_FAILED,
++            phase + (timeout ? "_TIMEOUT" : "_FAILED") + ": "
++                + (cause.getMessage() == null ? cause.getClass().getSimpleName() : cause.getMessage()), cause);
++    }
++
++    static Throwable unwrap(final Throwable throwable) {
++        Throwable result = throwable;
++        while (result instanceof CompletionException && result.getCause() != null) {
++            result = result.getCause();
++        }
++        return result;
++    }
++
++    static class Failure extends RuntimeException {
++        final WorldSnapshotResult.Status status;
++
++        Failure(final WorldSnapshotResult.Status status, final String message, final Throwable cause) {
++            super(message, cause);
++            this.status = status;
++        }
++    }
++}
+diff --git a/src/test/java/io/papermc/paper/threadedregions/SnapshotPlayerSchedulerTest.java b/src/test/java/io/papermc/paper/threadedregions/SnapshotPlayerSchedulerTest.java
+new file mode 100644
+index 000000000..563dd9afd
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/threadedregions/SnapshotPlayerSchedulerTest.java
+@@ -0,0 +1,94 @@
++package io.papermc.paper.threadedregions;
++
++import ca.spottedleaf.moonrise.common.util.TickThread;
++import java.io.UncheckedIOException;
++import java.io.IOException;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.server.players.PlayerList;
++import org.bukkit.craftbukkit.entity.CraftEntity;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.Mockito.*;
++
++@Tag("Normal")
++class SnapshotPlayerSchedulerTest {
++    @Test
++    void publicSchedulerStillRejectsFrozenWorld() {
++        final CraftEntity entity = mock(CraftEntity.class);
++        final ServerPlayer player = mock(ServerPlayer.class);
++        final ServerLevel world = mock(ServerLevel.class);
++        when(entity.getHandleRaw()).thenReturn(player);
++        when(player.level()).thenReturn(world);
++        doThrow(new IllegalStateException("World is snapshotting")).when(world)
++            .tessera$ensureAcceptingApiTasks("new entity scheduler tasks");
++        final var scheduler = new io.papermc.paper.threadedregions.scheduler.FoliaEntityScheduler(entity);
++        assertThrows(IllegalStateException.class, () -> scheduler.run(mock(org.bukkit.plugin.Plugin.class), task -> fail("ran"), null));
++    }
++
++    @Test
++    void saveRunsWithoutAdvancingNormalSchedulerAndChecksOwner() {
++        final CraftEntity entity = mock(CraftEntity.class);
++        final ServerPlayer player = mock(ServerPlayer.class);
++        final ServerLevel world = mock(ServerLevel.class);
++        final MinecraftServer server = mock(MinecraftServer.class);
++        final PlayerList players = mock(PlayerList.class);
++        when(entity.getHandleRaw()).thenReturn(player);
++        when(player.level()).thenReturn(world);
++        when(world.getServer()).thenReturn(server);
++        when(server.getPlayerList()).thenReturn(players);
++        final EntityScheduler scheduler = new EntityScheduler(entity);
++        final java.util.concurrent.atomic.AtomicBoolean normalTask = new java.util.concurrent.atomic.AtomicBoolean();
++        scheduler.schedule(ignored -> normalTask.set(true), null, 1L);
++        final var saved = scheduler.scheduleSnapshotSave();
++        assertFalse(saved.isDone());
++        try (var threads = mockStatic(TickThread.class)) {
++            scheduler.executeSnapshotSaves();
++            threads.verify(() -> TickThread.ensureTickThread(player, "Cannot execute snapshot player save off the owning region"));
++        }
++        assertTrue(saved.isDone());
++        assertFalse(saved.isCompletedExceptionally());
++        assertFalse(normalTask.get());
++        verify(players).tessera$savePlayerSnapshot(player);
++    }
++
++    @Test
++    void retiredCallbackAndAlreadyRetiredSchedulerCompleteSave() {
++        final CraftEntity entity = mock(CraftEntity.class);
++        when(entity.getHandleRaw()).thenReturn(mock(ServerPlayer.class));
++        final EntityScheduler scheduler = new EntityScheduler(entity);
++        final var saved = scheduler.scheduleSnapshotSave();
++        scheduler.retire();
++        assertTrue(saved.isDone());
++        assertFalse(saved.isCompletedExceptionally());
++        assertTrue(scheduler.scheduleSnapshotSave().isDone());
++    }
++
++    @Test
++    void saveExceptionCompletesEveryFutureAndCancelledSaveNeverRunsLate() {
++        final CraftEntity entity = mock(CraftEntity.class);
++        final ServerPlayer player = mock(ServerPlayer.class);
++        final ServerLevel world = mock(ServerLevel.class);
++        final MinecraftServer server = mock(MinecraftServer.class);
++        final PlayerList players = mock(PlayerList.class);
++        when(entity.getHandleRaw()).thenReturn(player);
++        when(player.level()).thenReturn(world);
++        when(world.getServer()).thenReturn(server);
++        when(server.getPlayerList()).thenReturn(players);
++        doThrow(new UncheckedIOException(new IOException("disk failure"))).when(players).tessera$savePlayerSnapshot(player);
++        final EntityScheduler scheduler = new EntityScheduler(entity);
++        final var a = scheduler.scheduleSnapshotSave();
++        final var b = scheduler.scheduleSnapshotSave();
++        final var cancelled = scheduler.scheduleSnapshotSave();
++        cancelled.cancel(false);
++        try (var threads = mockStatic(TickThread.class)) {
++            scheduler.executeSnapshotSaves();
++            scheduler.executeSnapshotSaves();
++        }
++        assertTrue(a.isCompletedExceptionally());
++        assertTrue(b.isCompletedExceptionally());
++        verify(players, times(2)).tessera$savePlayerSnapshot(player);
++    }
++}
+diff --git a/src/test/java/io/papermc/paper/threadedregions/SnapshotTaskGateTest.java b/src/test/java/io/papermc/paper/threadedregions/SnapshotTaskGateTest.java
+new file mode 100644
+index 000000000..a3f1b586b
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/threadedregions/SnapshotTaskGateTest.java
+@@ -0,0 +1,60 @@
++package io.papermc.paper.threadedregions;
++
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++import static org.junit.jupiter.api.Assertions.*;
++
++@Tag("Normal")
++class SnapshotTaskGateTest {
++    @Test
++    void concurrentOwnerMustLeaveBeforeCopyCanStart() throws Exception {
++        final SnapshotTaskGate gate = new SnapshotTaskGate();
++        final java.util.concurrent.CountDownLatch entered = new java.util.concurrent.CountDownLatch(1);
++        final java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
++        try (var executor = java.util.concurrent.Executors.newSingleThreadExecutor()) {
++            final var owner = executor.submit(() -> {
++                assertTrue(gate.enter());
++                entered.countDown();
++                try { assertTrue(release.await(2, java.util.concurrent.TimeUnit.SECONDS)); }
++                catch (InterruptedException failure) { throw new AssertionError(failure); }
++                finally { gate.exit(); }
++            });
++            assertTrue(entered.await(2, java.util.concurrent.TimeUnit.SECONDS));
++            final var sealed = gate.seal();
++            try { assertFalse(sealed.isDone()); assertFalse(gate.enter()); }
++            finally { release.countDown(); }
++            owner.get(2, java.util.concurrent.TimeUnit.SECONDS);
++            sealed.get(2, java.util.concurrent.TimeUnit.SECONDS);
++        }
++    }
++
++    @Test
++    void sealWaitsForBothRunningOwnersAndRejectsNewWork() {
++        final SnapshotTaskGate gate = new SnapshotTaskGate();
++        assertTrue(gate.enter());
++        assertTrue(gate.enter());
++        final var drained = gate.seal();
++        assertFalse(drained.isDone());
++        assertFalse(gate.enter());
++        gate.exit();
++        assertFalse(drained.isDone());
++        gate.exit();
++        assertTrue(drained.isDone());
++        assertFalse(gate.enter());
++        gate.reopen();
++        assertTrue(gate.enter());
++        gate.exit();
++    }
++
++    @Test
++    void emptyAndRepeatedSnapshotsCanSealAndResume() {
++        final SnapshotTaskGate gate = new SnapshotTaskGate();
++        for (int i = 0; i < 3; i++) {
++            assertTrue(gate.seal().isDone());
++            assertFalse(gate.enter());
++            gate.reopen();
++            assertTrue(gate.enter());
++            gate.exit();
++        }
++    }
++}
+diff --git a/src/test/java/org/bukkit/craftbukkit/world/SnapshotPipelineTest.java b/src/test/java/org/bukkit/craftbukkit/world/SnapshotPipelineTest.java
+new file mode 100644
+index 000000000..1566cee4a
+--- /dev/null
++++ b/src/test/java/org/bukkit/craftbukkit/world/SnapshotPipelineTest.java
+@@ -0,0 +1,116 @@
++package org.bukkit.craftbukkit.world;
++
++import io.papermc.paper.threadedregions.SnapshotTaskGate;
++import io.papermc.paper.world.WorldSnapshotResult;
++import java.io.IOException;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.util.ArrayList;
++import java.util.List;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.CompletionException;
++import java.util.concurrent.CompletionStage;
++import java.util.concurrent.TimeUnit;
++import java.util.function.Supplier;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.api.io.TempDir;
++import org.junit.jupiter.params.ParameterizedTest;
++import org.junit.jupiter.params.provider.ValueSource;
++import static org.junit.jupiter.api.Assertions.*;
++
++@Tag("Normal")
++class SnapshotPipelineTest {
++    @TempDir Path temp;
++
++    @ParameterizedTest
++    @ValueSource(ints = {0, 1, 4})
++    void allPlayerSavesMustFinishBeforeBarrierAndCopy(final int count) throws Exception {
++        final List<String> order = new ArrayList<>();
++        final List<CompletableFuture<Void>> players = new ArrayList<>();
++        for (int i = 0; i < count; i++) players.add(new CompletableFuture<>());
++        final SnapshotTaskGate gate = new SnapshotTaskGate();
++        final var result = SnapshotPipeline.run(new SnapshotPipeline.Steps(
++            step(order, "freeze"),
++            () -> { order.add("players"); return CompletableFuture.allOf(players.toArray(CompletableFuture[]::new)); },
++            step(order, "barrier"),
++            () -> { order.add("seal"); return gate.seal(); },
++            step(order, "flush"),
++            () -> {
++                order.add("copy");
++                assertFalse(gate.enter());
++                try {
++                    CraftRuntimeWorldManager.copyPlayerSnapshotDirectory(this.temp.resolve("source"), this.temp.resolve("players/data"));
++                } catch (IOException failure) { return CompletableFuture.failedFuture(failure); }
++                return CompletableFuture.completedFuture(null);
++            },
++            () -> { gate.reopen(); order.add("resume"); return CompletableFuture.completedFuture(null); }
++        ), 1, TimeUnit.SECONDS).toCompletableFuture();
++        for (int i = 0; i < count; i++) {
++            assertFalse(result.isDone());
++            assertFalse(order.contains("barrier"));
++            Files.createDirectories(this.temp.resolve("source"));
++            Files.writeString(this.temp.resolve("source/player-" + i + ".dat"), "region/world " + i);
++            players.get(i).complete(null);
++        }
++        result.get(2, TimeUnit.SECONDS);
++        assertEquals(List.of("freeze", "players", "barrier", "seal", "flush", "copy", "resume"), order);
++        for (int i = 0; i < count; i++) {
++            assertEquals("region/world " + i, Files.readString(this.temp.resolve("players/data/player-" + i + ".dat")));
++        }
++        assertTrue(gate.enter());
++        gate.exit();
++    }
++
++    @ParameterizedTest
++    @ValueSource(strings = {"PLAYER_SAVE", "REGION_BARRIER", "REGION_SEAL"})
++    void timeoutNamesTheBlockedPhaseAndAlwaysResumes(final String blocked) {
++        final List<String> order = new ArrayList<>();
++        final Supplier<CompletionStage<Void>> never = CompletableFuture::new;
++        final var steps = new SnapshotPipeline.Steps(step(order, "freeze"),
++            blocked.equals("PLAYER_SAVE") ? never : step(order, "players"),
++            blocked.equals("REGION_BARRIER") ? never : step(order, "barrier"),
++            blocked.equals("REGION_SEAL") ? never : step(order, "seal"),
++            step(order, "flush"), step(order, "copy"), step(order, "resume"));
++        final CompletionException exception = assertThrows(CompletionException.class,
++            () -> SnapshotPipeline.run(steps, 10, TimeUnit.MILLISECONDS).toCompletableFuture().join());
++        final SnapshotPipeline.Failure failure = (SnapshotPipeline.Failure)exception.getCause();
++        assertEquals(WorldSnapshotResult.Status.TIMEOUT, failure.status);
++        assertTrue(failure.getMessage().startsWith(blocked + "_TIMEOUT"));
++        assertInstanceOf(java.util.concurrent.TimeoutException.class, failure.getCause());
++        assertFalse(order.contains("copy"));
++        assertEquals("resume", order.getLast());
++    }
++
++    @ParameterizedTest
++    @ValueSource(strings = {"PLAYER_SAVE_REJECTED", "PLAYER_SAVE_FAILED", "SNAPSHOT_COPY_FAILED"})
++    void exceptionsAndRejectedTasksAreTerminalAndResume(final String code) {
++        final List<String> order = new ArrayList<>();
++        final Supplier<CompletionStage<Void>> failed = () -> { throw new SnapshotPipeline.Failure(
++            code.startsWith("SNAPSHOT_COPY") ? WorldSnapshotResult.Status.COPY_FAILED : WorldSnapshotResult.Status.SAVE_FAILED,
++            code, new IOException("disk or queue")); };
++        final var steps = new SnapshotPipeline.Steps(step(order, "freeze"),
++            code.startsWith("PLAYER") ? failed : step(order, "players"), step(order, "barrier"),
++            step(order, "seal"), step(order, "flush"),
++            code.startsWith("SNAPSHOT_COPY") ? failed : step(order, "copy"), step(order, "resume"));
++        final var failure = assertThrows(CompletionException.class,
++            () -> SnapshotPipeline.run(steps, 1, TimeUnit.SECONDS).toCompletableFuture().join());
++        assertEquals(code, failure.getCause().getMessage());
++        assertEquals("resume", order.getLast());
++    }
++
++    @Test
++    void partialPrepareFailureStillResumes() {
++        final List<String> order = new ArrayList<>();
++        final var steps = new SnapshotPipeline.Steps(
++            () -> { order.add("freeze-first-world"); throw new IllegalStateException("second world busy"); },
++            step(order, "players"), step(order, "barrier"), step(order, "seal"),
++            step(order, "flush"), step(order, "copy"), step(order, "resume"));
++        assertThrows(CompletionException.class, () -> SnapshotPipeline.run(steps, 1, TimeUnit.SECONDS).toCompletableFuture().join());
++        assertEquals(List.of("freeze-first-world", "resume"), order);
++    }
++
++    private static Supplier<CompletionStage<Void>> step(final List<String> order, final String name) {
++        return () -> { order.add(name); return CompletableFuture.completedFuture(null); };
++    }
++}
+-- 
+2.45.1.windows.1
+

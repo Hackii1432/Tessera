@@ -226,12 +226,20 @@ CompletionStage<WorldSnapshotResult> snapshotWorldsAsync(
 ```
 
 Every invocation performs a new save and never uses the template-clone cache.
-The complete input group enters `SNAPSHOTTING` on the global region before its
-region barriers are installed. Connected players are then saved through their
-transferred entity schedulers; `PlayerList#remove` saves before scheduler
-retirement, so an already-retired scheduler represents a completed logout
-save. Chunks, entities, POIs, saved data and region-file workers are flushed
-before a lifecycle I/O worker begins copying.
+With the online-snapshot fix (server patch 0020 / Minecraft patch 0030), all
+loaded worlds temporarily enter `SNAPSHOTTING`, because player storage is
+shared server-wide. Only the requested input worlds are copied. Connected
+players use a dedicated internal save queue on their current owner; it does
+not depend on a normal entity tick. Player saves complete before region
+barriers are installed. Frozen tick slots also drain internal barrier work,
+but do not process incoming gameplay packets or advance normal entity tasks.
+`PlayerList#remove` saves before scheduler retirement, which resolves pending
+snapshot futures. After the barriers, a gate seals region/global chunk work
+and waits for running ownership sections (including merge/split release) to
+finish. Chunks, entities, POIs, saved data and region-file workers are flushed
+before a lifecycle I/O worker begins copying. Gates and world admission reopen
+after success or failure. See the [online-snapshot fix report](runtime-snapshot-online-fix-26.2-017.md)
+for failure semantics, tests and build instructions.
 
 The input order is authoritative and produces this layout:
 
