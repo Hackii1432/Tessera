@@ -42,12 +42,12 @@ index ab0239a9d32bd937fb8eef9696b8b7d32e89406c..78631d0f69dbaa106ce80fbb47cd6b6f
          BlockHitResult hitResult = getPlayerPOVHitResult(level, player, ClipContext.Fluid.NONE);
          if (hitResult.getType() == HitResult.Type.BLOCK && level.getBlockState(hitResult.getBlockPos()).is(Blocks.END_PORTAL_FRAME)) {
 diff --git a/net/minecraft/world/level/block/EndPortalBlock.java b/net/minecraft/world/level/block/EndPortalBlock.java
-index 123df098fa987030fe3789f36ff95aeee2979834..996d11cbbb35f0df18b9be9f0ad6cb3d66350e4b 100644
+index a0aaacdb40ce2e9d305f9f234aa398ad8ecd1b65..27e517096b2191f2aabf8d8cbdd2d6f489d901f0 100644
 --- a/net/minecraft/world/level/block/EndPortalBlock.java
 +++ b/net/minecraft/world/level/block/EndPortalBlock.java
-@@ -2,13 +2,19 @@ package net.minecraft.world.level.block;
+@@ -1,13 +1,19 @@
+ package net.minecraft.world.level.block;
  
- import com.mojang.serialization.MapCodec;
  import java.util.Set;
 +import java.util.UUID;
 +import java.util.concurrent.ConcurrentHashMap;
@@ -65,7 +65,7 @@ index 123df098fa987030fe3789f36ff95aeee2979834..996d11cbbb35f0df18b9be9f0ad6cb3d
  import net.minecraft.world.entity.Entity;
  import net.minecraft.world.entity.InsideBlockEffectApplier;
  import net.minecraft.world.entity.Relative;
-@@ -20,6 +26,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
+@@ -19,6 +25,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
  import net.minecraft.world.level.block.entity.TheEndPortalBlockEntity;
  import net.minecraft.world.level.block.state.BlockBehaviour;
  import net.minecraft.world.level.block.state.BlockState;
@@ -73,7 +73,7 @@ index 123df098fa987030fe3789f36ff95aeee2979834..996d11cbbb35f0df18b9be9f0ad6cb3d
  import net.minecraft.world.level.levelgen.feature.EndPlatformFeature;
  import net.minecraft.world.level.material.Fluid;
  import net.minecraft.world.level.portal.TeleportTransition;
-@@ -27,12 +34,18 @@ import net.minecraft.world.level.storage.LevelData;
+@@ -26,11 +33,16 @@ import net.minecraft.world.level.storage.LevelData;
  import net.minecraft.world.phys.Vec3;
  import net.minecraft.world.phys.shapes.CollisionContext;
  import net.minecraft.world.phys.shapes.VoxelShape;
@@ -82,17 +82,15 @@ index 123df098fa987030fe3789f36ff95aeee2979834..996d11cbbb35f0df18b9be9f0ad6cb3d
  import org.jspecify.annotations.Nullable;
  
  public class EndPortalBlock extends BaseEntityBlock implements Portal {
-     public static final MapCodec<EndPortalBlock> CODEC = simpleCodec(EndPortalBlock::new);
      private static final VoxelShape SHAPE = Block.column(16.0, 6.0, 12.0);
  
 +    // Tessera start - eyes of ender gamerule
 +    private static final Set<UUID> END_PORTAL_PUNISHMENT = ConcurrentHashMap.newKeySet();
 +    // Tessera end - eyes of ender gamerule
-+
-     @Override
-     public MapCodec<EndPortalBlock> codec() {
-         return CODEC;
-@@ -147,10 +160,123 @@ public class EndPortalBlock extends BaseEntityBlock implements Portal {
+     protected EndPortalBlock(final BlockBehaviour.Properties properties) {
+         super(properties);
+     }
+@@ -140,10 +152,123 @@ public class EndPortalBlock extends BaseEntityBlock implements Portal {
              return false;
          }
  
@@ -217,10 +215,10 @@ index 123df098fa987030fe3789f36ff95aeee2979834..996d11cbbb35f0df18b9be9f0ad6cb3d
      public void animateTick(final BlockState state, final Level level, final BlockPos pos, final RandomSource random) {
          double x = pos.getX() + random.nextDouble();
 diff --git a/net/minecraft/world/level/block/NetherPortalBlock.java b/net/minecraft/world/level/block/NetherPortalBlock.java
-index 29fc9521c2c8333c999647dd833899393a838064..60c624d11202a5c39db0418badc079d87b8534b9 100644
+index 6ace38af2e6972645fde363935fc5469a07ac28c..cddb0d3011f42bcaf463e5f538160b118c99c68c 100644
 --- a/net/minecraft/world/level/block/NetherPortalBlock.java
 +++ b/net/minecraft/world/level/block/NetherPortalBlock.java
-@@ -15,6 +15,8 @@ import net.minecraft.util.BlockUtil;
+@@ -14,6 +14,8 @@ import net.minecraft.util.BlockUtil;
  import net.minecraft.util.RandomSource;
  import net.minecraft.world.Difficulty;
  import net.minecraft.world.attribute.EnvironmentAttributes;
@@ -229,7 +227,7 @@ index 29fc9521c2c8333c999647dd833899393a838064..60c624d11202a5c39db0418badc079d8
  import net.minecraft.world.entity.Entity;
  import net.minecraft.world.entity.EntityDimensions;
  import net.minecraft.world.entity.EntitySpawnReason;
-@@ -191,6 +193,16 @@ public class NetherPortalBlock extends Block implements Portal {
+@@ -184,6 +186,16 @@ public class NetherPortalBlock extends Block implements Portal {
              return false;
          }
  

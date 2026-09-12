@@ -5,7 +5,7 @@ Subject: [PATCH] Drain and seal runtime snapshots on region owners
 
 
 diff --git a/io/papermc/paper/threadedregions/RegionizedServer.java b/io/papermc/paper/threadedregions/RegionizedServer.java
-index ef62b14..1aedc65 100644
+index ef62b14b440a99f16a9d300c37e76958a036c0c8..1aedc6584aca920f49bd9c10dd6378bfb17b238b 100644
 --- a/io/papermc/paper/threadedregions/RegionizedServer.java
 +++ b/io/papermc/paper/threadedregions/RegionizedServer.java
 @@ -170,7 +170,7 @@ public final class RegionizedServer {
@@ -33,7 +33,7 @@ index ef62b14..1aedc65 100644
              return ret;
          }
 diff --git a/io/papermc/paper/threadedregions/TickRegionScheduler.java b/io/papermc/paper/threadedregions/TickRegionScheduler.java
-index d4dfe52..b062561 100644
+index d4dfe527e7c465f0035924a3c951dd4b4407280c..b0625612e1a129202cba60047d1f9448893de24d 100644
 --- a/io/papermc/paper/threadedregions/TickRegionScheduler.java
 +++ b/io/papermc/paper/threadedregions/TickRegionScheduler.java
 @@ -382,6 +382,18 @@ public final class TickRegionScheduler {
@@ -80,7 +80,7 @@ index d4dfe52..b062561 100644
              // the scheduler will try to schedule for the same time.
              if (this.cancelled.get()) {
 diff --git a/io/papermc/paper/threadedregions/TickRegions.java b/io/papermc/paper/threadedregions/TickRegions.java
-index c059d19..96e526f 100644
+index c059d196368b238c2e66a4056af41ccf7dcc501f..96e526fca6fad84226ddbf4a7e2fd89fb6d8f009 100644
 --- a/io/papermc/paper/threadedregions/TickRegions.java
 +++ b/io/papermc/paper/threadedregions/TickRegions.java
 @@ -498,6 +498,13 @@ public final class TickRegions implements ThreadedRegionizer.RegionCallbacks<Tic
@@ -140,10 +140,10 @@ index c059d19..96e526f 100644
      }
  }
 diff --git a/net/minecraft/server/PlayerAdvancements.java b/net/minecraft/server/PlayerAdvancements.java
-index d447b44..f929a5d 100644
+index e4e45fcea06f18fb6fac93cc96634efba86c1d6e..80208563fcf318869265924f31b77b9e5271bf99 100644
 --- a/net/minecraft/server/PlayerAdvancements.java
 +++ b/net/minecraft/server/PlayerAdvancements.java
-@@ -127,6 +127,10 @@ public class PlayerAdvancements {
+@@ -128,6 +128,10 @@ public class PlayerAdvancements {
      }
  
      public void save() {
@@ -154,7 +154,7 @@ index d447b44..f929a5d 100644
          if (org.spigotmc.SpigotConfig.disableAdvancementSaving) return; // Spigot
          JsonElement json = this.codec.encodeStart(JsonOps.INSTANCE, this.asData()).getOrThrow();
  
-@@ -137,6 +141,9 @@ public class PlayerAdvancements {
+@@ -138,6 +142,9 @@ public class PlayerAdvancements {
                  GSON.toJson(json, GSON.newJsonWriter(outputWriter));
              }
          } catch (IOException | JsonIOException e) {
@@ -165,7 +165,7 @@ index d447b44..f929a5d 100644
          }
      }
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index c162e35..3b5cf08 100644
+index 7a6121fb460bd88dae20acc252f65927cbcf8aec..c8e5e55fcc1ada7777619efc144f7750b94d61d0 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
 @@ -739,6 +739,9 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
@@ -191,10 +191,10 @@ index c162e35..3b5cf08 100644
              || state == RuntimeLifecycleState.INITIALIZING
              || state == RuntimeLifecycleState.QUIESCING;
 diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
-index fcd0763..2503736 100644
+index 87a92c04dceac7408ed87508c98eb5594a09b49f..ce753e0bfbd2269250a8a5855ee367abb026d269 100644
 --- a/net/minecraft/server/players/PlayerList.java
 +++ b/net/minecraft/server/players/PlayerList.java
-@@ -507,7 +507,13 @@ public abstract class PlayerList {
+@@ -510,7 +510,13 @@ public abstract class PlayerList {
       */
      public void tessera$savePlayerSnapshot(final ServerPlayer player) {
          ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(player, "Cannot snapshot player data off the owning region");
@@ -210,7 +210,7 @@ index fcd0763..2503736 100644
      // Tessera end - fresh runtime world group snapshots
  
 diff --git a/net/minecraft/stats/ServerStatsCounter.java b/net/minecraft/stats/ServerStatsCounter.java
-index f5beb00..d2348dd 100644
+index f5beb001b938072e78c0ead7e0ad0499784ed1cf..d2348dd9372add094bbcf0f41d33006d33c86d33 100644
 --- a/net/minecraft/stats/ServerStatsCounter.java
 +++ b/net/minecraft/stats/ServerStatsCounter.java
 @@ -89,6 +89,10 @@ public class ServerStatsCounter extends StatsCounter {
@@ -235,7 +235,7 @@ index f5beb00..d2348dd 100644
          }
      }
 diff --git a/net/minecraft/world/level/storage/PlayerDataStorage.java b/net/minecraft/world/level/storage/PlayerDataStorage.java
-index eddb6eb..0b3ab02 100644
+index eddb6ebe3fa50a818e54079b73ba117be0abd195..0b3ab028ca5d58026a6ae41f0602d73423305929 100644
 --- a/net/minecraft/world/level/storage/PlayerDataStorage.java
 +++ b/net/minecraft/world/level/storage/PlayerDataStorage.java
 @@ -31,6 +31,10 @@ public class PlayerDataStorage {
@@ -264,6 +264,3 @@ index eddb6eb..0b3ab02 100644
              LOGGER.warn("Failed to save player data for {}", player.getPlainTextName(), ignored); // Paper - Print exception
          }
      }
--- 
-2.45.1.windows.1
-

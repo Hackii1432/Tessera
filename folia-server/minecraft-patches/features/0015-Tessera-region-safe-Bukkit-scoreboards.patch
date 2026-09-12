@@ -5,7 +5,7 @@ Subject: [PATCH] Tessera region-safe Bukkit scoreboards
 
 
 diff --git a/net/minecraft/server/ServerScoreboard.java b/net/minecraft/server/ServerScoreboard.java
-index 7ffd683c42557052d7bfa963d87e68f4e8f62d6c..ad5ea802683645720db1682fc745dbb3386264dd 100644
+index 900fc2691f5661c7bc8b3cdb4be6c2c1bf9dfabe..8df8e87b63f18327b7e245d9948fa81a2293a621 100644
 --- a/net/minecraft/server/ServerScoreboard.java
 +++ b/net/minecraft/server/ServerScoreboard.java
 @@ -2,10 +2,16 @@ package net.minecraft.server;
@@ -54,7 +54,7 @@ index 7ffd683c42557052d7bfa963d87e68f4e8f62d6c..ad5ea802683645720db1682fc745dbb3
          super.onScoreChanged(owner, objective, score);
          if (this.trackedObjectives.contains(objective)) {
              this.broadcastAll( // CraftBukkit
-@@ -66,20 +79,20 @@ public class ServerScoreboard extends Scoreboard {
+@@ -66,13 +79,13 @@ public class ServerScoreboard extends Scoreboard {
      }
  
      @Override
@@ -68,8 +68,9 @@ index 7ffd683c42557052d7bfa963d87e68f4e8f62d6c..ad5ea802683645720db1682fc745dbb3
 -    public void onPlayerRemoved(final ScoreHolder player) {
 +    public synchronized void onPlayerRemoved(final ScoreHolder player) {
          super.onPlayerRemoved(player);
-         this.broadcastAll(new ClientboundResetScorePacket(player.getScoreboardName(), null)); // CraftBukkit
-         this.setDirty();
+         if (!this.trackedObjectives.isEmpty()) {
+             broadcastAll(new ClientboundResetScorePacket(player.getScoreboardName(), null));
+@@ -82,7 +95,7 @@ public class ServerScoreboard extends Scoreboard {
      }
  
      @Override
@@ -78,7 +79,7 @@ index 7ffd683c42557052d7bfa963d87e68f4e8f62d6c..ad5ea802683645720db1682fc745dbb3
          super.onPlayerScoreRemoved(player, objective);
          if (this.trackedObjectives.contains(objective)) {
              this.broadcastAll(new ClientboundResetScorePacket(player.getScoreboardName(), objective.getName())); // CraftBukkit
-@@ -89,7 +102,7 @@ public class ServerScoreboard extends Scoreboard {
+@@ -92,7 +105,7 @@ public class ServerScoreboard extends Scoreboard {
      }
  
      @Override
@@ -87,7 +88,7 @@ index 7ffd683c42557052d7bfa963d87e68f4e8f62d6c..ad5ea802683645720db1682fc745dbb3
          Objective old = this.getDisplayObjective(slot);
          super.setDisplayObjective(slot, objective);
          if (old != objective && old != null) {
-@@ -112,7 +125,7 @@ public class ServerScoreboard extends Scoreboard {
+@@ -115,7 +128,7 @@ public class ServerScoreboard extends Scoreboard {
      }
  
      @Override
@@ -96,7 +97,7 @@ index 7ffd683c42557052d7bfa963d87e68f4e8f62d6c..ad5ea802683645720db1682fc745dbb3
          if (super.addPlayerToTeam(player, team)) {
              this.broadcastAll(ClientboundSetPlayerTeamPacket.createPlayerPacket(team, player, ClientboundSetPlayerTeamPacket.Action.ADD)); // CraftBukkit
              this.updatePlayerWaypoint(player);
-@@ -124,7 +137,7 @@ public class ServerScoreboard extends Scoreboard {
+@@ -127,7 +140,7 @@ public class ServerScoreboard extends Scoreboard {
      }
  
      // Paper start - Multiple Entries with Scoreboards
@@ -105,7 +106,7 @@ index 7ffd683c42557052d7bfa963d87e68f4e8f62d6c..ad5ea802683645720db1682fc745dbb3
          boolean anyAdded = false;
          for (String playerName : players) {
              if (super.addPlayerToTeam(playerName, team)) {
-@@ -143,7 +156,7 @@ public class ServerScoreboard extends Scoreboard {
+@@ -146,7 +159,7 @@ public class ServerScoreboard extends Scoreboard {
      // Paper end - Multiple Entries with Scoreboards
  
      @Override
@@ -114,7 +115,7 @@ index 7ffd683c42557052d7bfa963d87e68f4e8f62d6c..ad5ea802683645720db1682fc745dbb3
          super.removePlayerFromTeam(player, team);
          this.broadcastAll(ClientboundSetPlayerTeamPacket.createPlayerPacket(team, player, ClientboundSetPlayerTeamPacket.Action.REMOVE)); // CraftBukkit
          this.updatePlayerWaypoint(player);
-@@ -151,7 +164,7 @@ public class ServerScoreboard extends Scoreboard {
+@@ -154,7 +167,7 @@ public class ServerScoreboard extends Scoreboard {
      }
  
      // Paper start - Multiple Entries with Scoreboards
@@ -123,7 +124,7 @@ index 7ffd683c42557052d7bfa963d87e68f4e8f62d6c..ad5ea802683645720db1682fc745dbb3
          for (String playerName : players) {
              super.removePlayerFromTeam(playerName, team);
          }
-@@ -162,13 +175,13 @@ public class ServerScoreboard extends Scoreboard {
+@@ -165,13 +178,13 @@ public class ServerScoreboard extends Scoreboard {
      // Paper end - Multiple Entries with Scoreboards
  
      @Override
@@ -139,7 +140,7 @@ index 7ffd683c42557052d7bfa963d87e68f4e8f62d6c..ad5ea802683645720db1682fc745dbb3
          super.onObjectiveChanged(objective);
          if (this.trackedObjectives.contains(objective)) {
              this.broadcastAll(new ClientboundSetObjectivePacket(objective, ClientboundSetObjectivePacket.METHOD_CHANGE)); // CraftBukkit
-@@ -178,7 +191,7 @@ public class ServerScoreboard extends Scoreboard {
+@@ -181,7 +194,7 @@ public class ServerScoreboard extends Scoreboard {
      }
  
      @Override
@@ -148,7 +149,7 @@ index 7ffd683c42557052d7bfa963d87e68f4e8f62d6c..ad5ea802683645720db1682fc745dbb3
          super.onObjectiveRemoved(objective);
          if (this.trackedObjectives.contains(objective)) {
              this.stopTrackingObjective(objective);
-@@ -188,14 +201,14 @@ public class ServerScoreboard extends Scoreboard {
+@@ -191,14 +204,14 @@ public class ServerScoreboard extends Scoreboard {
      }
  
      @Override
@@ -165,7 +166,7 @@ index 7ffd683c42557052d7bfa963d87e68f4e8f62d6c..ad5ea802683645720db1682fc745dbb3
          super.onTeamChanged(team);
          this.broadcastAll(ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(team, false)); // CraftBukkit
          this.updateTeamWaypoints(team);
-@@ -203,25 +216,25 @@ public class ServerScoreboard extends Scoreboard {
+@@ -206,25 +219,25 @@ public class ServerScoreboard extends Scoreboard {
      }
  
      @Override
@@ -195,7 +196,7 @@ index 7ffd683c42557052d7bfa963d87e68f4e8f62d6c..ad5ea802683645720db1682fc745dbb3
          List<Packet<?>> packets = Lists.newArrayList();
          packets.add(new ClientboundSetObjectivePacket(objective, ClientboundSetObjectivePacket.METHOD_ADD));
  
-@@ -242,20 +255,14 @@ public class ServerScoreboard extends Scoreboard {
+@@ -245,20 +258,14 @@ public class ServerScoreboard extends Scoreboard {
          return packets;
      }
  
@@ -219,7 +220,7 @@ index 7ffd683c42557052d7bfa963d87e68f4e8f62d6c..ad5ea802683645720db1682fc745dbb3
          List<Packet<?>> packets = Lists.newArrayList();
          packets.add(new ClientboundSetObjectivePacket(objective, ClientboundSetObjectivePacket.METHOD_REMOVE));
  
-@@ -268,20 +275,14 @@ public class ServerScoreboard extends Scoreboard {
+@@ -271,20 +278,14 @@ public class ServerScoreboard extends Scoreboard {
          return packets;
      }
  
@@ -243,7 +244,7 @@ index 7ffd683c42557052d7bfa963d87e68f4e8f62d6c..ad5ea802683645720db1682fc745dbb3
          int count = 0;
  
          for (DisplaySlot slot : DisplaySlot.values()) {
-@@ -296,26 +297,181 @@ public class ServerScoreboard extends Scoreboard {
+@@ -299,26 +300,181 @@ public class ServerScoreboard extends Scoreboard {
      private void updatePlayerWaypoint(final String player) {
          ServerPlayer serverPlayer = this.server.getPlayerList().getPlayerByName(player);
          if (serverPlayer != null) {
@@ -438,10 +439,10 @@ index 7ffd683c42557052d7bfa963d87e68f4e8f62d6c..ad5ea802683645720db1682fc745dbb3
      // CraftBukkit end
  }
 diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
-index c23e15bff7e957da8beef5fc19c7f2ba676df855..40dc8830d0a555057d94a78bbaa3ed7aea5170dd 100644
+index d453f1747c9f567b07c676660384dd48ec8c07ca..c21d3f4a95c7ce84382d9ce47fa5a0451a36f53e 100644
 --- a/net/minecraft/server/players/PlayerList.java
 +++ b/net/minecraft/server/players/PlayerList.java
-@@ -272,7 +272,11 @@ public abstract class PlayerList {
+@@ -274,7 +274,11 @@ public abstract class PlayerList {
          this.sendPlayerPermissionLevel(player);
          player.getStats().markAllDirty();
          player.getRecipeBook().sendInitialRecipeBook(player);

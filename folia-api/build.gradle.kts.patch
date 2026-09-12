@@ -17,7 +17,7 @@
 +    overrideConfigFile = rootProject.layout.projectDirectory.file("paper-api/.checkstyle/checkstyle.xml")
  }
  
- val annotationsVersion = "26.0.2"
+ val annotationsVersion = "26.1.0"
 @@ -108,7 +_,7 @@
      checkstyle(project(":paper-checkstyle"))
  }

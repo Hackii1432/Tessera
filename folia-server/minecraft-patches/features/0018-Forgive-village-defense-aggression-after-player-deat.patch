@@ -5,7 +5,7 @@ Subject: [PATCH] Forgive village defense aggression after player death
 
 
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index dff4f9d8cf3d1ff7ce0b526a7e3425b78c007e01..6071ea07ac8b76ef38ccf7ad7dea90399c161e78 100644
+index 4580b8a61f827e8f9c0a23ba9da45dd9cb99d39b..2e404ea73b0605252bc4decb77e2018982dea560 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
 @@ -22,6 +22,7 @@ import java.util.Set;
@@ -16,7 +16,7 @@ index dff4f9d8cf3d1ff7ce0b526a7e3425b78c007e01..6071ea07ac8b76ef38ccf7ad7dea9039
  import java.util.stream.Collectors;
  import net.minecraft.ChatFormatting;
  import net.minecraft.CrashReport;
-@@ -276,6 +277,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -280,6 +281,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
      private @Nullable BlockPos raidOmenPosition;
      private Vec3 lastKnownClientMovement = Vec3.ZERO;
      private Input lastClientInput = Input.EMPTY;
@@ -29,23 +29,23 @@ index dff4f9d8cf3d1ff7ce0b526a7e3425b78c007e01..6071ea07ac8b76ef38ccf7ad7dea9039
      // Tessera start - restore vanilla ender pearl ownership
      // A pearl and its owner may be ticked by different Folia regions. The set is
      // therefore concurrent; entity data itself is read through region-owned NBT
-@@ -665,6 +672,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -670,6 +677,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          this.respawnConfig = input.read("respawn", ServerPlayer.RespawnConfig.CODEC).orElse(null);
          this.spawnExtraParticlesOnFall = input.getBooleanOr("spawn_extra_particles_on_fall", false);
          this.raidOmenPosition = input.read("raid_omen_position", BlockPos.CODEC).orElse(null);
 +        this.tesseraVillagerOffenseCounter.set(input.getLongOr("Tessera.VillagerOffenseCounter", 0L)); // Tessera - forgive village-defense aggression
          this.loadGameTypes(input); // Paper - Expand PlayerGameModeChangeEvent
+         input.read("post_effects", Codec.list(Identifier.CODEC)).ifPresent(this.postEffects::addAll);
          this.setShoulderEntityLeft(input.read("ShoulderEntityLeft", CompoundTag.CODEC).orElseGet(CompoundTag::new));
-         this.setShoulderEntityRight(input.read("ShoulderEntityRight", CompoundTag.CODEC).orElseGet(CompoundTag::new));
-@@ -699,6 +707,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -705,6 +713,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          output.storeNullable("respawn", ServerPlayer.RespawnConfig.CODEC, this.respawnConfig);
          output.putBoolean("spawn_extra_particles_on_fall", this.spawnExtraParticlesOnFall);
          output.storeNullable("raid_omen_position", BlockPos.CODEC, this.raidOmenPosition);
 +        output.putLong("Tessera.VillagerOffenseCounter", this.tesseraVillagerOffenseCounter.get()); // Tessera - forgive village-defense aggression
          this.saveEnderPearls(output);
+         output.store("post_effects", Codec.list(Identifier.CODEC), this.postEffects);
          if (!this.getShoulderEntityLeft().isEmpty()) {
-             output.store("ShoulderEntityLeft", CompoundTag.CODEC, this.getShoulderEntityLeft());
-@@ -1422,7 +1431,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -1432,7 +1441,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
  
          this.removeEntitiesOnShoulder();
          if (this.level().getGameRules().get(GameRules.FORGIVE_DEAD_PLAYERS)) {
@@ -54,7 +54,7 @@ index dff4f9d8cf3d1ff7ce0b526a7e3425b78c007e01..6071ea07ac8b76ef38ccf7ad7dea9039
          }
  
          // SPIGOT-5478 must be called manually now
-@@ -1473,13 +1482,13 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -1483,13 +1492,13 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          this.connection.markClientUnloadedAfterDeath();
      }
  
@@ -70,7 +70,7 @@ index dff4f9d8cf3d1ff7ce0b526a7e3425b78c007e01..6071ea07ac8b76ef38ccf7ad7dea9039
                  }
              });
          }
-@@ -1489,7 +1498,15 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -1499,7 +1508,15 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
              .getEntitiesOfClass(Mob.class, aabb, EntitySelector.NO_SPECTATORS)
              .stream()
              .filter(mob -> mob instanceof NeutralMob)
@@ -87,7 +87,7 @@ index dff4f9d8cf3d1ff7ce0b526a7e3425b78c007e01..6071ea07ac8b76ef38ccf7ad7dea9039
      }
  
      @Override
-@@ -2728,6 +2745,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -2780,6 +2797,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          this.enteredNetherPosition = oldPlayer.enteredNetherPosition;
          this.currentExplosionImpactPos = oldPlayer.currentExplosionImpactPos;
          this.currentExplosionCause = oldPlayer.currentExplosionCause;
@@ -143,7 +143,7 @@ index 83ce3e3e5b289f5d5dfb9589a16102b0607ab8eb..cd5aae1bd7baf5ee355291e1f15d6680
                  }
              }
 diff --git a/net/minecraft/world/entity/animal/golem/IronGolem.java b/net/minecraft/world/entity/animal/golem/IronGolem.java
-index 21b481765faca951c8baf20a7a63cf03d77db33a..c5024b6809378ea311ea7b1462987d97291fb6dd 100644
+index d517d59dc3e05be34dbeebb640a038dc13f4dfb6..b6328b9ae5aa89ed3b0c7029a4112d914b1523fe 100644
 --- a/net/minecraft/world/entity/animal/golem/IronGolem.java
 +++ b/net/minecraft/world/entity/animal/golem/IronGolem.java
 @@ -1,6 +1,10 @@
@@ -226,7 +226,7 @@ index 21b481765faca951c8baf20a7a63cf03d77db33a..c5024b6809378ea311ea7b1462987d97
          return (float)this.getAttributeValue(Attributes.ATTACK_DAMAGE);
      }
 diff --git a/net/minecraft/world/entity/npc/villager/Villager.java b/net/minecraft/world/entity/npc/villager/Villager.java
-index 0869ecb4b7fe07efa33d521bef2f525955bd3c30..3cc32fa48f95399e39d5becfd4fe1f7384dc4034 100644
+index a352f22597cebd7c4c4e61402487af09e4d7ce1d..9f34e5bfc2adfa08f3e8af74ae231884c751da01 100644
 --- a/net/minecraft/world/entity/npc/villager/Villager.java
 +++ b/net/minecraft/world/entity/npc/villager/Villager.java
 @@ -9,6 +9,7 @@ import java.util.ArrayList;
@@ -253,7 +253,7 @@ index 0869ecb4b7fe07efa33d521bef2f525955bd3c30..3cc32fa48f95399e39d5becfd4fe1f73
  import net.minecraft.world.entity.item.ItemEntity;
  import net.minecraft.world.entity.monster.Witch;
  import net.minecraft.world.entity.npc.InventoryCarrier;
-@@ -929,6 +932,18 @@ public class Villager extends AbstractVillager implements VillagerDataHolder, Re
+@@ -926,6 +929,18 @@ public class Villager extends AbstractVillager implements VillagerDataHolder, Re
  
      @Override
      public void onReputationEventFrom(final ReputationEventType type, final Entity source) {

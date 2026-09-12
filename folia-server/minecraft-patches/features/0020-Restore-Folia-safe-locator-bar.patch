@@ -5,10 +5,10 @@ Subject: [PATCH] Restore Folia-safe locator bar
 
 
 diff --git a/net/minecraft/commands/Commands.java b/net/minecraft/commands/Commands.java
-index 13de80fa4e50e2cd5f0dc339f7d59ab4d2cb8f0d..bdf75ad1d720a2409a6ae8a50522a7f868b4337b 100644
+index 317608f77d122735110c0fc22b8b58b517e19d3b..aa8396a72f83e0d50c363e3a1a69639bae319b0b 100644
 --- a/net/minecraft/commands/Commands.java
 +++ b/net/minecraft/commands/Commands.java
-@@ -262,7 +262,7 @@ public class Commands {
+@@ -266,7 +266,7 @@ public class Commands {
          TimeCommand.register(this.dispatcher, context);
          TitleCommand.register(this.dispatcher, context);
          //TriggerCommand.register(this.dispatcher); // Folia - region threading - TODO later
@@ -18,10 +18,10 @@ index 13de80fa4e50e2cd5f0dc339f7d59ab4d2cb8f0d..bdf75ad1d720a2409a6ae8a50522a7f8
          WorldBorderCommand.register(this.dispatcher);
          if (JvmProfiler.INSTANCE.isAvailable()) {
 diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
-index 215faeb4b0f47fcae6e0486dc788fef6cd8e5181..ce428a6ccd954b64c51a1dd9c92c73302c4e7c09 100644
+index ea345aca39301877fcd7ac7440816a3af4332b9f..64af32a8f319275036a5e10f85958418ef2b5d3e 100644
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
-@@ -3095,12 +3095,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -3072,12 +3072,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
          } else if (rule == GameRules.LOCATOR_BAR) {
              // this.getAllLevels().forEach(level -> { // Paper - per-world game rules
                  ServerWaypointManager waypointManager = level.getWaypointManager();

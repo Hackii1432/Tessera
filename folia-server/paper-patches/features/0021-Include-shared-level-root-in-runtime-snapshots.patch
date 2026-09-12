@@ -5,7 +5,7 @@ Subject: [PATCH] Include shared level root in runtime snapshots
 
 
 diff --git a/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java b/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
-index cae947b0b..3ae11a971 100644
+index cae947b0b7b0bc72b7479039bec1899ab52c3d3d..3ae11a971e4d71036160daa27758f91d01739b15 100644
 --- a/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
 +++ b/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
 @@ -410,7 +410,7 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
@@ -155,7 +155,7 @@ index cae947b0b..3ae11a971 100644
  
 diff --git a/src/main/java/org/bukkit/craftbukkit/world/SnapshotFiles.java b/src/main/java/org/bukkit/craftbukkit/world/SnapshotFiles.java
 new file mode 100644
-index 000000000..a5e129bfe
+index 0000000000000000000000000000000000000000..a5e129bfe0691d904028950a2a1ad10e3f12b241
 --- /dev/null
 +++ b/src/main/java/org/bukkit/craftbukkit/world/SnapshotFiles.java
 @@ -0,0 +1,162 @@
@@ -323,7 +323,7 @@ index 000000000..a5e129bfe
 +}
 diff --git a/src/test/java/org/bukkit/craftbukkit/world/SnapshotFilesTest.java b/src/test/java/org/bukkit/craftbukkit/world/SnapshotFilesTest.java
 new file mode 100644
-index 000000000..a432355b1
+index 0000000000000000000000000000000000000000..a432355b1906d35b910bb09ac3ce1fbb87d220bd
 --- /dev/null
 +++ b/src/test/java/org/bukkit/craftbukkit/world/SnapshotFilesTest.java
 @@ -0,0 +1,234 @@
@@ -563,7 +563,7 @@ index 000000000..a432355b1
 +}
 diff --git a/src/test/java/org/bukkit/craftbukkit/world/SnapshotGlobalStorageTest.java b/src/test/java/org/bukkit/craftbukkit/world/SnapshotGlobalStorageTest.java
 new file mode 100644
-index 000000000..2410096ca
+index 0000000000000000000000000000000000000000..2410096ca6e4cccb4aa9eb5281a2f6579a18f641
 --- /dev/null
 +++ b/src/test/java/org/bukkit/craftbukkit/world/SnapshotGlobalStorageTest.java
 @@ -0,0 +1,114 @@
@@ -681,6 +681,3 @@ index 000000000..2410096ca
 +        MutableValue(final net.minecraft.nbt.CompoundTag tag) { this.tag = tag; }
 +    }
 +}
--- 
-2.45.1.windows.1
-

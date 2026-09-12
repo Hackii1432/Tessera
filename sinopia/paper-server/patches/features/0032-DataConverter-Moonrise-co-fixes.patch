@@ -1,0 +1,55 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Owen1212055 <23108066+Owen1212055@users.noreply.github.com>
+Date: Sat, 7 Jun 2025 15:05:05 -0400
+Subject: [PATCH] DataConverter, Moonrise & co fixes
+
+
+diff --git a/net/minecraft/server/dedicated/DedicatedServer.java b/net/minecraft/server/dedicated/DedicatedServer.java
+index d4e60de0df69f2929024b513f3c637d5e27cf6fa..b9606ee0c31788ab75f8aa828c50a9f6628740b3 100644
+--- a/net/minecraft/server/dedicated/DedicatedServer.java
++++ b/net/minecraft/server/dedicated/DedicatedServer.java
+@@ -408,9 +408,9 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+     }
+ 
+     @Override
+-    public boolean saveAllChunks(final boolean silent, final boolean flush, final boolean force) {
++    public boolean saveAllChunks(final boolean silent, final boolean flush, final boolean force, final boolean close) { // Paper - add close param
+         this.notificationManager().serverSaveStarted();
+-        boolean savedChunks = super.saveAllChunks(silent, flush, force);
++        boolean savedChunks = super.saveAllChunks(silent, flush, force, close); // Paper - add close param
+         this.notificationManager().serverSaveCompleted();
+         return savedChunks;
+     }
+diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index cf7342a5f6123e4f84f89ba5c5c0b431f6ae563a..ab2acc58e0e91dc35e1f254558a6f1660e3a5303 100644
+--- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -1835,9 +1835,14 @@ public class ServerGamePacketListenerImpl
+     private boolean hasNewCollision(final ServerLevel level, final Entity entity, final AABB oldBox, final AABB newBox) {
+         final List<AABB> collisionsBB = new java.util.ArrayList<>();
+         final List<VoxelShape> collisionsVoxel = new java.util.ArrayList<>();
++
++        int flags = ca.spottedleaf.moonrise.patches.collisions.CollisionUtil.COLLISION_FLAG_CHECK_BORDER;
++        if (level.paperConfig().chunks.preventMovingIntoUnloadedChunks) {
++            flags |= ca.spottedleaf.moonrise.patches.collisions.CollisionUtil.COLLISION_FLAG_COLLIDE_WITH_UNLOADED_CHUNKS;
++        }
+         ca.spottedleaf.moonrise.patches.collisions.CollisionUtil.getCollisions(
+             level, entity, newBox, collisionsVoxel, collisionsBB,
+-            ca.spottedleaf.moonrise.patches.collisions.CollisionUtil.COLLISION_FLAG_COLLIDE_WITH_UNLOADED_CHUNKS | ca.spottedleaf.moonrise.patches.collisions.CollisionUtil.COLLISION_FLAG_CHECK_BORDER,
++            flags,
+             null, null
+         );
+ 
+diff --git a/net/minecraft/world/level/Level.java b/net/minecraft/world/level/Level.java
+index bd9823d842261242dda70e850980cc000ff1d0cf..d29976beb9aae7b85636feb52ff7d9489c3d2024 100644
+--- a/net/minecraft/world/level/Level.java
++++ b/net/minecraft/world/level/Level.java
+@@ -1538,7 +1538,7 @@ public abstract class Level implements LevelAccessor, AutoCloseable, ca.spottedl
+         if (entity instanceof net.minecraft.world.entity.decoration.ArmorStand && !entity.level().paperConfig().entities.armorStands.doCollisionEntityLookups)
+             return false;
+         // Paper start - optimise collisions
+-        final int flags = entity == null ? (ca.spottedleaf.moonrise.patches.collisions.CollisionUtil.COLLISION_FLAG_CHECK_BORDER | ca.spottedleaf.moonrise.patches.collisions.CollisionUtil.COLLISION_FLAG_CHECK_ONLY) : ca.spottedleaf.moonrise.patches.collisions.CollisionUtil.COLLISION_FLAG_CHECK_ONLY;
++        final int flags = entity != null ? (ca.spottedleaf.moonrise.patches.collisions.CollisionUtil.COLLISION_FLAG_CHECK_BORDER | ca.spottedleaf.moonrise.patches.collisions.CollisionUtil.COLLISION_FLAG_CHECK_ONLY) : ca.spottedleaf.moonrise.patches.collisions.CollisionUtil.COLLISION_FLAG_CHECK_ONLY;
+         if (ca.spottedleaf.moonrise.patches.collisions.CollisionUtil.getCollisionsForBlocksOrWorldBorder((Level)(Object)this, entity, box, null, null, flags, null)) {
+             return false;
+         }

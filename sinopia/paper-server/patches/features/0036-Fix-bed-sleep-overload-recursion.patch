@@ -1,0 +1,20 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Sun, 13 Sep 2026 00:53:19 +0200
+Subject: [PATCH] Fix bed sleep overload recursion
+
+Call the five-argument Player implementation directly to avoid redispatch into ServerPlayer. Preserve vanilla bed rules and the Bukkit force/event handling.
+
+diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+index 462d906ca1193e5f728f455d501876d1fc7b883c..dfbf54c1be9d8de45ac13418153243ac6c8fcf5d 100644
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -1725,7 +1725,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+             return bedResult;
+         }
+         {
+-            Either<Player.BedSleepingProblem, Unit> result = super.startSleepInBed(bedBlock, bedBlockState, rule, pos).ifRight(unit -> {
++            Either<Player.BedSleepingProblem, Unit> result = super.startSleepInBed(bedBlock, bedBlockState, rule, pos, force).ifRight(unit -> { // Sinopia - avoid re-entering the virtual sleep overload
+                 this.awardStat(bedBlock.getSleptInBedStatType());
+                 if (canSetSpawn) {
+                     CriteriaTriggers.SLEPT_IN_BED.trigger(this);

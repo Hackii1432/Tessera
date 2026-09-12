@@ -1,18 +1,14 @@
-From 8f04f38f4c7da51cdc41ecb7174c51240d2edd85 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Hackii1432 <hunter122@hotmail.de>
 Date: Thu, 10 Sep 2026 00:52:40 +0200
 Subject: [PATCH] Restore region-safe async portal routing events
 
----
- net/minecraft/server/level/ServerPlayer.java |   5 +
- net/minecraft/world/entity/Entity.java       | 298 +++++++++++++------
- 2 files changed, 219 insertions(+), 84 deletions(-)
 
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index fd58468..93f8218 100644
+index 380f7c17f3fe65fc861aa3490c4c758fbd76aaf0..357001378bca2698e74ef1e58a0b1a40af75e21a 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
-@@ -1998,6 +1998,11 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -2044,6 +2044,11 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
              // finished
  
              this.postChangeDimension();
@@ -25,10 +21,10 @@ index fd58468..93f8218 100644
      }
  
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index d973aae..c25c3e9 100644
+index 16b90a35d5fd63211e0476194467b0762d62ccb2..24253c32d8388a63ad608d067a01bdca7f79ac3c 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
-@@ -131,6 +131,7 @@ import net.minecraft.world.level.portal.PortalShape;
+@@ -132,6 +132,7 @@ import net.minecraft.world.level.portal.PortalShape;
  import net.minecraft.world.level.portal.TeleportTransition;
  import net.minecraft.world.level.storage.TagValueInput;
  import net.minecraft.world.level.storage.TagValueOutput;
@@ -36,7 +32,7 @@ index d973aae..c25c3e9 100644
  import net.minecraft.world.level.storage.ValueInput;
  import net.minecraft.world.level.storage.ValueOutput;
  import net.minecraft.world.level.storage.loot.LootTable;
-@@ -4573,28 +4574,147 @@ public abstract class Entity
+@@ -4683,28 +4684,147 @@ public abstract class Entity
          NETHER, END;
      }
  
@@ -191,7 +187,7 @@ index d973aae..c25c3e9 100644
      }
  
      private static final java.util.concurrent.atomic.AtomicLong CREATE_PORTAL_DOUBLE_CHECK = new java.util.concurrent.atomic.AtomicLong();
-@@ -4607,25 +4727,25 @@ public abstract class Entity
+@@ -4717,25 +4837,25 @@ public abstract class Entity
      // If we have to worry about whether the entity may not teleport,
      // we need to first search, then report back, ...
      protected void findOrCreatePortalAsync(ServerLevel origin, BlockPos originPortal, ServerLevel destination, PortalType type,
@@ -222,7 +218,7 @@ index d973aae..c25c3e9 100644
                                      Relative.union(Relative.DELTA, Set.of(Relative.X_ROT)),
                                      TeleportTransition.PLAY_PORTAL_SOUND.then(TeleportTransition.PLACE_PORTAL_TICKET)
                                  ).withCause(org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.END_PORTAL)
-@@ -4633,18 +4753,23 @@ public abstract class Entity
+@@ -4743,18 +4863,23 @@ public abstract class Entity
                          }
                      );
                  } else {
@@ -249,7 +245,7 @@ index d973aae..c25c3e9 100644
                                      Relative.union(Relative.DELTA, Relative.ROTATION),
                                      TeleportTransition.PLAY_PORTAL_SOUND.then(TeleportTransition.PLACE_PORTAL_TICKET)
                                  ).withCause(org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.END_PORTAL)
-@@ -4674,16 +4799,13 @@ public abstract class Entity
+@@ -4784,16 +4909,13 @@ public abstract class Entity
                              }
                          );
  
@@ -271,7 +267,7 @@ index d973aae..c25c3e9 100644
  
                  ca.spottedleaf.concurrentutil.completable.CallbackCompletable<BlockUtil.FoundRectangle> portalFound
                      = new ca.spottedleaf.concurrentutil.completable.CallbackCompletable<>();
-@@ -4728,6 +4850,11 @@ public abstract class Entity
+@@ -4838,6 +4960,11 @@ public abstract class Entity
                              return;
                          }
  
@@ -283,7 +279,7 @@ index d973aae..c25c3e9 100644
                          // add tickets so that we can re-search for a portal once the chunks are loaded
                          Long ticketId = Long.valueOf(CREATE_PORTAL_DOUBLE_CHECK.getAndIncrement());
                          for (net.minecraft.world.level.chunk.ChunkAccess chunk : chunks) {
-@@ -4816,87 +4943,90 @@ public abstract class Entity
+@@ -4926,87 +5053,90 @@ public abstract class Entity
      }
  
      protected boolean portalToAsync(ServerLevel destination, BlockPos portalPos, boolean takePassengers,
@@ -435,6 +431,3 @@ index d973aae..c25c3e9 100644
      // Folia end - region threading
  
      public @Nullable Entity teleport(TeleportTransition transition) { // Paper - remove param final
--- 
-2.45.1.windows.1
-

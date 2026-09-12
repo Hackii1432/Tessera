@@ -3,13 +3,9 @@ From: Hackii1432 <hunter122@hotmail.de>
 Date: Thu, 10 Sep 2026 00:45:32 +0200
 Subject: [PATCH] Implement fresh runtime world group snapshots
 
----
- .../world/CraftRuntimeWorldManager.java       | 443 ++++++++++++++++++
- .../world/CraftRuntimeWorldManagerTest.java   |  33 ++
- 2 files changed, 476 insertions(+)
 
 diff --git a/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java b/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
-index a04a098f5..0ede96ce5 100644
+index a04a098f599e63948053958322c0de2f73ecf6ad..0ede96ce5277c3551b151469bb184d0c7151a8c7 100644
 --- a/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
 +++ b/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
 @@ -6,6 +6,7 @@ import io.papermc.paper.world.RuntimeWorldManager;
@@ -491,7 +487,7 @@ index a04a098f5..0ede96ce5 100644
          private CorruptRegionFileException(final Path file, final String message) {
              super("Corrupt region file " + file + ": " + message);
 diff --git a/src/test/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManagerTest.java b/src/test/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManagerTest.java
-index 94182d3e7..2b28dfe4e 100644
+index 94182d3e78c1a25493dfc5575357dbfbf18c901f..2b28dfe4efbf363b62d5fc880119c2b7cc976818 100644
 --- a/src/test/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManagerTest.java
 +++ b/src/test/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManagerTest.java
 @@ -13,8 +13,10 @@ import org.junit.jupiter.api.io.TempDir;
@@ -543,6 +539,3 @@ index 94182d3e7..2b28dfe4e 100644
      private Path writeRegion(
          final boolean overlap,
          final int chunkLength,
--- 
-2.45.1.windows.1
-

@@ -5,10 +5,10 @@ Subject: [PATCH] Harden Tessera runtime world failure paths
 
 
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 951fb1382ffd049c36e811b4b08b625bb70b9d02..b304d37e0fb01228d559504fa269229a08fae493 100644
+index b8dd102fecdcae5145ddc653a040190c98f6e79f..bb27bece6e0a60ea3fc9acee0d4817479dbec6f1 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -1234,8 +1234,13 @@ public final class CraftServer implements Server {
+@@ -1236,8 +1236,13 @@ public final class CraftServer implements Server {
                      + "use Bukkit.getRuntimeWorldManager().createWorldAsync(...)"
              );
          }
@@ -23,7 +23,7 @@ index 951fb1382ffd049c36e811b4b08b625bb70b9d02..b304d37e0fb01228d559504fa269229a
          if (!result.successful()) {
              throw new IllegalStateException("World creation failed (" + result.status() + "): " + result.message(), result.cause());
          }
-@@ -1489,8 +1494,12 @@ public final class CraftServer implements Server {
+@@ -1491,8 +1496,12 @@ public final class CraftServer implements Server {
          this.worlds = Collections.unmodifiableMap(updated);
      }
  
@@ -39,10 +39,10 @@ index 951fb1382ffd049c36e811b4b08b625bb70b9d02..b304d37e0fb01228d559504fa269229a
      // Tessera end - runtime world lifecycle
  
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index 9c93895c5e61134370bd6f84ae0180039f7235fe..21e38b021e0a162f45343205a256ee5ca2f7b3e0 100644
+index d7010524b5907f02cc04c6f91ca7a581afa96b2e..9c6a68cadc8161a82aa3c4ef167036d9ed3e6add 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-@@ -2036,6 +2036,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+@@ -2041,6 +2041,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
      // Paper start
      @Override
      public void getChunkAtAsync(int x, int z, boolean gen, boolean urgent, @NotNull Consumer<? super Chunk> cb) {
@@ -50,7 +50,7 @@ index 9c93895c5e61134370bd6f84ae0180039f7235fe..21e38b021e0a162f45343205a256ee5c
          warnUnsafeChunk("getting a faraway chunk async", x, z); // Paper
          ca.spottedleaf.moonrise.common.PlatformHooks.get().scheduleChunkLoad(
              this.getHandle(), x, z, gen, ChunkStatus.FULL, true,
-@@ -2049,6 +2050,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+@@ -2054,6 +2055,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
  
      @Override
      public void getChunksAtAsync(int minX, int minZ, int maxX, int maxZ, boolean urgent, Runnable cb) {

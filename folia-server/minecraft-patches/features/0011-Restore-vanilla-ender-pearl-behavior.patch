@@ -5,7 +5,7 @@ Subject: [PATCH] Restore vanilla ender pearl behavior
 
 
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 57f93d978fe48fdf6e77b7bfb9f1de060e1a8524..4273dc42007e16cf5f5df67d1a914499f5652668 100644
+index 96789895e3ae1f6e5454f4d92370ad8591e9cfeb..30ad6ce7bed3844ce92b89e9d9dd9490d004401b 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
 @@ -14,7 +14,6 @@ import com.mojang.serialization.MapCodec;
@@ -24,7 +24,7 @@ index 57f93d978fe48fdf6e77b7bfb9f1de060e1a8524..4273dc42007e16cf5f5df67d1a914499
  import java.util.stream.Collectors;
  import net.minecraft.ChatFormatting;
  import net.minecraft.CrashReport;
-@@ -191,6 +191,7 @@ import net.minecraft.world.level.saveddata.maps.MapId;
+@@ -195,6 +195,7 @@ import net.minecraft.world.level.saveddata.maps.MapId;
  import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
  import net.minecraft.world.level.storage.LevelData;
  import net.minecraft.world.level.storage.TagValueInput;
@@ -32,7 +32,7 @@ index 57f93d978fe48fdf6e77b7bfb9f1de060e1a8524..4273dc42007e16cf5f5df67d1a914499
  import net.minecraft.world.level.storage.ValueInput;
  import net.minecraft.world.level.storage.ValueOutput;
  import net.minecraft.world.phys.AABB;
-@@ -275,7 +276,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -279,7 +280,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
      private @Nullable BlockPos raidOmenPosition;
      private Vec3 lastKnownClientMovement = Vec3.ZERO;
      private Input lastClientInput = Input.EMPTY;
@@ -43,10 +43,10 @@ index 57f93d978fe48fdf6e77b7bfb9f1de060e1a8524..4273dc42007e16cf5f5df67d1a914499
 +    // snapshots maintained by ThrownEnderpearl.
 +    private final Set<ThrownEnderpearl> enderPearls = ConcurrentHashMap.newKeySet();
 +    // Tessera end - restore vanilla ender pearl ownership
+     private boolean postEffectsDirty = true;
      private long timeEntitySatOnShoulder;
      private CompoundTag shoulderEntityLeft = new CompoundTag();
-     private CompoundTag shoulderEntityRight = new CompoundTag();
-@@ -772,14 +778,26 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -779,14 +785,26 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
              ValueOutput.ValueOutputList pearlsOutput = playerOutput.childrenList("ender_pearls");
  
              for (ThrownEnderpearl enderPearl : this.enderPearls) {
@@ -79,7 +79,7 @@ index 57f93d978fe48fdf6e77b7bfb9f1de060e1a8524..4273dc42007e16cf5f5df67d1a914499
              }
          }
      }
-@@ -795,15 +813,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -802,15 +820,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
              if (pearlLevel != null) {
                  Entity pearl = EntityType.loadEntityRecursive(
                      pearlInput, pearlLevel, EntitySpawnReason.LOAD, net.minecraft.world.entity.EntityProcessor.NOP); // Folia - region threading - delay world add
@@ -99,7 +99,7 @@ index 57f93d978fe48fdf6e77b7bfb9f1de060e1a8524..4273dc42007e16cf5f5df67d1a914499
                  } else {
                      LOGGER.warn("Failed to spawn player ender pearl in level ({}), skipping", pearlLevelKey.get());
                  }
-@@ -813,6 +828,46 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -820,6 +835,46 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          }
      }
  
@@ -146,7 +146,7 @@ index 57f93d978fe48fdf6e77b7bfb9f1de060e1a8524..4273dc42007e16cf5f5df67d1a914499
      public void setExperiencePoints(final int amount) {
          float limit = this.getXpNeededForNextLevel();
          float max = (limit - 1.0F) / limit;
-@@ -3421,11 +3476,11 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -3459,11 +3514,11 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
      }
  
      public void registerEnderPearl(final ThrownEnderpearl enderPearl) {
@@ -161,10 +161,10 @@ index 57f93d978fe48fdf6e77b7bfb9f1de060e1a8524..4273dc42007e16cf5f5df67d1a914499
  
      public Set<ThrownEnderpearl> getEnderPearls() {
 diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
-index e7579a9873362317dd82b63306cf650af9472574..c23e15bff7e957da8beef5fc19c7f2ba676df855 100644
+index 27d70935b49ef6c8f2e2f5a958b3e1a4114549bc..d453f1747c9f567b07c676660384dd48ec8c07ca 100644
 --- a/net/minecraft/server/players/PlayerList.java
 +++ b/net/minecraft/server/players/PlayerList.java
-@@ -555,11 +555,11 @@ public abstract class PlayerList {
+@@ -558,11 +558,11 @@ public abstract class PlayerList {
          player.unRide();
  
          for (ThrownEnderpearl enderpearl : player.getEnderPearls()) {
@@ -182,7 +182,7 @@ index e7579a9873362317dd82b63306cf650af9472574..c23e15bff7e957da8beef5fc19c7f2ba
  
          level.removePlayerImmediately(player, Entity.RemovalReason.UNLOADED_WITH_PLAYER);
 diff --git a/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEnderpearl.java b/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEnderpearl.java
-index d0dba5cc351903fb762e231a95f302479794185f..32aff84f3b11713882a5fe258a84fd2b1c19b71d 100644
+index 4516bfad2d1907c6161fbf0bf2105efb5ce5228c..c9bb1d4d3303ae6dbf0b7a41be489762e18a7030 100644
 --- a/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEnderpearl.java
 +++ b/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEnderpearl.java
 @@ -1,9 +1,12 @@
@@ -385,7 +385,7 @@ index d0dba5cc351903fb762e231a95f302479794185f..32aff84f3b11713882a5fe258a84fd2b
                  }
                  this.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.HIT);
                  return;
-@@ -264,7 +407,11 @@ public class ThrownEnderpearl extends ThrowableItemProjectile {
+@@ -262,7 +405,11 @@ public class ThrownEnderpearl extends ThrowableItemProjectile {
              int previousChunkZ = SectionPos.blockToSectionCoord(this.position().z());
              Entity owner = this.owner != null ? findOwnerIncludingDeadPlayer(serverLevel, this.owner.getUUID()) : null;
              if (owner instanceof ServerPlayer serverPlayer
@@ -398,7 +398,7 @@ index d0dba5cc351903fb762e231a95f302479794185f..32aff84f3b11713882a5fe258a84fd2b
                  && !serverPlayer.wonGame
                  && serverPlayer.level().getGameRules().get(GameRules.ENDER_PEARLS_VANISH_ON_DEATH)) {
                  this.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.DESPAWN); // CraftBukkit - add Bukkit remove cause
-@@ -282,6 +429,8 @@ public class ThrownEnderpearl extends ThrowableItemProjectile {
+@@ -280,6 +427,8 @@ public class ThrownEnderpearl extends ThrowableItemProjectile {
                      && owner instanceof ServerPlayer serverPlayer) {
                      this.ticketTimer = serverPlayer.registerAndUpdateEnderPearlTicket(this);
                  }
@@ -407,7 +407,7 @@ index d0dba5cc351903fb762e231a95f302479794185f..32aff84f3b11713882a5fe258a84fd2b
              }
          } else {
              super.tick();
-@@ -329,6 +478,7 @@ public class ThrownEnderpearl extends ThrowableItemProjectile {
+@@ -327,6 +476,7 @@ public class ThrownEnderpearl extends ThrowableItemProjectile {
      public void onRemoval(final Entity.RemovalReason reason) {
          if (reason != Entity.RemovalReason.UNLOADED_WITH_PLAYER) {
              this.deregisterFromCurrentOwner();

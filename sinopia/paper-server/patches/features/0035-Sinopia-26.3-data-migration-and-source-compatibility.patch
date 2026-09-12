@@ -1,0 +1,222 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Sat, 12 Sep 2026 22:39:55 +0200
+Subject: [PATCH] Sinopia 26.3 data migration and source compatibility
+
+Retain DataConverter through 26.2 and use vanilla DFU for newer schemas; do not run legacy walkers on 26.3 data. Adapt renamed RedstoneWireBlock references and removed imports.
+
+diff --git a/alternate/current/wire/WireNode.java b/alternate/current/wire/WireNode.java
+index 33cd90c30c22200a4e1ae64f40a0bf7864546b33..505b5e39d0b4cf2a56c1c720f0c9ab017522dc4f 100644
+--- a/alternate/current/wire/WireNode.java
++++ b/alternate/current/wire/WireNode.java
+@@ -5,7 +5,7 @@ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.util.Mth;
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.Blocks;
+-import net.minecraft.world.level.block.RedStoneWireBlock;
++import net.minecraft.world.level.block.RedstoneWireBlock;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.redstone.Redstone;
+ 
+@@ -54,7 +54,7 @@ public class WireNode extends Node {
+ 
+         this.connections = new WireConnectionManager(this);
+ 
+-        this.virtualPower = this.currentPower = this.state.getValue(RedStoneWireBlock.POWER);
++        this.virtualPower = this.currentPower = this.state.getValue(RedstoneWireBlock.POWER);
+         this.priority = priority();
+     }
+ 
+@@ -115,7 +115,7 @@ public class WireNode extends Node {
+         }
+ 
+         currentPower = LevelHelper.doRedstoneEvent(level, pos, currentPower, Mth.clamp(virtualPower, Redstone.SIGNAL_MIN, Redstone.SIGNAL_MAX));
+-        state = state.setValue(RedStoneWireBlock.POWER, currentPower);
++        state = state.setValue(RedstoneWireBlock.POWER, currentPower);
+ 
+         return LevelHelper.setWireState(level, pos, state, added);
+     }
+diff --git a/ca/spottedleaf/dataconverter/minecraft/MCDataConverter.java b/ca/spottedleaf/dataconverter/minecraft/MCDataConverter.java
+index 45da8ee6046fa5e3dfa88dd90a112b11aa60dc6c..7830fda877a53901951cfbc2ecff04cafb71eef2 100644
+--- a/ca/spottedleaf/dataconverter/minecraft/MCDataConverter.java
++++ b/ca/spottedleaf/dataconverter/minecraft/MCDataConverter.java
+@@ -3,17 +3,29 @@ package ca.spottedleaf.dataconverter.minecraft;
+ import ca.spottedleaf.converter.DataConverter;
+ import ca.spottedleaf.converter.datatypes.DataType;
+ import ca.spottedleaf.dataconverter.minecraft.datatypes.MCDataType;
++import ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry;
+ import ca.spottedleaf.dataconverter.minecraft.versions.V99;
+ import ca.spottedleaf.dataconverter.types.json.JsonMapType;
+ import ca.spottedleaf.dataconverter.types.nbt.NBTMapType;
+ import com.google.gson.JsonObject;
++import com.mojang.datafixers.DSL;
++import com.mojang.serialization.Dynamic;
++import com.mojang.serialization.JsonOps;
+ import it.unimi.dsi.fastutil.longs.LongArrayList;
+ import net.minecraft.nbt.CompoundTag;
++import net.minecraft.nbt.NbtOps;
++import net.minecraft.util.datafix.DataFixers;
++import net.minecraft.util.datafix.fixes.References;
+ 
+ public final class MCDataConverter {
+ 
+     private static final LongArrayList BREAKPOINTS = MCVersionRegistry.getBreakpoints();
+ 
++    // Sinopia - the bundled converters cover 26.2. Let vanilla perform all newer
++    // schema changes, including 26.3 block-state fields and the terrain stage merge.
++    // Never run the old walkers on data that already uses the new schema.
++    private static final int LAST_NATIVE_VERSION = MCVersions.V26_2;
++
+     public static <T> T copy(final T type) {
+         if (type instanceof CompoundTag) {
+             return (T)((CompoundTag)type).copy();
+@@ -25,6 +37,17 @@ public final class MCDataConverter {
+     }
+ 
+     public static CompoundTag convertTag(final MCDataType type, final CompoundTag data, final int fromVersion, final int toVersion) {
++        if (fromVersion >= toVersion) {
++            return data;
++        }
++        if (toVersion > LAST_NATIVE_VERSION) {
++            final DSL.TypeReference reference = vanillaType(type);
++            final boolean vanillaOnly = type == MCTypeRegistry.LEVEL || type == MCTypeRegistry.LIGHTWEIGHT_LEVEL;
++            final CompoundTag intermediate = !vanillaOnly && fromVersion < LAST_NATIVE_VERSION
++                ? convertTag(type, data, fromVersion, LAST_NATIVE_VERSION) : data;
++            return (CompoundTag)DataFixers.getDataFixer().update(reference, new Dynamic<>(NbtOps.INSTANCE, intermediate),
++                vanillaOnly ? fromVersion : Math.max(fromVersion, LAST_NATIVE_VERSION), toVersion).getValue();
++        }
+         final NBTMapType wrapped = new NBTMapType(data);
+ 
+         final NBTMapType replaced = (NBTMapType)convert(type, wrapped, fromVersion, toVersion);
+@@ -33,6 +56,18 @@ public final class MCDataConverter {
+     }
+ 
+     public static JsonObject convertJson(final MCDataType type, final JsonObject data, final boolean compressed, final int fromVersion, final int toVersion) {
++        if (fromVersion >= toVersion) {
++            return data;
++        }
++        if (toVersion > LAST_NATIVE_VERSION) {
++            final DSL.TypeReference reference = vanillaType(type);
++            final boolean vanillaOnly = type == MCTypeRegistry.LEVEL || type == MCTypeRegistry.LIGHTWEIGHT_LEVEL;
++            final JsonObject intermediate = !vanillaOnly && fromVersion < LAST_NATIVE_VERSION
++                ? convertJson(type, data, compressed, fromVersion, LAST_NATIVE_VERSION) : data;
++            return DataFixers.getDataFixer().update(reference,
++                new Dynamic<>(compressed ? JsonOps.COMPRESSED : JsonOps.INSTANCE, intermediate),
++                vanillaOnly ? fromVersion : Math.max(fromVersion, LAST_NATIVE_VERSION), toVersion).getValue().getAsJsonObject();
++        }
+         final JsonMapType wrapped = new JsonMapType(data, compressed);
+ 
+         final JsonMapType replaced = (JsonMapType)convert(type, wrapped, fromVersion, toVersion);
+@@ -82,5 +117,41 @@ public final class MCDataConverter {
+         return (R)ret;
+     }
+ 
++    private static DSL.TypeReference vanillaType(final MCDataType type) {
++        if (type == MCTypeRegistry.LEVEL) return References.LEVEL;
++        if (type == MCTypeRegistry.LIGHTWEIGHT_LEVEL) return References.LIGHTWEIGHT_LEVEL;
++        if (type == MCTypeRegistry.PLAYER) return References.PLAYER;
++        if (type == MCTypeRegistry.CHUNK) return References.CHUNK;
++        if (type == MCTypeRegistry.HOTBAR) return References.HOTBAR;
++        if (type == MCTypeRegistry.OPTIONS) return References.OPTIONS;
++        if (type == MCTypeRegistry.STRUCTURE) return References.STRUCTURE;
++        if (type == MCTypeRegistry.STATS) return References.STATS;
++        if (type == MCTypeRegistry.ADVANCEMENTS) return References.ADVANCEMENTS;
++        if (type == MCTypeRegistry.POI_CHUNK) return References.POI_CHUNK;
++        if (type == MCTypeRegistry.ENTITY_CHUNK) return References.ENTITY_CHUNK;
++        if (type == MCTypeRegistry.TILE_ENTITY) return References.BLOCK_ENTITY;
++        if (type == MCTypeRegistry.ITEM_STACK) return References.ITEM_STACK;
++        if (type == MCTypeRegistry.BLOCK_STATE) return References.BLOCK_STATE;
++        if (type == MCTypeRegistry.DATA_COMPONENTS) return References.DATA_COMPONENTS;
++        if (type == MCTypeRegistry.VILLAGER_TRADE) return References.VILLAGER_TRADE;
++        if (type == MCTypeRegistry.ENTITY) return References.ENTITY_TREE;
++        if (type == MCTypeRegistry.UNTAGGED_SPAWNER) return References.UNTAGGED_SPAWNER;
++        if (type == MCTypeRegistry.STRUCTURE_FEATURE) return References.STRUCTURE_FEATURE;
++        if (type == MCTypeRegistry.OBJECTIVE) return References.OBJECTIVE;
++        if (type == MCTypeRegistry.TEAM) return References.TEAM;
++        if (type == MCTypeRegistry.WORLD_GEN_SETTINGS) return References.WORLD_GEN_SETTINGS;
++        if (type == MCTypeRegistry.ENTITY_EQUIPMENT) return References.ENTITY_EQUIPMENT;
++        if (type == MCTypeRegistry.SAVED_DATA_RANDOM_SEQUENCES) return References.SAVED_DATA_RANDOM_SEQUENCES;
++        if (type == MCTypeRegistry.SAVED_DATA_SCOREBOARD) return References.SAVED_DATA_SCOREBOARD;
++        if (type == MCTypeRegistry.SAVED_DATA_STRUCTURE_FEATURE_INDICES) return References.SAVED_DATA_STRUCTURE_FEATURE_INDICES;
++        if (type == MCTypeRegistry.SAVED_DATA_MAP_DATA) return References.SAVED_DATA_MAP_DATA;
++        if (type == MCTypeRegistry.SAVED_DATA_RAIDS) return References.SAVED_DATA_RAIDS;
++        if (type == MCTypeRegistry.SAVED_DATA_COMMAND_STORAGE) return References.SAVED_DATA_COMMAND_STORAGE;
++        if (type == MCTypeRegistry.SAVED_DATA_MAP_INDEX) return References.SAVED_DATA_MAP_INDEX;
++        if (type == MCTypeRegistry.SAVED_DATA_TICKETS) return References.SAVED_DATA_TICKETS;
++        if (type == MCTypeRegistry.SAVED_DATA_WORLD_BORDER) return References.SAVED_DATA_WORLD_BORDER;
++        throw new IllegalArgumentException("No vanilla data-fix type for " + type.name);
++    }
++
+     private MCDataConverter() {}
+ }
+diff --git a/io/papermc/paper/redstone/RedstoneWireTurbo.java b/io/papermc/paper/redstone/RedstoneWireTurbo.java
+index 8e03419df1469c6fecfaa82fcb319a58635b39f3..f7820568b78f630e4d234d3dfb36c2167149777a 100644
+--- a/io/papermc/paper/redstone/RedstoneWireTurbo.java
++++ b/io/papermc/paper/redstone/RedstoneWireTurbo.java
+@@ -11,7 +11,7 @@ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.Items;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.block.Block;
+-import net.minecraft.world.level.block.RedStoneWireBlock;
++import net.minecraft.world.level.block.RedstoneWireBlock;
+ import net.minecraft.world.level.block.state.BlockState;
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+ 
+@@ -77,7 +77,7 @@ public final class RedstoneWireTurbo {
+      */
+ 
+     /* Reference to BlockRedstoneWire object, which uses this accelerator */
+-    private final RedStoneWireBlock wire;
++    private final RedstoneWireBlock wire;
+ 
+     /*
+      * Implementation:
+@@ -110,7 +110,7 @@ public final class RedstoneWireTurbo {
+     private List<UpdateNode> updateQueue1 = Lists.newArrayList();
+     private List<UpdateNode> updateQueue2 = Lists.newArrayList();
+ 
+-    public RedstoneWireTurbo(RedStoneWireBlock wire) {
++    public RedstoneWireTurbo(RedstoneWireBlock wire) {
+         this.wire = wire;
+     }
+ 
+@@ -822,7 +822,7 @@ public final class RedstoneWireTurbo {
+      */
+     private BlockState calculateCurrentChanges(final Level worldIn, final UpdateNode upd) {
+         BlockState state = upd.currentState;
+-        final int i = state.getValue(RedStoneWireBlock.POWER);
++        final int i = state.getValue(RedstoneWireBlock.POWER);
+         int j = 0;
+         j = getMaxCurrentStrength(upd, j);
+         int l = 0;
+@@ -899,7 +899,7 @@ public final class RedstoneWireTurbo {
+             // need to be known by some nearby non-redstone-wire block.
+             BlockPos pos = new BlockPos(upd.self.getX(), upd.self.getY(), upd.self.getZ());
+             if (wire.canSurvive(null, worldIn, pos)) {
+-                state = state.setValue(RedStoneWireBlock.POWER, Integer.valueOf(j));
++                state = state.setValue(RedstoneWireBlock.POWER, Integer.valueOf(j));
+                 // [Space Walker] suppress shape updates and emit those manually to
+                 // bypass the new neighbor update stack.
+                 if (worldIn.setBlock(upd.self, state, Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_CLIENTS))
+@@ -943,7 +943,7 @@ public final class RedstoneWireTurbo {
+      */
+     private static int getMaxCurrentStrength(final UpdateNode upd, final int strength) {
+         if (upd.type != UpdateNode.Type.REDSTONE) return strength;
+-        final int i = upd.currentState.getValue(RedStoneWireBlock.POWER);
++        final int i = upd.currentState.getValue(RedstoneWireBlock.POWER);
+         return i > strength ? i : strength;
+     }
+ }
+diff --git a/net/minecraft/server/level/ChunkMap.java b/net/minecraft/server/level/ChunkMap.java
+index a2230cc5bc21a4a017e629e8a9521d893f25dd46..f26021eaa3ff0e46a75ae7db31a525a9e1f3fa08 100644
+--- a/net/minecraft/server/level/ChunkMap.java
++++ b/net/minecraft/server/level/ChunkMap.java
+@@ -581,7 +581,7 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
+     }
+ 
+     @Override
+-    public CompletableFuture<Void> write(final ChunkPos pos, final Supplier<CompoundTag> tag) {
++    public CompletableFuture<Void> write(final ChunkPos pos, final java.util.function.Supplier<CompoundTag> tag) {
+         ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.scheduleSave(
+             this.level, pos.x(), pos.z(), tag.get(),
+             ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionFileType.CHUNK_DATA

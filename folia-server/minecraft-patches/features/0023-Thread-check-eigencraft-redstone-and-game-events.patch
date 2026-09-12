@@ -5,7 +5,7 @@ Subject: [PATCH] Thread check eigencraft redstone and game events
 
 
 diff --git a/io/papermc/paper/redstone/RedstoneWireTurbo.java b/io/papermc/paper/redstone/RedstoneWireTurbo.java
-index b3c466fd7cb6810995f95bed66a86f2b5825a8df..c78a5b8b540af7465aa3c5218cecf81f7387b81c 100644
+index c567218fd667c099836a7ad8ca305ac8e9c2c96d..4520eabef8eb5e5ae7daf53476cea7f18908db53 100644
 --- a/io/papermc/paper/redstone/RedstoneWireTurbo.java
 +++ b/io/papermc/paper/redstone/RedstoneWireTurbo.java
 @@ -622,6 +622,11 @@ public final class RedstoneWireTurbo {

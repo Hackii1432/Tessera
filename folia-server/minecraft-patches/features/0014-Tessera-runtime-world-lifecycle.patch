@@ -404,10 +404,10 @@ index 84fa22ac06f1c2533874e1677f4bbd899288c4d6..31c80047b44f0c178aed934628048049
 \ No newline at end of file
 +}
 diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
-index ed6919edcc70254edb15fce055d7cf1eb800c424..1b1fc04fc0f4ded5fee450253a5c0b1142f97295 100644
+index ed8dd1caa3e3cd289ac94f40c120e031f8099ee3..65110a19fdd43d991499f9a93545253ba4d95bab 100644
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
-@@ -942,8 +942,29 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -935,8 +935,29 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
          this.forceTicks = false; // CraftBukkit
          //level.entityManager.tick(); // SPIGOT-6526: Load pending entities so they are available to the API // Paper - rewrite chunk system
          io.papermc.paper.threadedregions.RegionizedServer.getInstance().addWorld(level); // Folia - region threading
@@ -439,7 +439,7 @@ index ed6919edcc70254edb15fce055d7cf1eb800c424..1b1fc04fc0f4ded5fee450253a5c0b11
      protected GlobalPos selectLevelLoadFocusPos() {
          return this.worldData.overworldData().getRespawnData().globalPos();
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index eae0255b59a12bcb5e50faca87ac1260558901db..9d6f81492f0bf0f2b1f4af8d360c0f06a38604d8 100644
+index 1bca593009b096728c6d01314022913d1e672815..201a5357bdaa1ea5f1052ed0df654519ddb00e16 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
 @@ -721,6 +721,57 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet

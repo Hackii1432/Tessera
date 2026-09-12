@@ -5,18 +5,18 @@ Subject: [PATCH] Resolve Tessera console command world contexts
 
 
 diff --git a/net/minecraft/commands/Commands.java b/net/minecraft/commands/Commands.java
-index db9087b31d3c14d82134cd8df0e3ed3574abeeaa..13de80fa4e50e2cd5f0dc339f7d59ab4d2cb8f0d 100644
+index a619da9dfc4af3ac91781be69604b6aeea87abaf..317608f77d122735110c0fc22b8b58b517e19d3b 100644
 --- a/net/minecraft/commands/Commands.java
 +++ b/net/minecraft/commands/Commands.java
-@@ -138,6 +138,7 @@ import net.minecraft.server.commands.WeatherCommand;
- import net.minecraft.server.commands.WhitelistCommand;
+@@ -140,6 +140,7 @@ import net.minecraft.server.commands.WhitelistCommand;
  import net.minecraft.server.commands.WorldBorderCommand;
  import net.minecraft.server.commands.data.DataCommands;
+ import net.minecraft.server.commands.item.ItemCommands;
 +import net.minecraft.server.level.ServerLevel;
  import net.minecraft.server.level.ServerPlayer;
  import net.minecraft.server.permissions.PermissionCheck;
  import net.minecraft.server.permissions.PermissionProviderCheck;
-@@ -460,7 +461,19 @@ public class Commands {
+@@ -464,7 +465,19 @@ public class Commands {
          ExecutionContext<CommandSourceStack> currentContext = CURRENT_EXECUTION_CONTEXT.get();
          boolean isTopContext = currentContext == null;
          if (isTopContext) {
@@ -38,7 +38,7 @@ index db9087b31d3c14d82134cd8df0e3ed3574abeeaa..13de80fa4e50e2cd5f0dc339f7d59ab4
              int forkLimit = gameRules.get(GameRules.MAX_COMMAND_FORKS);
  
 diff --git a/net/minecraft/server/dedicated/DedicatedServer.java b/net/minecraft/server/dedicated/DedicatedServer.java
-index cd5551c0221ad2a7b5c7d452d8d91ffc9711c3ee..1bdb0d9054ecdf1fc043b693dbee8a01ced0e32e 100644
+index f357200dd5e58d9059a0f2b17b721224637d5f63..05106be8c363a04da5311860cc4ed7d83aae7fb9 100644
 --- a/net/minecraft/server/dedicated/DedicatedServer.java
 +++ b/net/minecraft/server/dedicated/DedicatedServer.java
 @@ -574,10 +574,37 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface

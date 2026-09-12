@@ -12,6 +12,18 @@
 
 ## Overview of Tessera Features
 
+### Sinopia: the integrated server base
+
+Sinopia is Tessera's Paper-derived base, maintained in this repository under
+`sinopia/`. Build from the repository root with `./gradlew buildTessera`
+(Windows: `.\gradlew.bat buildTessera`). No separate Paper repository is needed.
+
+See [the Sinopia workflow](docs/SINOPIA-WORKFLOW.md) for patch editing, capture,
+and upstream updates. The 26.3-rc-2 port builds and passes the automated tests;
+it remains an experimental prerelease requiring in-game validation. See the
+[porting report](docs/PORTIERUNG-26.3-rc-2.md) and the
+[bed-fix follow-up](docs/CHANGELOG-26.3-001-BEDS.md).
+
 ### Runtime worlds and region-safe scoreboards
 
 - [Asynchronous runtime world lifecycle](docs/runtime-world-lifecycle.md)
@@ -267,8 +279,12 @@ even though there is no main thread anymore.
 
 
 ## License
-The PATCHES-LICENSE file describes the license for api & server patches,
-found in `./patches` and its subdirectories except when noted otherwise.
+The [PATCHES-LICENSE](PATCHES-LICENSE) describes the license for Tessera/Folia
+API and server patches under `folia-api/` and `folia-server/`, except when noted
+otherwise. The integrated Sinopia base retains Paper's
+[license overview](sinopia/LICENSE.md), [license texts](sinopia/licenses/),
+and per-file copyright and attribution notices. Its provenance and local
+modifications are documented in [sinopia/BASELINE.md](sinopia/BASELINE.md).
 
 The fork is based off of PaperMC's fork example found [here](https://github.com/PaperMC/paperweight-examples).
 As such, it contains modifications to it in this project, please see the repository for license information

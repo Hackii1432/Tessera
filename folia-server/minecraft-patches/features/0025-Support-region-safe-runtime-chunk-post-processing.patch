@@ -5,7 +5,7 @@ Subject: [PATCH] Support region-safe runtime chunk post-processing
 
 
 diff --git a/net/minecraft/world/level/chunk/LevelChunk.java b/net/minecraft/world/level/chunk/LevelChunk.java
-index 64e0c4a60a74cd33f2b99f34fa2a419abf3a0c02..8c308a236cf97c3ba26c1060c60f61b44b4bc04b 100644
+index 6d3b441de2417e7f2d8b32af285057eea7f1ff79..b4408b64cdbbad0f9b5a68c2a35acb112fea56ea 100644
 --- a/net/minecraft/world/level/chunk/LevelChunk.java
 +++ b/net/minecraft/world/level/chunk/LevelChunk.java
 @@ -11,6 +11,8 @@ import java.util.Collections;
@@ -14,10 +14,10 @@ index 64e0c4a60a74cd33f2b99f34fa2a419abf3a0c02..8c308a236cf97c3ba26c1060c60f61b4
  import java.util.Map.Entry;
 +import java.util.concurrent.TimeUnit;
 +import java.util.concurrent.atomic.AtomicLong;
- import java.util.function.Consumer;
  import java.util.function.Supplier;
  import net.minecraft.CrashReport;
-@@ -111,6 +113,12 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
+ import net.minecraft.CrashReportCategory;
+@@ -110,6 +112,12 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
      // Paper end
      // Paper start - rewrite chunk system
      private boolean postProcessingDone;
@@ -30,7 +30,7 @@ index 64e0c4a60a74cd33f2b99f34fa2a419abf3a0c02..8c308a236cf97c3ba26c1060c60f61b4
      private ca.spottedleaf.moonrise.patches.chunk_system.scheduling.NewChunkHolder chunkAndHolder;
  
      @Override
-@@ -763,34 +771,156 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
+@@ -760,34 +768,156 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
          return this.blockEntities;
      }
  

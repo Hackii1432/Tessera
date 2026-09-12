@@ -63,7 +63,7 @@ index 6b1730f00081dc7da1d849eff791940458c8c1c3..c059d196368b238c2e66a4056af41ccf
              }
              final ca.spottedleaf.leafprofiler.RegionizedProfiler.Handle profiler = io.papermc.paper.threadedregions.TickRegionScheduler.getProfiler(); // Folia - profiler
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index 7285e66137316b25fc0d6a33e5b7a9213ee8eec2..08e318740a4d70ade90056d80d0404398c2bd3ff 100644
+index 8246613c3aadacf70270d8f0a61ee1a9fcd52a61..0c8b6276d16439ba9ebd4c5dd0dfcd166aadf56d 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
 @@ -757,6 +757,16 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet

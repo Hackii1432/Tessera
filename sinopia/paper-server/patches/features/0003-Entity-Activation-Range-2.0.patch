@@ -1,0 +1,1733 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Aikar <aikar@aikar.co>
+Date: Fri, 13 May 2016 01:38:06 -0400
+Subject: [PATCH] Entity Activation Range 2.0
+
+Optimizes performance of Activation Range
+
+Adds many new configurations and a new wake up inactive system
+
+Fixes and adds new Immunities to improve gameplay behavior
+
+Adds water Mobs to activation range config and nerfs fish
+Adds flying monsters to control ghast and phantoms
+Adds villagers as separate config
+
+diff --git a/io/papermc/paper/entity/activation/ActivationRange.java b/io/papermc/paper/entity/activation/ActivationRange.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..829f7685904fd741e00403647ae76d32275c34a3
+--- /dev/null
++++ b/io/papermc/paper/entity/activation/ActivationRange.java
+@@ -0,0 +1,335 @@
++package io.papermc.paper.entity.activation;
++
++import net.minecraft.core.BlockPos;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.world.entity.Entity;
++import net.minecraft.world.entity.EntityType;
++import net.minecraft.world.entity.EntityTypes;
++import net.minecraft.world.entity.ExperienceOrb;
++import net.minecraft.world.entity.LightningBolt;
++import net.minecraft.world.entity.LivingEntity;
++import net.minecraft.world.entity.Marker;
++import net.minecraft.world.entity.Mob;
++import net.minecraft.world.entity.ai.Brain;
++import net.minecraft.world.entity.animal.Animal;
++import net.minecraft.world.entity.animal.bee.Bee;
++import net.minecraft.world.entity.animal.equine.Llama;
++import net.minecraft.world.entity.animal.sheep.Sheep;
++import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
++import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
++import net.minecraft.world.entity.boss.enderdragon.EnderDragonPart;
++import net.minecraft.world.entity.boss.wither.WitherBoss;
++import net.minecraft.world.entity.item.FallingBlockEntity;
++import net.minecraft.world.entity.item.ItemEntity;
++import net.minecraft.world.entity.item.PrimedTnt;
++import net.minecraft.world.entity.monster.Creeper;
++import net.minecraft.world.entity.monster.illager.Pillager;
++import net.minecraft.world.entity.npc.villager.Villager;
++import net.minecraft.world.entity.player.Player;
++import net.minecraft.world.entity.projectile.EyeOfEnder;
++import net.minecraft.world.entity.projectile.FireworkRocketEntity;
++import net.minecraft.world.entity.projectile.ThrowableProjectile;
++import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
++import net.minecraft.world.entity.projectile.arrow.ThrownTrident;
++import net.minecraft.world.entity.projectile.hurtingprojectile.AbstractHurtingProjectile;
++import net.minecraft.world.entity.schedule.Activity;
++import net.minecraft.world.entity.vehicle.boat.AbstractBoat;
++import net.minecraft.world.entity.vehicle.minecart.AbstractMinecart;
++import net.minecraft.world.level.Level;
++import net.minecraft.world.phys.AABB;
++import org.spigotmc.SpigotWorldConfig;
++import java.util.List;
++import java.util.Set;
++
++public final class ActivationRange {
++
++    private ActivationRange() {
++    }
++
++    static Activity[] VILLAGER_PANIC_IMMUNITIES = {
++        Activity.HIDE,
++        Activity.PRE_RAID,
++        Activity.RAID,
++        Activity.PANIC
++    };
++
++    private static int checkInactiveWakeup(final Entity entity) {
++        final Level world = entity.level();
++        final SpigotWorldConfig config = world.spigotConfig;
++        final long inactiveFor = MinecraftServer.currentTick - entity.activatedTick;
++        if (entity.activationType == ActivationType.VILLAGER) {
++            if (inactiveFor > config.wakeUpInactiveVillagersEvery && world.wakeupInactiveRemainingVillagers > 0) {
++                world.wakeupInactiveRemainingVillagers--;
++                return config.wakeUpInactiveVillagersFor;
++            }
++        } else if (entity.activationType == ActivationType.ANIMAL) {
++            if (inactiveFor > config.wakeUpInactiveAnimalsEvery && world.wakeupInactiveRemainingAnimals > 0) {
++                world.wakeupInactiveRemainingAnimals--;
++                return config.wakeUpInactiveAnimalsFor;
++            }
++        } else if (entity.activationType == ActivationType.FLYING_MONSTER) {
++            if (inactiveFor > config.wakeUpInactiveFlyingEvery && world.wakeupInactiveRemainingFlying > 0) {
++                world.wakeupInactiveRemainingFlying--;
++                return config.wakeUpInactiveFlyingFor;
++            }
++        } else if (entity.activationType == ActivationType.MONSTER || entity.activationType == ActivationType.RAIDER) {
++            if (inactiveFor > config.wakeUpInactiveMonstersEvery && world.wakeupInactiveRemainingMonsters > 0) {
++                world.wakeupInactiveRemainingMonsters--;
++                return config.wakeUpInactiveMonstersFor;
++            }
++        }
++        return -1;
++    }
++
++    static AABB maxBB = new AABB(0, 0, 0, 0, 0, 0);
++
++    /**
++     * These entities are excluded from Activation range checks.
++     *
++     * @param entity
++     * @param config
++     * @return boolean If it should always tick.
++     */
++    public static boolean initializeEntityActivationState(final Entity entity, final SpigotWorldConfig config) {
++        return (entity.activationType == ActivationType.MISC && config.miscActivationRange <= 0)
++            || (entity.activationType == ActivationType.RAIDER && config.raiderActivationRange <= 0)
++            || (entity.activationType == ActivationType.ANIMAL && config.animalActivationRange <= 0)
++            || (entity.activationType == ActivationType.MONSTER && config.monsterActivationRange <= 0)
++            || (entity.activationType == ActivationType.VILLAGER && config.villagerActivationRange <= 0)
++            || (entity.activationType == ActivationType.WATER && config.waterActivationRange <= 0)
++            || (entity.activationType == ActivationType.FLYING_MONSTER && config.flyingMonsterActivationRange <= 0)
++            || entity instanceof EyeOfEnder
++            || entity instanceof Player
++            || entity instanceof ThrowableProjectile
++            || entity instanceof EnderDragon
++            || entity instanceof EnderDragonPart
++            || entity instanceof WitherBoss
++            || entity instanceof AbstractHurtingProjectile
++            || entity instanceof LightningBolt
++            || entity instanceof PrimedTnt
++            || entity instanceof FallingBlockEntity
++            || entity instanceof AbstractMinecart
++            || entity instanceof AbstractBoat
++            || entity instanceof EndCrystal
++            || entity instanceof FireworkRocketEntity
++            || entity instanceof ThrownTrident;
++    }
++
++    /**
++     * Find what entities are in range of the players in the world and set
++     * active if in range.
++     *
++     * @param world
++     */
++    public static void activateEntities(final Level world) {
++        final int miscActivationRange = world.spigotConfig.miscActivationRange;
++        final int raiderActivationRange = world.spigotConfig.raiderActivationRange;
++        final int animalActivationRange = world.spigotConfig.animalActivationRange;
++        final int monsterActivationRange = world.spigotConfig.monsterActivationRange;
++        final int waterActivationRange = world.spigotConfig.waterActivationRange;
++        final int flyingActivationRange = world.spigotConfig.flyingMonsterActivationRange;
++        final int villagerActivationRange = world.spigotConfig.villagerActivationRange;
++        world.wakeupInactiveRemainingAnimals = Math.min(world.wakeupInactiveRemainingAnimals + 1, world.spigotConfig.wakeUpInactiveAnimals);
++        world.wakeupInactiveRemainingVillagers = Math.min(world.wakeupInactiveRemainingVillagers + 1, world.spigotConfig.wakeUpInactiveVillagers);
++        world.wakeupInactiveRemainingMonsters = Math.min(world.wakeupInactiveRemainingMonsters + 1, world.spigotConfig.wakeUpInactiveMonsters);
++        world.wakeupInactiveRemainingFlying = Math.min(world.wakeupInactiveRemainingFlying + 1, world.spigotConfig.wakeUpInactiveFlying);
++
++        int maxRange = Math.max(monsterActivationRange, animalActivationRange);
++        maxRange = Math.max(maxRange, raiderActivationRange);
++        maxRange = Math.max(maxRange, miscActivationRange);
++        maxRange = Math.max(maxRange, flyingActivationRange);
++        maxRange = Math.max(maxRange, waterActivationRange);
++        maxRange = Math.max(maxRange, villagerActivationRange);
++        maxRange = Math.min((world.spigotConfig.simulationDistance << 4) - 8, maxRange);
++
++        for (final Player player : world.players()) {
++            player.activatedTick = MinecraftServer.currentTick;
++            if (world.spigotConfig.ignoreSpectatorActivation && player.isSpectator()) {
++                continue;
++            }
++
++            final int worldHeight = world.getHeight();
++            ActivationRange.maxBB = player.getBoundingBox().inflate(maxRange, worldHeight, maxRange);
++            ActivationType.MISC.boundingBox = player.getBoundingBox().inflate(miscActivationRange, worldHeight, miscActivationRange);
++            ActivationType.RAIDER.boundingBox = player.getBoundingBox().inflate(raiderActivationRange, worldHeight, raiderActivationRange);
++            ActivationType.ANIMAL.boundingBox = player.getBoundingBox().inflate(animalActivationRange, worldHeight, animalActivationRange);
++            ActivationType.MONSTER.boundingBox = player.getBoundingBox().inflate(monsterActivationRange, worldHeight, monsterActivationRange);
++            ActivationType.WATER.boundingBox = player.getBoundingBox().inflate(waterActivationRange, worldHeight, waterActivationRange);
++            ActivationType.FLYING_MONSTER.boundingBox = player.getBoundingBox().inflate(flyingActivationRange, worldHeight, flyingActivationRange);
++            ActivationType.VILLAGER.boundingBox = player.getBoundingBox().inflate(villagerActivationRange, worldHeight, villagerActivationRange);
++
++            final List<Entity> entities = world.getEntities((Entity) null, ActivationRange.maxBB, e -> true);
++            final boolean tickMarkers = world.paperConfig().entities.markers.tick;
++            for (final Entity entity : entities) {
++                if (!tickMarkers && entity instanceof Marker) {
++                    continue;
++                }
++
++                ActivationRange.activateEntity(entity);
++            }
++        }
++    }
++
++    /**
++     * Tries to activate an entity.
++     *
++     * @param entity
++     */
++    private static void activateEntity(final Entity entity) {
++        if (MinecraftServer.currentTick > entity.activatedTick) {
++            if (entity.defaultActivationState) {
++                entity.activatedTick = MinecraftServer.currentTick;
++                return;
++            }
++            if (entity.activationType.boundingBox.intersects(entity.getBoundingBox())) {
++                entity.activatedTick = MinecraftServer.currentTick;
++            }
++        }
++    }
++
++    /**
++     * If an entity is not in range, do some more checks to see if we should
++     * give it a shot.
++     *
++     * @param entity
++     * @return
++     */
++    public static int checkEntityImmunities(final Entity entity) { // return # of ticks to get immunity
++        final SpigotWorldConfig config = entity.level().spigotConfig;
++        final int inactiveWakeUpImmunity = checkInactiveWakeup(entity);
++        if (inactiveWakeUpImmunity > -1) {
++            return inactiveWakeUpImmunity;
++        }
++        if (entity.getRemainingFireTicks() > 0) {
++            return 2;
++        }
++        if (entity.activatedImmunityTick >= MinecraftServer.currentTick) {
++            return 1;
++        }
++        final long inactiveFor = MinecraftServer.currentTick - entity.activatedTick;
++        if ((entity.activationType != ActivationType.WATER && entity.isInWater() && entity.isPushedByFluid())) {
++            return 100;
++        }
++        if (!entity.onGround() || entity.getDeltaMovement().horizontalDistanceSqr() > 9.999999747378752E-6D) {
++            return 100;
++        }
++        if (!(entity instanceof final AbstractArrow arrow)) {
++            if ((!entity.onGround() && !isEntityThatFlies(entity))) {
++                return 10;
++            }
++        } else if (!arrow.isInGround()) {
++            return 1;
++        }
++        // special cases.
++        if (entity instanceof final LivingEntity living) {
++            if (living.blockPosition().equals(living.getLastClimbablePos().orElse(null)) || living.isJumping() || living.hurtTime > 0 || !living.getActiveEffectsMap().isEmpty() || living.isFreezing()) {
++                return 1;
++            }
++            if (entity instanceof final Mob mob && mob.getTarget() != null) {
++                return 20;
++            }
++            if (entity instanceof final Bee bee) {
++                final BlockPos movingTarget = bee.getMovingTarget();
++                if (bee.isAngry() ||
++                    (bee.getHivePos() != null && bee.getHivePos().equals(movingTarget)) ||
++                    (bee.getSavedFlowerPos() != null && bee.getSavedFlowerPos().equals(movingTarget))
++                ) {
++                    return 20;
++                }
++            }
++            if (entity instanceof final Villager villager) {
++                final Brain<Villager> behaviorController = villager.getBrain();
++
++                if (config.villagersActiveForPanic) {
++                    for (final Activity activity : VILLAGER_PANIC_IMMUNITIES) {
++                        if (behaviorController.isActive(activity)) {
++                            return 20 * 5;
++                        }
++                    }
++                }
++
++                if (config.villagersWorkImmunityAfter > 0 && inactiveFor >= config.villagersWorkImmunityAfter) {
++                    if (behaviorController.isActive(Activity.WORK)) {
++                        return config.villagersWorkImmunityFor;
++                    }
++                }
++            }
++            if (entity instanceof final Llama llama && llama.inCaravan()) {
++                return 1;
++            }
++            if (entity instanceof final Animal animal) {
++                if (animal.isBaby() || animal.isInLove()) {
++                    return 5;
++                }
++                if (entity instanceof final Sheep sheep && sheep.isSheared()) {
++                    return 1;
++                }
++            }
++            if (entity instanceof final Creeper creeper && creeper.isIgnited()) { // isExplosive
++                return 20;
++            }
++            if (entity instanceof final Mob mob && mob.targetSelector.hasTasks()) {
++                return 0;
++            }
++            if (entity instanceof final Pillager pillager) {
++                // TODO:?
++            }
++        }
++        // SPIGOT-6644: Otherwise the target refresh tick will be missed
++        if (entity instanceof ExperienceOrb) {
++            return 20;
++        }
++        return -1;
++    }
++
++    /**
++     * Checks if the entity is active for this tick.
++     *
++     * @param entity
++     * @return
++     */
++    public static boolean checkIfActive(final Entity entity) {
++        // Never safe to skip fireworks or item gravity
++        if (entity instanceof FireworkRocketEntity || (entity instanceof ItemEntity && (entity.tickCount + entity.getId()) % 4 == 0)) { // Needed for item gravity, see ItemEntity tick
++            return true;
++        }
++        // special case always immunities
++        // immunize brand-new entities, dead entities, and portal scenarios
++        if (entity.defaultActivationState || entity.tickCount < 20 * 10 || !entity.isAlive() || (entity.portalProcess != null && !entity.portalProcess.hasExpired()) || entity.getPortalCooldown() > 0) {
++            return true;
++        }
++        // immunize leashed entities
++        if (entity instanceof final Mob mob && mob.getLeashHolder() instanceof Player) {
++            return true;
++        }
++
++        boolean isActive = entity.activatedTick >= MinecraftServer.currentTick;
++        entity.isTemporarilyActive = false;
++
++        // Should this entity tick?
++        if (!isActive) {
++            if ((MinecraftServer.currentTick - entity.activatedTick - 1) % 20 == 0) {
++                // Check immunities every 20 ticks.
++                final int immunity = checkEntityImmunities(entity);
++                if (immunity >= 0) {
++                    entity.activatedTick = MinecraftServer.currentTick + immunity;
++                } else {
++                    entity.isTemporarilyActive = true;
++                }
++                isActive = true;
++            }
++        }
++        // removed the original's dumb tick skipping for active entities
++        return isActive;
++    }
++
++    private static Set<EntityType<?>> ENTITIES_THAT_FLY = Set.of(
++        EntityTypes.GHAST,
++        EntityTypes.HAPPY_GHAST,
++        EntityTypes.PHANTOM
++    );
++
++    private static boolean isEntityThatFlies(final Entity entity) {
++        return ENTITIES_THAT_FLY.contains(entity.getType());
++    }
++}
+diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
+index ec7cb2668ec8fe437a5528ae509e385c72ffaba6..9eed4954c5604043660f55b4a146b46f43f9d34c 100644
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -885,6 +885,7 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+                 profiler.pop();
+             }
+ 
++            io.papermc.paper.entity.activation.ActivationRange.activateEntities(this); // Paper - EAR
+             this.entityTickList
+                 .forEach(
+                     entity -> {
+@@ -1402,12 +1403,15 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+         profiler.push(entity.typeHolder()::getRegisteredName);
+         profiler.incrementCounter("tickNonPassenger");
+         entity.commonTick();
++        final boolean isActive = io.papermc.paper.entity.activation.ActivationRange.checkIfActive(entity); // Paper - EAR 2
++        if (isActive) { // Paper - EAR 2
+         entity.tick();
+         entity.postTick(); // CraftBukkit
++        } else { entity.inactiveTick(); } // Paper - EAR 2; commonTick already advanced 26.3 counters
+         profiler.pop();
+ 
+         for (Entity passenger : entity.getPassengers()) {
+-            this.tickPassenger(entity, passenger);
++            this.tickPassenger(entity, passenger, isActive); // Paper - EAR 2
+         }
+         // Paper start - log detailed entity tick information
+         } finally {
+@@ -1418,7 +1422,7 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+         // Paper end - log detailed entity tick information
+     }
+ 
+-    private void tickPassenger(final Entity vehicle, final Entity entity) {
++    private void tickPassenger(final Entity vehicle, final Entity entity, final boolean isActive) { // Paper - EAR 2
+         if (entity.isRemoved() || entity.getVehicle() != vehicle) {
+             entity.stopRiding();
+         } else if (entity instanceof Player || this.entityTickList.contains(entity)) {
+@@ -1426,12 +1430,20 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+             profiler.push(entity.typeHolder()::getRegisteredName);
+             profiler.incrementCounter("tickPassenger");
+             entity.commonTick();
++            // Paper start - EAR 2
++            if (isActive) {
+             entity.rideTick();
+             entity.postTick(); // CraftBukkit
++            } else {
++                entity.setDeltaMovement(Vec3.ZERO);
++                entity.inactiveTick();
++                vehicle.positionRider(entity);
++            }
++            // Paper end - EAR 2
+             profiler.pop();
+ 
+             for (Entity passenger : entity.getPassengers()) {
+-                this.tickPassenger(entity, passenger);
++                this.tickPassenger(entity, passenger, isActive); // Paper - EAR 2
+             }
+         }
+     }
+diff --git a/net/minecraft/world/entity/AgeableMob.java b/net/minecraft/world/entity/AgeableMob.java
+index 340c95dd91be73a2101feeb93f7f455bf60f32a0..6541fe108f60d2c55a47f0bb5ba3b17f270cd5fa 100644
+--- a/net/minecraft/world/entity/AgeableMob.java
++++ b/net/minecraft/world/entity/AgeableMob.java
+@@ -197,6 +197,21 @@ public abstract class AgeableMob extends PathfinderMob {
+         super.onSyncedDataUpdated(accessor);
+     }
+ 
++    // Paper start - EAR 2
++    @Override
++    public void inactiveTick() {
++        super.inactiveTick();
++        if (this.isAlive()) {
++            int age = this.getAge();
++            if (this.canAgeUp()) {
++                this.setAge(++age);
++            } else if (age > 0) {
++                this.setAge(--age);
++            }
++        }
++    }
++    // Paper end - EAR 2
++
+     @Override
+     public void aiStep() {
+         super.aiStep();
+diff --git a/net/minecraft/world/entity/AreaEffectCloud.java b/net/minecraft/world/entity/AreaEffectCloud.java
+index 3cc8da512c5f901b2ee2bd75a7c9a6d3f13dcb41..05023b8827d9d603deec3021ab5b9fb4afb1b54d 100644
+--- a/net/minecraft/world/entity/AreaEffectCloud.java
++++ b/net/minecraft/world/entity/AreaEffectCloud.java
+@@ -140,6 +140,16 @@ public class AreaEffectCloud extends Entity implements TraceableEntity {
+         this.duration = duration;
+     }
+ 
++    // Paper start - EAR 2
++    @Override
++    public void inactiveTick() {
++        super.inactiveTick();
++        if (this.duration != INFINITE_DURATION && this.tickCount - this.waitTime >= this.duration) {
++            this.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.DESPAWN); // CraftBukkit - add Bukkit remove cause
++        }
++    }
++    // Paper end - EAR 2
++
+     @Override
+     public void tick() {
+         super.tick();
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index c170088d17c18991be3972ec0323d0bb7b11bfcc..b283efa402faf851361295cdec453e78a821b770 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -388,6 +388,15 @@ public abstract class Entity
+     private final int despawnTime; // Paper - entity despawn time limit
+     public int totalEntityAge; // Paper - age-like counter for all entities
+     public final io.papermc.paper.entity.activation.ActivationType activationType = io.papermc.paper.entity.activation.ActivationType.activationTypeFor(this); // Paper - EAR 2/tracking ranges
++    // Paper start - EAR 2
++    public final boolean defaultActivationState;
++    public long activatedTick = Integer.MIN_VALUE;
++    public boolean isTemporarilyActive;
++    public long activatedImmunityTick = Integer.MIN_VALUE;
++
++    public void inactiveTick() {
++    }
++    // Paper end - EAR 2
+     // CraftBukkit end
+ 
+     // Paper start
+@@ -554,6 +563,13 @@ public abstract class Entity
+         this.position = Vec3.ZERO;
+         this.blockPosition = BlockPos.ZERO;
+         this.chunkPosition = ChunkPos.ZERO;
++        // Paper start - EAR 2
++        if (level != null) {
++            this.defaultActivationState = io.papermc.paper.entity.activation.ActivationRange.initializeEntityActivationState(this, level.spigotConfig);
++        } else {
++            this.defaultActivationState = false;
++        }
++        // Paper end - EAR 2
+         SynchedEntityData.Builder entityDataBuilder = new SynchedEntityData.Builder(this);
+         entityDataBuilder.define(DATA_SHARED_FLAGS_ID, (byte)0);
+         entityDataBuilder.define(DATA_AIR_SUPPLY_ID, this.getMaxAirSupply());
+@@ -1168,6 +1184,10 @@ public abstract class Entity
+         } else {
+             if (moverType == MoverType.PISTON) {
+                 delta = this.limitPistonMovement(delta);
++                // Paper start - EAR 2
++                this.activatedTick = Math.max(this.activatedTick, net.minecraft.server.MinecraftServer.currentTick + 20);
++                this.activatedImmunityTick = Math.max(this.activatedImmunityTick, net.minecraft.server.MinecraftServer.currentTick + 20);
++                // Paper end - EAR 2
+                 if (delta.equals(Vec3.ZERO)) {
+                     return;
+                 }
+@@ -1183,6 +1203,13 @@ public abstract class Entity
+                 this.stuckSpeedMultiplier = Vec3.ZERO;
+                 this.setDeltaMovement(Vec3.ZERO);
+             }
++            // Paper start - ignore movement changes while inactive.
++            if (isTemporarilyActive && !(this instanceof ItemEntity) && delta == getDeltaMovement() && moverType == MoverType.SELF) {
++                setDeltaMovement(Vec3.ZERO);
++                profiler.pop();
++                return;
++            }
++            // Paper end
+ 
+             delta = this.maybeBackOffFromEdge(delta, moverType);
+             Vec3 movement = this.collide(delta);
+diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
+index bd4620b289afbf8c883093a4ed51b4944543d17a..8bcdafee9133137ee8c335ce62c9b799d743872e 100644
+--- a/net/minecraft/world/entity/LivingEntity.java
++++ b/net/minecraft/world/entity/LivingEntity.java
+@@ -3381,6 +3381,14 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+     protected void playAttackSound() {
+     }
+ 
++    // Paper start - EAR 2
++    @Override
++    public void inactiveTick() {
++        super.inactiveTick();
++        ++this.noActionTime; // Above all the floats
++    }
++    // Paper end - EAR 2
++
+     @Override
+     public void tick() {
+         super.tick();
+diff --git a/net/minecraft/world/entity/Mob.java b/net/minecraft/world/entity/Mob.java
+index c8d7aca95500306e73d28267cfb72d01329e197f..98ae2e45e9967e1151241432990074447108ada7 100644
+--- a/net/minecraft/world/entity/Mob.java
++++ b/net/minecraft/world/entity/Mob.java
+@@ -216,6 +216,20 @@ public abstract class Mob extends LivingEntity implements Targeting, EquipmentUs
+         return this.lookControl;
+     }
+ 
++    // Paper start
++    @Override
++    public void inactiveTick() {
++        super.inactiveTick();
++        if (!this.aware) return; // Paper - Do not tick AI for inactive unaware mobs
++        if (this.goalSelector.inactiveTick()) {
++            this.goalSelector.tick();
++        }
++        if (this.targetSelector.inactiveTick()) {
++            this.targetSelector.tick();
++        }
++    }
++    // Paper end
++
+     public MoveControl getMoveControl() {
+         return this.getControlledVehicle() instanceof Mob riding ? riding.getMoveControl() : this.moveControl;
+     }
+diff --git a/net/minecraft/world/entity/PathfinderMob.java b/net/minecraft/world/entity/PathfinderMob.java
+index a19d8d4c0075340e8d187d5f8b6ce989567d3163..7cf869edd927854a52faf0d2b9c3e73aab83be89 100644
+--- a/net/minecraft/world/entity/PathfinderMob.java
++++ b/net/minecraft/world/entity/PathfinderMob.java
+@@ -1,78 +1,80 @@
+-package net.minecraft.world.entity;
++package net.minecraft.world.entity;
++
++import net.minecraft.core.BlockPos;
++import net.minecraft.world.entity.ai.goal.Goal;
++import net.minecraft.world.entity.ai.goal.PanicGoal;
++import net.minecraft.world.entity.ai.goal.WrappedGoal;
++import net.minecraft.world.entity.ai.memory.MemoryModuleType;
++import net.minecraft.world.level.Level;
++import net.minecraft.world.level.LevelAccessor;
++import net.minecraft.world.level.LevelReader;
++import net.minecraft.world.phys.Vec3;
++
++public abstract class PathfinderMob extends Mob {
++    protected static final float DEFAULT_WALK_TARGET_VALUE = 0.0F;
++
++    protected PathfinderMob(final EntityType<? extends PathfinderMob> type, final Level level) {
++        super(type, level);
++    }
++
++    public BlockPos movingTarget; public BlockPos getMovingTarget() { return movingTarget; } // Paper
+ 
+-import net.minecraft.core.BlockPos;
+-import net.minecraft.world.entity.ai.goal.Goal;
+-import net.minecraft.world.entity.ai.goal.PanicGoal;
+-import net.minecraft.world.entity.ai.goal.WrappedGoal;
+-import net.minecraft.world.entity.ai.memory.MemoryModuleType;
+-import net.minecraft.world.level.Level;
+-import net.minecraft.world.level.LevelAccessor;
+-import net.minecraft.world.level.LevelReader;
+-import net.minecraft.world.phys.Vec3;
+-
+-public abstract class PathfinderMob extends Mob {
+-    protected static final float DEFAULT_WALK_TARGET_VALUE = 0.0F;
+-
+-    protected PathfinderMob(final EntityType<? extends PathfinderMob> type, final Level level) {
+-        super(type, level);
+-    }
+-
+-    public float getWalkTargetValue(final BlockPos pos) {
+-        return this.getWalkTargetValue(pos, this.level());
+-    }
+-
+-    public float getWalkTargetValue(final BlockPos pos, final LevelReader level) {
+-        return 0.0F;
+-    }
+-
+-    @Override
+-    public boolean checkSpawnRules(final LevelAccessor level, final EntitySpawnReason spawnReason) {
+-        return this.getWalkTargetValue(this.blockPosition(), level) >= 0.0F;
+-    }
+-
+-    public boolean isPathFinding() {
+-        return !this.getNavigation().isDone();
+-    }
+-
+-    public boolean isPanicking() {
+-        if (!this.brain.isBrainDead() && this.brain.hasMemoryValue(MemoryModuleType.IS_PANICKING)) {
+-            return this.brain.getMemory(MemoryModuleType.IS_PANICKING).isPresent();
+-        }
+-
+-        for (WrappedGoal wrappedGoal : this.goalSelector.getAvailableGoals()) {
+-            if (wrappedGoal.isRunning() && wrappedGoal.getGoal() instanceof PanicGoal) {
+-                return true;
+-            }
+-        }
+-
+-        return false;
+-    }
+-
+-    protected boolean shouldStayCloseToLeashHolder() {
+-        return true;
+-    }
+-
+-    @Override
+-    public void closeRangeLeashBehaviour(final Entity leashHolder) {
+-        super.closeRangeLeashBehaviour(leashHolder);
+-        if (this.shouldStayCloseToLeashHolder() && !this.isPanicking()) {
+-            this.goalSelector.enableControlFlag(Goal.Flag.MOVE);
+-            float wantedDistance = 2.0F;
+-            float distanceTo = this.distanceTo(leashHolder);
+-            Vec3 delta = new Vec3(leashHolder.getX() - this.getX(), leashHolder.getY() - this.getY(), leashHolder.getZ() - this.getZ())
+-                .normalize()
+-                .scale(Math.max(distanceTo - 2.0F, 0.0F));
+-            this.getNavigation().moveTo(this.getX() + delta.x, this.getY() + delta.y, this.getZ() + delta.z, this.followLeashSpeed());
+-        }
+-    }
+-
+-    @Override
+-    public void whenLeashedTo(final Entity leashHolder) {
+-        this.setHomeTo(leashHolder.blockPosition(), (int)this.leashElasticDistance() - 1);
+-        super.whenLeashedTo(leashHolder);
+-    }
+-
+-    protected double followLeashSpeed() {
+-        return 1.0;
+-    }
+-}
++    public float getWalkTargetValue(final BlockPos pos) {
++        return this.getWalkTargetValue(pos, this.level());
++    }
++
++    public float getWalkTargetValue(final BlockPos pos, final LevelReader level) {
++        return 0.0F;
++    }
++
++    @Override
++    public boolean checkSpawnRules(final LevelAccessor level, final EntitySpawnReason spawnReason) {
++        return this.getWalkTargetValue(this.blockPosition(), level) >= 0.0F;
++    }
++
++    public boolean isPathFinding() {
++        return !this.getNavigation().isDone();
++    }
++
++    public boolean isPanicking() {
++        if (!this.brain.isBrainDead() && this.brain.hasMemoryValue(MemoryModuleType.IS_PANICKING)) {
++            return this.brain.getMemory(MemoryModuleType.IS_PANICKING).isPresent();
++        }
++
++        for (WrappedGoal wrappedGoal : this.goalSelector.getAvailableGoals()) {
++            if (wrappedGoal.isRunning() && wrappedGoal.getGoal() instanceof PanicGoal) {
++                return true;
++            }
++        }
++
++        return false;
++    }
++
++    protected boolean shouldStayCloseToLeashHolder() {
++        return true;
++    }
++
++    @Override
++    public void closeRangeLeashBehaviour(final Entity leashHolder) {
++        super.closeRangeLeashBehaviour(leashHolder);
++        if (this.shouldStayCloseToLeashHolder() && !this.isPanicking()) {
++            this.goalSelector.enableControlFlag(Goal.Flag.MOVE);
++            float wantedDistance = 2.0F;
++            float distanceTo = this.distanceTo(leashHolder);
++            Vec3 delta = new Vec3(leashHolder.getX() - this.getX(), leashHolder.getY() - this.getY(), leashHolder.getZ() - this.getZ())
++                .normalize()
++                .scale(Math.max(distanceTo - 2.0F, 0.0F));
++            this.getNavigation().moveTo(this.getX() + delta.x, this.getY() + delta.y, this.getZ() + delta.z, this.followLeashSpeed());
++        }
++    }
++
++    @Override
++    public void whenLeashedTo(final Entity leashHolder) {
++        this.setHomeTo(leashHolder.blockPosition(), (int)this.leashElasticDistance() - 1);
++        super.whenLeashedTo(leashHolder);
++    }
++
++    protected double followLeashSpeed() {
++        return 1.0;
++    }
++}
+diff --git a/net/minecraft/world/entity/ai/goal/GoalSelector.java b/net/minecraft/world/entity/ai/goal/GoalSelector.java
+index 706a7ce383afef9d80197afafcb6e6dab138ae29..0275c6570315bca06369adfa00fb5fdce01d8f0d 100644
+--- a/net/minecraft/world/entity/ai/goal/GoalSelector.java
++++ b/net/minecraft/world/entity/ai/goal/GoalSelector.java
+@@ -1,128 +1,145 @@
+-package net.minecraft.world.entity.ai.goal;
+-
+-import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
+-import java.util.EnumMap;
+-import java.util.EnumSet;
+-import java.util.Map;
+-import java.util.Set;
+-import java.util.function.Predicate;
+-import net.minecraft.util.profiling.Profiler;
+-import net.minecraft.util.profiling.ProfilerFiller;
+-
+-public class GoalSelector {
+-    private static final WrappedGoal NO_GOAL = new WrappedGoal(Integer.MAX_VALUE, new Goal() {
+-        @Override
+-        public boolean canUse() {
+-            return false;
+-        }
+-    }) {
+-        @Override
+-        public boolean isRunning() {
+-            return false;
+-        }
+-    };
+-    private final Map<Goal.Flag, WrappedGoal> lockedFlags = new EnumMap<>(Goal.Flag.class);
+-    private final Set<WrappedGoal> availableGoals = new ObjectLinkedOpenHashSet<>();
+-    private final EnumSet<Goal.Flag> disabledFlags = EnumSet.noneOf(Goal.Flag.class);
+-
+-    public void addGoal(final int prio, final Goal goal) {
+-        this.availableGoals.add(new WrappedGoal(prio, goal));
+-    }
+-
+-    public void removeAllGoals(final Predicate<Goal> predicate) {
+-        for (WrappedGoal availableGoal : this.availableGoals) {
+-            if (predicate.test(availableGoal.getGoal()) && availableGoal.isRunning()) {
+-                availableGoal.stop();
+-            }
+-        }
+-
+-        this.availableGoals.removeIf(goal -> predicate.test(goal.getGoal()));
+-    }
+-
+-    public void removeGoal(final Goal toRemove) {
+-        this.removeAllGoals(goal -> goal == toRemove);
++package net.minecraft.world.entity.ai.goal;
++
++import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
++import java.util.EnumMap;
++import java.util.EnumSet;
++import java.util.Map;
++import java.util.Set;
++import java.util.function.Predicate;
++import net.minecraft.util.profiling.Profiler;
++import net.minecraft.util.profiling.ProfilerFiller;
++
++public class GoalSelector {
++    private static final WrappedGoal NO_GOAL = new WrappedGoal(Integer.MAX_VALUE, new Goal() {
++        @Override
++        public boolean canUse() {
++            return false;
++        }
++    }) {
++        @Override
++        public boolean isRunning() {
++            return false;
++        }
++    };
++    private final Map<Goal.Flag, WrappedGoal> lockedFlags = new EnumMap<>(Goal.Flag.class);
++    private final Set<WrappedGoal> availableGoals = new ObjectLinkedOpenHashSet<>();
++    private final EnumSet<Goal.Flag> disabledFlags = EnumSet.noneOf(Goal.Flag.class);
++    private int curRate; // Paper - EAR 2
++
++    public void addGoal(final int prio, final Goal goal) {
++        this.availableGoals.add(new WrappedGoal(prio, goal));
++    }
++
++    public void removeAllGoals(final Predicate<Goal> predicate) {
++        for (WrappedGoal availableGoal : this.availableGoals) {
++            if (predicate.test(availableGoal.getGoal()) && availableGoal.isRunning()) {
++                availableGoal.stop();
++            }
++        }
++
++        this.availableGoals.removeIf(goal -> predicate.test(goal.getGoal()));
++    }
++
++    // Paper start - EAR 2
++    public boolean inactiveTick() {
++        this.curRate++;
++        return this.curRate % 3 == 0; // TODO newGoalRate was already unused in 1.20.4, check if this is correct
+     }
+ 
+-    private static boolean goalContainsAnyFlags(final WrappedGoal goal, final EnumSet<Goal.Flag> disabledFlags) {
+-        for (Goal.Flag flag : goal.getFlags()) {
+-            if (disabledFlags.contains(flag)) {
++    public boolean hasTasks() {
++        for (final WrappedGoal task : this.availableGoals) {
++            if (task.isRunning()) {
+                 return true;
+             }
+         }
+-
+         return false;
+     }
+-
+-    private static boolean goalCanBeReplacedForAllFlags(final WrappedGoal goal, final Map<Goal.Flag, WrappedGoal> lockedFlags) {
+-        for (Goal.Flag flag : goal.getFlags()) {
+-            if (!lockedFlags.getOrDefault(flag, NO_GOAL).canBeReplacedBy(goal)) {
+-                return false;
+-            }
+-        }
+-
+-        return true;
+-    }
+-
+-    public void tick() {
+-        ProfilerFiller profiler = Profiler.get();
+-        profiler.push("goalCleanup");
+-
+-        for (WrappedGoal goal : this.availableGoals) {
+-            if (goal.isRunning() && (goalContainsAnyFlags(goal, this.disabledFlags) || !goal.canContinueToUse())) {
+-                goal.stop();
+-            }
+-        }
+-
+-        this.lockedFlags.entrySet().removeIf(entry -> !entry.getValue().isRunning());
+-        profiler.pop();
+-        profiler.push("goalUpdate");
+-
+-        for (WrappedGoal goal : this.availableGoals) {
+-            if (!goal.isRunning() && !goalContainsAnyFlags(goal, this.disabledFlags) && goalCanBeReplacedForAllFlags(goal, this.lockedFlags) && goal.canUse()) {
+-                for (Goal.Flag flag : goal.getFlags()) {
+-                    WrappedGoal currentGoal = this.lockedFlags.getOrDefault(flag, NO_GOAL);
+-                    currentGoal.stop();
+-                    this.lockedFlags.put(flag, goal);
+-                }
+-
+-                goal.start();
+-            }
+-        }
+-
+-        profiler.pop();
+-        this.tickRunningGoals(true);
+-    }
+-
+-    public void tickRunningGoals(final boolean forceTickAllRunningGoals) {
+-        ProfilerFiller profiler = Profiler.get();
+-        profiler.push("goalTick");
+-
+-        for (WrappedGoal goal : this.availableGoals) {
+-            if (goal.isRunning() && (forceTickAllRunningGoals || goal.requiresUpdateEveryTick())) {
+-                goal.tick();
+-            }
+-        }
+-
+-        profiler.pop();
+-    }
+-
+-    public Set<WrappedGoal> getAvailableGoals() {
+-        return this.availableGoals;
+-    }
+-
+-    public void disableControlFlag(final Goal.Flag flag) {
+-        this.disabledFlags.add(flag);
+-    }
+-
+-    public void enableControlFlag(final Goal.Flag flag) {
+-        this.disabledFlags.remove(flag);
+-    }
+-
+-    public void setControlFlag(final Goal.Flag flag, final boolean enabled) {
+-        if (enabled) {
+-            this.enableControlFlag(flag);
+-        } else {
+-            this.disableControlFlag(flag);
+-        }
+-    }
+-}
++    // Paper end - EAR 2
++
++    public void removeGoal(final Goal toRemove) {
++        this.removeAllGoals(goal -> goal == toRemove);
++    }
++
++    private static boolean goalContainsAnyFlags(final WrappedGoal goal, final EnumSet<Goal.Flag> disabledFlags) {
++        for (Goal.Flag flag : goal.getFlags()) {
++            if (disabledFlags.contains(flag)) {
++                return true;
++            }
++        }
++
++        return false;
++    }
++
++    private static boolean goalCanBeReplacedForAllFlags(final WrappedGoal goal, final Map<Goal.Flag, WrappedGoal> lockedFlags) {
++        for (Goal.Flag flag : goal.getFlags()) {
++            if (!lockedFlags.getOrDefault(flag, NO_GOAL).canBeReplacedBy(goal)) {
++                return false;
++            }
++        }
++
++        return true;
++    }
++
++    public void tick() {
++        ProfilerFiller profiler = Profiler.get();
++        profiler.push("goalCleanup");
++
++        for (WrappedGoal goal : this.availableGoals) {
++            if (goal.isRunning() && (goalContainsAnyFlags(goal, this.disabledFlags) || !goal.canContinueToUse())) {
++                goal.stop();
++            }
++        }
++
++        this.lockedFlags.entrySet().removeIf(entry -> !entry.getValue().isRunning());
++        profiler.pop();
++        profiler.push("goalUpdate");
++
++        for (WrappedGoal goal : this.availableGoals) {
++            if (!goal.isRunning() && !goalContainsAnyFlags(goal, this.disabledFlags) && goalCanBeReplacedForAllFlags(goal, this.lockedFlags) && goal.canUse()) {
++                for (Goal.Flag flag : goal.getFlags()) {
++                    WrappedGoal currentGoal = this.lockedFlags.getOrDefault(flag, NO_GOAL);
++                    currentGoal.stop();
++                    this.lockedFlags.put(flag, goal);
++                }
++
++                goal.start();
++            }
++        }
++
++        profiler.pop();
++        this.tickRunningGoals(true);
++    }
++
++    public void tickRunningGoals(final boolean forceTickAllRunningGoals) {
++        ProfilerFiller profiler = Profiler.get();
++        profiler.push("goalTick");
++
++        for (WrappedGoal goal : this.availableGoals) {
++            if (goal.isRunning() && (forceTickAllRunningGoals || goal.requiresUpdateEveryTick())) {
++                goal.tick();
++            }
++        }
++
++        profiler.pop();
++    }
++
++    public Set<WrappedGoal> getAvailableGoals() {
++        return this.availableGoals;
++    }
++
++    public void disableControlFlag(final Goal.Flag flag) {
++        this.disabledFlags.add(flag);
++    }
++
++    public void enableControlFlag(final Goal.Flag flag) {
++        this.disabledFlags.remove(flag);
++    }
++
++    public void setControlFlag(final Goal.Flag flag, final boolean enabled) {
++        if (enabled) {
++            this.enableControlFlag(flag);
++        } else {
++            this.disableControlFlag(flag);
++        }
++    }
++}
+diff --git a/net/minecraft/world/entity/ai/goal/MoveToBlockGoal.java b/net/minecraft/world/entity/ai/goal/MoveToBlockGoal.java
+index d46e0e3a4a7fc3bb3f1dd695d4cc563778b99db0..5758c71899b016030ec89e29e1d85a76f34efb8f 100644
+--- a/net/minecraft/world/entity/ai/goal/MoveToBlockGoal.java
++++ b/net/minecraft/world/entity/ai/goal/MoveToBlockGoal.java
+@@ -1,127 +1,136 @@
+-package net.minecraft.world.entity.ai.goal;
+-
+-import java.util.EnumSet;
+-import net.minecraft.core.BlockPos;
+-import net.minecraft.world.entity.PathfinderMob;
+-import net.minecraft.world.level.LevelReader;
+-
+-public abstract class MoveToBlockGoal extends Goal {
+-    private static final int GIVE_UP_TICKS = 1200;
+-    private static final int STAY_TICKS = 1200;
+-    private static final int INTERVAL_TICKS = 200;
+-    protected final PathfinderMob mob;
+-    public final double speedModifier;
+-    protected int nextStartTick;
+-    protected int tryTicks;
+-    private int maxStayTicks;
+-    protected BlockPos blockPos = BlockPos.ZERO;
+-    private boolean reachedTarget;
+-    private final int searchRange;
+-    private final int verticalSearchRange;
+-    protected int verticalSearchStart;
+-
+-    public MoveToBlockGoal(final PathfinderMob mob, final double speedModifier, final int searchRange) {
+-        this(mob, speedModifier, searchRange, 1);
+-    }
+-
+-    public MoveToBlockGoal(final PathfinderMob mob, final double speedModifier, final int searchRange, final int verticalSearchRange) {
+-        this.mob = mob;
+-        this.speedModifier = speedModifier;
+-        this.searchRange = searchRange;
+-        this.verticalSearchStart = 0;
+-        this.verticalSearchRange = verticalSearchRange;
+-        this.setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.JUMP));
+-    }
+-
+-    @Override
+-    public boolean canUse() {
+-        if (this.nextStartTick > 0) {
+-            this.nextStartTick--;
+-            return false;
+-        } else {
+-            this.nextStartTick = this.nextStartTick(this.mob);
+-            return this.findNearestBlock();
+-        }
+-    }
+-
+-    protected int nextStartTick(final PathfinderMob mob) {
+-        return reducedTickDelay(200 + mob.getRandom().nextInt(200));
+-    }
+-
++package net.minecraft.world.entity.ai.goal;
++
++import java.util.EnumSet;
++import net.minecraft.core.BlockPos;
++import net.minecraft.world.entity.PathfinderMob;
++import net.minecraft.world.level.LevelReader;
++
++public abstract class MoveToBlockGoal extends Goal {
++    private static final int GIVE_UP_TICKS = 1200;
++    private static final int STAY_TICKS = 1200;
++    private static final int INTERVAL_TICKS = 200;
++    protected final PathfinderMob mob;
++    public final double speedModifier;
++    protected int nextStartTick;
++    protected int tryTicks;
++    private int maxStayTicks;
++    protected BlockPos blockPos = BlockPos.ZERO;
++    private boolean reachedTarget;
++    private final int searchRange;
++    private final int verticalSearchRange;
++    protected int verticalSearchStart;
++
++    public MoveToBlockGoal(final PathfinderMob mob, final double speedModifier, final int searchRange) {
++        this(mob, speedModifier, searchRange, 1);
++    }
++    // Paper start - activation range improvements
+     @Override
+-    public boolean canContinueToUse() {
+-        return this.tryTicks >= -this.maxStayTicks && this.tryTicks <= 1200 && this.isValidTarget(this.mob.level(), this.blockPos);
+-    }
+-
+-    @Override
+-    public void start() {
+-        this.moveMobToBlock();
+-        this.tryTicks = 0;
+-        this.maxStayTicks = this.mob.getRandom().nextInt(this.mob.getRandom().nextInt(1200) + 1200) + 1200;
+-    }
+-
+-    protected void moveMobToBlock() {
+-        this.mob.getNavigation().moveTo(this.blockPos.getX() + 0.5, this.blockPos.getY() + 1, this.blockPos.getZ() + 0.5, this.speedModifier);
+-    }
+-
+-    public double acceptedDistance() {
+-        return 1.0;
+-    }
+-
+-    protected BlockPos getMoveToTarget() {
+-        return this.blockPos.above();
+-    }
+-
+-    @Override
+-    public boolean requiresUpdateEveryTick() {
+-        return true;
+-    }
+-
+-    @Override
+-    public void tick() {
+-        BlockPos moveToTarget = this.getMoveToTarget();
+-        if (!moveToTarget.closerToCenterThan(this.mob.position(), this.acceptedDistance())) {
+-            this.reachedTarget = false;
+-            this.tryTicks++;
+-            if (this.shouldRecalculatePath()) {
+-                this.mob.getNavigation().moveTo(moveToTarget.getX() + 0.5, moveToTarget.getY(), moveToTarget.getZ() + 0.5, this.speedModifier);
+-            }
+-        } else {
+-            this.reachedTarget = true;
+-            this.tryTicks--;
+-        }
+-    }
+-
+-    public boolean shouldRecalculatePath() {
+-        return this.tryTicks % 40 == 0;
+-    }
+-
+-    protected boolean isReachedTarget() {
+-        return this.reachedTarget;
+-    }
+-
+-    protected boolean findNearestBlock() {
+-        int horizontalSearch = this.searchRange;
+-        int verticalSearch = this.verticalSearchRange;
+-        BlockPos mobPos = this.mob.blockPosition();
+-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+-
+-        for (int y = this.verticalSearchStart; y <= verticalSearch; y = y > 0 ? -y : 1 - y) {
+-            for (int r = 0; r < horizontalSearch; r++) {
+-                for (int x = 0; x <= r; x = x > 0 ? -x : 1 - x) {
+-                    for (int z = x < r && x > -r ? r : 0; z <= r; z = z > 0 ? -z : 1 - z) {
+-                        pos.setWithOffset(mobPos, x, y - 1, z);
+-                        if (this.mob.isWithinHome(pos) && this.isValidTarget(this.mob.level(), pos)) {
+-                            this.blockPos = pos;
+-                            return true;
+-                        }
+-                    }
+-                }
+-            }
+-        }
+-
+-        return false;
++    public void stop() {
++        super.stop();
++        this.blockPos = BlockPos.ZERO;
++        this.mob.movingTarget = null;
+     }
+-
+-    protected abstract boolean isValidTarget(LevelReader level, BlockPos pos);
+-}
++    // Paper end
++
++    public MoveToBlockGoal(final PathfinderMob mob, final double speedModifier, final int searchRange, final int verticalSearchRange) {
++        this.mob = mob;
++        this.speedModifier = speedModifier;
++        this.searchRange = searchRange;
++        this.verticalSearchStart = 0;
++        this.verticalSearchRange = verticalSearchRange;
++        this.setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.JUMP));
++    }
++
++    @Override
++    public boolean canUse() {
++        if (this.nextStartTick > 0) {
++            this.nextStartTick--;
++            return false;
++        } else {
++            this.nextStartTick = this.nextStartTick(this.mob);
++            return this.findNearestBlock();
++        }
++    }
++
++    protected int nextStartTick(final PathfinderMob mob) {
++        return reducedTickDelay(200 + mob.getRandom().nextInt(200));
++    }
++
++    @Override
++    public boolean canContinueToUse() {
++        return this.tryTicks >= -this.maxStayTicks && this.tryTicks <= 1200 && this.isValidTarget(this.mob.level(), this.blockPos);
++    }
++
++    @Override
++    public void start() {
++        this.moveMobToBlock();
++        this.tryTicks = 0;
++        this.maxStayTicks = this.mob.getRandom().nextInt(this.mob.getRandom().nextInt(1200) + 1200) + 1200;
++    }
++
++    protected void moveMobToBlock() {
++        this.mob.getNavigation().moveTo(this.blockPos.getX() + 0.5, this.blockPos.getY() + 1, this.blockPos.getZ() + 0.5, this.speedModifier);
++    }
++
++    public double acceptedDistance() {
++        return 1.0;
++    }
++
++    protected BlockPos getMoveToTarget() {
++        return this.blockPos.above();
++    }
++
++    @Override
++    public boolean requiresUpdateEveryTick() {
++        return true;
++    }
++
++    @Override
++    public void tick() {
++        BlockPos moveToTarget = this.getMoveToTarget();
++        if (!moveToTarget.closerToCenterThan(this.mob.position(), this.acceptedDistance())) {
++            this.reachedTarget = false;
++            this.tryTicks++;
++            if (this.shouldRecalculatePath()) {
++                this.mob.getNavigation().moveTo(moveToTarget.getX() + 0.5, moveToTarget.getY(), moveToTarget.getZ() + 0.5, this.speedModifier);
++            }
++        } else {
++            this.reachedTarget = true;
++            this.tryTicks--;
++        }
++    }
++
++    public boolean shouldRecalculatePath() {
++        return this.tryTicks % 40 == 0;
++    }
++
++    protected boolean isReachedTarget() {
++        return this.reachedTarget;
++    }
++
++    protected boolean findNearestBlock() {
++        int horizontalSearch = this.searchRange;
++        int verticalSearch = this.verticalSearchRange;
++        BlockPos mobPos = this.mob.blockPosition();
++        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
++
++        for (int y = this.verticalSearchStart; y <= verticalSearch; y = y > 0 ? -y : 1 - y) {
++            for (int r = 0; r < horizontalSearch; r++) {
++                for (int x = 0; x <= r; x = x > 0 ? -x : 1 - x) {
++                    for (int z = x < r && x > -r ? r : 0; z <= r; z = z > 0 ? -z : 1 - z) {
++                        pos.setWithOffset(mobPos, x, y - 1, z);
++                        if (this.mob.isWithinHome(pos) && this.isValidTarget(this.mob.level(), pos)) {
++                            this.blockPos = pos;
++                            this.mob.movingTarget = pos == BlockPos.ZERO ? null : pos.immutable(); // Paper
++                            return true;
++                        }
++                    }
++                }
++            }
++        }
++
++        return false;
++    }
++
++    protected abstract boolean isValidTarget(LevelReader level, BlockPos pos);
++}
+diff --git a/net/minecraft/world/entity/item/ItemEntity.java b/net/minecraft/world/entity/item/ItemEntity.java
+index 469ab01df66e33ef83d2a7344b9e8544ce4dcfdd..ed893f66f5eed97abc4ee3a5da0b5c9d88859ac3 100644
+--- a/net/minecraft/world/entity/item/ItemEntity.java
++++ b/net/minecraft/world/entity/item/ItemEntity.java
+@@ -126,6 +126,29 @@ public class ItemEntity extends Entity implements TraceableEntity {
+         return 0.04;
+     }
+ 
++    // Paper start - EAR 2
++    @Override
++    public void inactiveTick() {
++        super.inactiveTick();
++        if (this.pickupDelay > 0 && this.pickupDelay != 32767) {
++            this.pickupDelay--;
++        }
++        if (this.age != -32768) {
++            this.age++;
++        }
++
++        if (!this.level().isClientSide() && this.age >= this.despawnRate) {// Paper - Alternative item-despawn-rate
++            // CraftBukkit start - fire ItemDespawnEvent
++            if (org.bukkit.craftbukkit.event.CraftEventFactory.callItemDespawnEvent(this).isCancelled()) {
++                this.age = 0;
++                return;
++            }
++            // CraftBukkit end
++            this.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.DESPAWN); // CraftBukkit - add Bukkit remove cause
++        }
++    }
++    // Paper end - EAR 2
++
+     @Override
+     public void tick() {
+         if (this.getItem().isEmpty()) {
+diff --git a/net/minecraft/world/entity/npc/villager/Villager.java b/net/minecraft/world/entity/npc/villager/Villager.java
+index 5096dee853cd0b74e62cd90b2638a3235c378e00..beef841f54a666891ccbd22d7849a9b1805c2638 100644
+--- a/net/minecraft/world/entity/npc/villager/Villager.java
++++ b/net/minecraft/world/entity/npc/villager/Villager.java
+@@ -230,9 +230,27 @@ public class Villager extends AbstractVillager implements VillagerDataHolder, Re
+ 
+     @Override
+     protected void customServerAiStep(final ServerLevel level) {
++        // Paper start - EAR 2
++        this.customServerAiStep(level, false);
++    }
++
++    @Override
++    public void inactiveTick() {
++        if (this.getUnhappyCounter() > 0) {
++            this.setUnhappyCounter(this.getUnhappyCounter() - 1);
++        }
++        if (this.aware && this.isEffectiveAi()) {
++            this.customServerAiStep(this.level().getMinecraftWorld(), !this.level().spigotConfig.tickInactiveVillagers);
++        }
++        this.maybeDecayGossip();
++        super.inactiveTick();
++    }
++
++    protected void customServerAiStep(final ServerLevel level, final boolean inactive) {
++        // Paper end - EAR 2
+         ProfilerFiller profiler = Profiler.get();
+         profiler.push("villagerBrain");
+-        this.getBrain().tick(level, this);
++        if (!inactive) this.getBrain().tick(level, this); // Paper - EAR 2
+         profiler.pop();
+         if (this.lastTradedPlayer != null) {
+             level.onReputationEvent(ReputationEventType.TRADE, this.lastTradedPlayer, this);
+@@ -240,7 +258,7 @@ public class Villager extends AbstractVillager implements VillagerDataHolder, Re
+             this.lastTradedPlayer = null;
+         }
+ 
+-        if (!this.isNoAi() && this.random.nextInt(100) == 0) {
++        if (!inactive && !this.isNoAi() && this.random.nextInt(100) == 0) { // Paper - EAR 2
+             Raid raid = level.getRaidAt(this.blockPosition());
+             if (raid != null && raid.isActive() && !raid.isOver()) {
+                 level.broadcastEntityEvent(this, EntityEvent.VILLAGER_SWEAT);
+@@ -251,6 +269,7 @@ public class Villager extends AbstractVillager implements VillagerDataHolder, Re
+             this.stopTrading();
+         }
+ 
++        if (inactive) return; // Paper - EAR 2
+         super.customServerAiStep(level);
+     }
+ 
+diff --git a/net/minecraft/world/entity/projectile/FireworkRocketEntity.java b/net/minecraft/world/entity/projectile/FireworkRocketEntity.java
+index d08c61a31b2d4099c4a5ffae771b2089903cc093..5b61c20fcac6825a1891c674870f40074eff22d3 100644
+--- a/net/minecraft/world/entity/projectile/FireworkRocketEntity.java
++++ b/net/minecraft/world/entity/projectile/FireworkRocketEntity.java
+@@ -112,6 +112,21 @@ public class FireworkRocketEntity extends Projectile implements ItemSupplier {
+         return super.shouldRender(camX, camY, camZ) && !this.isAttachedToEntity();
+     }
+ 
++    // Paper start - EAR 2
++    @Override
++    public void inactiveTick() {
++        this.life++;
++        if (this.life > this.lifetime && this.level() instanceof ServerLevel serverLevel) {
++            // Paper start - Call FireworkExplodeEvent
++            if (org.bukkit.craftbukkit.event.CraftEventFactory.callFireworkExplodeEvent(this)) {
++                this.explode(serverLevel);
++            }
++            // Paper end - Call FireworkExplodeEvent
++        }
++        super.inactiveTick();
++    }
++    // Paper end - EAR 2
++
+     @Override
+     public void tick() {
+         super.tick();
+diff --git a/net/minecraft/world/entity/projectile/arrow/Arrow.java b/net/minecraft/world/entity/projectile/arrow/Arrow.java
+index e9199464cebb0d704c02cf4fcf8c00343ec824c5..504472285bd8c173de2b406365d04e31870f85b8 100644
+--- a/net/minecraft/world/entity/projectile/arrow/Arrow.java
++++ b/net/minecraft/world/entity/projectile/arrow/Arrow.java
+@@ -72,6 +72,16 @@ public class Arrow extends AbstractArrow {
+         entityData.define(ID_EFFECT_COLOR, -1);
+     }
+ 
++    // Paper start - EAR 2
++    @Override
++    public void inactiveTick() {
++        if (this.isInGround()) {
++            this.life++;
++        }
++        super.inactiveTick();
++    }
++    // Paper end
++
+     @Override
+     public void tick() {
+         super.tick();
+diff --git a/net/minecraft/world/entity/vehicle/minecart/MinecartHopper.java b/net/minecraft/world/entity/vehicle/minecart/MinecartHopper.java
+index f46cca0467bb4da5511bc953ce5b43fa606bf978..dff154c14a0574394aa0021621f7ba7e150b5281 100644
+--- a/net/minecraft/world/entity/vehicle/minecart/MinecartHopper.java
++++ b/net/minecraft/world/entity/vehicle/minecart/MinecartHopper.java
+@@ -1,145 +1,155 @@
+-package net.minecraft.world.entity.vehicle.minecart;
+-
+-import net.minecraft.core.BlockPos;
+-import net.minecraft.server.level.ServerLevel;
+-import net.minecraft.world.entity.EntitySelector;
+-import net.minecraft.world.entity.EntityType;
+-import net.minecraft.world.entity.item.ItemEntity;
+-import net.minecraft.world.entity.player.Inventory;
+-import net.minecraft.world.inventory.AbstractContainerMenu;
+-import net.minecraft.world.inventory.HopperMenu;
+-import net.minecraft.world.item.Item;
+-import net.minecraft.world.item.ItemStack;
+-import net.minecraft.world.item.Items;
+-import net.minecraft.world.level.Level;
+-import net.minecraft.world.level.block.Blocks;
+-import net.minecraft.world.level.block.entity.Hopper;
+-import net.minecraft.world.level.block.entity.HopperBlockEntity;
+-import net.minecraft.world.level.block.state.BlockState;
+-import net.minecraft.world.level.block.state.properties.RailShape;
+-import net.minecraft.world.level.storage.ValueInput;
+-import net.minecraft.world.level.storage.ValueOutput;
+-
+-public class MinecartHopper extends AbstractMinecartContainer implements Hopper {
+-    private static final boolean DEFAULT_ENABLED = true;
+-    private boolean enabled = true;
+-    private boolean consumedItemThisFrame = false;
+-
+-    public MinecartHopper(final EntityType<? extends MinecartHopper> type, final Level level) {
+-        super(type, level);
+-    }
+-
+-    @Override
+-    public BlockState getDefaultDisplayBlockState() {
+-        return Blocks.HOPPER.defaultBlockState();
+-    }
+-
+-    @Override
+-    public int getDefaultDisplayOffset() {
+-        return 1;
+-    }
+-
+-    @Override
+-    public int getContainerSize() {
+-        return 5;
+-    }
+-
+-    @Override
+-    public void activateMinecart(final ServerLevel level, final int xt, final int yt, final int zt, final boolean state) {
+-        boolean newEnabled = !state;
+-        if (newEnabled != this.isEnabled()) {
+-            this.setEnabled(newEnabled);
+-        }
+-    }
+-
+-    public boolean isEnabled() {
+-        return this.enabled;
+-    }
+-
+-    public void setEnabled(final boolean enabled) {
+-        this.enabled = enabled;
+-    }
+-
+-    @Override
+-    public double getLevelX() {
+-        return this.getX();
+-    }
+-
+-    @Override
+-    public double getLevelY() {
+-        return this.getY() + 0.5;
+-    }
+-
+-    @Override
+-    public double getLevelZ() {
+-        return this.getZ();
+-    }
+-
+-    @Override
+-    public boolean isGridAligned() {
+-        return false;
+-    }
+-
+-    @Override
+-    public void tick() {
+-        this.consumedItemThisFrame = false;
+-        super.tick();
+-        this.tryConsumeItems();
+-    }
+-
+-    @Override
+-    protected double makeStepAlongTrack(final BlockPos pos, final RailShape shape, final double movementLeft) {
+-        double left = super.makeStepAlongTrack(pos, shape, movementLeft);
+-        this.tryConsumeItems();
+-        return left;
+-    }
+-
+-    private void tryConsumeItems() {
+-        if (!this.level().isClientSide() && this.isAlive() && this.isEnabled() && !this.consumedItemThisFrame && this.suckInItems()) {
+-            this.consumedItemThisFrame = true;
+-            this.setChanged();
+-        }
+-    }
+-
+-    public boolean suckInItems() {
+-        if (HopperBlockEntity.suckInItems(this.level(), this)) {
+-            return true;
+-        }
+-
+-        for (ItemEntity entity : this.level()
+-            .getEntitiesOfClass(ItemEntity.class, this.getBoundingBox().inflate(0.25, 0.0, 0.25), EntitySelector.ENTITY_STILL_ALIVE)) {
+-            if (HopperBlockEntity.addItem(this, entity)) {
+-                return true;
+-            }
+-        }
+-
+-        return false;
+-    }
+-
+-    @Override
+-    public Item getDropItem() {
+-        return Items.HOPPER_MINECART;
+-    }
+-
+-    @Override
+-    public ItemStack getPickResult() {
+-        return new ItemStack(Items.HOPPER_MINECART);
+-    }
+-
+-    @Override
+-    protected void addAdditionalSaveData(final ValueOutput output) {
+-        super.addAdditionalSaveData(output);
+-        output.putBoolean("Enabled", this.enabled);
+-    }
+-
+-    @Override
+-    protected void readAdditionalSaveData(final ValueInput input) {
+-        super.readAdditionalSaveData(input);
+-        this.enabled = input.getBooleanOr("Enabled", true);
+-    }
+-
+-    @Override
+-    public AbstractContainerMenu createMenu(final int containerId, final Inventory inventory) {
+-        return new HopperMenu(containerId, inventory, this);
+-    }
+-}
++package net.minecraft.world.entity.vehicle.minecart;
++
++import net.minecraft.core.BlockPos;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.world.entity.EntitySelector;
++import net.minecraft.world.entity.EntityType;
++import net.minecraft.world.entity.item.ItemEntity;
++import net.minecraft.world.entity.player.Inventory;
++import net.minecraft.world.inventory.AbstractContainerMenu;
++import net.minecraft.world.inventory.HopperMenu;
++import net.minecraft.world.item.Item;
++import net.minecraft.world.item.ItemStack;
++import net.minecraft.world.item.Items;
++import net.minecraft.world.level.Level;
++import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.block.entity.Hopper;
++import net.minecraft.world.level.block.entity.HopperBlockEntity;
++import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.block.state.properties.RailShape;
++import net.minecraft.world.level.storage.ValueInput;
++import net.minecraft.world.level.storage.ValueOutput;
++
++public class MinecartHopper extends AbstractMinecartContainer implements Hopper {
++    private static final boolean DEFAULT_ENABLED = true;
++    private boolean enabled = true;
++    private boolean consumedItemThisFrame = false;
++
++    public MinecartHopper(final EntityType<? extends MinecartHopper> type, final Level level) {
++        super(type, level);
++    }
++
++    @Override
++    public BlockState getDefaultDisplayBlockState() {
++        return Blocks.HOPPER.defaultBlockState();
++    }
++
++    @Override
++    public int getDefaultDisplayOffset() {
++        return 1;
++    }
++
++    @Override
++    public int getContainerSize() {
++        return 5;
++    }
++
++    @Override
++    public void activateMinecart(final ServerLevel level, final int xt, final int yt, final int zt, final boolean state) {
++        boolean newEnabled = !state;
++        if (newEnabled != this.isEnabled()) {
++            this.setEnabled(newEnabled);
++        }
++        this.immunize(); // Paper
++    }
++
++    public boolean isEnabled() {
++        return this.enabled;
++    }
++
++    public void setEnabled(final boolean enabled) {
++        this.enabled = enabled;
++    }
++
++    @Override
++    public double getLevelX() {
++        return this.getX();
++    }
++
++    @Override
++    public double getLevelY() {
++        return this.getY() + 0.5;
++    }
++
++    @Override
++    public double getLevelZ() {
++        return this.getZ();
++    }
++
++    @Override
++    public boolean isGridAligned() {
++        return false;
++    }
++
++    @Override
++    public void tick() {
++        this.consumedItemThisFrame = false;
++        super.tick();
++        this.tryConsumeItems();
++    }
++
++    @Override
++    protected double makeStepAlongTrack(final BlockPos pos, final RailShape shape, final double movementLeft) {
++        double left = super.makeStepAlongTrack(pos, shape, movementLeft);
++        this.tryConsumeItems();
++        return left;
++    }
++
++    private void tryConsumeItems() {
++        if (!this.level().isClientSide() && this.isAlive() && this.isEnabled() && !this.consumedItemThisFrame && this.suckInItems()) {
++            this.consumedItemThisFrame = true;
++            this.setChanged();
++        }
++    }
++
++    public boolean suckInItems() {
++        if (HopperBlockEntity.suckInItems(this.level(), this)) {
++            this.immunize(); // Paper
++            return true;
++        }
++
++        for (ItemEntity entity : this.level()
++            .getEntitiesOfClass(ItemEntity.class, this.getBoundingBox().inflate(0.25, 0.0, 0.25), EntitySelector.ENTITY_STILL_ALIVE)) {
++            if (HopperBlockEntity.addItem(this, entity)) {
++                this.immunize(); // Paper
++                return true;
++            }
++        }
++
++        return false;
++    }
++
++    @Override
++    public Item getDropItem() {
++        return Items.HOPPER_MINECART;
++    }
++
++    @Override
++    public ItemStack getPickResult() {
++        return new ItemStack(Items.HOPPER_MINECART);
++    }
++
++    @Override
++    protected void addAdditionalSaveData(final ValueOutput output) {
++        super.addAdditionalSaveData(output);
++        output.putBoolean("Enabled", this.enabled);
++    }
++
++    @Override
++    protected void readAdditionalSaveData(final ValueInput input) {
++        super.readAdditionalSaveData(input);
++        this.enabled = input.getBooleanOr("Enabled", true);
++    }
++
++    @Override
++    public AbstractContainerMenu createMenu(final int containerId, final Inventory inventory) {
++        return new HopperMenu(containerId, inventory, this);
++    }
++
++    // Paper start
++    public void immunize() {
++        this.activatedImmunityTick = Math.max(this.activatedImmunityTick, net.minecraft.server.MinecraftServer.currentTick + 20);
++    }
++    // Paper end
++
++}
+diff --git a/net/minecraft/world/level/Level.java b/net/minecraft/world/level/Level.java
+index 4677d7724be10499d71d23c32f9c66517005dc5b..1df11298a56e63fa394741eb14f1476a76c43127 100644
+--- a/net/minecraft/world/level/Level.java
++++ b/net/minecraft/world/level/Level.java
+@@ -154,6 +154,12 @@ public abstract class Level implements LevelAccessor, AutoCloseable, ca.spottedl
+     @Nullable
+     public List<net.minecraft.world.entity.item.ItemEntity> captureDrops;
+     public final it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap<SpawnCategory> ticksPerSpawnCategory = new it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap<>();
++    // Paper start - EAR 2
++    public int wakeupInactiveRemainingAnimals;
++    public int wakeupInactiveRemainingFlying;
++    public int wakeupInactiveRemainingMonsters;
++    public int wakeupInactiveRemainingVillagers;
++    // Paper end - EAR 2
+     public boolean populating;
+     public final org.spigotmc.SpigotWorldConfig spigotConfig; // Spigot
+     // Paper start - add paper world config
+diff --git a/net/minecraft/world/level/block/piston/PistonMovingBlockEntity.java b/net/minecraft/world/level/block/piston/PistonMovingBlockEntity.java
+index 13c2cd857102ffd67bd5297ad4cf716a1c6cd875..90aa405bbcb99777b59af5d07c9059acb280c302 100644
+--- a/net/minecraft/world/level/block/piston/PistonMovingBlockEntity.java
++++ b/net/minecraft/world/level/block/piston/PistonMovingBlockEntity.java
+@@ -145,6 +145,10 @@ public class PistonMovingBlockEntity extends BlockEntity {
+                             }
+ 
+                             entity.setDeltaMovement(dx, dy, dz);
++                            // Paper start - EAR items stuck in slime pushed by a piston
++                            entity.activatedTick = Math.max(entity.activatedTick, net.minecraft.server.MinecraftServer.currentTick + 10);
++                            entity.activatedImmunityTick = Math.max(entity.activatedImmunityTick, net.minecraft.server.MinecraftServer.currentTick + 10);
++                            // Paper end - EAR items stuck in slime pushed by a piston
+                         }
+ 
+                         double delta = 0.0;

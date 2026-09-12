@@ -1,7 +1,7 @@
 --- a/paper-server/build.gradle.kts
 +++ b/paper-server/build.gradle.kts
 @@ -17,11 +_,34 @@
-     mache("io.papermc:mache:26.2+build.1")
+     mache("io.papermc:mache:26.3-rc-2+build.2")
      paperclip("io.papermc:paperclip:3.0.4")
  }
 +// Tessera start - publish the runnable server artifact from the main build directory
@@ -33,7 +33,7 @@
 +
 +
      updatingMinecraft {
-         // oldPaperCommit = "d4fe85375af18bfa88f44d7c1e6a61904ae550cc"
+         // Tessera - Paper's update baseline is not a commit in this downstream repository.
      }
 @@ -86,7 +_,19 @@
      }
@@ -80,16 +80,16 @@
 +        // tessera 26.2 start - change attributes for manifest
          attributes(
              "Main-Class" to "org.bukkit.craftbukkit.Main",
--            "Implementation-Title" to "Paper",
+-            "Implementation-Title" to "Sinopia",
 +            "Implementation-Title" to "Tessera",
              "Implementation-Version" to implementationVersion,
              "Implementation-Vendor" to date,
--            "Specification-Title" to "Paper",
+-            "Specification-Title" to "Sinopia",
 +            "Specification-Title" to "Tessera",
              "Specification-Version" to project.version,
--            "Specification-Vendor" to "Paper Team",
--            "Brand-Id" to "papermc:paper",
--            "Brand-Name" to "Paper",
+-            "Specification-Vendor" to "MosaikDev",
+-            "Brand-Id" to "mosaikdev:sinopia",
+-            "Brand-Name" to "Sinopia",
 +            "Specification-Vendor" to "MosaikDev",
 +            "Brand-Id" to "mosaikdev:tessera",
 +            "Brand-Name" to "Tessera",
@@ -106,7 +106,7 @@
  }
  
  fill {
--    project("paper")
+-    project("sinopia")
 +    // tessera 26.2 start - change project name
 +//    project("folia")
 +    project("tessera")

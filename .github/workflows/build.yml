@@ -22,7 +22,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
       - name: Configure Git User Details
         run: git config --global user.email "actions@github.com" && git config --global user.name "Github Actions"
-      - name: Apply Patches
-        run: ./gradlew applyAllPatches --stacktrace
-      - name: Build
-        run: ./gradlew build
+      - name: Verify local build support
+        run: ./gradlew -p buildSrc check
+      - name: Patch, test and build Tessera from Sinopia
+        run: ./gradlew buildTessera --stacktrace

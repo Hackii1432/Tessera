@@ -1,0 +1,295 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Sat, 12 Sep 2026 23:41:57 +0200
+Subject: [PATCH] Test Tessera 26.3 region command compatibility
+
+
+diff --git a/src/test/java/io/papermc/paper/threadedregions/commands/RegionCommandBatchTest.java b/src/test/java/io/papermc/paper/threadedregions/commands/RegionCommandBatchTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..406ec22e8b2bf8b31df86e8de574f5c3afb599ae
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/threadedregions/commands/RegionCommandBatchTest.java
+@@ -0,0 +1,211 @@
++package io.papermc.paper.threadedregions.commands;
++
++import ca.spottedleaf.moonrise.common.util.TickThread;
++import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
++import io.papermc.paper.threadedregions.EntityScheduler;
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.List;
++import java.util.Set;
++import java.util.concurrent.ConcurrentHashMap;
++import java.util.concurrent.Executors;
++import java.util.concurrent.atomic.AtomicInteger;
++import java.util.concurrent.atomic.AtomicReference;
++import java.util.function.Consumer;
++import net.minecraft.commands.CommandSourceStack;
++import net.minecraft.network.chat.Component;
++import net.minecraft.server.commands.CommandResponseTracker;
++import net.minecraft.world.entity.Entity;
++import org.bukkit.craftbukkit.entity.CraftEntity;
++import org.bukkit.support.environment.Normal;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.Mockito.*;
++
++@Normal
++class RegionCommandBatchTest {
++    private static final ThreadLocal<Set<Entity>> OWNED = ThreadLocal.withInitial(ConcurrentHashMap::newKeySet);
++
++    private static final class Target {
++        final Entity entity = mock(Entity.class);
++        final EntityScheduler scheduler = mock(EntityScheduler.class);
++        final List<Consumer<Entity>> run = Collections.synchronizedList(new ArrayList<>());
++        final List<Consumer<Entity>> retired = Collections.synchronizedList(new ArrayList<>());
++
++        @SuppressWarnings("unchecked")
++        Target(String name, boolean accepts) throws Exception {
++            CraftEntity craft = mock(CraftEntity.class);
++            java.lang.reflect.Field schedulerField = CraftEntity.class.getField("taskScheduler");
++            schedulerField.setAccessible(true);
++            schedulerField.set(craft, this.scheduler);
++            when(this.entity.getBukkitEntity()).thenReturn(craft);
++            when(this.entity.getDisplayName()).thenAnswer(invocation -> {
++                assertTrue(OWNED.get().contains(this.entity), "display name read outside owner");
++                return Component.literal(name);
++            });
++            when(this.scheduler.schedule(any(), nullable(Consumer.class), eq(1L))).thenAnswer(invocation -> {
++                if (accepts) {
++                    this.run.add(invocation.getArgument(0));
++                    this.retired.add(invocation.getArgument(1));
++                }
++                return accepts;
++            });
++        }
++
++        void run(int index) {
++            this.run(index, this.entity);
++        }
++
++        void run(int index, Entity current) {
++            OWNED.get().add(current);
++            try {
++                this.run.get(index).accept(current);
++            } finally {
++                OWNED.get().remove(current);
++            }
++        }
++    }
++
++    private static CommandSourceStack source(Target target) {
++        CommandSourceStack source = mock(CommandSourceStack.class);
++        when(source.getEntity()).thenReturn(target.entity);
++        when(source.withEntity(any())).thenReturn(source);
++        return source;
++    }
++
++    @Test
++    void emptyAndOwnedSingleKeepSynchronousResults() throws Exception {
++        CommandSourceStack source = mock(CommandSourceStack.class);
++        assertEquals(19, RegionCommandBatch.execute(source, List.of(), entity -> fail(), (s, tracker) -> 19));
++        Target target = new Target("owned", true);
++        try (var threads = mockStatic(TickThread.class)) {
++            threads.when(() -> TickThread.isTickThreadFor(target.entity)).thenReturn(true);
++            OWNED.get().add(target.entity);
++            try {
++                assertEquals(7, RegionCommandBatch.execute(source, List.of(target.entity), entity -> 7, (s, tracker) -> tracker.totalValue()));
++                verifyNoInteractions(target.scheduler);
++            } finally {
++                OWNED.get().clear();
++            }
++        }
++    }
++
++    @Test
++    void parallelOwnersAggregateExactlyOnceAndFeedbackReturnsToSource() throws Exception {
++        Target a = new Target("a", true);
++        Target b = new Target("b", true);
++        Target sender = new Target("sender", true);
++        CommandSourceStack source = source(sender);
++        AtomicInteger feedback = new AtomicInteger();
++        AtomicInteger mutations = new AtomicInteger();
++        try (var threads = mockStatic(TickThread.class)) {
++            assertEquals(2, RegionCommandBatch.execute(source, List.of(a.entity, b.entity), entity -> {
++                assertTrue(OWNED.get().contains(entity));
++                mutations.incrementAndGet();
++                return entity == a.entity ? 2 : 3;
++            }, (s, tracker) -> {
++                assertTrue(OWNED.get().contains(sender.entity));
++                assertEquals(5, tracker.totalValue());
++                feedback.incrementAndGet();
++                return 5;
++            }));
++            assertEquals(0, mutations.get());
++            try (var executor = Executors.newFixedThreadPool(2)) {
++                var first = executor.submit(() -> b.run(0));
++                var second = executor.submit(() -> a.run(0));
++                first.get();
++                second.get();
++            }
++            assertEquals(2, mutations.get());
++            assertEquals(0, feedback.get());
++            assertEquals(1, sender.run.size());
++            sender.run(0);
++            assertEquals(1, feedback.get());
++        }
++    }
++
++    @Test
++    void rejectedAndRetiredTargetsNeverReadEntityStateOrPreventCompletion() throws Exception {
++        Target rejected = new Target("rejected", false);
++        Target retired = new Target("retired", true);
++        Target sender = new Target("sender", true);
++        AtomicInteger feedback = new AtomicInteger();
++        try (var threads = mockStatic(TickThread.class)) {
++            RegionCommandBatch.execute(source(sender), List.of(rejected.entity, retired.entity), entity -> fail("mutation"), (s, tracker) -> {
++                assertEquals(0, tracker.totalValue());
++                return feedback.incrementAndGet();
++            });
++            retired.retired.getFirst().accept(retired.entity);
++            retired.retired.getFirst().accept(retired.entity); // defensive completion idempotence
++            assertEquals(1, sender.run.size());
++            sender.run(0);
++            assertEquals(1, feedback.get());
++            verify(rejected.entity, never()).getDisplayName();
++            verify(retired.entity, never()).getDisplayName();
++        }
++    }
++
++    @Test
++    void schedulerCurrentEntityAndCurrentSourceReplaceCapturedInstances() throws Exception {
++        Target old = new Target("old", true);
++        Target current = new Target("new", true);
++        Target sender = new Target("sender", true);
++        Target currentSender = new Target("current-sender", true);
++        CommandSourceStack original = source(sender);
++        CommandSourceStack updated = mock(CommandSourceStack.class);
++        when(original.withEntity(currentSender.entity)).thenReturn(updated);
++        AtomicReference<String> displayName = new AtomicReference<>();
++        try (var threads = mockStatic(TickThread.class)) {
++            RegionCommandBatch.execute(original, List.of(old.entity), entity -> {
++                assertSame(current.entity, entity);
++                return 1;
++            }, (s, tracker) -> {
++                assertSame(updated, s);
++                displayName.set(tracker.dispatch(CommandResponseTracker.ElementType.ANY,
++                    new CommandResponseTracker.Dispatch<>((name, value) -> name.getString(), (count, value) -> "multiple")));
++                return tracker.totalValue();
++            });
++            old.run(0, current.entity);
++            sender.run(0, currentSender.entity);
++            assertEquals("new", displayName.get());
++            verify(old.entity, never()).getDisplayName();
++        }
++    }
++
++    @Test
++    void ownedTargetStillSchedulesFeedbackForForeignSource() throws Exception {
++        Target target = new Target("target", true);
++        Target sender = new Target("sender", true);
++        AtomicInteger feedback = new AtomicInteger();
++        try (var threads = mockStatic(TickThread.class)) {
++            threads.when(() -> TickThread.isTickThreadFor(target.entity)).thenReturn(true);
++            OWNED.get().add(target.entity);
++            try {
++                RegionCommandBatch.execute(source(sender), List.of(target.entity), entity -> 1, (s, tracker) -> feedback.incrementAndGet());
++            } finally {
++                OWNED.get().clear();
++            }
++            assertEquals(0, feedback.get());
++            sender.run(0);
++            assertEquals(1, feedback.get());
++        }
++    }
++
++    @Test
++    void syntaxFailureDoesNotAlsoReportSuccess() throws Exception {
++        Target target = new Target("target", true);
++        Target sender = new Target("sender", true);
++        CommandSourceStack source = source(sender);
++        Component error = Component.literal("invalid target");
++        try (var threads = mockStatic(TickThread.class)) {
++            RegionCommandBatch.execute(source, List.of(target.entity), entity -> {
++                throw new SimpleCommandExceptionType(error).create();
++            }, (s, tracker) -> fail("success after failure"));
++            target.run(0);
++            assertEquals(1, sender.run.size());
++            sender.run(0);
++            verify(source).sendFailure(error);
++        }
++    }
++}
+diff --git a/src/test/java/net/minecraft/server/commands/LootContextRegionTestSuite.java b/src/test/java/net/minecraft/server/commands/LootContextRegionTestSuite.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b8cf08ca6691c282f97f9fc4f077bbcf92f1cb33
+--- /dev/null
++++ b/src/test/java/net/minecraft/server/commands/LootContextRegionTestSuite.java
+@@ -0,0 +1,50 @@
++package net.minecraft.server.commands;
++
++import ca.spottedleaf.moonrise.common.util.TickThread;
++import com.mojang.brigadier.exceptions.CommandSyntaxException;
++import net.minecraft.core.BlockPos;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.world.entity.Entity;
++import net.minecraft.world.phys.Vec3;
++import org.bukkit.support.environment.Normal;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.Mockito.*;
++
++@Normal
++class LootContextRegionTestSuite {
++    @Test
++    void globalOrUnownedPositionFailsBeforeAnyWorldRead() {
++        ServerLevel level = mock(ServerLevel.class);
++        Entity entity = mock(Entity.class);
++        try (var threads = mockStatic(TickThread.class)) {
++            assertThrows(CommandSyntaxException.class, () -> LootContextSources.checkRegion(level, Vec3.ZERO, entity));
++            verifyNoInteractions(level, entity);
++        }
++    }
++
++    @Test
++    void foreignEntityFailsEvenWhenOriginIsOwned() {
++        ServerLevel level = mock(ServerLevel.class);
++        Entity entity = mock(Entity.class);
++        try (var threads = mockStatic(TickThread.class)) {
++            threads.when(() -> TickThread.isTickThreadFor(level, BlockPos.ZERO)).thenReturn(true);
++            assertThrows(CommandSyntaxException.class, () -> LootContextSources.checkRegion(level, Vec3.ZERO, entity));
++            verifyNoInteractions(level, entity);
++        }
++    }
++
++    @Test
++    void ownedOriginWithNoEntityOrOwnedEntityIsAccepted() throws Exception {
++        ServerLevel level = mock(ServerLevel.class);
++        Entity entity = mock(Entity.class);
++        try (var threads = mockStatic(TickThread.class)) {
++            threads.when(() -> TickThread.isTickThreadFor(level, BlockPos.ZERO)).thenReturn(true);
++            threads.when(() -> TickThread.isTickThreadFor(entity)).thenReturn(true);
++            LootContextSources.checkRegion(level, Vec3.ZERO, null);
++            LootContextSources.checkRegion(level, Vec3.ZERO, entity);
++            verifyNoInteractions(level, entity);
++        }
++    }
++}
+diff --git a/src/test/java/net/minecraft/server/dedicated/DedicatedServerConsoleSourceTestSuite.java b/src/test/java/net/minecraft/server/dedicated/DedicatedServerConsoleSourceTestSuite.java
+index 3747e846b82e865fcc2157092beff7c46b4d0310..51bcb373be07c4570166988cb4a81c1c7c867d60 100644
+--- a/src/test/java/net/minecraft/server/dedicated/DedicatedServerConsoleSourceTestSuite.java
++++ b/src/test/java/net/minecraft/server/dedicated/DedicatedServerConsoleSourceTestSuite.java
+@@ -76,10 +76,8 @@ class DedicatedServerConsoleSourceTestSuite {
+             Vec2.ZERO,
+             level,
+             LevelBasedPermissionSet.OWNER,
+-            "Server",
+             Component.literal("Server"),
+-            server,
+-            null
++            server
+         );
+     }
+ }

@@ -5,7 +5,7 @@ Subject: [PATCH] Route console block reads to their region
 
 
 diff --git a/net/minecraft/commands/Commands.java b/net/minecraft/commands/Commands.java
-index a56c76fc57b4fb51eceeae45b0d9e3e33e8b5779..583027f4a8259216e1fdb46585608b982ec7c6da 100644
+index 75f0a18f36cf3a3587ee08fe7b04be9d60b15146..a31334c043c0e7ab9215b52e2e9fdc5cc0a35b99 100644
 --- a/net/minecraft/commands/Commands.java
 +++ b/net/minecraft/commands/Commands.java
 @@ -29,6 +29,8 @@ import net.minecraft.ChatFormatting;
@@ -17,16 +17,16 @@ index a56c76fc57b4fb51eceeae45b0d9e3e33e8b5779..583027f4a8259216e1fdb46585608b98
  import net.minecraft.commands.arguments.coordinates.Vec3Argument;
  import net.minecraft.commands.execution.ExecutionContext;
  import net.minecraft.commands.synchronization.ArgumentTypeInfos;
-@@ -207,7 +209,7 @@ public class Commands {
-         ClearInventoryCommands.register(this.dispatcher, context);
+@@ -210,7 +212,7 @@ public class Commands {
          //CloneCommands.register(this.dispatcher, context); // Folia - region threading - TODO
+         ComputeCommand.register(this.dispatcher, context);
          DamageCommand.register(this.dispatcher, context);
--        //DataCommands.register(this.dispatcher); // Folia - region threading - TODO
+-        //DataCommands.register(this.dispatcher, context); // Folia - region threading - TODO
 +        DataCommands.registerRegionSafeBlockReads(this.dispatcher); // Tessera - region-safe console block reads
          //DataPackCommand.register(this.dispatcher, context); // Folia - region threading - TODO
          //DebugCommand.register(this.dispatcher); // Folia - region threading - TODO
          DefaultGameModeCommands.register(this.dispatcher);
-@@ -362,12 +364,12 @@ public class Commands {
+@@ -366,12 +368,12 @@ public class Commands {
          this.performCommand(this.dispatcher.parse(command, sender), command);
      }
  
@@ -41,7 +41,7 @@ index a56c76fc57b4fb51eceeae45b0d9e3e33e8b5779..583027f4a8259216e1fdb46585608b98
  
      public static String trimOptionalPrefix(final String command) {
          return command.startsWith("/") ? command.substring(1) : command;
-@@ -382,7 +384,7 @@ public class Commands {
+@@ -386,7 +388,7 @@ public class Commands {
          this.performCommandAsync(command, commandString, throwCommandError);
      }
  
@@ -50,7 +50,7 @@ index a56c76fc57b4fb51eceeae45b0d9e3e33e8b5779..583027f4a8259216e1fdb46585608b98
      private CompletableFuture<Void> performCommandAsync(
          final ParseResults<CommandSourceStack> command,
          final String commandString,
-@@ -454,7 +456,7 @@ public class Commands {
+@@ -458,7 +460,7 @@ public class Commands {
          final int chunkZ = net.minecraft.util.Mth.floor(target.getPosition().z()) >> 4;
          if (level.regioniser.getRegionAtSynchronised(chunkX, chunkZ) == null) {
              sender.sendFailure(Component.literal(
@@ -59,7 +59,7 @@ index a56c76fc57b4fb51eceeae45b0d9e3e33e8b5779..583027f4a8259216e1fdb46585608b98
                      + level.dimension().identifier() + " [" + chunkX + ", " + chunkZ + "] is not loaded"
              ));
              return CompletableFuture.completedFuture(null);
-@@ -477,7 +479,7 @@ public class Commands {
+@@ -481,7 +483,7 @@ public class Commands {
              );
          if (!task.queue()) {
              sender.sendFailure(Component.literal(
@@ -68,7 +68,7 @@ index a56c76fc57b4fb51eceeae45b0d9e3e33e8b5779..583027f4a8259216e1fdb46585608b98
                      + level.dimension().identifier() + " [" + chunkX + ", " + chunkZ + "] is no longer available"
              ));
              completion.complete(null);
-@@ -490,8 +492,7 @@ public class Commands {
+@@ -494,8 +496,7 @@ public class Commands {
          final CommandSourceStack sender
      ) {
          if ((sender.source != sender.getServer()
@@ -78,7 +78,7 @@ index a56c76fc57b4fb51eceeae45b0d9e3e33e8b5779..583027f4a8259216e1fdb46585608b98
              return null;
          }
  
-@@ -501,9 +502,6 @@ public class Commands {
+@@ -505,9 +506,6 @@ public class Commands {
          try {
              while (true) {
                  final com.mojang.brigadier.context.CommandContext<CommandSourceStack> context = stage.getTopContext();
@@ -88,7 +88,7 @@ index a56c76fc57b4fb51eceeae45b0d9e3e33e8b5779..583027f4a8259216e1fdb46585608b98
                  if (tessera$hasArgumentType(context, DimensionArgument.class)) {
                      target = target.withLevel(DimensionArgument.getDimension(context.copyFor(target), "dimension"));
                      explicitDimension = true;
-@@ -512,8 +510,20 @@ public class Commands {
+@@ -516,8 +514,20 @@ public class Commands {
                      target = target.withPosition(Vec3Argument.getVec3(context.copyFor(target), "pos"));
                  }
  
@@ -110,7 +110,7 @@ index a56c76fc57b4fb51eceeae45b0d9e3e33e8b5779..583027f4a8259216e1fdb46585608b98
                  }
                  stage = stage.nextStage();
              }
-@@ -521,20 +531,25 @@ public class Commands {
+@@ -525,20 +535,25 @@ public class Commands {
              // Let normal command execution report invalid dimensions/coordinates.
              return null;
          }
@@ -147,7 +147,7 @@ index a56c76fc57b4fb51eceeae45b0d9e3e33e8b5779..583027f4a8259216e1fdb46585608b98
      }
  
      private static boolean tessera$hasNode(
-@@ -552,7 +567,7 @@ public class Commands {
+@@ -556,7 +571,7 @@ public class Commands {
              node.getNode() instanceof ArgumentCommandNode<?, ?> argument && type.isInstance(argument.getType())
          );
      }
@@ -157,10 +157,10 @@ index a56c76fc57b4fb51eceeae45b0d9e3e33e8b5779..583027f4a8259216e1fdb46585608b98
      private static @Nullable ContextChain<CommandSourceStack> finishParsing(
          final ParseResults<CommandSourceStack> command, final String commandString, final CommandSourceStack sender
 diff --git a/net/minecraft/server/commands/data/BlockDataAccessor.java b/net/minecraft/server/commands/data/BlockDataAccessor.java
-index 1b0ad9375986fe35795fc75f8eecfecaacc0cc13..d6fff11a8dd77a9a116b09d9a6880069233433d2 100644
+index 9542b4cd6f049a52dedd17a5f58bd90921867295..d701058e22bb39cc2208ef7dbd4022d70bc6f081 100644
 --- a/net/minecraft/server/commands/data/BlockDataAccessor.java
 +++ b/net/minecraft/server/commands/data/BlockDataAccessor.java
-@@ -28,11 +28,22 @@ public class BlockDataAccessor implements DataAccessor {
+@@ -24,10 +24,20 @@ public class BlockDataAccessor implements DataAccessor {
      private static final SimpleCommandExceptionType ERROR_NOT_A_BLOCK_ENTITY = new SimpleCommandExceptionType(
          Component.translatable("commands.data.block.invalid")
      );
@@ -169,27 +169,25 @@ index 1b0ad9375986fe35795fc75f8eecfecaacc0cc13..d6fff11a8dd77a9a116b09d9a6880069
 +        Component.literal("Cannot read block data outside the command's current region")
 +    );
 +    // Tessera end - reject foreign-region block reads clearly
-     public static final Function<String, DataCommands.DataProvider> PROVIDER = argPrefix -> new DataCommands.DataProvider() {
-         @Override
-         public DataAccessor access(final CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
--            BlockPos pos = BlockPosArgument.getLoadedBlockPos(context, argPrefix + "Pos");
+     public static final ArgProvider.Factory<DataAccessor> PROVIDER = arg -> ArgProvider.create(
+         "block", () -> Commands.argument(arg, BlockPosArgument.blockPos()), context -> {
+-            BlockPos pos = BlockPosArgument.getLoadedBlockPos(context, arg);
 -            BlockEntity entity = context.getSource().getLevel().getBlockEntity(pos);
 +            final net.minecraft.server.level.ServerLevel level = context.getSource().getLevel();
-+            final BlockPos pos = BlockPosArgument.getLoadedBlockPos(context, level, argPrefix + "Pos");
-+            // Tessera start - reject foreign-region block reads clearly
++            final BlockPos pos = BlockPosArgument.getBlockPos(context, arg);
 +            if (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(level, pos.getX() >> 4, pos.getZ() >> 4)) {
 +                throw ERROR_NOT_REGION_OWNED.create();
 +            }
-+            // Tessera end - reject foreign-region block reads clearly
++            BlockPosArgument.getLoadedBlockPos(context, level, arg);
 +            BlockEntity entity = level.getBlockEntity(pos);
              if (entity == null) {
-                 throw BlockDataAccessor.ERROR_NOT_A_BLOCK_ENTITY.create();
+                 throw ERROR_NOT_A_BLOCK_ENTITY.create();
              } else {
 diff --git a/net/minecraft/server/commands/data/DataCommands.java b/net/minecraft/server/commands/data/DataCommands.java
-index 024606d6784a7ddcf253052920ff0102867c9a14..a44fb1d44a52a02f892c6bffd2f9ada6cd94c757 100644
+index b3539df4b3427d275e351f9fe4fa16331d1a420d..7868a4a4cc17bdeec3370eda666950190b3e3c7c 100644
 --- a/net/minecraft/server/commands/data/DataCommands.java
 +++ b/net/minecraft/server/commands/data/DataCommands.java
-@@ -164,6 +164,42 @@ public class DataCommands {
+@@ -169,6 +169,42 @@ public class DataCommands {
          dispatcher.register(root);
      }
  
@@ -197,7 +195,7 @@ index 024606d6784a7ddcf253052920ff0102867c9a14..a44fb1d44a52a02f892c6bffd2f9ada6
 +    public static void registerRegionSafeBlockReads(final CommandDispatcher<CommandSourceStack> dispatcher) {
 +        final LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("data")
 +            .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS));
-+        final DataCommands.DataProvider blockProvider = BlockDataAccessor.PROVIDER.apply("target");
++        final ArgProvider<DataAccessor> blockProvider = BlockDataAccessor.PROVIDER.create("target");
 +        root.then(
 +            blockProvider.wrap(
 +                Commands.literal("get"),

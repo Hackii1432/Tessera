@@ -1,29 +1,26 @@
-From 2565e42f259dc5b4239aa7db56c1d5dabc6d58d5 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Hackii1432 <hunter122@hotmail.de>
 Date: Thu, 10 Sep 2026 00:52:52 +0200
 Subject: [PATCH] Restore async player respawn lifecycle
 
----
- net/minecraft/server/level/ServerPlayer.java | 381 +++++++++++++++----
- 1 file changed, 297 insertions(+), 84 deletions(-)
 
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 93f8218..bd6a7ff 100644
+index 357001378bca2698e74ef1e58a0b1a40af75e21a..0c962306dc16246079154dda20a064b431a40de7 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
-@@ -288,6 +288,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -292,6 +292,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
      // therefore concurrent; entity data itself is read through region-owned NBT
      // snapshots maintained by ThrownEnderpearl.
      private final Set<ThrownEnderpearl> enderPearls = ConcurrentHashMap.newKeySet();
 +    private static final ConcurrentHashMap<AsyncAnchorKey, Integer> ASYNC_ANCHOR_RESERVATIONS = new ConcurrentHashMap<>();
      // Tessera end - restore vanilla ender pearl ownership
+     private boolean postEffectsDirty = true;
      private long timeEntitySatOnShoulder;
-     private CompoundTag shoulderEntityLeft = new CompoundTag();
-@@ -1688,7 +1689,24 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -1736,7 +1737,24 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
              Runnable consumeAnchorCharge = null; // Paper - Fix SPIGOT-5989 (don't use charge until after respawn event)
              Optional<Vec3> standUpPosition = RespawnAnchorBlock.findStandUpPosition(EntityTypes.PLAYER, level, pos);
              if (!forced && consumeSpawnBlock && standUpPosition.isPresent()) {
--                consumeAnchorCharge = () -> level.setBlock(pos, blockState.setValue(RespawnAnchorBlock.CHARGE, blockState.getValue(RespawnAnchorBlock.CHARGE) - 1), Block.UPDATE_ALL); // Paper - Fix SPIGOT-5989 (don't use charge until after respawn event)
+-                consumeAnchorCharge = () -> level.setBlockAndUpdate(pos, blockState.setValue(RespawnAnchorBlock.CHARGE, blockState.getValue(RespawnAnchorBlock.CHARGE) - 1)); // Paper - Fix SPIGOT-5989 (don't use charge until after respawn event)
 +                // Resolve the current state when the delayed callback runs.
 +                // Async respawn crosses an event/region hand-off; using the
 +                // earlier captured state could restore a stale charge count
@@ -45,7 +42,7 @@ index 93f8218..bd6a7ff 100644
              }
              final Runnable finalConsumeAnchorCharge = consumeAnchorCharge; // Paper - Fix SPIGOT-5989
  
-@@ -1762,103 +1780,298 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -1808,103 +1826,298 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
              throw new IllegalStateException("Dead player should not be a vehicle or passenger");
          }
  
@@ -427,6 +424,3 @@ index 93f8218..bd6a7ff 100644
              );
          }
      }
--- 
-2.45.1.windows.1
-

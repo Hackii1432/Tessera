@@ -5,7 +5,7 @@ Subject: [PATCH] Tessera region-safe Bukkit scoreboards
 
 
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-index ef616c96bdfaeb1f7171e627f5d31a2bbb4b1408..3ba64aaaab8609a8aaa95b62d2cf03a3af46924f 100644
+index c43bb40286417fe315b45e7fb7d20f2ef623212e..de10d44f7865266cc6bf776f8b7dd0745ac64826 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 @@ -954,17 +954,24 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
@@ -37,10 +37,10 @@ index ef616c96bdfaeb1f7171e627f5d31a2bbb4b1408..3ba64aaaab8609a8aaa95b62d2cf03a3
  
      @Override
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-index e20a66e56f2e4520b2708d6ebc377392e4362816..64400af8cc345a279f93eadc8bde0b6174a491e7 100644
+index 2125a5f9817fb940a92c8ff7d663f67823b4ad35..d5529699145f8244d3bfae935c98d470051e3caa 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-@@ -246,7 +246,9 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
+@@ -248,7 +248,9 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
      private CraftWorldBorder clientWorldBorder = null;
      private BorderChangeListener clientWorldBorderListener = this.createWorldBorderListener();
      private long lastSaveTime; // Paper - getLastPlayed replacement API
@@ -51,7 +51,7 @@ index e20a66e56f2e4520b2708d6ebc377392e4362816..64400af8cc345a279f93eadc8bde0b61
      public final net.minecraft.network.PacketProcessor packetProcessor = new net.minecraft.network.PacketProcessor(null); // Folia
  
      // Folia start - region threading
-@@ -2573,11 +2575,12 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
+@@ -2575,11 +2577,12 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
      @Override
      public void setScoreboard(Scoreboard scoreboard) {
          Preconditions.checkArgument(scoreboard != null, "Scoreboard cannot be null");

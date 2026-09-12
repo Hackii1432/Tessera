@@ -5,10 +5,10 @@ Subject: [PATCH] Fix neutral mob aggression after player death
 
 
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 4273dc42007e16cf5f5df67d1a914499f5652668..dff4f9d8cf3d1ff7ce0b526a7e3425b78c007e01 100644
+index 30ad6ce7bed3844ce92b89e9d9dd9490d004401b..4580b8a61f827e8f9c0a23ba9da45dd9cb99d39b 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
-@@ -1422,7 +1422,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -1432,7 +1432,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
  
          this.removeEntitiesOnShoulder();
          if (this.level().getGameRules().get(GameRules.FORGIVE_DEAD_PLAYERS)) {
@@ -17,7 +17,7 @@ index 4273dc42007e16cf5f5df67d1a914499f5652668..dff4f9d8cf3d1ff7ce0b526a7e3425b7
          }
  
          // SPIGOT-5478 must be called manually now
-@@ -1473,7 +1473,17 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -1483,7 +1483,17 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          this.connection.markClientUnloadedAfterDeath();
      }
  

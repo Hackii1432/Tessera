@@ -5,7 +5,7 @@ Subject: [PATCH] Tessera branding
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java b/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
-index 30815c8970b1f1c88a3c7bb5fd36efd915f1687d..d19b808ca91a8268d1153678a7f24fa28868acde 100644
+index d630aa91cc8f7543ec8cd01261e4f152c1ec4783..d19b808ca91a8268d1153678a7f24fa28868acde 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
 @@ -1,23 +1,7 @@
@@ -60,10 +60,13 @@ index 30815c8970b1f1c88a3c7bb5fd36efd915f1687d..d19b808ca91a8268d1153678a7f24fa2
  
      @Override
      public long getCacheTime() {
-@@ -53,201 +30,28 @@ public class PaperVersionFetcher implements VersionFetcher {
+@@ -53,208 +30,28 @@ public class PaperVersionFetcher implements VersionFetcher {
  
      @Override
      public Component getVersionMessage() {
+-        if (BUILD_INFO.brandName().equals("Sinopia")) {
+-            return text("Sinopia " + BUILD_INFO.asString(VERSION_SIMPLE) + " (local Tessera base; no public release channel)", NamedTextColor.YELLOW);
+-        }
 -        final Component updateMessage;
 -        if (BUILD_INFO.buildNumber().isEmpty() && BUILD_INFO.gitCommit().isEmpty()) {
 -            updateMessage = text("You are running a development version without access to version information", color(0xFF5300));
@@ -77,6 +80,10 @@ index 30815c8970b1f1c88a3c7bb5fd36efd915f1687d..d19b808ca91a8268d1153678a7f24fa2
      }
  
      public static void getUpdateStatusStartupMessage() {
+-        if (BUILD_INFO.brandName().equals("Sinopia")) {
+-            COMPONENT_LOGGER.info(text("Sinopia: integrated Tessera base; automatic upstream release comparison is not applicable."));
+-            return;
+-        }
 -        int distance = DISTANCE_ERROR;
 -
 -        final OptionalInt buildNumber = BUILD_INFO.buildNumber();
@@ -276,14 +283,14 @@ index 30815c8970b1f1c88a3c7bb5fd36efd915f1687d..d19b808ca91a8268d1153678a7f24fa2
  
      private @Nullable Component getHistory() {
 diff --git a/src/main/java/io/papermc/paper/ServerBuildInfoImpl.java b/src/main/java/io/papermc/paper/ServerBuildInfoImpl.java
-index 10a0be7a4db1a51579d113d279af7a9effe7f438..04c624e38732dd48521bc53a75413186e15a4103 100644
+index db9bbfbe161b1644f8b9b004598b1956614f8926..04c624e38732dd48521bc53a75413186e15a4103 100644
 --- a/src/main/java/io/papermc/paper/ServerBuildInfoImpl.java
 +++ b/src/main/java/io/papermc/paper/ServerBuildInfoImpl.java
 @@ -30,7 +30,10 @@ public record ServerBuildInfoImpl(
      private static final String ATTRIBUTE_GIT_BRANCH = "Git-Branch";
      private static final String ATTRIBUTE_GIT_COMMIT = "Git-Commit";
  
--    private static final String BRAND_PAPER_NAME = "Paper";
+-    private static final String BRAND_PAPER_NAME = "Sinopia";
 +    // Tessera start - branding
 +    private static final Key BRAND_TESSERA_ID = Key.key("mosaikdev", "tessera");
 +    private static final String BRAND_TESSERA_NAME = "Tessera";

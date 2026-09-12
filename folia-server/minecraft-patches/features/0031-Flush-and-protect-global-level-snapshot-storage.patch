@@ -5,10 +5,10 @@ Subject: [PATCH] Flush and protect global level snapshot storage
 
 
 diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
-index ce428a6..b202882 100644
+index 64af32a8f319275036a5e10f85958418ef2b5d3e..003b5f1f2500bd5a3be277b1f45057ff18560368 100644
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
-@@ -1017,7 +1017,36 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1001,7 +1001,36 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
      }
  
      // Paper start - split out global level data
@@ -46,7 +46,7 @@ index ce428a6..b202882 100644
  
          GameProfile singleplayerProfile = this.getSingleplayerProfile();
 diff --git a/net/minecraft/world/level/storage/LevelStorageSource.java b/net/minecraft/world/level/storage/LevelStorageSource.java
-index 6f24eb3..b34a1f4 100644
+index 01b4ea4159d1885c4f409cca85297342bf485d56..f518578ef8db5a6f6a77bae2fe2045f6216ff56f 100644
 --- a/net/minecraft/world/level/storage/LevelStorageSource.java
 +++ b/net/minecraft/world/level/storage/LevelStorageSource.java
 @@ -596,7 +596,18 @@ public class LevelStorageSource {
@@ -82,7 +82,7 @@ index 6f24eb3..b34a1f4 100644
              }
          }
 diff --git a/net/minecraft/world/level/storage/SavedDataStorage.java b/net/minecraft/world/level/storage/SavedDataStorage.java
-index 81c1541..ee6a5b0 100644
+index 81c1541d8fa272e84316e87c3418ee727111a65c..ee6a5b058ddf4fe2dc16a00573612ca0c9112c63 100644
 --- a/net/minecraft/world/level/storage/SavedDataStorage.java
 +++ b/net/minecraft/world/level/storage/SavedDataStorage.java
 @@ -46,6 +46,7 @@ public class SavedDataStorage implements AutoCloseable {
@@ -168,6 +168,3 @@ index 81c1541..ee6a5b0 100644
              LOGGER.error("Could not save data to {}", path.getFileName(), e);
          }
      }
--- 
-2.45.1.windows.1
-
