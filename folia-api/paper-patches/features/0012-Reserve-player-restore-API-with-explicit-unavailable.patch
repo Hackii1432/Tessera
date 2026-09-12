@@ -1,0 +1,237 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <tessera@localhost>
+Date: Sat, 12 Sep 2026 17:07:43 +0200
+Subject: [PATCH] Reserve player restore API with explicit unavailable contract
+ version
+
+
+diff --git a/src/main/java/io/papermc/paper/world/PlayerRestoreResult.java b/src/main/java/io/papermc/paper/world/PlayerRestoreResult.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..14af820b7bc79c3eb886fa30e551433bd5088633
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/world/PlayerRestoreResult.java
+@@ -0,0 +1,28 @@
++package io.papermc.paper.world;
++
++import java.util.Objects;
++import java.util.UUID;
++import org.jspecify.annotations.NullMarked;
++
++/**
++ * Public, reflection-accessible restore result.
++ *
++ * @param operationId requested operation identity
++ * @param status outcome
++ * @param message diagnostic, never null
++ */
++@NullMarked
++public record PlayerRestoreResult(UUID operationId, PlayerRestoreStatus status, String message) {
++    public PlayerRestoreResult {
++        Objects.requireNonNull(operationId, "operationId");
++        Objects.requireNonNull(status, "status");
++        Objects.requireNonNull(message, "message");
++    }
++
++    public boolean successful() {
++        return switch (this.status) {
++            case PREPARED, APPLIED, ROLLED_BACK, COMPLETED -> true;
++            default -> false;
++        };
++    }
++}
+diff --git a/src/main/java/io/papermc/paper/world/PlayerRestoreService.java b/src/main/java/io/papermc/paper/world/PlayerRestoreService.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..774757b93dcfaabd4a67195d32e74061ec9bed00
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/world/PlayerRestoreService.java
+@@ -0,0 +1,67 @@
++package io.papermc.paper.world;
++
++import java.nio.file.Path;
++import java.util.UUID;
++import java.util.concurrent.CompletionStage;
++import org.bukkit.World;
++import org.bukkit.event.player.PlayerTeleportEvent;
++import org.jspecify.annotations.NullMarked;
++
++/**
++ * Server-owned restoration of the shared vanilla player store.
++ * Callers must check {@link #contractVersion()} before starting a live load.
++ * Version {@code 0} means unavailable; it must never enable MCC's v1 adapter.
++ * Version {@code 1} is reserved for the complete MCC live-load contract.
++ * No stage may be synchronously awaited on a tick or network thread.
++ * Operation identities are retained until server restart, including cancelled
++ * identities. Restart recovery remains the caller's offline journal's responsibility.
++ */
++@NullMarked
++public interface PlayerRestoreService {
++    /** @return 1 only when the complete live-restore contract is supported; otherwise 0 */
++    int contractVersion();
++
++    /**
++     * Validate the immutable source and capture a durable, fresh rollback store.
++     * The source and rollback roots contain {@code data}, {@code stats}, and
++     * {@code advancements}. The rollback root must not exist. Successful prepare
++     * keeps gameplay and player-store writes fenced until completion.
++     *
++     * @param operationId non-null operation identity
++     * @param sourcePlayers immutable staging root
++     * @param rollbackPlayers new rollback root
++     * @param fallbackWorld spawn world for players absent from the source
++     * @return non-null stage carrying the requested identity
++     */
++    CompletionStage<PlayerRestoreResult> prepareAsync(UUID operationId, Path sourcePlayers, Path rollbackPlayers, World fallbackWorld);
++
++    /**
++     * Apply the source, or drain preceding work and restore the rollback state.
++     * Rollback also accepts unknown identities and prevents their later prepare.
++     *
++     * @param operationId non-null operation identity
++     * @param forward true to apply; false to roll back
++     * @return completion after all owned work has settled
++     */
++    CompletionStage<PlayerRestoreResult> applyAsync(UUID operationId, boolean forward);
++
++    /**
++     * Release the fence after the matching applied or rolled-back decision.
++     * The caller durably commits its journal before passing {@code true}.
++     *
++     * @param operationId non-null operation identity
++     * @param committed matching final decision
++     * @return completion; failures retain the fence and allow retry
++     */
++    CompletionStage<PlayerRestoreResult> completeAsync(UUID operationId, boolean committed);
++
++    /**
++     * Test the identity of the exact restore teleport event during its dispatch.
++     * This is never a general permission to teleport a player under restoration.
++     *
++     * @param event event currently being dispatched
++     * @param operationId operation identity
++     * @return true only for that operation's concrete native transfer event
++     */
++    boolean isRestoreTeleport(PlayerTeleportEvent event, UUID operationId);
++}
+diff --git a/src/main/java/io/papermc/paper/world/PlayerRestoreStatus.java b/src/main/java/io/papermc/paper/world/PlayerRestoreStatus.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d16775636f7cac3f374a6091c14916095977c615
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/world/PlayerRestoreStatus.java
+@@ -0,0 +1,20 @@
++package io.papermc.paper.world;
++
++/** Outcome of a player-store restore request. */
++public enum PlayerRestoreStatus {
++    PREPARED,
++    APPLIED,
++    ROLLED_BACK,
++    COMPLETED,
++    UNSUPPORTED,
++    INVALID_REQUEST,
++    CONFLICT,
++    BUSY,
++    CANCELLED,
++    VALIDATION_FAILED,
++    PLAYER_BUSY,
++    SAVE_FAILED,
++    TRANSFER_FAILED,
++    COMPLETE_FAILED,
++    SERVER_STOPPING
++}
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index b80a89decc34339e15d10a95cf30fa643fafc4e5..f8d975136133f4eb007649704108d0915824ff1d 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -2887,6 +2887,14 @@ public final class Bukkit {
+         return server.getTesseraCapabilities();
+     }
+ 
++    /**
++     * Gets the server-owned player restore service.
++     * @return service; inspect its contract version before attempting live restore
++     */
++    public static @NotNull io.papermc.paper.world.PlayerRestoreService getPlayerRestoreService() {
++        return server.getPlayerRestoreService();
++    }
++
+     /**
+      * Returns Tessera's asynchronous runtime world manager.
+      *
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index 724c4996822ba0776bd1da1472d1e82fa45b0f38..11cd1f81f05ce2aaa414f1e5447c1e1b06ef3f7a 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -2677,6 +2677,12 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+      * @return runtime world manager
+      */
+     @NotNull io.papermc.paper.world.RuntimeWorldManager getRuntimeWorldManager();
++
++    /**
++     * Gets the server-owned shared player-store restore service.
++     * @return service; contract version 0 means live restore is unavailable
++     */
++    @NotNull io.papermc.paper.world.PlayerRestoreService getPlayerRestoreService();
+     // Tessera end - runtime capabilities
+ 
+     /**
+diff --git a/src/test/java/io/papermc/paper/world/PlayerRestoreApiTest.java b/src/test/java/io/papermc/paper/world/PlayerRestoreApiTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..0eeb37b70d27a56f37d84f8a93bc5050786fdd06
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/world/PlayerRestoreApiTest.java
+@@ -0,0 +1,55 @@
++package io.papermc.paper.world;
++
++import java.lang.reflect.Modifier;
++import java.nio.file.Path;
++import java.util.EnumSet;
++import java.util.UUID;
++import java.util.concurrent.CompletionStage;
++import org.bukkit.Bukkit;
++import org.bukkit.Server;
++import org.bukkit.World;
++import org.bukkit.event.player.PlayerTeleportEvent;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertThrows;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++class PlayerRestoreApiTest {
++    @Test
++    void signaturesArePublicAndHaveNoImplementationTypes() throws Exception {
++        Class<PlayerRestoreService> api = PlayerRestoreService.class;
++        assertEquals(int.class, api.getMethod("contractVersion").getReturnType());
++        assertEquals(CompletionStage.class, api.getMethod("prepareAsync", UUID.class, Path.class, Path.class, World.class).getReturnType());
++        assertEquals(CompletionStage.class, api.getMethod("applyAsync", UUID.class, boolean.class).getReturnType());
++        assertEquals(CompletionStage.class, api.getMethod("completeAsync", UUID.class, boolean.class).getReturnType());
++        assertEquals(boolean.class, api.getMethod("isRestoreTeleport", PlayerTeleportEvent.class, UUID.class).getReturnType());
++        assertEquals(api, Bukkit.class.getMethod("getPlayerRestoreService").getReturnType());
++        assertTrue(Modifier.isStatic(Bukkit.class.getMethod("getPlayerRestoreService").getModifiers()));
++        assertEquals(api, Server.class.getMethod("getPlayerRestoreService").getReturnType());
++        for (var type : new Class<?>[]{api, PlayerRestoreStatus.class, PlayerRestoreResult.class}) {
++            assertTrue(Modifier.isPublic(type.getModifiers()));
++        }
++    }
++
++    @Test
++    void exactlyTheFourContractStatusesAreSuccessfulAndResultsAreReflectable() throws Exception {
++        UUID id = UUID.randomUUID();
++        var successful = EnumSet.of(PlayerRestoreStatus.PREPARED, PlayerRestoreStatus.APPLIED, PlayerRestoreStatus.ROLLED_BACK, PlayerRestoreStatus.COMPLETED);
++        for (var status : PlayerRestoreStatus.values()) {
++            Object result = new PlayerRestoreResult(id, status, "diagnostic");
++            assertEquals(id, result.getClass().getMethod("operationId").invoke(result));
++            assertEquals(status, result.getClass().getMethod("status").invoke(result));
++            assertEquals("diagnostic", result.getClass().getMethod("message").invoke(result));
++            assertEquals(successful.contains(status), result.getClass().getMethod("successful").invoke(result));
++        }
++    }
++
++    @Test
++    void nullResultComponentsAreRejected() {
++        UUID id = UUID.randomUUID();
++        assertThrows(NullPointerException.class, () -> new PlayerRestoreResult(null, PlayerRestoreStatus.PREPARED, ""));
++        assertThrows(NullPointerException.class, () -> new PlayerRestoreResult(id, null, ""));
++        assertThrows(NullPointerException.class, () -> new PlayerRestoreResult(id, PlayerRestoreStatus.PREPARED, null));
++    }
++}

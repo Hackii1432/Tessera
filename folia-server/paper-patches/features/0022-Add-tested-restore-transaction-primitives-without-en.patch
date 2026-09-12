@@ -1,0 +1,1244 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <tessera@localhost>
+Date: Sat, 12 Sep 2026 17:07:43 +0200
+Subject: [PATCH] Add tested restore transaction primitives without enabling
+ live restore
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index b304d37e0fb01228d559504fa269229a08fae493..6487ae654954b0dbee888e13b0138a5fe22afcb5 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -281,6 +281,7 @@ public final class CraftServer implements Server {
+     // lock-free reads from independent region threads.
+     private volatile Map<String, World> worlds = Collections.unmodifiableMap(new LinkedHashMap<>());
+     private final org.bukkit.craftbukkit.world.CraftRuntimeWorldManager runtimeWorldManager;
++    private final org.bukkit.craftbukkit.world.CraftPlayerRestoreService playerRestoreService = new org.bukkit.craftbukkit.world.CraftPlayerRestoreService();
+     private static final io.papermc.paper.threadedregions.TesseraCapabilities TESSERA_CAPABILITIES =
+         new io.papermc.paper.threadedregions.TesseraCapabilities() {
+             @Override
+@@ -352,6 +353,11 @@ public final class CraftServer implements Server {
+     public org.bukkit.craftbukkit.world.CraftRuntimeWorldManager getRuntimeWorldManager() {
+         return this.runtimeWorldManager;
+     }
++
++    @Override
++    public org.bukkit.craftbukkit.world.CraftPlayerRestoreService getPlayerRestoreService() {
++        return this.playerRestoreService;
++    }
+     // Tessera end - runtime capabilities
+ 
+     @Override
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/CraftPlayerRestoreService.java b/src/main/java/org/bukkit/craftbukkit/world/CraftPlayerRestoreService.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..1591e4bfee3543275a1f1aa602a518eb90471136
+--- /dev/null
++++ b/src/main/java/org/bukkit/craftbukkit/world/CraftPlayerRestoreService.java
+@@ -0,0 +1,72 @@
++package org.bukkit.craftbukkit.world;
++
++import io.papermc.paper.world.PlayerRestoreResult;
++import io.papermc.paper.world.PlayerRestoreService;
++import io.papermc.paper.world.PlayerRestoreStatus;
++import java.nio.file.Path;
++import java.util.Objects;
++import java.util.UUID;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.CompletionStage;
++import org.bukkit.World;
++import org.bukkit.event.player.PlayerTeleportEvent;
++
++/**
++ * Public reflection entry point. Deliberately fails closed until the native
++ * backend satisfies every v1 guarantee; the transaction primitives alone do
++ * not provide live restore and must never activate MCC's optional v1 adapter.
++ */
++public final class CraftPlayerRestoreService implements PlayerRestoreService {
++    private final PlayerRestoreCoordinator coordinator = new PlayerRestoreCoordinator(new UnavailableBackend(), Runnable::run);
++
++    @Override
++    public int contractVersion() {
++        return 0;
++    }
++
++    @Override
++    public CompletionStage<PlayerRestoreResult> prepareAsync(UUID operationId, Path sourcePlayers, Path rollbackPlayers, World fallbackWorld) {
++        Objects.requireNonNull(operationId, "operationId");
++        if (sourcePlayers == null || rollbackPlayers == null || fallbackWorld == null) {
++            return CompletableFuture.completedStage(new PlayerRestoreResult(operationId, PlayerRestoreStatus.INVALID_REQUEST, "Source, rollback and fallback world are required"));
++        }
++        return this.coordinator.prepare(operationId,
++            new PlayerRestoreCoordinator.Request(sourcePlayers, rollbackPlayers, fallbackWorld.getUID()));
++    }
++
++    @Override
++    public CompletionStage<PlayerRestoreResult> applyAsync(UUID operationId, boolean forward) {
++        return this.coordinator.apply(operationId, forward);
++    }
++
++    @Override
++    public CompletionStage<PlayerRestoreResult> completeAsync(UUID operationId, boolean committed) {
++        return this.coordinator.complete(operationId, committed);
++    }
++
++    @Override
++    public boolean isRestoreTeleport(PlayerTeleportEvent event, UUID operationId) {
++        return false; // No native restore transfer is enabled.
++    }
++
++    private static final class UnavailableBackend implements PlayerRestoreCoordinator.Backend {
++        @Override
++        public CompletionStage<Void> prepare(PlayerRestoreCoordinator.Operation operation) {
++            return CompletableFuture.failedStage(new PlayerRestoreCoordinator.RestoreFailure(PlayerRestoreStatus.UNSUPPORTED,
++                "MCC live restore v1 is unavailable: native player replacement, owner-drained entity transfers and platform durability are not complete"));
++        }
++
++        @Override
++        public CompletionStage<Void> apply(PlayerRestoreCoordinator.Operation operation, boolean forward) {
++            if (forward) {
++                return CompletableFuture.failedStage(new PlayerRestoreCoordinator.RestoreFailure(PlayerRestoreStatus.UNSUPPORTED, "Live restore is unavailable"));
++            }
++            return CompletableFuture.completedStage(null); // Prepare never touched files, players or a native fence.
++        }
++
++        @Override
++        public CompletionStage<Void> complete(PlayerRestoreCoordinator.Operation operation, boolean committed) {
++            return CompletableFuture.completedStage(null);
++        }
++    }
++}
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/PlayerRestoreCoordinator.java b/src/main/java/org/bukkit/craftbukkit/world/PlayerRestoreCoordinator.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b6b73aada5f6583959ffab12ed2e43761cff9d37
+--- /dev/null
++++ b/src/main/java/org/bukkit/craftbukkit/world/PlayerRestoreCoordinator.java
+@@ -0,0 +1,223 @@
++package org.bukkit.craftbukkit.world;
++
++import io.papermc.paper.world.PlayerRestoreResult;
++import io.papermc.paper.world.PlayerRestoreStatus;
++import java.nio.file.Path;
++import java.util.HashMap;
++import java.util.Map;
++import java.util.Objects;
++import java.util.UUID;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.CompletionStage;
++import java.util.concurrent.Executor;
++import java.util.concurrent.atomic.AtomicBoolean;
++
++/**
++ * Serializes decisions, not tick threads. Backend stages must include every
++ * child operation, including cleanup. Cancelling a caller's view never cancels
++ * the actor's work. A rollback tombstone wins over work not yet dispatched.
++ */
++final class PlayerRestoreCoordinator {
++    record Request(Path source, Path rollback, UUID fallback) {
++        Request {
++            source = source.toAbsolutePath().normalize();
++            rollback = rollback.toAbsolutePath().normalize();
++            Objects.requireNonNull(fallback, "fallback");
++        }
++    }
++
++    static final class Operation {
++        final UUID id;
++        final Request request;
++        final AtomicBoolean rollbackRequested = new AtomicBoolean();
++        private CompletableFuture<PlayerRestoreResult> prepare;
++        private CompletableFuture<PlayerRestoreResult> forward;
++        private CompletableFuture<PlayerRestoreResult> rollback;
++        private CompletableFuture<PlayerRestoreResult> complete;
++        private CompletableFuture<?> tail = CompletableFuture.completedFuture(null);
++        private PlayerRestoreStatus state;
++        private Boolean decision;
++
++        Operation(UUID id, Request request) {
++            this.id = id;
++            this.request = request;
++        }
++
++        void checkForward() {
++            if (this.rollbackRequested.get()) {
++                throw new RestoreFailure(PlayerRestoreStatus.CANCELLED, "Rollback requested: " + this.id);
++            }
++        }
++    }
++
++    interface Backend {
++        CompletionStage<Void> prepare(Operation operation);
++        CompletionStage<Void> apply(Operation operation, boolean forward);
++        CompletionStage<Void> complete(Operation operation, boolean committed);
++    }
++
++    static final class RestoreFailure extends RuntimeException {
++        final PlayerRestoreStatus status;
++
++        RestoreFailure(PlayerRestoreStatus status, String message) {
++            super(message);
++            this.status = status;
++        }
++    }
++
++    private final Backend backend;
++    private final Executor executor;
++    private final Map<UUID, Operation> operations = new HashMap<>();
++    private Operation active;
++
++    PlayerRestoreCoordinator(Backend backend, Executor executor) {
++        this.backend = Objects.requireNonNull(backend);
++        this.executor = Objects.requireNonNull(executor);
++    }
++
++    synchronized CompletionStage<PlayerRestoreResult> prepare(UUID id, Request request) {
++        Objects.requireNonNull(id, "operationId");
++        Objects.requireNonNull(request, "request");
++        Operation existing = this.operations.get(id);
++        if (existing != null) {
++            if (!request.equals(existing.request)) {
++                return result(id, PlayerRestoreStatus.CONFLICT, "Operation parameters differ, or identity was cancelled before prepare");
++            }
++            return view(existing.prepare);
++        }
++        if (this.active != null) {
++            return result(id, PlayerRestoreStatus.BUSY, "Player store is fenced by " + this.active.id);
++        }
++        Operation operation = new Operation(id, request);
++        this.operations.put(id, operation);
++        this.active = operation;
++        operation.prepare = new CompletableFuture<>();
++        operation.tail = this.enqueue(operation, () -> {
++            operation.checkForward();
++            return this.backend.prepare(operation);
++        }, PlayerRestoreStatus.PREPARED, PlayerRestoreStatus.SAVE_FAILED, operation.prepare, true);
++        return view(operation.prepare);
++    }
++
++    synchronized CompletionStage<PlayerRestoreResult> apply(UUID id, boolean forward) {
++        Objects.requireNonNull(id, "operationId");
++        Operation operation = this.operations.get(id);
++        if (operation == null) {
++            if (forward) {
++                return result(id, PlayerRestoreStatus.CONFLICT, "Prepare is required before forward apply");
++            }
++            // No backend work and no fence for a never-started operation. Keep
++            // its tombstone so a late prepare cannot start a world transfer.
++            operation = new Operation(id, null);
++            operation.rollbackRequested.set(true);
++            operation.state = PlayerRestoreStatus.ROLLED_BACK;
++            operation.rollback = CompletableFuture.completedFuture(new PlayerRestoreResult(id, operation.state, "Cancelled before prepare"));
++            this.operations.put(id, operation);
++            return view(operation.rollback);
++        }
++        if (operation.decision != null) {
++            if (operation.decision != forward) {
++                return result(id, PlayerRestoreStatus.CONFLICT, "Final decision is already " + operation.decision);
++            }
++            return view(forward ? operation.forward : operation.rollback);
++        }
++        if (forward) {
++            if (operation.rollbackRequested.get()) {
++                return result(id, PlayerRestoreStatus.CONFLICT, "Rollback has already been requested");
++            }
++            if (operation.forward != null) {
++                return view(operation.forward);
++            }
++            if (operation.state != PlayerRestoreStatus.PREPARED) {
++                return result(id, PlayerRestoreStatus.CONFLICT, "Successful prepare is required");
++            }
++            operation.forward = new CompletableFuture<>();
++            final Operation selected = operation;
++            operation.tail = this.enqueue(operation, () -> {
++                selected.checkForward();
++                return this.backend.apply(selected, true);
++            }, PlayerRestoreStatus.APPLIED, PlayerRestoreStatus.TRANSFER_FAILED, operation.forward, true);
++            return view(operation.forward);
++        }
++        operation.rollbackRequested.set(true);
++        if (operation.rollback != null && (!operation.rollback.isDone() || operation.state == PlayerRestoreStatus.ROLLED_BACK)) {
++            return view(operation.rollback);
++        }
++        operation.rollback = new CompletableFuture<>();
++        final Operation selected = operation;
++        operation.tail = this.enqueue(operation, () -> this.backend.apply(selected, false),
++            PlayerRestoreStatus.ROLLED_BACK, PlayerRestoreStatus.TRANSFER_FAILED, operation.rollback, false);
++        return view(operation.rollback);
++    }
++
++    synchronized CompletionStage<PlayerRestoreResult> complete(UUID id, boolean committed) {
++        Objects.requireNonNull(id, "operationId");
++        Operation operation = this.operations.get(id);
++        if (operation == null) {
++            return result(id, PlayerRestoreStatus.CONFLICT, "Rollback or apply is required before complete");
++        }
++        if (operation.decision != null && operation.decision != committed) {
++            return result(id, PlayerRestoreStatus.CONFLICT, "Final decision is already " + operation.decision);
++        }
++        if (operation.complete != null && (!operation.complete.isDone() || operation.state == PlayerRestoreStatus.COMPLETED)) {
++            return view(operation.complete);
++        }
++        PlayerRestoreStatus expected = committed ? PlayerRestoreStatus.APPLIED : PlayerRestoreStatus.ROLLED_BACK;
++        if (operation.state != expected && operation.state != PlayerRestoreStatus.COMPLETE_FAILED) {
++            return result(id, PlayerRestoreStatus.CONFLICT, "Expected " + expected + ", got " + operation.state);
++        }
++        if (committed && operation.rollbackRequested.get()) {
++            return result(id, PlayerRestoreStatus.CONFLICT, "Rollback has already been requested");
++        }
++        // Seal the decision before dispatch. A failed post-commit completion
++        // must remain forward-only, including while a retry is in flight.
++        operation.decision = committed;
++        operation.complete = new CompletableFuture<>();
++        operation.tail = this.enqueue(operation, () -> operation.request == null
++                ? CompletableFuture.completedFuture(null) : this.backend.complete(operation, committed),
++            PlayerRestoreStatus.COMPLETED, PlayerRestoreStatus.COMPLETE_FAILED, operation.complete, false);
++        return view(operation.complete);
++    }
++
++    private CompletableFuture<?> enqueue(Operation operation, java.util.function.Supplier<CompletionStage<Void>> action,
++                                        PlayerRestoreStatus success, PlayerRestoreStatus failure,
++                                        CompletableFuture<PlayerRestoreResult> output, boolean cancellable) {
++        CompletableFuture<PlayerRestoreResult> settled = operation.tail.handleAsync((ignored, previousFailure) -> null, this.executor)
++            .thenCompose(ignored -> Objects.requireNonNull(action.get(), "Backend returned null stage"))
++            .handle((ignored, error) -> {
++                synchronized (this) {
++                    PlayerRestoreStatus status = success;
++                    String message = success.name();
++                    if (error != null) {
++                        Throwable cause = error;
++                        while (cause instanceof java.util.concurrent.CompletionException && cause.getCause() != null) {
++                            cause = cause.getCause();
++                        }
++                        status = cause instanceof RestoreFailure restore ? restore.status : failure;
++                        message = cause.toString();
++                    } else if (cancellable && operation.rollbackRequested.get()) {
++                        status = PlayerRestoreStatus.CANCELLED;
++                        message = "Work drained; rollback requested";
++                    }
++                    operation.state = status;
++                    if (status == PlayerRestoreStatus.COMPLETED && this.active == operation) {
++                        this.active = null;
++                    }
++                    return new PlayerRestoreResult(operation.id, status, message);
++                }
++            });
++        // Publish only after the owned tail itself is settled. A continuation
++        // can immediately request rollback; it must not depend on the stack
++        // currently publishing this result to finish unwinding first.
++        settled.thenAccept(output::complete);
++        return settled;
++    }
++
++    private static CompletionStage<PlayerRestoreResult> view(CompletableFuture<PlayerRestoreResult> future) {
++        return Objects.requireNonNull(future, "Missing operation stage").minimalCompletionStage();
++    }
++
++    private static CompletionStage<PlayerRestoreResult> result(UUID id, PlayerRestoreStatus status, String message) {
++        return CompletableFuture.completedStage(new PlayerRestoreResult(id, status, message));
++    }
++}
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/PlayerRestoreFiles.java b/src/main/java/org/bukkit/craftbukkit/world/PlayerRestoreFiles.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..74430ec0f2e78fd597b9df8c8a2b18dd94ca4bcf
+--- /dev/null
++++ b/src/main/java/org/bukkit/craftbukkit/world/PlayerRestoreFiles.java
+@@ -0,0 +1,189 @@
++package org.bukkit.craftbukkit.world;
++
++import java.io.IOException;
++import java.nio.channels.FileChannel;
++import java.nio.file.FileVisitResult;
++import java.nio.file.Files;
++import java.nio.file.LinkOption;
++import java.nio.file.Path;
++import java.nio.file.SimpleFileVisitor;
++import java.nio.file.StandardCopyOption;
++import java.nio.file.StandardOpenOption;
++import java.nio.file.attribute.BasicFileAttributes;
++import java.util.List;
++import java.util.UUID;
++
++/**
++ * Restore filesystem primitives. No method removes an original or backup.
++ * Publication consists of sibling renames; MCC supplies crash recovery.
++ * File contents are forced before publication. Directory durability is a
++ * separate platform requirement and must be supplied by a verified backend.
++ */
++final class PlayerRestoreFiles {
++    static final List<String> DIRECTORIES = List.of("data", "stats", "advancements");
++
++    @FunctionalInterface
++    interface Durability {
++        void directory(Path path) throws IOException;
++    }
++
++    @FunctionalInterface
++    interface Move {
++        void move(Path from, Path to) throws IOException;
++    }
++
++    private final Durability durability;
++    private final Move move;
++
++    PlayerRestoreFiles(Durability durability) {
++        this(durability, (from, to) -> Files.move(from, to, StandardCopyOption.ATOMIC_MOVE));
++    }
++
++    PlayerRestoreFiles(Durability durability, Move move) {
++        this.durability = durability;
++        this.move = move;
++    }
++
++    static void validateDisjoint(Path... paths) throws IOException {
++        for (int i = 0; i < paths.length; ++i) {
++            Path a = checkedPath(paths[i]);
++            for (int j = 0; j < i; ++j) {
++                Path b = checkedPath(paths[j]);
++                if (a.startsWith(b) || b.startsWith(a)) {
++                    throw new IOException("Overlapping player-store paths: " + a + " / " + b);
++                }
++            }
++        }
++    }
++
++    static Path checkedPath(Path path) throws IOException {
++        Path absolute = path.toAbsolutePath().normalize();
++        Path current = absolute.getRoot();
++        for (Path part : absolute) {
++            current = current.resolve(part);
++            if (Files.exists(current, LinkOption.NOFOLLOW_LINKS)) {
++                BasicFileAttributes attributes = Files.readAttributes(current, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
++                if (attributes.isSymbolicLink() || attributes.isOther()) {
++                    throw new IOException("Links and special files are not supported: " + current);
++                }
++                if (!current.toRealPath().equals(current.toRealPath(LinkOption.NOFOLLOW_LINKS))) {
++                    throw new IOException("Redirected player-store path: " + current);
++                }
++            }
++        }
++        // Canonicalize the existing ancestor, including case on Windows.
++        Path ancestor = absolute;
++        while (ancestor != null && !Files.exists(ancestor, LinkOption.NOFOLLOW_LINKS)) {
++            ancestor = ancestor.getParent();
++        }
++        if (ancestor == null) {
++            throw new IOException("No existing ancestor: " + absolute);
++        }
++        return ancestor.toRealPath().resolve(ancestor.relativize(absolute));
++    }
++
++    static void validateTree(Path root) throws IOException {
++        checkedPath(root);
++        if (!Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS)) {
++            throw new IOException("Missing player-store directory: " + root);
++        }
++        for (String child : DIRECTORIES) {
++            if (!Files.isDirectory(root.resolve(child), LinkOption.NOFOLLOW_LINKS)) {
++                throw new IOException("Missing player-store child: " + root.resolve(child));
++            }
++        }
++        try (var children = Files.list(root)) {
++            for (Path child : children.toList()) {
++                if (!DIRECTORIES.contains(child.getFileName().toString())) {
++                    throw new IOException("Unexpected player-store child: " + child);
++                }
++            }
++        }
++        Files.walkFileTree(root, new SimpleFileVisitor<>() {
++            @Override
++            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attributes) throws IOException {
++                checkedPath(dir);
++                if (!dir.equals(root) && !dir.getParent().equals(root)) {
++                    throw new IOException("Nested player-store directory: " + dir);
++                }
++                return FileVisitResult.CONTINUE;
++            }
++
++            @Override
++            public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) throws IOException {
++                if (!attributes.isRegularFile() || attributes.isSymbolicLink() || attributes.isOther()) {
++                    throw new IOException("Non-regular player file: " + file);
++                }
++                checkedPath(file);
++                return FileVisitResult.CONTINUE;
++            }
++        });
++    }
++
++    void copyNew(Path source, Path target) throws IOException {
++        validateDisjoint(source, target);
++        validateTree(source);
++        checkedPath(target);
++        // CREATE_DIRECTORY is authoritative even if another caller races us.
++        Files.createDirectory(target);
++        for (String name : DIRECTORIES) {
++            Path destination = Files.createDirectory(target.resolve(name));
++            try (var files = Files.list(source.resolve(name))) {
++                for (Path file : files.toList()) {
++                    Path copy = destination.resolve(file.getFileName());
++                    // Never overwrite an existing file, follow a link, or accept
++                    // an incomplete stream copy as a successfully sealed backup.
++                    try (FileChannel input = FileChannel.open(file, StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS);
++                         FileChannel output = FileChannel.open(copy, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
++                        long size = input.size();
++                        long position = 0;
++                        while (position < size) {
++                            long written = input.transferTo(position, size - position, output);
++                            if (written <= 0) {
++                                throw new IOException("Short player-store copy: " + file);
++                            }
++                            position += written;
++                        }
++                        if (input.size() != size) {
++                            throw new IOException("Source changed while copying: " + file);
++                        }
++                        output.force(true);
++                    }
++                }
++            }
++            this.durability.directory(destination);
++        }
++        this.durability.directory(target);
++        this.durability.directory(target.getParent());
++    }
++
++    /** Returns the retained original root; failures retain all involved trees. */
++    Path publish(Path prepared, Path active, UUID operation, String phase) throws IOException {
++        validateDisjoint(prepared, active);
++        validateTree(prepared);
++        checkedPath(active);
++        Path retained = active.resolveSibling(".tessera-players-" + operation + "-" + phase + "-" + UUID.randomUUID());
++        if (Files.exists(retained, LinkOption.NOFOLLOW_LINKS)) {
++            throw new IOException("Retained store already exists: " + retained);
++        }
++        boolean movedOriginal = false;
++        if (Files.exists(active, LinkOption.NOFOLLOW_LINKS)) {
++            this.move.move(active, retained);
++            movedOriginal = true;
++        }
++        try {
++            this.move.move(prepared, active);
++        } catch (IOException publicationFailure) {
++            if (movedOriginal) {
++                try {
++                    this.move.move(retained, active);
++                } catch (IOException recoveryFailure) {
++                    publicationFailure.addSuppressed(recoveryFailure);
++                }
++            }
++            throw publicationFailure;
++        }
++        this.durability.directory(active.getParent());
++        return retained;
++    }
++}
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/PlayerStoreFence.java b/src/main/java/org/bukkit/craftbukkit/world/PlayerStoreFence.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..be65e63c9284b8d18c40434158a4023e5fedfd80
+--- /dev/null
++++ b/src/main/java/org/bukkit/craftbukkit/world/PlayerStoreFence.java
+@@ -0,0 +1,104 @@
++package org.bukkit.craftbukkit.world;
++
++import java.util.UUID;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.CompletionStage;
++
++/** Non-blocking admission and generation fencing for native player-file writers. */
++public final class PlayerStoreFence {
++    public static final PlayerStoreFence INSTANCE = new PlayerStoreFence();
++
++    private UUID owner;
++    private long generation;
++    private int writers;
++    private CompletableFuture<Void> drained;
++
++    public synchronized long generation() {
++        return this.generation;
++    }
++
++    public synchronized boolean isClosed() {
++        return this.owner != null;
++    }
++
++    public synchronized CompletionStage<Void> close(UUID operation) {
++        java.util.Objects.requireNonNull(operation, "operation");
++        if (this.owner != null && !this.owner.equals(operation)) {
++            throw new IllegalStateException("Store belongs to " + this.owner);
++        }
++        if (this.owner == null) {
++            this.owner = operation;
++            this.drained = new CompletableFuture<>();
++            if (this.writers == 0) {
++                this.drained.complete(null);
++            }
++        }
++        return this.drained.minimalCompletionStage();
++    }
++
++    /** Null means the writer must not touch the store. No tick thread waits. */
++    public synchronized Lease tryWrite(long expectedGeneration) {
++        if (this.owner != null || this.generation != expectedGeneration) {
++            return null;
++        }
++        ++this.writers;
++        return new Lease(this);
++    }
++
++    /** Only after the old writer set has drained, while the fence is closed. */
++    public synchronized long advance(UUID operation) {
++        this.requireOwner(operation);
++        if (this.writers != 0) {
++            throw new IllegalStateException("Player writers have not drained");
++        }
++        return ++this.generation;
++    }
++
++    public synchronized void open(UUID operation) {
++        this.requireOwner(operation);
++        if (this.writers != 0) {
++            throw new IllegalStateException("Player writers have not drained");
++        }
++        this.owner = null;
++        this.drained = null;
++    }
++
++    private void requireOwner(UUID operation) {
++        if (!operation.equals(this.owner)) {
++            throw new IllegalStateException("Wrong player-store fence owner: " + operation);
++        }
++    }
++
++    private void release() {
++        CompletableFuture<Void> completion;
++        synchronized (this) {
++            if (--this.writers < 0) {
++                throw new IllegalStateException("Unbalanced player writer lease");
++            }
++            completion = this.writers == 0 ? this.drained : null;
++        }
++        if (completion != null) {
++            completion.complete(null);
++        }
++    }
++
++    public static final class Lease implements AutoCloseable {
++        private PlayerStoreFence fence;
++
++        private Lease(PlayerStoreFence fence) {
++            this.fence = fence;
++        }
++
++        @Override
++        public void close() {
++            PlayerStoreFence release;
++            synchronized (this) {
++                release = this.fence;
++                this.fence = null;
++            }
++            if (release != null) {
++                release.release();
++            }
++        }
++    }
++}
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/RestoreTeleportScope.java b/src/main/java/org/bukkit/craftbukkit/world/RestoreTeleportScope.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..4ff59d6ead36c0b15675b4ed8e9a33a480306cb7
+--- /dev/null
++++ b/src/main/java/org/bukkit/craftbukkit/world/RestoreTeleportScope.java
+@@ -0,0 +1,35 @@
++package org.bukkit.craftbukkit.world;
++
++import java.util.IdentityHashMap;
++import java.util.UUID;
++import org.bukkit.event.player.PlayerTeleportEvent;
++
++/** Event identity capability, valid only on the dispatching owner thread. */
++final class RestoreTeleportScope {
++    private final ThreadLocal<IdentityHashMap<PlayerTeleportEvent, UUID>> events = new ThreadLocal<>();
++
++    boolean matches(PlayerTeleportEvent event, UUID operation) {
++        var active = this.events.get();
++        return event != null && operation != null && active != null && operation.equals(active.get(event));
++    }
++
++    void dispatch(PlayerTeleportEvent event, UUID operation, Runnable dispatch) {
++        var active = this.events.get();
++        if (active == null) {
++            active = new IdentityHashMap<>();
++            this.events.set(active);
++        }
++        if (active.containsKey(event)) {
++            throw new IllegalStateException("Restore teleport event is already being dispatched");
++        }
++        active.put(event, operation);
++        try {
++            dispatch.run();
++        } finally {
++            active.remove(event);
++            if (active.isEmpty()) {
++                this.events.remove();
++            }
++        }
++    }
++}
+diff --git a/src/test/java/org/bukkit/craftbukkit/world/CraftPlayerRestoreServiceTest.java b/src/test/java/org/bukkit/craftbukkit/world/CraftPlayerRestoreServiceTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..6f560f376976945e784384f3483ea2a5c1972b68
+--- /dev/null
++++ b/src/test/java/org/bukkit/craftbukkit/world/CraftPlayerRestoreServiceTest.java
+@@ -0,0 +1,42 @@
++package org.bukkit.craftbukkit.world;
++
++import io.papermc.paper.world.PlayerRestoreStatus;
++import java.nio.file.Path;
++import java.util.UUID;
++import java.util.concurrent.CompletableFuture;
++import org.bukkit.World;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.mockito.Mockito.mock;
++import static org.mockito.Mockito.when;
++
++@Tag("Normal")
++class CraftPlayerRestoreServiceTest {
++    @Test
++    void incompleteBackendCannotAdvertiseV1OrReportPrepared() {
++        var service = new CraftPlayerRestoreService();
++        assertEquals(0, service.contractVersion());
++        World fallback = mock(World.class);
++        when(fallback.getUID()).thenReturn(UUID.randomUUID());
++        UUID id = UUID.randomUUID();
++        var result = CompletableFuture.supplyAsync(() -> service.prepareAsync(id, Path.of("source"), Path.of("rollback"), fallback)
++            .toCompletableFuture().join()).join();
++        assertEquals(id, result.operationId());
++        assertEquals(PlayerRestoreStatus.UNSUPPORTED, result.status());
++        assertFalse(result.successful());
++        assertEquals(PlayerRestoreStatus.ROLLED_BACK, service.applyAsync(id, false).toCompletableFuture().join().status());
++        assertEquals(PlayerRestoreStatus.COMPLETED, service.completeAsync(id, false).toCompletableFuture().join().status());
++    }
++
++    @Test
++    void unsupportedAttemptDoesNotAcquireANativeFence() {
++        var service = new CraftPlayerRestoreService();
++        UUID id = UUID.randomUUID();
++        assertEquals(PlayerRestoreStatus.ROLLED_BACK, service.applyAsync(id, false).toCompletableFuture().join().status());
++        assertEquals(PlayerRestoreStatus.COMPLETED, service.completeAsync(id, false).toCompletableFuture().join().status());
++        assertFalse(PlayerStoreFence.INSTANCE.isClosed());
++    }
++}
+diff --git a/src/test/java/org/bukkit/craftbukkit/world/PlayerRestoreCoordinatorTest.java b/src/test/java/org/bukkit/craftbukkit/world/PlayerRestoreCoordinatorTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..810da5cb824189620b696caa8ad7ba8dede5f1fb
+--- /dev/null
++++ b/src/test/java/org/bukkit/craftbukkit/world/PlayerRestoreCoordinatorTest.java
+@@ -0,0 +1,257 @@
++package org.bukkit.craftbukkit.world;
++
++import io.papermc.paper.world.PlayerRestoreResult;
++import io.papermc.paper.world.PlayerRestoreStatus;
++import java.nio.file.Path;
++import java.util.ArrayDeque;
++import java.util.ArrayList;
++import java.util.List;
++import java.util.UUID;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.CompletionStage;
++import java.util.concurrent.Executor;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++@Tag("Normal")
++class PlayerRestoreCoordinatorTest {
++    private final UUID id = UUID.randomUUID();
++    private final PlayerRestoreCoordinator.Request request = new PlayerRestoreCoordinator.Request(Path.of("source"), Path.of("rollback"), UUID.randomUUID());
++    private final QueueExecutor executor = new QueueExecutor();
++    private final Backend backend = new Backend();
++    private final PlayerRestoreCoordinator coordinator = new PlayerRestoreCoordinator(this.backend, this.executor);
++
++    @Test
++    void workerContinuationCanAwaitRollbackWithoutWaitingOnItsOwnCompletionStack() {
++        var actor = new PlayerRestoreCoordinator(this.backend, Runnable::run);
++        var prepare = actor.prepare(this.id, this.request);
++        this.backend.rolledBack.complete(null);
++        var cleanup = prepare.thenApply(ignored -> actor.apply(this.id, false).toCompletableFuture().join());
++        assertTimeoutPreemptively(java.time.Duration.ofSeconds(3), () -> this.backend.prepared.complete(null));
++        assertStatus(PlayerRestoreStatus.ROLLED_BACK, cleanup);
++    }
++
++    @Test
++    void latePrepareCannotOutliveConfirmedRollback() {
++        var prepare = this.coordinator.prepare(this.id, this.request);
++        this.executor.drain();
++        var rollback = this.coordinator.apply(this.id, false);
++        assertFalse(rollback.toCompletableFuture().isDone());
++        this.backend.prepared.complete(null);
++        this.executor.drain();
++        assertStatus(PlayerRestoreStatus.CANCELLED, prepare);
++        assertEquals(List.of("prepare", "rollback"), this.backend.calls);
++        assertFalse(rollback.toCompletableFuture().isDone());
++        this.backend.rolledBack.complete(null);
++        assertStatus(PlayerRestoreStatus.ROLLED_BACK, rollback);
++        var complete = this.coordinator.complete(this.id, false);
++        this.executor.drain();
++        assertStatus(PlayerRestoreStatus.COMPLETED, complete);
++        assertStatus(PlayerRestoreStatus.CONFLICT, this.coordinator.apply(this.id, true));
++    }
++
++    @Test
++    void rollbackBeforeDispatchNeverStartsPrepare() {
++        var prepare = this.coordinator.prepare(this.id, this.request);
++        var rollback = this.coordinator.apply(this.id, false);
++        this.executor.drain();
++        assertStatus(PlayerRestoreStatus.CANCELLED, prepare);
++        assertEquals(List.of("rollback"), this.backend.calls);
++        this.backend.rolledBack.complete(null);
++        assertStatus(PlayerRestoreStatus.ROLLED_BACK, rollback);
++    }
++
++    @Test
++    void unknownRollbackCreatesPermanentTombstoneWithoutTakingOtherFence() {
++        assertStatus(PlayerRestoreStatus.ROLLED_BACK, this.coordinator.apply(this.id, false));
++        UUID other = UUID.randomUUID();
++        var prepareOther = this.coordinator.prepare(other, this.request);
++        var completed = this.coordinator.complete(this.id, false);
++        this.executor.drain();
++        assertStatus(PlayerRestoreStatus.COMPLETED, completed);
++        assertStatus(PlayerRestoreStatus.CONFLICT, this.coordinator.prepare(this.id, this.request));
++        assertFalse(prepareOther.toCompletableFuture().isDone());
++        assertStatus(PlayerRestoreStatus.BUSY, this.coordinator.prepare(UUID.randomUUID(), this.request));
++    }
++
++    @Test
++    void rollbackDrainsAnAlreadyStartedForwardTransfer() {
++        this.prepareSuccessfully();
++        var apply = this.coordinator.apply(this.id, true);
++        this.executor.drain();
++        var rollback = this.coordinator.apply(this.id, false);
++        this.executor.drain();
++        assertEquals(List.of("prepare", "forward"), this.backend.calls);
++        assertFalse(rollback.toCompletableFuture().isDone());
++        this.backend.applied.complete(null);
++        this.executor.drain();
++        assertStatus(PlayerRestoreStatus.CANCELLED, apply);
++        assertEquals(List.of("prepare", "forward", "rollback"), this.backend.calls);
++        this.backend.rolledBack.complete(null);
++        assertStatus(PlayerRestoreStatus.ROLLED_BACK, rollback);
++    }
++
++    @Test
++    void callerTimeoutAndCancellationDoNotCompleteOwnedWork() {
++        var prepare = this.coordinator.prepare(this.id, this.request);
++        this.executor.drain();
++        var callerView = prepare.toCompletableFuture();
++        callerView.completeExceptionally(new java.util.concurrent.TimeoutException("MCC timeout"));
++        assertFalse(this.backend.prepared.isDone());
++        var second = this.coordinator.prepare(this.id, this.request);
++        assertFalse(second.toCompletableFuture().isDone());
++        this.backend.prepared.complete(null);
++        assertStatus(PlayerRestoreStatus.PREPARED, second);
++        var apply = this.coordinator.apply(this.id, true);
++        apply.toCompletableFuture().cancel(false);
++        this.executor.drain();
++        assertFalse(this.backend.applied.isDone());
++        this.backend.applied.complete(null);
++        assertStatus(PlayerRestoreStatus.APPLIED, this.coordinator.apply(this.id, true));
++    }
++
++    @Test
++    void mismatchedPrepareDoesNotReplaceTheOriginalOperation() {
++        this.coordinator.prepare(this.id, this.request);
++        assertStatus(PlayerRestoreStatus.CONFLICT, this.coordinator.prepare(this.id,
++            new PlayerRestoreCoordinator.Request(Path.of("another"), this.request.rollback(), this.request.fallback())));
++        this.executor.drain();
++        assertEquals(List.of("prepare"), this.backend.calls);
++    }
++
++    @Test
++    void completionFailureAfterCommitCannotBeRolledBackAndCanBeRetried() {
++        this.applySuccessfully();
++        this.backend.completion = CompletableFuture.failedFuture(new IllegalStateException("injected complete failure"));
++        var complete = this.coordinator.complete(this.id, true);
++        this.executor.drain();
++        assertStatus(PlayerRestoreStatus.COMPLETE_FAILED, complete);
++        assertStatus(PlayerRestoreStatus.CONFLICT, this.coordinator.apply(this.id, false));
++        assertStatus(PlayerRestoreStatus.CONFLICT, this.coordinator.complete(this.id, false));
++        assertStatus(PlayerRestoreStatus.BUSY, this.coordinator.prepare(UUID.randomUUID(), this.request));
++        this.backend.completion = CompletableFuture.completedFuture(null);
++        var retry = this.coordinator.complete(this.id, true);
++        this.executor.drain();
++        assertStatus(PlayerRestoreStatus.COMPLETED, retry);
++        assertStatus(PlayerRestoreStatus.APPLIED, this.coordinator.apply(this.id, true));
++        assertStatus(PlayerRestoreStatus.COMPLETED, this.coordinator.complete(this.id, true));
++        assertEquals(List.of("prepare", "forward", "complete-true", "complete-true"), this.backend.calls);
++    }
++
++    @Test
++    void inFlightFinalDecisionRejectsConcurrentOppositeDecision() {
++        this.applySuccessfully();
++        this.backend.completion = new CompletableFuture<>();
++        var complete = this.coordinator.complete(this.id, true);
++        this.executor.drain();
++        assertFalse(complete.toCompletableFuture().isDone());
++        assertStatus(PlayerRestoreStatus.CONFLICT, this.coordinator.apply(this.id, false));
++        assertStatus(PlayerRestoreStatus.CONFLICT, this.coordinator.complete(this.id, false));
++        this.backend.completion.complete(null);
++        assertStatus(PlayerRestoreStatus.COMPLETED, complete);
++    }
++
++    @Test
++    void prepareFailureRetainsFenceUntilRollbackAndComplete() {
++        var prepare = this.coordinator.prepare(this.id, this.request);
++        this.executor.drain();
++        this.backend.prepared.completeExceptionally(new IllegalStateException("injected copy failure"));
++        assertStatus(PlayerRestoreStatus.SAVE_FAILED, prepare);
++        assertStatus(PlayerRestoreStatus.BUSY, this.coordinator.prepare(UUID.randomUUID(), this.request));
++        assertStatus(PlayerRestoreStatus.CONFLICT, this.coordinator.complete(this.id, true));
++        var rollback = this.coordinator.apply(this.id, false);
++        this.executor.drain();
++        this.backend.rolledBack.complete(null);
++        assertStatus(PlayerRestoreStatus.ROLLED_BACK, rollback);
++        var complete = this.coordinator.complete(this.id, false);
++        this.executor.drain();
++        assertStatus(PlayerRestoreStatus.COMPLETED, complete);
++        this.coordinator.prepare(UUID.randomUUID(), this.request);
++        this.executor.drain();
++        assertEquals(2, this.backend.calls.stream().filter("prepare"::equals).count());
++    }
++
++    @Test
++    void duplicateRequestsDoNotDispatchDuplicateWork() {
++        var one = this.coordinator.prepare(this.id, this.request);
++        var two = this.coordinator.prepare(this.id, this.request);
++        this.executor.drain();
++        this.backend.prepared.complete(null);
++        assertStatus(PlayerRestoreStatus.PREPARED, one);
++        assertStatus(PlayerRestoreStatus.PREPARED, two);
++        this.coordinator.apply(this.id, true);
++        this.coordinator.apply(this.id, true);
++        this.executor.drain();
++        this.backend.applied.complete(null);
++        this.coordinator.complete(this.id, true);
++        this.coordinator.complete(this.id, true);
++        this.executor.drain();
++        assertEquals(List.of("prepare", "forward", "complete-true"), this.backend.calls);
++    }
++
++    private void prepareSuccessfully() {
++        var stage = this.coordinator.prepare(this.id, this.request);
++        this.executor.drain();
++        this.backend.prepared.complete(null);
++        assertStatus(PlayerRestoreStatus.PREPARED, stage);
++    }
++
++    private void applySuccessfully() {
++        this.prepareSuccessfully();
++        var stage = this.coordinator.apply(this.id, true);
++        this.executor.drain();
++        this.backend.applied.complete(null);
++        assertStatus(PlayerRestoreStatus.APPLIED, stage);
++    }
++
++    private static void assertStatus(PlayerRestoreStatus expected, CompletionStage<PlayerRestoreResult> stage) {
++        assertTrue(stage.toCompletableFuture().isDone(), "Operation unexpectedly still running");
++        assertEquals(expected, stage.toCompletableFuture().join().status());
++    }
++
++    private static final class QueueExecutor implements Executor {
++        private final ArrayDeque<Runnable> tasks = new ArrayDeque<>();
++
++        @Override
++        public void execute(Runnable command) {
++            this.tasks.add(command);
++        }
++
++        void drain() {
++            for (Runnable task; (task = this.tasks.poll()) != null;) {
++                task.run();
++            }
++        }
++    }
++
++    private static final class Backend implements PlayerRestoreCoordinator.Backend {
++        final List<String> calls = new ArrayList<>();
++        final CompletableFuture<Void> prepared = new CompletableFuture<>();
++        final CompletableFuture<Void> applied = new CompletableFuture<>();
++        final CompletableFuture<Void> rolledBack = new CompletableFuture<>();
++        CompletableFuture<Void> completion = CompletableFuture.completedFuture(null);
++
++        @Override
++        public CompletionStage<Void> prepare(PlayerRestoreCoordinator.Operation operation) {
++            this.calls.add("prepare");
++            return this.prepared;
++        }
++
++        @Override
++        public CompletionStage<Void> apply(PlayerRestoreCoordinator.Operation operation, boolean forward) {
++            this.calls.add(forward ? "forward" : "rollback");
++            return forward ? this.applied : this.rolledBack;
++        }
++
++        @Override
++        public CompletionStage<Void> complete(PlayerRestoreCoordinator.Operation operation, boolean committed) {
++            this.calls.add("complete-" + committed);
++            return this.completion;
++        }
++    }
++}
+diff --git a/src/test/java/org/bukkit/craftbukkit/world/PlayerRestoreFilesTest.java b/src/test/java/org/bukkit/craftbukkit/world/PlayerRestoreFilesTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..3fe6c660da52a825fdcf0a87bc2995584bf27e90
+--- /dev/null
++++ b/src/test/java/org/bukkit/craftbukkit/world/PlayerRestoreFilesTest.java
+@@ -0,0 +1,125 @@
++package org.bukkit.craftbukkit.world;
++
++import java.io.IOException;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.util.ArrayList;
++import java.util.List;
++import java.util.UUID;
++import java.util.concurrent.atomic.AtomicInteger;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.api.io.TempDir;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.junit.jupiter.api.Assertions.assertThrows;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++@Tag("Normal")
++class PlayerRestoreFilesTest {
++    @TempDir
++    Path root;
++
++    @Test
++    void copiesAllPlayersWithoutModifyingSourceAndForcesEveryDirectory() throws Exception {
++        Path source = this.store("source", "saved");
++        Path target = this.root.resolve("rollback");
++        List<Path> forced = new ArrayList<>();
++        new PlayerRestoreFiles(forced::add).copyNew(source, target);
++        for (String directory : PlayerRestoreFiles.DIRECTORIES) {
++            assertEquals("saved", Files.readString(target.resolve(directory).resolve("offline.dat")));
++            assertEquals("saved", Files.readString(source.resolve(directory).resolve("offline.dat")));
++        }
++        assertEquals(List.of(target.resolve("data"), target.resolve("stats"), target.resolve("advancements"), target, target.getParent()), forced);
++        assertThrows(IOException.class, () -> new PlayerRestoreFiles(forced::add).copyNew(source, target));
++    }
++
++    @Test
++    void incompleteSourceAndOverlappingPathsAreRejectedBeforeCreatingOutput() throws Exception {
++        Path source = Files.createDirectory(this.root.resolve("incomplete"));
++        Path target = this.root.resolve("backup");
++        var files = new PlayerRestoreFiles(ignored -> {});
++        assertThrows(IOException.class, () -> files.copyNew(source, target));
++        assertFalse(Files.exists(target));
++        Path valid = this.store("valid", "old");
++        assertThrows(IOException.class, () -> files.copyNew(valid, valid.resolve("nested")));
++        assertThrows(IOException.class, () -> files.copyNew(valid, this.root));
++        assertThrows(IOException.class, () -> files.copyNew(valid, valid));
++    }
++
++    @Test
++    void publicationRetainsOriginalAndReplacesAllThreeStores() throws Exception {
++        Path active = this.store("players", "original");
++        Path prepared = this.store("staged", "new");
++        Path retained = new PlayerRestoreFiles(ignored -> {}).publish(prepared, active, UUID.randomUUID(), "forward");
++        assertFalse(Files.exists(prepared));
++        for (String directory : PlayerRestoreFiles.DIRECTORIES) {
++            assertEquals("new", Files.readString(active.resolve(directory).resolve("offline.dat")));
++            assertEquals("original", Files.readString(retained.resolve(directory).resolve("offline.dat")));
++        }
++    }
++
++    @Test
++    void failedPublicationRestoresOriginalAndPreservesStaging() throws Exception {
++        Path active = this.store("players", "original");
++        Path prepared = this.store("staged", "new");
++        AtomicInteger moves = new AtomicInteger();
++        var files = new PlayerRestoreFiles(ignored -> {}, (from, to) -> {
++            if (moves.incrementAndGet() == 2) {
++                throw new IOException("injected publication failure");
++            }
++            Files.move(from, to);
++        });
++        assertThrows(IOException.class, () -> files.publish(prepared, active, UUID.randomUUID(), "forward"));
++        assertEquals("original", Files.readString(active.resolve("data/offline.dat")));
++        assertEquals("new", Files.readString(prepared.resolve("data/offline.dat")));
++        assertEquals(3, moves.get());
++    }
++
++    @Test
++    void failedCompensationKeepsBothTreesAndReportsBothErrors() throws Exception {
++        Path active = this.store("players", "original");
++        Path prepared = this.store("staged", "new");
++        AtomicInteger moves = new AtomicInteger();
++        var files = new PlayerRestoreFiles(ignored -> {}, (from, to) -> {
++            if (moves.incrementAndGet() > 1) {
++                throw new IOException("injected move failure");
++            }
++            Files.move(from, to);
++        });
++        IOException failure = assertThrows(IOException.class, () -> files.publish(prepared, active, UUID.randomUUID(), "forward"));
++        assertEquals(1, failure.getSuppressed().length);
++        assertTrue(Files.exists(prepared.resolve("data/offline.dat")));
++        try (var children = Files.list(this.root)) {
++            Path retained = children.filter(path -> path.getFileName().toString().startsWith(".tessera-players-")).findFirst().orElseThrow();
++            assertEquals("original", Files.readString(retained.resolve("data/offline.dat")));
++        }
++    }
++
++    @Test
++    void durabilityFailureNeverReturnsSuccessfulBackup() throws Exception {
++        Path source = this.store("source", "saved");
++        Path target = this.root.resolve("rollback");
++        var files = new PlayerRestoreFiles(ignored -> { throw new IOException("cannot force directory"); });
++        assertThrows(IOException.class, () -> files.copyNew(source, target));
++        assertEquals("saved", Files.readString(source.resolve("data/offline.dat")));
++        assertTrue(Files.exists(target)); // Failed output is retained for diagnosis, never sealed as PREPARED.
++    }
++
++    @Test
++    void unexpectedTreesAreNotSilentlyOmittedFromBackup() throws Exception {
++        Path source = this.store("source", "saved");
++        Files.createDirectory(source.resolve("unexpected"));
++        assertThrows(IOException.class, () -> PlayerRestoreFiles.validateTree(source));
++    }
++
++    private Path store(String name, String content) throws IOException {
++        Path path = Files.createDirectory(this.root.resolve(name));
++        for (String directory : PlayerRestoreFiles.DIRECTORIES) {
++            Files.createDirectory(path.resolve(directory));
++            Files.writeString(path.resolve(directory).resolve("offline.dat"), content);
++        }
++        return path;
++    }
++}
+diff --git a/src/test/java/org/bukkit/craftbukkit/world/PlayerStoreFenceTest.java b/src/test/java/org/bukkit/craftbukkit/world/PlayerStoreFenceTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b3556d26bb28d5946716b6daabff1d077158f9df
+--- /dev/null
++++ b/src/test/java/org/bukkit/craftbukkit/world/PlayerStoreFenceTest.java
+@@ -0,0 +1,60 @@
++package org.bukkit.craftbukkit.world;
++
++import java.util.UUID;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.junit.jupiter.api.Assertions.assertNotNull;
++import static org.junit.jupiter.api.Assertions.assertNull;
++import static org.junit.jupiter.api.Assertions.assertThrows;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++@Tag("Normal")
++class PlayerStoreFenceTest {
++    @Test
++    void waitsForEveryRunningWriterWithoutBlockingNewCallers() {
++        PlayerStoreFence fence = new PlayerStoreFence();
++        UUID id = UUID.randomUUID();
++        var first = fence.tryWrite(fence.generation());
++        var second = fence.tryWrite(fence.generation());
++        var drained = fence.close(id).toCompletableFuture();
++        assertFalse(drained.isDone());
++        assertNull(fence.tryWrite(fence.generation()));
++        assertThrows(IllegalStateException.class, () -> fence.advance(id));
++        first.close();
++        first.close(); // Idempotent close must not release the other writer.
++        assertFalse(drained.isDone());
++        second.close();
++        assertTrue(drained.isDone());
++        fence.open(id);
++        assertFalse(fence.isClosed());
++    }
++
++    @Test
++    void oldCacheGenerationsCannotWriteAfterPublicationOrRollback() {
++        PlayerStoreFence fence = new PlayerStoreFence();
++        UUID id = UUID.randomUUID();
++        long old = fence.generation();
++        fence.close(id);
++        long forward = fence.advance(id);
++        long rollback = fence.advance(id);
++        fence.open(id);
++        assertNull(fence.tryWrite(old));
++        assertNull(fence.tryWrite(forward));
++        try (var lease = fence.tryWrite(rollback)) {
++            assertNotNull(lease);
++        }
++    }
++
++    @Test
++    void otherOperationsCannotOpenOrAdvanceTheFence() {
++        PlayerStoreFence fence = new PlayerStoreFence();
++        fence.close(UUID.randomUUID());
++        UUID wrong = UUID.randomUUID();
++        assertThrows(IllegalStateException.class, () -> fence.close(wrong));
++        assertThrows(IllegalStateException.class, () -> fence.advance(wrong));
++        assertThrows(IllegalStateException.class, () -> fence.open(wrong));
++        assertTrue(fence.isClosed());
++    }
++}
+diff --git a/src/test/java/org/bukkit/craftbukkit/world/RestoreTeleportScopeTest.java b/src/test/java/org/bukkit/craftbukkit/world/RestoreTeleportScopeTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a58d3572d2266e7a0a48609b7c6e7939e7410fd3
+--- /dev/null
++++ b/src/test/java/org/bukkit/craftbukkit/world/RestoreTeleportScopeTest.java
+@@ -0,0 +1,46 @@
++package org.bukkit.craftbukkit.world;
++
++import java.util.UUID;
++import java.util.concurrent.CompletableFuture;
++import org.bukkit.Location;
++import org.bukkit.entity.Player;
++import org.bukkit.event.player.PlayerTeleportEvent;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.junit.jupiter.api.Assertions.assertThrows;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++import static org.mockito.Mockito.mock;
++
++@Tag("Normal")
++class RestoreTeleportScopeTest {
++    @Test
++    void onlyTheExactEventOnTheDispatchingThreadIsAdmitted() {
++        var scope = new RestoreTeleportScope();
++        UUID id = UUID.randomUUID();
++        Player player = mock(Player.class);
++        var event = new PlayerTeleportEvent(player, new Location(null, 0, 0, 0), new Location(null, 1, 1, 1));
++        var unrelated = new PlayerTeleportEvent(player, event.getFrom(), event.getTo());
++        assertFalse(scope.matches(event, id));
++        scope.dispatch(event, id, () -> {
++            assertTrue(scope.matches(event, id));
++            assertFalse(scope.matches(unrelated, id));
++            assertFalse(scope.matches(event, UUID.randomUUID()));
++            assertFalse(CompletableFuture.supplyAsync(() -> scope.matches(event, id)).join());
++        });
++        assertFalse(scope.matches(event, id));
++    }
++
++    @Test
++    void eventDispatchFailureNeverLeavesAPermissionWindow() {
++        var scope = new RestoreTeleportScope();
++        UUID id = UUID.randomUUID();
++        var event = new PlayerTeleportEvent(mock(Player.class), new Location(null, 0, 0, 0), new Location(null, 1, 1, 1));
++        assertThrows(IllegalStateException.class, () -> scope.dispatch(event, id, () -> {
++            assertTrue(scope.matches(event, id));
++            throw new IllegalStateException("injected listener failure");
++        }));
++        assertFalse(scope.matches(event, id));
++    }
++}
