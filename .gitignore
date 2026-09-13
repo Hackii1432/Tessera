@@ -16,3 +16,6 @@ build
 /.checkstyle
 
 .idea/
+
+# Windows caches created locally with an unexpanded environment-variable path
+/%SystemDrive%/
