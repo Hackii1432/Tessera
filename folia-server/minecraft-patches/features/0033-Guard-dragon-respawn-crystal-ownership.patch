@@ -1,0 +1,144 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Sun, 13 Sep 2026 15:55:00 +0200
+Subject: [PATCH] Guard dragon respawn crystal ownership
+
+
+diff --git a/net/minecraft/world/level/dimension/end/DragonRespawnStage.java b/net/minecraft/world/level/dimension/end/DragonRespawnStage.java
+index ffa813ad111f05716c658e3a66a9eeb9b70c5e4c..67cae76e0f9a7a6a67f4af218435f39624468928 100644
+--- a/net/minecraft/world/level/dimension/end/DragonRespawnStage.java
++++ b/net/minecraft/world/level/dimension/end/DragonRespawnStage.java
+@@ -15,7 +15,7 @@ import net.minecraft.world.level.levelgen.feature.EndSpikeFeature;
+ public enum DragonRespawnStage implements StringRepresentable {
+     START("start") {
+         @Override
+-        public void tick(final ServerLevel level, final EnderDragonFight fight, final List<EndCrystal> crystals, final int time) {
++        protected void tickOwned(final ServerLevel level, final EnderDragonFight fight, final List<EndCrystal> crystals, final int time) {
+             BlockPos beamPos = new BlockPos(0, 128, 0);
+ 
+             for (EndCrystal respawnCrystal : crystals) {
+@@ -27,7 +27,7 @@ public enum DragonRespawnStage implements StringRepresentable {
+     },
+     PREPARING_TO_SUMMON_PILLARS("preparing_to_summon_pillars") {
+         @Override
+-        public void tick(final ServerLevel level, final EnderDragonFight fight, final List<EndCrystal> crystals, final int time) {
++        protected void tickOwned(final ServerLevel level, final EnderDragonFight fight, final List<EndCrystal> crystals, final int time) {
+             if (time < 100) {
+                 if (time == 0 || time == 50 || time == 51 || time == 52 || time >= 95) {
+                     level.levelEvent(LevelEvent.ANIMATION_DRAGON_SUMMON_ROAR, new BlockPos(0, 128, 0), 0);
+@@ -39,7 +39,7 @@ public enum DragonRespawnStage implements StringRepresentable {
+     },
+     SUMMONING_PILLARS("summoning_pillars") {
+         @Override
+-        public void tick(final ServerLevel level, final EnderDragonFight fight, final List<EndCrystal> crystals, final int time) {
++        protected void tickOwned(final ServerLevel level, final EnderDragonFight fight, final List<EndCrystal> crystals, final int time) {
+             int interval = 40;
+             boolean startOfBeam = time % 40 == 0;
+             boolean endOfBeam = time % 40 == 39;
+@@ -76,14 +76,24 @@ public enum DragonRespawnStage implements StringRepresentable {
+     },
+     SUMMONING_DRAGON("summoning_dragon") {
+         @Override
+-        public void tick(final ServerLevel level, final EnderDragonFight fight, final List<EndCrystal> crystals, final int time) {
++        protected void tickOwned(final ServerLevel level, final EnderDragonFight fight, final List<EndCrystal> crystals, final int time) {
+             if (time >= 100) {
+                 fight.setRespawnStage(END);
+                 fight.resetSpikeCrystals();
+ 
+                 for (EndCrystal crystal : crystals) {
++                    // Tessera - dragon-spawn/previous explosion callbacks may transfer a crystal.
++                    if (!isAccessibleCrystal(level, crystal)) {
++                        fight.tessera$onRespawnCrystalUnavailable(crystal);
++                        continue;
++                    }
+                     crystal.setBeamTarget(null);
+                     level.explode(crystal, crystal.getX(), crystal.getY(), crystal.getZ(), 6.0F, Level.ExplosionInteraction.NONE);
++                    // Tessera - recheck after plugin callbacks; never remove a transferred handle.
++                    if (!isAccessibleCrystal(level, crystal)) {
++                        fight.tessera$onRespawnCrystalUnavailable(crystal);
++                        continue;
++                    }
+                     crystal.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.EXPLODE); // CraftBukkit - add Bukkit remove cause
+                 }
+             } else if (time >= 80) {
+@@ -99,7 +109,7 @@ public enum DragonRespawnStage implements StringRepresentable {
+     },
+     END("end") {
+         @Override
+-        public void tick(final ServerLevel level, final EnderDragonFight fight, final List<EndCrystal> crystals, final int time) {
++        protected void tickOwned(final ServerLevel level, final EnderDragonFight fight, final List<EndCrystal> crystals, final int time) {
+         }
+     };
+ 
+@@ -115,5 +125,27 @@ public enum DragonRespawnStage implements StringRepresentable {
+         return this.name;
+     }
+ 
+-    public abstract void tick(ServerLevel level, EnderDragonFight fight, List<EndCrystal> crystals, int time);
++    // Tessera start - fence the complete phase, not just its final discard.
++    public final void tick(ServerLevel level, EnderDragonFight fight, List<EndCrystal> crystals, int time) {
++        for (EndCrystal crystal : crystals) {
++            if (!isAccessibleCrystal(level, crystal)) {
++                fight.tessera$onRespawnCrystalUnavailable(crystal);
++                return;
++            }
++        }
++        this.tickOwned(level, fight, crystals, time);
++    }
++
++    private static boolean isAccessibleCrystal(ServerLevel level, EndCrystal crystal) {
++        if (crystal.level() != level || !ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(crystal)) {
++            return false;
++        }
++        // Keep Vanilla's remaining explosions after a chain reaction destroys other crystals,
++        // but do not use old handles left behind by a teleport or chunk unload.
++        net.minecraft.world.entity.Entity.RemovalReason reason = crystal.getRemovalReason();
++        return reason == null || reason.shouldDestroy();
++    }
++
++    protected abstract void tickOwned(ServerLevel level, EnderDragonFight fight, List<EndCrystal> crystals, int time);
++    // Tessera end - fence the complete phase
+ }
+diff --git a/net/minecraft/world/level/dimension/end/EnderDragonFight.java b/net/minecraft/world/level/dimension/end/EnderDragonFight.java
+index cf6b3705d2950df8c0e4e76cf3163a4422b5cd09..0422887784e12deee942a25b9c17250ee9499a03 100644
+--- a/net/minecraft/world/level/dimension/end/EnderDragonFight.java
++++ b/net/minecraft/world/level/dimension/end/EnderDragonFight.java
+@@ -104,6 +104,7 @@ public class EnderDragonFight extends SavedData {
+     public @Nullable DragonRespawnStage respawnStage;
+     private int respawnTime;
+     public List<EntityReference<EndCrystal>> respawnCrystals;
++    private boolean tessera$reportedUnavailableRespawnCrystal;
+     public static final Codec<EnderDragonFight> CODEC = RecordCodecBuilder.create(
+         i -> i.group(
+                 ExtraCodecs.optionalAlwaysPresentFieldOf(Codec.BOOL, "needs_state_scanning", true).forGetter(fight -> fight.needsStateScanning),
+@@ -571,6 +572,22 @@ public class EnderDragonFight extends SavedData {
+         this.setDirty();
+     }
+ 
++    // Tessera start - an EntityReference can follow a crystal into a different world/region.
++    public void tessera$onRespawnCrystalUnavailable(final EndCrystal crystal) {
++        if (!this.tessera$reportedUnavailableRespawnCrystal) {
++            this.tessera$reportedUnavailableRespawnCrystal = true;
++            LOGGER.warn("Dragon respawn in {} lost ownership of crystal {} (entity world: {}); {}",
++                this.level.dimension().identifier(), crystal.getUUID(), crystal.level().dimension().identifier(),
++                this.respawnStage == null ? "leaving the transferred crystal untouched" : "aborting the respawn sequence");
++        }
++        if (this.respawnStage != null) {
++            // Only the arena owner calls this. The existing abort restores the local portal
++            // and spike crystals; it must not mutate the inaccessible respawn crystal.
++            this.abortRespawnSequence();
++        }
++    }
++    // Tessera end - unavailable respawn crystals
++
+     public boolean hasPreviouslyKilledDragon() {
+         return this.hasPreviouslyKilledDragon;
+     }
+@@ -645,6 +662,7 @@ public class EnderDragonFight extends SavedData {
+             }
+ 
+             this.respawnStage = DragonRespawnStage.START;
++            this.tessera$reportedUnavailableRespawnCrystal = false;
+             this.respawnTime = 0;
+             this.spawnExitPortal(false);
+             this.respawnCrystals = crystals.stream().map(EntityReference::of).toList();

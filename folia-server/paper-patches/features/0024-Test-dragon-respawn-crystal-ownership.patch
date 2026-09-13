@@ -1,0 +1,289 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Sun, 13 Sep 2026 15:55:00 +0200
+Subject: [PATCH] Test dragon respawn crystal ownership
+
+
+diff --git a/src/test/java/io/papermc/paper/porting/DragonRespawnOwnershipTest.java b/src/test/java/io/papermc/paper/porting/DragonRespawnOwnershipTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..aa7c4c70453ecc66a2bf434f72f992c5d3f2bdfa
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/porting/DragonRespawnOwnershipTest.java
+@@ -0,0 +1,277 @@
++package io.papermc.paper.porting;
++
++import ca.spottedleaf.moonrise.common.util.TickThread;
++import java.util.HashSet;
++import java.util.List;
++import java.util.Set;
++import java.util.UUID;
++import java.util.concurrent.Executors;
++import net.minecraft.core.BlockPos;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.world.entity.Entity;
++import net.minecraft.world.entity.EntityReference;
++import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
++import net.minecraft.world.level.Level;
++import net.minecraft.world.level.dimension.end.DragonRespawnStage;
++import net.minecraft.world.level.dimension.end.EnderDragonFight;
++import org.bukkit.event.entity.EntityRemoveEvent;
++import org.bukkit.craftbukkit.entity.CraftEntity;
++import org.bukkit.support.environment.AllFeatures;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.params.ParameterizedTest;
++import org.junit.jupiter.params.provider.EnumSource;
++import org.junit.jupiter.params.provider.ValueSource;
++import org.mockito.Answers;
++import org.mockito.MockedStatic;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.ArgumentMatchers.*;
++import static org.mockito.Mockito.*;
++
++@AllFeatures
++class DragonRespawnOwnershipTest {
++    private static final class Respawn implements AutoCloseable {
++        final ServerLevel level = mock(ServerLevel.class);
++        final ServerLevel otherLevel = mock(ServerLevel.class);
++        final Set<Entity> owned = new HashSet<>();
++        final MockedStatic<TickThread> threads = mockStatic(TickThread.class);
++        final EnderDragonFight fight = mock(EnderDragonFight.class, invocation -> switch (invocation.getMethod().getName()) {
++            case "tessera$onRespawnCrystalUnavailable" -> invocation.callRealMethod();
++            default -> Answers.RETURNS_DEFAULTS.answer(invocation);
++        });
++
++        Respawn() {
++            when(this.level.dimension()).thenReturn(Level.END);
++            when(this.otherLevel.dimension()).thenReturn(Level.OVERWORLD);
++            this.fight.level = this.level;
++            this.fight.respawnStage = DragonRespawnStage.START;
++            this.threads.when(() -> TickThread.isTickThreadFor(any(Entity.class)))
++                .thenAnswer(invocation -> this.owned.contains(invocation.getArgument(0)));
++            doAnswer(invocation -> {
++                DragonRespawnStage stage = invocation.getArgument(0);
++                this.fight.respawnStage = stage == DragonRespawnStage.END ? null : stage;
++                return null;
++            }).when(this.fight).setRespawnStage(any());
++        }
++
++        EndCrystal crystal(double x) {
++            EndCrystal crystal = mock(EndCrystal.class);
++            when(crystal.level()).thenReturn(this.level);
++            when(crystal.getUUID()).thenReturn(UUID.randomUUID());
++            when(crystal.getX()).thenReturn(x);
++            when(crystal.getY()).thenReturn(71.0);
++            when(crystal.getZ()).thenReturn(0.5);
++            this.owned.add(crystal);
++            return crystal;
++        }
++
++        void tick(DragonRespawnStage stage, List<EndCrystal> crystals, int time) {
++            this.fight.respawnStage = stage;
++            stage.tick(this.level, this.fight, crystals, time);
++        }
++
++        void verifyNoCrystalWrites(EndCrystal crystal) {
++            verify(crystal, never()).setBeamTarget(nullable(BlockPos.class));
++            verify(crystal, never()).discard(nullable(EntityRemoveEvent.Cause.class));
++            verify(this.level, never()).explode(any(), anyDouble(), anyDouble(), anyDouble(), anyFloat(), any(Level.ExplosionInteraction.class));
++            verify(this.otherLevel, never()).explode(any(), anyDouble(), anyDouble(), anyDouble(), anyFloat(), any(Level.ExplosionInteraction.class));
++        }
++
++        @Override
++        public void close() {
++            this.threads.close();
++        }
++    }
++
++    @Test
++    void normalStartKeepsVanillaBeamAndStageTransition() {
++        try (Respawn attempt = new Respawn()) {
++            EndCrystal first = attempt.crystal(-2.5);
++            EndCrystal second = attempt.crystal(3.5);
++            attempt.tick(DragonRespawnStage.START, List.of(first, second), 0);
++            verify(first).setBeamTarget(new BlockPos(0, 128, 0));
++            verify(second).setBeamTarget(new BlockPos(0, 128, 0));
++            verify(attempt.fight).setRespawnStage(DragonRespawnStage.PREPARING_TO_SUMMON_PILLARS);
++            verify(attempt.fight, never()).tessera$onRespawnCrystalUnavailable(any());
++        }
++    }
++
++    @Test
++    void normalCompletionKeepsVanillaOrderRadiusAndRemovalCause() {
++        try (Respawn attempt = new Respawn()) {
++            EndCrystal crystal = attempt.crystal(0.5);
++            attempt.tick(DragonRespawnStage.SUMMONING_DRAGON, List.of(crystal), 100);
++            var order = inOrder(attempt.fight, crystal, attempt.level);
++            order.verify(attempt.fight).setRespawnStage(DragonRespawnStage.END);
++            order.verify(attempt.fight).resetSpikeCrystals();
++            order.verify(crystal).setBeamTarget(null);
++            order.verify(attempt.level).explode(crystal, 0.5, 71.0, 0.5, 6.0F, Level.ExplosionInteraction.NONE);
++            order.verify(crystal).discard(EntityRemoveEvent.Cause.EXPLODE);
++            assertNull(attempt.fight.respawnStage);
++        }
++    }
++
++    @ParameterizedTest
++    @ValueSource(booleans = {false, true})
++    void realEntityReferenceCannotBringAForeignWorldCrystalIntoThePhase(boolean cached) {
++        try (Respawn attempt = new Respawn()) {
++            EndCrystal crystal = attempt.crystal(0.5);
++            CraftEntity craft = mock(CraftEntity.class);
++            when(crystal.getBukkitEntity()).thenReturn(craft);
++            when(craft.getHandleRaw()).thenReturn(crystal);
++            EntityReference<EndCrystal> reference = cached
++                ? EntityReference.of(crystal) : EntityReference.of(crystal.getUUID());
++            // A cached CraftEntity can follow its handle, and UUID lookup searches all worlds.
++            when(crystal.level()).thenReturn(attempt.otherLevel);
++            when(attempt.level.getEntityInAnyDimension(crystal.getUUID())).thenReturn(crystal);
++            EndCrystal resolved = reference.getEntity(attempt.level, EndCrystal.class);
++            assertSame(crystal, resolved);
++            attempt.tick(DragonRespawnStage.SUMMONING_DRAGON, List.of(resolved), 100);
++            assertNull(attempt.fight.respawnStage);
++            attempt.verifyNoCrystalWrites(crystal);
++        }
++    }
++
++    @ParameterizedTest
++    @EnumSource(value = DragonRespawnStage.class, names = "END", mode = EnumSource.Mode.EXCLUDE)
++    void foreignDimensionAbortsBeforeAnyPhaseEffects(DragonRespawnStage stage) {
++        try (Respawn attempt = new Respawn()) {
++            EndCrystal local = attempt.crystal(-2.5);
++            EndCrystal foreign = attempt.crystal(0.5);
++            // Even a positive mocked ownership result must not bypass the world fence.
++            when(foreign.level()).thenReturn(attempt.otherLevel);
++            attempt.tick(stage, List.of(local, foreign), 100);
++            assertNull(attempt.fight.respawnStage);
++            verify(attempt.fight).resetSpikeCrystals();
++            verify(attempt.fight).spawnExitPortal(true);
++            verify(attempt.fight, never()).setRespawnStage(any());
++            attempt.verifyNoCrystalWrites(local);
++            attempt.verifyNoCrystalWrites(foreign);
++        }
++    }
++
++    @ParameterizedTest
++    @EnumSource(value = DragonRespawnStage.class, names = "END", mode = EnumSource.Mode.EXCLUDE)
++    void sameWorldForeignRegionAbortsBeforeAnyPhaseEffects(DragonRespawnStage stage) {
++        try (Respawn attempt = new Respawn()) {
++            EndCrystal crystal = attempt.crystal(4096.5);
++            attempt.owned.remove(crystal);
++            attempt.tick(stage, List.of(crystal), 100);
++            assertNull(attempt.fight.respawnStage);
++            verify(attempt.fight).spawnExitPortal(true);
++            attempt.verifyNoCrystalWrites(crystal);
++        }
++    }
++
++    @ParameterizedTest
++    @EnumSource(value = Entity.RemovalReason.class, names = {"CHANGED_DIMENSION", "UNLOADED_TO_CHUNK", "UNLOADED_WITH_PLAYER"})
++    void oldTransferredOrUnloadedHandlesCannotBeUsed(Entity.RemovalReason reason) {
++        try (Respawn attempt = new Respawn()) {
++            EndCrystal crystal = attempt.crystal(0.5);
++            when(crystal.getRemovalReason()).thenReturn(reason);
++            attempt.tick(DragonRespawnStage.SUMMONING_DRAGON, List.of(crystal), 100);
++            assertNull(attempt.fight.respawnStage);
++            attempt.verifyNoCrystalWrites(crystal);
++        }
++    }
++
++    @Test
++    void spawnCallbackTransferPreventsBeamExplosionAndDiscardWithoutUndoingSpawn() {
++        try (Respawn attempt = new Respawn()) {
++            EndCrystal crystal = attempt.crystal(0.5);
++            doAnswer(invocation -> {
++                attempt.fight.respawnStage = null;
++                when(crystal.getRemovalReason()).thenReturn(Entity.RemovalReason.CHANGED_DIMENSION);
++                return null;
++            }).when(attempt.fight).setRespawnStage(DragonRespawnStage.END);
++            attempt.tick(DragonRespawnStage.SUMMONING_DRAGON, List.of(crystal), 100);
++            attempt.verifyNoCrystalWrites(crystal);
++            verify(attempt.fight, never()).spawnExitPortal(true);
++        }
++    }
++
++    @Test
++    void explosionCallbackTransferPreventsTheReportedOffOwnerDiscard() {
++        try (Respawn attempt = new Respawn()) {
++            EndCrystal crystal = attempt.crystal(0.5);
++            doAnswer(invocation -> {
++                when(crystal.level()).thenReturn(attempt.otherLevel);
++                attempt.owned.remove(crystal);
++                return null;
++            }).when(attempt.level).explode(crystal, 0.5, 71.0, 0.5, 6.0F, Level.ExplosionInteraction.NONE);
++            attempt.tick(DragonRespawnStage.SUMMONING_DRAGON, List.of(crystal), 100);
++            verify(attempt.level).explode(crystal, 0.5, 71.0, 0.5, 6.0F, Level.ExplosionInteraction.NONE);
++            verify(crystal, never()).discard(nullable(EntityRemoveEvent.Cause.class));
++            verify(attempt.fight, never()).spawnExitPortal(true);
++        }
++    }
++
++    @Test
++    void previousExplosionTransferCannotMutateTheNextCrystal() {
++        try (Respawn attempt = new Respawn()) {
++            EndCrystal first = attempt.crystal(-2.5);
++            EndCrystal second = attempt.crystal(3.5);
++            doAnswer(invocation -> {
++                attempt.owned.remove(second);
++                return null;
++            }).when(attempt.level).explode(first, -2.5, 71.0, 0.5, 6.0F, Level.ExplosionInteraction.NONE);
++            attempt.tick(DragonRespawnStage.SUMMONING_DRAGON, List.of(first, second), 100);
++            verify(first).discard(EntityRemoveEvent.Cause.EXPLODE);
++            verify(second, never()).setBeamTarget(nullable(BlockPos.class));
++            verify(second, never()).discard(nullable(EntityRemoveEvent.Cause.class));
++            verify(attempt.level, never()).explode(eq(second), anyDouble(), anyDouble(), anyDouble(), anyFloat(), any(Level.ExplosionInteraction.class));
++        }
++    }
++
++    @Test
++    void vanillaChainReactionStillProducesTheRemainingCrystalExplosions() {
++        try (Respawn attempt = new Respawn()) {
++            EndCrystal first = attempt.crystal(-2.5);
++            EndCrystal second = attempt.crystal(3.5);
++            doAnswer(invocation -> {
++                when(second.getRemovalReason()).thenReturn(Entity.RemovalReason.KILLED);
++                return null;
++            }).when(attempt.level).explode(first, -2.5, 71.0, 0.5, 6.0F, Level.ExplosionInteraction.NONE);
++            attempt.tick(DragonRespawnStage.SUMMONING_DRAGON, List.of(first, second), 100);
++            verify(attempt.level).explode(second, 3.5, 71.0, 0.5, 6.0F, Level.ExplosionInteraction.NONE);
++            verify(second).discard(EntityRemoveEvent.Cause.EXPLODE);
++            verify(attempt.fight, never()).tessera$onRespawnCrystalUnavailable(any());
++        }
++    }
++
++    @Test
++    void repeatedUnavailableNotificationsOnlyAbortOnce() {
++        try (Respawn attempt = new Respawn()) {
++            EndCrystal crystal = attempt.crystal(0.5);
++            attempt.fight.tessera$onRespawnCrystalUnavailable(crystal);
++            attempt.fight.tessera$onRespawnCrystalUnavailable(crystal);
++            verify(attempt.fight, times(1)).resetSpikeCrystals();
++            verify(attempt.fight, times(1)).spawnExitPortal(true);
++            verify(attempt.level, times(2)).dimension(); // Expected and entity world, in one diagnostic.
++        }
++    }
++
++    @Test
++    void independentOwnerThreadsOnlyMutateTheirOwnCrystals() throws Exception {
++        try (var pool = Executors.newFixedThreadPool(2)) {
++            var tasks = pool.invokeAll(List.of(() -> completeOnOwnerThread(), () -> completeOnOwnerThread()));
++            for (var result : tasks) {
++                result.get();
++            }
++        }
++    }
++
++    private static Void completeOnOwnerThread() {
++        try (Respawn attempt = new Respawn()) {
++            EndCrystal crystal = attempt.crystal(0.5);
++            doAnswer(invocation -> {
++                assertTrue(attempt.owned.contains(crystal));
++                return null;
++            }).when(crystal).discard(EntityRemoveEvent.Cause.EXPLODE);
++            attempt.tick(DragonRespawnStage.SUMMONING_DRAGON, List.of(crystal), 100);
++            verify(crystal).discard(EntityRemoveEvent.Cause.EXPLODE);
++            verifyNoInteractions(attempt.otherLevel);
++        }
++        return null;
++    }
++}
