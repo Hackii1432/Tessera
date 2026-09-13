@@ -109,4 +109,18 @@ public enum TreeType {
      * Pale oak tree with a creaking heart
      */
     PALE_OAK_CREAKING,
+    // Sinopia start - poplar tree types
+    /**
+     * Poplar tree with red leaves
+     */
+    RED_POPLAR,
+    /**
+     * Poplar tree with orange leaves
+     */
+    ORANGE_POPLAR,
+    /**
+     * Poplar tree with yellow leaves
+     */
+    YELLOW_POPLAR,
+    // Sinopia end - poplar tree types
 }

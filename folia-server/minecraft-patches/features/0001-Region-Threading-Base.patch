@@ -19365,10 +19365,10 @@ index 28e3b73507b988f7234cbf29c4024c88180d0aef..c8facee29ee08e0975528083f89b64f0
 +    BlockEntity getTileEntity(); // Folia - region threading
  }
 diff --git a/net/minecraft/world/level/block/grower/TreeGrower.java b/net/minecraft/world/level/block/grower/TreeGrower.java
-index c07fc1b46cba11f43e92f008790483e11b6a1148..d2cca31dceb30137762cdd2f2570471c105daed4 100644
+index 4bae78d20f492079c87a0541c9f63346687b1f47..78205c8f3725079ae95cd4e07fe379158b2fb889 100644
 --- a/net/minecraft/world/level/block/grower/TreeGrower.java
 +++ b/net/minecraft/world/level/block/grower/TreeGrower.java
-@@ -234,55 +234,57 @@ public final class TreeGrower {
+@@ -234,61 +234,63 @@ public final class TreeGrower {
  
      // CraftBukkit start
      private void setTreeType(Holder<Feature> feature) {
@@ -19442,6 +19442,15 @@ index c07fc1b46cba11f43e92f008790483e11b6a1148..d2cca31dceb30137762cdd2f2570471c
          } else if (feature.is(TreeFeatures.PALE_OAK_CREAKING)) {
 -            net.minecraft.world.level.block.SaplingBlock.treeType = org.bukkit.TreeType.PALE_OAK_CREAKING;
 +            treeType = org.bukkit.TreeType.PALE_OAK_CREAKING; // Folia - region threading
+         } else if (feature.is(TreeFeatures.RED_POPLAR)) {
+-            net.minecraft.world.level.block.SaplingBlock.treeType = org.bukkit.TreeType.RED_POPLAR; // Sinopia - poplar tree types
++            treeType = org.bukkit.TreeType.RED_POPLAR; // Sinopia - poplar tree types // Folia - region threading
+         } else if (feature.is(TreeFeatures.ORANGE_POPLAR)) {
+-            net.minecraft.world.level.block.SaplingBlock.treeType = org.bukkit.TreeType.ORANGE_POPLAR; // Sinopia - poplar tree types
++            treeType = org.bukkit.TreeType.ORANGE_POPLAR; // Sinopia - poplar tree types // Folia - region threading
+         } else if (feature.is(TreeFeatures.YELLOW_POPLAR)) {
+-            net.minecraft.world.level.block.SaplingBlock.treeType = org.bukkit.TreeType.YELLOW_POPLAR; // Sinopia - poplar tree types
++            treeType = org.bukkit.TreeType.YELLOW_POPLAR; // Sinopia - poplar tree types // Folia - region threading
          } else {
              throw new IllegalArgumentException("Unknown tree generator " + feature);
          }

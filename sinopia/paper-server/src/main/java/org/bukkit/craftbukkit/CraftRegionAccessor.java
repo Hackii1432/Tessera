@@ -242,6 +242,17 @@ public abstract class CraftRegionAccessor implements RegionAccessor {
             case PALE_OAK_CREAKING:
                 gen = TreeFeatures.PALE_OAK_CREAKING;
                 break;
+            // Sinopia start - poplar tree types
+            case RED_POPLAR:
+                gen = TreeFeatures.RED_POPLAR;
+                break;
+            case ORANGE_POPLAR:
+                gen = TreeFeatures.ORANGE_POPLAR;
+                break;
+            case YELLOW_POPLAR:
+                gen = TreeFeatures.YELLOW_POPLAR;
+                break;
+            // Sinopia end - poplar tree types
             case TREE:
             default:
                 gen = TreeFeatures.OAK;

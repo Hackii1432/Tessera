@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Sun, 13 Sep 2026 02:41:21 +0200
+Subject: [PATCH] Support vanilla poplar tree types
+
+---
+ net/minecraft/world/level/block/grower/TreeGrower.java | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/net/minecraft/world/level/block/grower/TreeGrower.java b/net/minecraft/world/level/block/grower/TreeGrower.java
+index c07fc1b..4bae78d 100644
+--- a/net/minecraft/world/level/block/grower/TreeGrower.java
++++ b/net/minecraft/world/level/block/grower/TreeGrower.java
+@@ -280,6 +280,12 @@ public final class TreeGrower {
+             net.minecraft.world.level.block.SaplingBlock.treeType = org.bukkit.TreeType.PALE_OAK;
+         } else if (feature.is(TreeFeatures.PALE_OAK_CREAKING)) {
+             net.minecraft.world.level.block.SaplingBlock.treeType = org.bukkit.TreeType.PALE_OAK_CREAKING;
++        } else if (feature.is(TreeFeatures.RED_POPLAR)) {
++            net.minecraft.world.level.block.SaplingBlock.treeType = org.bukkit.TreeType.RED_POPLAR; // Sinopia - poplar tree types
++        } else if (feature.is(TreeFeatures.ORANGE_POPLAR)) {
++            net.minecraft.world.level.block.SaplingBlock.treeType = org.bukkit.TreeType.ORANGE_POPLAR; // Sinopia - poplar tree types
++        } else if (feature.is(TreeFeatures.YELLOW_POPLAR)) {
++            net.minecraft.world.level.block.SaplingBlock.treeType = org.bukkit.TreeType.YELLOW_POPLAR; // Sinopia - poplar tree types
+         } else {
+             throw new IllegalArgumentException("Unknown tree generator " + feature);
+         }

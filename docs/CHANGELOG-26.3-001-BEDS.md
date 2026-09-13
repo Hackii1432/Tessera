@@ -1,5 +1,8 @@
 # Tessera 26.3-rc-2 – Sinopia-Aufnahme und Bett-Korrektur
 
+> Neuerer Folgefix bei gleicher Buildnummer: [Gamerule-Rückmeldungen](CHANGELOG-26.3-001-GAMERULES.md).
+> Die unten stehende Prüfsumme dokumentiert ausschließlich den damaligen Bett-Fix-Build.
+
 Stand: 13. September 2026. Die lokalen Versionswerte bleiben `001` / `alpha`.
 
 ## Änderungen

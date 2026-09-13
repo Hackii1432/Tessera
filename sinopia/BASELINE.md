@@ -20,6 +20,14 @@ Lokale Integrationsänderungen:
   Patch 0036 korrigiert die rekursive Schlaf-Aufrufkette bei normalen Betten und
   Strohbetten. `CraftHumanEntity#sleep` reicht `force` wieder weiter; zwölf
   Regressionstestfälle sichern diese Korrekturen ab (13. September 2026).
+  Patch 0037 korrigiert Gamerule-Befehlsrückmeldungen nach erfolgreicher Änderung
+  und berücksichtigt Plugin-Abbrüche sowie angepasste Werte. Elf Regressionstests
+  prüfen Befehlsstatus, Rückgabewert und Rückmeldung (13. September 2026).
+  Patch 0038 ergänzt die Bukkit-Zuordnung der drei Vanilla-Poplar-Farben für
+  natürliches Wachstum und Knochenmehl. API und CraftRegionAccessor unterstützen
+  dieselben Typen; Tesseras Folia-Basispatch hält die Zuordnung threadlokal.
+  22 Regressionstestfälle prüfen Zuordnung, Platzierungspfad, Farbauswahl und
+  Thread-Isolation (13. September 2026).
   Dies ist keine Produktionsfreigabe; Prüfstand: `../docs/PORTIERUNG-26.3-rc-2.md`.
 - Technische Paper-/Bukkit-Paketnamen und interne Modulpfade bleiben erhalten.
 

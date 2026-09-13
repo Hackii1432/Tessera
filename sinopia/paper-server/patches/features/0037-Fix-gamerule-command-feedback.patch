@@ -1,0 +1,60 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Sun, 13 Sep 2026 01:45:30 +0200
+Subject: [PATCH] Fix gamerule command feedback
+
+Compare the effective event result to the value before mutation. Report plugin cancellation separately, preserve event-adjusted values and keep numeric zero results successful. Leave the shared Bukkit event and per-world mutation path unchanged.
+---
+ .../server/commands/GameRuleCommand.java      | 29 +++++++++++++++----
+ 1 file changed, 23 insertions(+), 6 deletions(-)
+
+diff --git a/net/minecraft/server/commands/GameRuleCommand.java b/net/minecraft/server/commands/GameRuleCommand.java
+index 0b8ba22..a06d03c 100644
+--- a/net/minecraft/server/commands/GameRuleCommand.java
++++ b/net/minecraft/server/commands/GameRuleCommand.java
+@@ -17,6 +17,13 @@ public class GameRuleCommand {
+     private static final Dynamic2CommandExceptionType ERROR_GAME_RULE_NOT_SET = new Dynamic2CommandExceptionType(
+         (gameRule, value) -> Component.translatableEscape("commands.gamerule.not_set", gameRule, value)
+     );
++    // Sinopia start - distinguish cancelled gamerule changes from unchanged values
++    private static final Dynamic2CommandExceptionType ERROR_GAME_RULE_CHANGE_CANCELLED = new Dynamic2CommandExceptionType(
++        (gameRule, value) -> Component.translatableWithFallback(
++            "sinopia.commands.gamerule.cancelled", "Changing game rule %s to %s was cancelled by a plugin", gameRule, value
++        )
++    );
++    // Sinopia end - distinguish cancelled gamerule changes from unchanged values
+ 
+     public static void register(final CommandDispatcher<CommandSourceStack> dispatcher, final CommandBuildContext context) {
+         final LiteralArgumentBuilder<CommandSourceStack> base = Commands.literal("gamerule").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS));
+@@ -40,15 +47,25 @@ public class GameRuleCommand {
+ 
+     private static <T> int setRule(final CommandContext<CommandSourceStack> context, final GameRule<T> gameRule) throws CommandSyntaxException {
+         CommandSourceStack source = context.getSource();
+-        T value = org.bukkit.craftbukkit.event.CraftEventFactory.handleGameRuleSet(gameRule, context.getArgument("value", gameRule.valueClass()), source.getLevel(), source.getBukkitSender()).value(); // Paper - per-world game rules and event
++        // Sinopia start - compare against the value before the event bridge applies the change
+         GameRules gameRules = source.getLevel().getGameRules();
+-        String seralizedValue = gameRule.serialize(value);
+-        if (gameRules.get(gameRule).equals(value)) {
+-            throw ERROR_GAME_RULE_NOT_SET.create(gameRule, seralizedValue);
++        T previousValue = gameRules.get(gameRule);
++        T requestedValue = context.getArgument("value", gameRule.valueClass());
++        org.bukkit.craftbukkit.event.CraftEventFactory.GameRuleSetResult<T> change = org.bukkit.craftbukkit.event.CraftEventFactory.handleGameRuleSet(
++            gameRule, requestedValue, source.getLevel(), source.getBukkitSender()
++        );
++        if (change.cancelled()) {
++            throw ERROR_GAME_RULE_CHANGE_CANCELLED.create(gameRule.id(), gameRule.serialize(requestedValue));
++        }
++        T value = change.value();
++        String serializedValue = gameRule.serialize(value);
++        if (previousValue.equals(value)) {
++            throw ERROR_GAME_RULE_NOT_SET.create(gameRule, serializedValue);
+         }
+ 
+-        // gameRules.set(gameRule, value, context.getSource().getServer()); // Paper - per-world game rules and event - handle in CraftEventFactory.handleGameRuleSet
+-        source.sendSuccess(() -> Component.translatable("commands.gamerule.set", gameRule.id(), seralizedValue), true);
++        // The event bridge already stored the effective value and notified this world's listeners.
++        source.sendSuccess(() -> Component.translatable("commands.gamerule.set", gameRule.id(), serializedValue), true);
++        // Sinopia end - compare against the value before the event bridge applies the change
+         return gameRule.getCommandResult(value);
+     }
+ 
