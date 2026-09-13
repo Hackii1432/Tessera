@@ -1,0 +1,349 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Mon, 14 Sep 2026 00:22:12 +0200
+Subject: [PATCH] Test observer sleep synchronization
+
+
+diff --git a/src/test/java/io/papermc/paper/porting/BedObserverSynchronizationTest.java b/src/test/java/io/papermc/paper/porting/BedObserverSynchronizationTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..cb63c3549dd9cd8d618109830b116b31604b0198
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/porting/BedObserverSynchronizationTest.java
+@@ -0,0 +1,337 @@
++package io.papermc.paper.porting;
++
++import java.lang.reflect.Field;
++import java.lang.reflect.Method;
++import java.util.ArrayList;
++import java.util.List;
++import java.util.Optional;
++import java.util.Set;
++import java.util.concurrent.atomic.AtomicReference;
++import net.minecraft.core.BlockPos;
++import net.minecraft.core.Direction;
++import net.minecraft.core.PositionAndRotation;
++import net.minecraft.network.protocol.Packet;
++import net.minecraft.network.protocol.game.ClientGamePacketListener;
++import net.minecraft.network.protocol.game.ClientboundBundlePacket;
++import net.minecraft.network.protocol.game.ClientboundEntityPositionSyncPacket;
++import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
++import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
++import net.minecraft.network.protocol.game.VecDeltaCodec;
++import net.minecraft.network.syncher.EntityDataAccessor;
++import net.minecraft.network.syncher.SynchedEntityData;
++import net.minecraft.server.level.ServerEntity;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.server.network.ServerGamePacketListenerImpl;
++import net.minecraft.world.entity.Entity;
++import net.minecraft.world.entity.EntityTypes;
++import net.minecraft.world.entity.InterpolationHandler;
++import net.minecraft.world.entity.LivingEntity;
++import net.minecraft.world.entity.Pose;
++import net.minecraft.world.entity.PositionPath;
++import net.minecraft.world.entity.SteppedInterpolationHandler;
++import net.minecraft.world.entity.UpdateInterval;
++import net.minecraft.world.entity.ai.attributes.AttributeMap;
++import net.minecraft.world.entity.player.Player;
++import net.minecraft.world.item.ItemStack;
++import net.minecraft.world.level.Level;
++import net.minecraft.world.level.block.AbstractBedBlock;
++import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.block.state.properties.BedPart;
++import net.minecraft.world.phys.AABB;
++import net.minecraft.world.phys.Vec3;
++import org.bukkit.support.environment.AllFeatures;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.params.ParameterizedTest;
++import org.junit.jupiter.params.provider.CsvSource;
++import org.mockito.Answers;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.ArgumentMatchers.*;
++import static org.mockito.Mockito.*;
++
++@AllFeatures
++class BedObserverSynchronizationTest {
++    private static final BlockPos BED = new BlockPos(8, 64, 8);
++    private static final Vec3 APPROACH = new Vec3(6.5, 64, 8.5);
++
++    private static SynchedEntityData data(Player player) throws Exception {
++        SynchedEntityData.Builder builder = new SynchedEntityData.Builder(player);
++        // These base fields are defined in Entity's constructor, not defineSynchedData.
++        defineBase(builder, "DATA_SHARED_FLAGS_ID", (byte) 0);
++        defineBase(builder, "DATA_AIR_SUPPLY_ID", 300);
++        defineBase(builder, "DATA_CUSTOM_NAME_VISIBLE", false);
++        defineBase(builder, "DATA_CUSTOM_NAME", Optional.empty());
++        defineBase(builder, "DATA_SILENT", false);
++        defineBase(builder, "DATA_NO_GRAVITY", false);
++        defineBase(builder, "DATA_POSE", Pose.STANDING);
++        defineBase(builder, "DATA_TICKS_FROZEN", 0);
++        Method define = Player.class.getDeclaredMethod("defineSynchedData", SynchedEntityData.Builder.class);
++        define.setAccessible(true);
++        define.invoke(player, builder);
++        SynchedEntityData data = builder.build();
++        Field field = Entity.class.getDeclaredField("entityData");
++        field.setAccessible(true);
++        field.set(player, data);
++        Field useItem = LivingEntity.class.getDeclaredField("useItem");
++        useItem.setAccessible(true);
++        useItem.set(player, ItemStack.EMPTY);
++        when(player.getEntityData()).thenReturn(data);
++        return data;
++    }
++
++    @SuppressWarnings("unchecked")
++    private static <T> void defineBase(SynchedEntityData.Builder builder, String name, T value) throws Exception {
++        Field field = Entity.class.getDeclaredField(name);
++        field.setAccessible(true);
++        builder.define((EntityDataAccessor<T>) field.get(null), value);
++    }
++
++    private static Object playerAnswer(org.mockito.invocation.InvocationOnMock invocation) throws Throwable {
++        return switch (invocation.getMethod().getName()) {
++            case "defineSynchedData", "getSleepingPos", "setSleepingPos", "clearSleepingPos", "getPose" -> invocation.callRealMethod();
++            case "setPose" -> {
++                // Exercise pose metadata without dispatching a Bukkit event in the isolated tracker test.
++                Field field = Entity.class.getDeclaredField("DATA_POSE");
++                field.setAccessible(true);
++                @SuppressWarnings("unchecked") EntityDataAccessor<Pose> accessor = (EntityDataAccessor<Pose>) field.get(null);
++                ((Player) invocation.getMock()).getEntityData().set(accessor, invocation.getArgument(0));
++                yield null;
++            }
++            default -> Answers.RETURNS_DEFAULTS.answer(invocation);
++        };
++    }
++
++    /** Real server tracker/metadata; world and connection operations are isolated test doubles. */
++    private static final class Tracking {
++        final ServerLevel level = mock(ServerLevel.class);
++        final ServerPlayer player = mock(ServerPlayer.class, BedObserverSynchronizationTest::playerAnswer);
++        final AtomicReference<Vec3> position = new AtomicReference<>(APPROACH);
++        final List<Packet<? super ClientGamePacketListener>> packets = new ArrayList<>();
++        final SynchedEntityData data;
++        final ServerEntity tracker;
++
++        Tracking() throws Exception {
++            this.data = data(this.player);
++            when(this.player.level()).thenReturn(this.level);
++            when(this.player.getId()).thenReturn(42);
++            doReturn(EntityTypes.PLAYER).when(this.player).getType();
++            when(this.player.trackingPosition()).thenAnswer(invocation -> this.position.get());
++            when(this.player.position()).thenAnswer(invocation -> this.position.get());
++            when(this.player.storePositionAndRotation()).thenAnswer(invocation -> PositionAndRotation.of(this.position.get(), 0, 0));
++            when(this.player.getDeltaMovement()).thenReturn(Vec3.ZERO);
++            when(this.player.getPassengers()).thenReturn(List.of());
++            when(this.player.getAttributes()).thenReturn(mock(AttributeMap.class));
++            doReturn(SteppedInterpolationHandler.create(this.player)).when(this.player).getInterpolation();
++            this.player.connection = mock(ServerGamePacketListenerImpl.class);
++            ServerEntity.Synchronizer synchronizer = mock(ServerEntity.Synchronizer.class);
++            doAnswer(invocation -> { this.packets.add(invocation.getArgument(0)); return null; })
++                .when(synchronizer).sendToTrackingPlayers(any());
++            doAnswer(invocation -> { this.packets.add(invocation.getArgument(0)); return null; })
++                .when(synchronizer).sendToTrackingPlayersAndSelf(any());
++            // Even an otherwise unscheduled tracker must publish a sleep transition.
++            this.tracker = new ServerEntity(this.level, this.player, UpdateInterval.NEVER, false, synchronizer, Set.of());
++        }
++
++        void sleep(Vec3 bedPosition) {
++            this.position.set(bedPosition);
++            this.player.setPose(Pose.SLEEPING);
++            this.player.setSleepingPos(BED);
++            this.player.needsSync = true;
++        }
++
++        void send(Observer observer) {
++            this.tracker.sendChanges();
++            this.packets.forEach(observer::receive);
++        }
++    }
++
++    /**
++     * Executes the shared vanilla client metadata callback and stepped interpolation code.
++     * Packet dispatch mirrors the 26.3-rc-2 ClientPacketListener (not part of the server JAR).
++     */
++    private static final class Observer {
++        final Level level = mock(Level.class);
++        final Player player = mock(Player.class, invocation -> {
++            if (invocation.getMethod().getName().equals("makeBoundingBox") && invocation.getArguments().length == 1) {
++                return AABB.ofSize(invocation.getArgument(0), 0.2, 0.2, 0.2);
++            }
++            if (invocation.getMethod().getName().equals("onSyncedDataUpdated") && invocation.getArgument(0) instanceof net.minecraft.network.syncher.EntityDataAccessor<?>) {
++                return invocation.callRealMethod();
++            }
++            return playerAnswer(invocation);
++        });
++        final AtomicReference<Vec3> position = new AtomicReference<>(APPROACH);
++        final SynchedEntityData data;
++        final InterpolationHandler interpolation;
++        final VecDeltaCodec codec = new VecDeltaCodec();
++        final Vec3 bedPosition;
++
++        Observer(boolean straw, boolean moving) throws Exception {
++            this.data = data(this.player);
++            when(this.player.level()).thenReturn(this.level);
++            doReturn(EntityTypes.PLAYER).when(this.player).getType();
++            when(this.player.position()).thenAnswer(invocation -> this.position.get());
++            when(this.player.storePositionAndRotation()).thenAnswer(invocation -> PositionAndRotation.of(this.position.get(), 0, 0));
++            when(this.level.isClientSide()).thenReturn(true);
++            when(this.level.getRelativeTickSpeed()).thenReturn(1.0F);
++            when(this.level.noCollision(eq(this.player), any(AABB.class))).thenReturn(true);
++            doAnswer(invocation -> { this.position.set(invocation.getArgument(0)); return null; }).when(this.player).setPos(any(Vec3.class));
++            doAnswer(invocation -> { this.position.set(new Vec3(invocation.getArgument(0), invocation.getArgument(1), invocation.getArgument(2))); return null; })
++                .when(this.player).setPos(anyDouble(), anyDouble(), anyDouble());
++            AbstractBedBlock block = (AbstractBedBlock) (straw ? Blocks.STRAW_BED : Blocks.BED.red());
++            BlockState head = block.defaultBlockState().setValue(AbstractBedBlock.PART, BedPart.HEAD).setValue(AbstractBedBlock.FACING, Direction.NORTH);
++            BlockState foot = head.setValue(AbstractBedBlock.PART, BedPart.FOOT);
++            when(this.level.getBlockState(any(BlockPos.class))).thenReturn(Blocks.AIR.defaultBlockState());
++            when(this.level.getBlockState(BED)).thenReturn(head);
++            when(this.level.getBlockState(BED.south())).thenReturn(foot);
++            this.bedPosition = new Vec3(BED.getX() + 0.5, BED.getY() + block.getSleepHeight(head, this.level, BED).orElseThrow() + 0.125, BED.getZ() + 0.5);
++            this.interpolation = SteppedInterpolationHandler.create(this.player);
++            this.codec.setBase(APPROACH);
++            if (moving) {
++                this.interpolation.interpolateTo(PositionPath.of(APPROACH.add(0.25, 0, 0)), 0, 0, true);
++            }
++        }
++
++        void receive(Packet<? super ClientGamePacketListener> packet) {
++            if (packet instanceof ClientboundBundlePacket bundle) {
++                bundle.subPackets().forEach(this::receive);
++            } else if (packet instanceof ClientboundSetEntityDataPacket metadata) {
++                this.data.assignValues(metadata.packedItems());
++            } else if (packet instanceof ClientboundEntityPositionSyncPacket sync) {
++                this.codec.setBase(sync.position().endPosition());
++                this.interpolation.interpolateTo(sync.position(), sync.yRot(), sync.xRot(), true);
++            } else if (packet instanceof ClientboundMoveEntityPacket move) {
++                PositionPath path = move.hasPosition() ? move.getPositionDelta().decode(this.codec) : null;
++                if (path != null) this.codec.setBase(path.endPosition());
++                this.interpolation.interpolateTo(path, move.getYRot(), move.getXRot(), move.hasRotation());
++            }
++        }
++
++        void settle() {
++            for (int tick = 0; tick < 20; ++tick) this.interpolation.interpolate();
++        }
++    }
++
++    @ParameterizedTest
++    @CsvSource({"false,false", "false,true", "true,false", "true,true"})
++    void observersRemainAtTheVanillaBedPosition(boolean straw, boolean moving) throws Exception {
++        Tracking tracking = new Tracking();
++        Observer observer = new Observer(straw, moving);
++        tracking.sleep(observer.bedPosition);
++        tracking.send(observer);
++        observer.settle();
++        assertEquals(observer.bedPosition, observer.position.get(), "Sleeping metadata must not shift the pending movement path a second time");
++        assertEquals(Optional.of(BED), observer.player.getSleepingPos());
++        assertEquals(observer.bedPosition, tracking.tracker.getPositionBase());
++        verify(tracking.level, never()).getBlockState(any());
++    }
++
++    @Test
++    void sleepTransitionIsOneMetadataThenAbsolutePositionBundle() throws Exception {
++        Tracking tracking = new Tracking();
++        Observer observer = new Observer(true, false);
++        tracking.sleep(observer.bedPosition);
++        tracking.send(observer);
++        ClientboundBundlePacket bundle = assertInstanceOf(ClientboundBundlePacket.class, tracking.packets.getFirst());
++        List<Packet<? super ClientGamePacketListener>> contents = new ArrayList<>();
++        bundle.subPackets().forEach(contents::add);
++        assertEquals(2, contents.size());
++        ClientboundSetEntityDataPacket metadata = assertInstanceOf(ClientboundSetEntityDataPacket.class, contents.get(0));
++        ClientboundEntityPositionSyncPacket position = assertInstanceOf(ClientboundEntityPositionSyncPacket.class, contents.get(1));
++        assertInstanceOf(PositionPath.Linear.class, position.position());
++        assertEquals(observer.bedPosition, position.position().endPosition());
++        verify(tracking.player.connection).send(metadata);
++        verify(tracking.player.connection, never()).send(isA(ClientboundBundlePacket.class));
++    }
++
++    @Test
++    void unchangedSleepDoesNotContinuouslyResendTransitions() throws Exception {
++        Tracking tracking = new Tracking();
++        Observer observer = new Observer(true, false);
++        tracking.sleep(observer.bedPosition);
++        tracking.send(observer);
++        tracking.packets.clear();
++        tracking.tracker.sendChanges();
++        assertTrue(tracking.packets.isEmpty());
++    }
++
++    @ParameterizedTest
++    @CsvSource({"false,false", "false,true", "true,false", "true,true"})
++    void vanillaMovementBeforeMetadataReproducesTheOffset(boolean straw, boolean moving) throws Exception {
++        Tracking tracking = new Tracking();
++        Observer observer = new Observer(straw, moving);
++        tracking.sleep(observer.bedPosition);
++        // Replay the original server order, without using the fixed dispatch path.
++        observer.receive(ClientboundEntityPositionSyncPacket.of(tracking.player));
++        observer.receive(new ClientboundSetEntityDataPacket(42, tracking.data.packAll()));
++        observer.settle();
++        assertEquals(observer.bedPosition.add(observer.bedPosition.subtract(APPROACH)), observer.position.get());
++        assertNotEquals(observer.bedPosition, observer.position.get());
++    }
++
++    @Test
++    void transitionRecoversAfterDirtyMetadataWasAlreadyConsumed() throws Exception {
++        Tracking tracking = new Tracking();
++        Observer observer = new Observer(true, false);
++        tracking.sleep(observer.bedPosition);
++        tracking.data.packDirty();
++        tracking.player.needsSync = false;
++        tracking.send(observer);
++        observer.settle();
++        assertEquals(Optional.of(BED), observer.player.getSleepingPos());
++        assertEquals(observer.bedPosition, observer.position.get());
++    }
++
++    @Test
++    void observerAddedWhileSleepingReceivesCurrentSleepMetadata() throws Exception {
++        Tracking tracking = new Tracking();
++        Observer existing = new Observer(true, true);
++        tracking.sleep(existing.bedPosition);
++        tracking.send(existing);
++        Observer added = new Observer(true, false);
++        // The spawn packet places a new observer's entity at its current server position.
++        added.position.set(existing.bedPosition);
++        added.codec.setBase(existing.bedPosition);
++        doReturn(net.minecraft.world.item.ItemStack.EMPTY).when(tracking.player).getItemBySlot(any());
++        when(tracking.player.getAddEntityPacket(tracking.tracker)).thenReturn(mock(net.minecraft.network.protocol.game.ClientboundAddEntityPacket.class));
++        ServerPlayer viewer = mock(ServerPlayer.class);
++        tracking.tracker.sendPairingData(viewer, added::receive);
++        added.settle();
++        assertEquals(Optional.of(BED), added.player.getSleepingPos());
++        assertEquals(existing.bedPosition, added.position.get());
++        tracking.packets.clear();
++        tracking.tracker.onPlayerAdd();
++        tracking.send(added);
++        added.settle();
++        assertEquals(existing.bedPosition, added.position.get());
++    }
++
++    @Test
++    void wakingAndSubsequentRelativeMovementKeepThePositionBase() throws Exception {
++        Tracking tracking = new Tracking();
++        Observer observer = new Observer(true, false);
++        tracking.sleep(observer.bedPosition);
++        tracking.send(observer);
++        observer.settle();
++        tracking.packets.clear();
++        tracking.player.setPose(Pose.STANDING);
++        tracking.player.clearSleepingPos();
++        tracking.position.set(APPROACH);
++        tracking.send(observer);
++        observer.settle();
++        assertEquals(APPROACH, observer.position.get());
++        assertEquals(Optional.empty(), observer.player.getSleepingPos());
++        tracking.packets.clear();
++        Vec3 walk = APPROACH.add(0.25, 0, 0);
++        tracking.position.set(walk);
++        tracking.player.needsSync = true;
++        tracking.send(observer);
++        observer.settle();
++        assertEquals(walk, observer.position.get());
++        assertEquals(walk, observer.codec.getBase());
++        assertEquals(walk, tracking.tracker.getPositionBase());
++        assertTrue(tracking.packets.stream().anyMatch(ClientboundMoveEntityPacket.class::isInstance));
++    }
++}

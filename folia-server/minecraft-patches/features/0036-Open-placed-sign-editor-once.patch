@@ -1,0 +1,47 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Mon, 14 Sep 2026 01:00:33 +0200
+Subject: [PATCH] Open placed sign editor once
+
+
+diff --git a/net/minecraft/world/item/ItemStack.java b/net/minecraft/world/item/ItemStack.java
+index 4aec4a72dfbecb1c2ffc232695d17e81096b3e7f..dbbb7f0d81b8688d98df631b1c3667629111d271 100644
+--- a/net/minecraft/world/item/ItemStack.java
++++ b/net/minecraft/world/item/ItemStack.java
+@@ -490,15 +490,15 @@ public final class ItemStack implements DataComponentHolder, ItemInstance {
+                         }
+                     }
+ 
+-                    // TODO - snapshot - check this logic later
+-                    // SPIGOT-4678
+-                    if (usedItem.components().has(DataComponents.SIGN_TEXT_FRONT) && placedPos != null && !success.paperSuccessContext().updatedBlockEntity()) {
+-                        if (level.getBlockEntity(placedPos) instanceof net.minecraft.world.level.block.entity.SignBlockEntity signEntity) {
+-                            if (level.getBlockState(placedPos).getBlock() instanceof net.minecraft.world.level.block.SignBlock sign) {
+-                                sign.openTextEdit(player, signEntity, net.minecraft.world.level.block.entity.SignTextSlot.FRONT, io.papermc.paper.event.player.PlayerOpenSignEvent.Cause.PLACE); // CraftBukkit // Paper - Add PlayerOpenSignEvent
+-                            }
++                    // Tessera start - open the sign editor once, after an accepted placement (SPIGOT-4678)
++                    // Reuse the 26.3 vanilla eligibility checks, including component/NBT-provided sign text and wax.
++                    if (usedItem.components().has(DataComponents.SIGN_TEXT_FRONT) && placedPos != null) {
++                        BlockState placedState = level.getBlockState(placedPos);
++                        if (placedState.getBlock() instanceof net.minecraft.world.level.block.SignBlock sign) {
++                            sign.setPlacedBy(level, placedPos, placedState, player, this);
+                         }
+                     }
++                    // Tessera end - open the sign editor once
+ 
+                     // SPIGOT-1288 - play sound stripped from BlockItem
+                     if (usedItem instanceof BlockItem blockItem && placedPos != null) {
+diff --git a/net/minecraft/world/level/block/SignBlock.java b/net/minecraft/world/level/block/SignBlock.java
+index 56084735698c165003248306d8276980dceb920f..0802c4c0fed6963fa082fc6869ff44d87a7ea032 100644
+--- a/net/minecraft/world/level/block/SignBlock.java
++++ b/net/minecraft/world/level/block/SignBlock.java
+@@ -214,6 +214,9 @@ public abstract class SignBlock extends BaseEntityBlock implements SimpleWaterlo
+     public void setPlacedBy(final Level level, final BlockPos pos, final BlockState state, final @Nullable LivingEntity by, final ItemStack itemStack) {
+         if (!level.isClientSide()
+             && by instanceof ServerPlayer player
++            // Tessera - ItemStack invokes this again after the captured placement passes BlockPlaceEvent.
++            // Opening twice closes the first client editor and consumes the sign's edit permission.
++            && !level.getCurrentWorldData().captureBlockStates
+             && state.getBlock() instanceof SignBlock sign
+             && level.getBlockEntity(pos) instanceof SignBlockEntity signEntity
+             && !signEntity.isWaxed()

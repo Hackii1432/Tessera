@@ -1,0 +1,110 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Mon, 14 Sep 2026 00:22:12 +0200
+Subject: [PATCH] Synchronize observer sleep transitions
+
+
+diff --git a/net/minecraft/server/level/ServerEntity.java b/net/minecraft/server/level/ServerEntity.java
+index 461589b0f3bdff4da2f6347c81968ab416ac41d4..bdb58af0a0507fda7224cb215f0356b31b3ef606 100644
+--- a/net/minecraft/server/level/ServerEntity.java
++++ b/net/minecraft/server/level/ServerEntity.java
+@@ -77,6 +77,7 @@ public class ServerEntity {
+     private boolean wasOnGround;
+     private @Nullable List<SynchedEntityData.DataValue<?>> trackedDataValues;
+     private final Set<net.minecraft.server.network.ServerPlayerConnection> trackedPlayers; // Paper
++    private net.minecraft.core.@Nullable BlockPos tessera$lastSentSleepingPos; // Tessera - synchronize observer sleep transitions
+ 
+     public ServerEntity(
+         final ServerLevel level,
+@@ -100,6 +101,7 @@ public class ServerEntity {
+         this.lastSentYHeadRot = Mth.packDegrees(entity.getYHeadRot());
+         this.wasOnGround = entity.onGround();
+         this.trackedDataValues = entity.getEntityData().getNonDefaultValues();
++        this.tessera$lastSentSleepingPos = entity instanceof ServerPlayer player ? player.getSleepingPos().orElse(null) : null; // Tessera - synchronize observer sleep transitions
+     }
+ 
+     // Paper start - fix desync when a player is added to the tracker
+@@ -116,6 +118,15 @@ public class ServerEntity {
+         }
+         // Paper end - optimise collisions
+         this.entity.updateDataBeforeSync();
++        // Tessera start - synchronize observer sleep transitions
++        // Sleeping metadata snaps the client entity to the bed. Publishing movement first can
++        // make the 26.3 client apply that snap to the pending interpolation path a second time.
++        net.minecraft.core.BlockPos sleepingPos = this.entity instanceof ServerPlayer player ? player.getSleepingPos().orElse(null) : null;
++        boolean sleepTransition = !java.util.Objects.equals(sleepingPos, this.tessera$lastSentSleepingPos);
++        if (sleepTransition) {
++            this.forceStateResync = true;
++        }
++        // Tessera end - synchronize observer sleep transitions
+         List<Entity> passengers = this.entity.getPassengers();
+         if (!passengers.equals(this.lastPassengers)) {
+             this.synchronizer.sendToTrackingPlayers(new ClientboundSetPassengersPacket(this.entity));
+@@ -173,7 +184,7 @@ public class ServerEntity {
+                 this.handleMinecartPosRot(newMinecartBehavior, yRotn, xRotn, shouldSendRotation);
+             } else {
+                 this.teleportDelay++;
+-                PositionPath position = this.interpolationTracker.getPositionPath(currentPosition);
++                PositionPath position = sleepTransition ? PositionPath.of(currentPosition) : this.interpolationTracker.getPositionPath(currentPosition); // Tessera - discard pre-sleep movement history
+                 this.interpolationTracker.clear();
+                 MovementPacket<ClientGamePacketListener> packet;
+                 if (this.entity instanceof AbstractArrow) {
+@@ -212,8 +223,14 @@ public class ServerEntity {
+                 }
+ 
+                 if (packet != null) {
++                    // Tessera start - synchronize observer sleep transitions
++                    if (sleepTransition) {
++                        this.sendDirtyEntityData(packet);
++                    } else {
+                     this.synchronizer.sendToTrackingPlayers(packet);
+                     this.sendDirtyEntityData();
++                    }
++                    // Tessera end - synchronize observer sleep transitions
+                     if (packet.hasPosition()) {
+                         this.positionCodec.setBase(currentPosition);
+                     }
+@@ -237,6 +254,7 @@ public class ServerEntity {
+ 
+             this.entity.needsSync = false;
+             this.forceStateResync = false; // Paper - fix desync when a player is added to the tracker
++            this.tessera$lastSentSleepingPos = sleepingPos; // Tessera - synchronize observer sleep transitions
+         }
+ 
+         this.tickCount++;
+@@ -437,11 +455,35 @@ public class ServerEntity {
+     }
+ 
+     private void sendDirtyEntityData() {
++        // Tessera start - synchronize observer sleep transitions
++        this.sendDirtyEntityData(null);
++    }
++
++    private void sendDirtyEntityData(final @Nullable MovementPacket<ClientGamePacketListener> sleepTransitionPacket) {
++        // Tessera end - synchronize observer sleep transitions
+         SynchedEntityData entityData = this.entity.getEntityData();
+         List<SynchedEntityData.DataValue<?>> packedValues = entityData.packDirty();
++        // Tessera start - synchronize observer sleep transitions
++        if (sleepTransitionPacket != null) {
++            // Also recover if another metadata flush already consumed the dirty sleep fields.
++            packedValues = entityData.packAll();
++        }
++        // Tessera end - synchronize observer sleep transitions
+         if (packedValues != null) {
+             this.trackedDataValues = entityData.getNonDefaultValues();
++            // Tessera start - synchronize observer sleep transitions
++            if (sleepTransitionPacket != null) {
++                ClientboundSetEntityDataPacket metadata = new ClientboundSetEntityDataPacket(this.entity.getId(), packedValues);
++                // A bundle prevents a client tick between the bed snap and the new interpolation target.
++                this.synchronizer.sendToTrackingPlayers(new ClientboundBundlePacket(List.of(metadata, sleepTransitionPacket)));
++                if (this.entity instanceof ServerPlayer player) {
++                    // The sleeper keeps its existing player-position teleport; only observers need this movement packet.
++                    player.connection.send(metadata);
++                }
++            } else {
+             this.synchronizer.sendToTrackingPlayersAndSelf(new ClientboundSetEntityDataPacket(this.entity.getId(), packedValues));
++            }
++            // Tessera end - synchronize observer sleep transitions
+         }
+ 
+         if (this.entity instanceof LivingEntity livingEntity) {

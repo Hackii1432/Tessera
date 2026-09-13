@@ -1,0 +1,379 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Mon, 14 Sep 2026 01:00:33 +0200
+Subject: [PATCH] Test sign placement editor
+
+
+diff --git a/src/test/java/io/papermc/paper/porting/SignPlacementEditorTest.java b/src/test/java/io/papermc/paper/porting/SignPlacementEditorTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..e502a248eda00d213ce8248fa61be41f3d831f06
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/porting/SignPlacementEditorTest.java
+@@ -0,0 +1,367 @@
++package io.papermc.paper.porting;
++
++import io.papermc.paper.event.player.PlayerOpenSignEvent;
++import io.papermc.paper.threadedregions.RegionizedWorldData;
++import java.lang.reflect.Field;
++import java.util.ArrayList;
++import java.util.LinkedHashMap;
++import java.util.List;
++import java.util.UUID;
++import net.minecraft.core.BlockPos;
++import net.minecraft.core.Direction;
++import net.minecraft.core.component.DataComponents;
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.network.chat.Component;
++import net.minecraft.network.protocol.Packet;
++import net.minecraft.network.protocol.game.ClientboundOpenSignEditorPacket;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.PlayerAdvancements;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.server.network.FilteredText;
++import net.minecraft.server.network.ServerGamePacketListenerImpl;
++import net.minecraft.util.RandomSource;
++import net.minecraft.world.InteractionHand;
++import net.minecraft.world.InteractionResult;
++import net.minecraft.world.entity.player.Abilities;
++import net.minecraft.world.flag.FeatureFlags;
++import net.minecraft.world.inventory.AbstractContainerMenu;
++import net.minecraft.world.item.ItemStack;
++import net.minecraft.world.item.Items;
++import net.minecraft.world.item.component.TypedEntityData;
++import net.minecraft.world.item.context.BlockPlaceContext;
++import net.minecraft.world.item.context.UseOnContext;
++import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.block.SignBlock;
++import net.minecraft.world.level.block.entity.BlockEntityTypes;
++import net.minecraft.world.level.block.entity.SignBlockEntity;
++import net.minecraft.world.level.block.entity.SignText;
++import net.minecraft.world.level.block.entity.SignTextSlot;
++import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.material.Fluids;
++import net.minecraft.world.phys.BlockHitResult;
++import net.minecraft.world.phys.Vec3;
++import org.bukkit.Bukkit;
++import org.bukkit.craftbukkit.CraftServer;
++import org.bukkit.craftbukkit.block.CraftBlockState;
++import org.bukkit.craftbukkit.block.CraftBlockStates;
++import org.bukkit.craftbukkit.block.CraftSign;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.event.block.BlockPlaceEvent;
++import org.bukkit.event.block.SignChangeEvent;
++import org.bukkit.plugin.PluginManager;
++import org.bukkit.support.RegistryHelper;
++import org.bukkit.support.environment.AllFeatures;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.params.ParameterizedTest;
++import org.junit.jupiter.params.provider.CsvSource;
++import org.junit.jupiter.params.provider.ValueSource;
++import org.mockito.Answers;
++import org.mockito.MockedConstruction;
++import org.mockito.MockedStatic;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.ArgumentMatchers.*;
++import static org.mockito.Mockito.*;
++
++@AllFeatures
++class SignPlacementEditorTest {
++    private static final BlockPos POS = new BlockPos(8, 64, 8);
++
++    /** Real ItemStack -> BlockItem -> SignBlock placement, edit authorization and outgoing packets.
++     * World storage, player state and the plugin dispatcher are isolated test doubles.
++     */
++    private static final class Placement implements AutoCloseable {
++        final ServerLevel level = mock(ServerLevel.class);
++        final RegionizedWorldData data = mock(RegionizedWorldData.class);
++        final ServerPlayer player = mock(ServerPlayer.class, invocation ->
++            invocation.getMethod().getName().equals("openTextEdit") ? invocation.callRealMethod() : Answers.RETURNS_DEFAULTS.answer(invocation));
++        final ItemStack stack;
++        final CraftBlockState previous = mock(CraftBlockState.class);
++        final BlockPlaceEvent placeEvent = mock(BlockPlaceEvent.class);
++        final List<Packet<?>> packets = new ArrayList<>();
++        final List<PlayerOpenSignEvent> openEvents = new ArrayList<>();
++        final List<SignChangeEvent> changeEvents = new ArrayList<>();
++        final MockedStatic<CraftEventFactory> eventFactory = mockStatic(CraftEventFactory.class);
++        final MockedStatic<CraftBlockStates> blockStates = mockStatic(CraftBlockStates.class);
++        final MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class, CALLS_REAL_METHODS);
++        MockedConstruction<BlockPlaceContext> contexts;
++        BlockState state = Blocks.AIR.defaultBlockState();
++        SignBlockEntity sign;
++        boolean placeEventSeen;
++        boolean requirePlacementEvent = true;
++        boolean cancelOpen;
++        boolean cancelChange;
++        Runnable duringPlaceEvent = () -> {};
++
++        Placement(boolean hanging, boolean wall) throws Exception {
++            this.stack = new ItemStack(hanging ? Items.OAK_HANGING_SIGN : Items.OAK_SIGN, 2);
++            try {
++                this.initialize(hanging, wall);
++            } catch (Exception | Error failure) {
++                this.close();
++                throw failure;
++            }
++        }
++
++        private void initialize(boolean hanging, boolean wall) throws Exception {
++            // Avoid initializing schedulers in the isolated test; use real, per-attempt capture maps.
++            for (String name : List.of("capturedBlockStates", "capturedTileEntities")) {
++                Field field = RegionizedWorldData.class.getField(name);
++                field.setAccessible(true);
++                field.set(this.data, new LinkedHashMap<>());
++            }
++            when(this.level.getCurrentWorldData()).thenReturn(this.data);
++            when(this.level.enabledFeatures()).thenReturn(FeatureFlags.REGISTRY.allFlags());
++            when(this.level.registryAccess()).thenReturn(RegistryHelper.registryAccess());
++            when(this.level.getServer()).thenReturn(mock(MinecraftServer.class, RETURNS_DEEP_STUBS));
++            when(this.level.getRandom()).thenReturn(RandomSource.create(1));
++            when(this.level.getFluidState(any())).thenReturn(Fluids.EMPTY.defaultFluidState());
++            when(this.level.getBlockState(any(BlockPos.class))).thenAnswer(invocation ->
++                POS.equals(invocation.getArgument(0)) ? this.state : Blocks.STONE.defaultBlockState());
++            when(this.level.isUnobstructed(any(), eq(POS), any())).thenReturn(true);
++            when(this.level.getBlockEntity(POS)).thenAnswer(invocation -> this.sign);
++            when(this.level.setBlock(eq(POS), any(), anyInt())).thenAnswer(invocation -> {
++                assertTrue(this.data.captureBlockStates);
++                this.state = invocation.getArgument(1);
++                this.sign = (SignBlockEntity) ((SignBlock) this.state.getBlock()).newBlockEntity(POS, this.state);
++                this.sign.setLevel(this.level);
++                this.data.capturedBlockStates.put(POS, this.previous);
++                this.data.capturedTileEntities.put(POS, this.sign);
++                return true;
++            });
++            doAnswer(invocation -> {
++                assertSame(this.sign, invocation.getArgument(0));
++                assertTrue(this.placeEventSeen);
++                return null;
++            }).when(this.level).setBlockEntity(any());
++
++            Abilities abilities = new Abilities();
++            abilities.mayBuild = true;
++            when(this.player.getAbilities()).thenReturn(abilities);
++            when(this.player.mayBuild()).thenReturn(true);
++            when(this.player.level()).thenReturn(this.level);
++            UUID uuid = UUID.randomUUID();
++            when(this.player.getUUID()).thenReturn(uuid);
++            when(this.level.getPlayerByUUID(uuid)).thenReturn(this.player);
++            when(this.player.isWithinBlockInteractionRange(POS, 4.0)).thenReturn(true);
++            when(this.player.getPlainTextName()).thenReturn("SignPlacementTest");
++            when(this.player.getBukkitEntity()).thenReturn(mock(CraftPlayer.class));
++            when(this.player.getAdvancements()).thenReturn(mock(PlayerAdvancements.class));
++            this.player.containerMenu = mock(AbstractContainerMenu.class);
++            this.player.connection = mock(ServerGamePacketListenerImpl.class);
++            doAnswer(invocation -> { this.packets.add(invocation.getArgument(0)); return null; })
++                .when(this.player.connection).send(any());
++
++            when(this.previous.getPosition()).thenReturn(POS);
++            when(this.previous.getHandle()).thenReturn(Blocks.AIR.defaultBlockState());
++            when(this.previous.getFlags()).thenReturn(Block.UPDATE_ALL);
++            when(this.placeEvent.canBuild()).thenReturn(true);
++            this.eventFactory.when(() -> CraftEventFactory.callBlockPlaceEvent(this.level, this.player, InteractionHand.MAIN_HAND, this.previous, POS))
++                .thenAnswer(invocation -> {
++                    assertFalse(this.data.captureBlockStates);
++                    assertEquals(0, this.editorCount(), "No editor may open before BlockPlaceEvent accepts placement");
++                    assertTrue(this.openEvents.isEmpty(), "No premature sign-open plugin event");
++                    this.placeEventSeen = true;
++                    this.duringPlaceEvent.run();
++                    return this.placeEvent;
++                });
++            this.blockStates.when(() -> CraftBlockStates.getBlockState(this.level, POS)).thenReturn(this.previous);
++            this.blockStates.when(() -> CraftBlockStates.getBlockState(any(org.bukkit.block.Block.class))).thenReturn(mock(CraftSign.class));
++            PluginManager plugins = mock(PluginManager.class);
++            this.bukkit.when(Bukkit::getPluginManager).thenReturn(plugins);
++            CraftServer server = mock(CraftServer.class);
++            when(server.getPluginManager()).thenReturn(plugins);
++            when(this.level.getCraftServer()).thenReturn(server);
++            doAnswer(invocation -> {
++                if (invocation.getArgument(0) instanceof PlayerOpenSignEvent event) {
++                    if (this.requirePlacementEvent) assertTrue(this.placeEventSeen);
++                    this.openEvents.add(event);
++                    event.setCancelled(this.cancelOpen);
++                } else if (invocation.getArgument(0) instanceof SignChangeEvent event) {
++                    this.changeEvents.add(event);
++                    event.setCancelled(this.cancelChange);
++                }
++                return null;
++            }).when(plugins).callEvent(any());
++
++            Direction direction = wall ? Direction.NORTH : hanging ? Direction.UP : Direction.DOWN;
++            this.contexts = mockConstruction(BlockPlaceContext.class, (context, construction) -> {
++                when(context.getLevel()).thenReturn(this.level);
++                when(context.getPlayer()).thenReturn(this.player);
++                when(context.getHand()).thenReturn(InteractionHand.MAIN_HAND);
++                when(context.getItemInHand()).thenReturn(this.stack);
++                when(context.getClickedPos()).thenReturn(POS);
++                when(context.getClickedFace()).thenReturn(Direction.UP);
++                when(context.getNearestLookingDirections()).thenReturn(new Direction[] {direction});
++                when(context.canPlace()).thenReturn(true);
++            });
++        }
++
++        InteractionResult place() {
++            return this.stack.useOn(new UseOnContext(this.level, this.player, InteractionHand.MAIN_HAND, this.stack,
++                new BlockHitResult(Vec3.atCenterOf(POS), Direction.UP, POS, false)));
++        }
++
++        long editorCount() {
++            return this.packets.stream().filter(ClientboundOpenSignEditorPacket.class::isInstance).count();
++        }
++
++        void save(String line) {
++            this.sign.updateSignText(this.player, SignTextSlot.FRONT,
++                List.of(line, "", "", "").stream().map(FilteredText::passThrough).toList());
++        }
++
++        @Override
++        public void close() {
++            if (this.contexts != null) this.contexts.close();
++            this.bukkit.close();
++            this.blockStates.close();
++            this.eventFactory.close();
++        }
++    }
++
++    @ParameterizedTest
++    @CsvSource({"false,false", "false,true", "true,false", "true,true"})
++    void placementOpensExactlyOnceAndTypedTextIsAccepted(boolean hanging, boolean wall) throws Exception {
++        try (Placement placement = new Placement(hanging, wall)) {
++            assertTrue(placement.place().consumesAction());
++            Block expected = hanging ? (wall ? Blocks.OAK_WALL_HANGING_SIGN : Blocks.OAK_HANGING_SIGN)
++                : (wall ? Blocks.OAK_WALL_SIGN : Blocks.OAK_SIGN);
++            assertSame(expected, placement.state.getBlock());
++            assertEquals(1, placement.editorCount());
++            assertEquals(1, placement.openEvents.size());
++            assertEquals(PlayerOpenSignEvent.Cause.PLACE, placement.openEvents.getFirst().getCause());
++            assertEquals(placement.player.getUUID(), placement.sign.getPlayerWhoMayEdit());
++            placement.save("Written immediately after placement");
++            assertEquals("Written immediately after placement", placement.sign.getText(SignTextSlot.FRONT).getMessages(false).getFirst().getString());
++            assertEquals(1, placement.changeEvents.size());
++            assertNull(placement.sign.getPlayerWhoMayEdit(), "Normal one-shot authorization must still be consumed on save");
++        }
++    }
++
++    @ParameterizedTest
++    @ValueSource(booleans = {false, true})
++    void cancelledOrDeniedPlacementNeverOpens(boolean cancel) throws Exception {
++        try (Placement placement = new Placement(false, false)) {
++            when(placement.placeEvent.isCancelled()).thenReturn(cancel);
++            when(placement.placeEvent.canBuild()).thenReturn(cancel);
++            assertEquals(InteractionResult.FAIL, placement.place());
++            assertEquals(0, placement.editorCount());
++            assertTrue(placement.openEvents.isEmpty());
++            assertNull(placement.sign.getPlayerWhoMayEdit());
++            verify(placement.previous).revertPlace(true);
++            verify(placement.level, never()).setBlockEntity(any());
++        }
++    }
++
++    @Test
++    void pluginCanCancelTheSingleEditorOpen() throws Exception {
++        try (Placement placement = new Placement(false, false)) {
++            placement.cancelOpen = true;
++            assertTrue(placement.place().consumesAction());
++            assertEquals(1, placement.openEvents.size());
++            assertEquals(0, placement.editorCount());
++            assertNull(placement.sign.getPlayerWhoMayEdit());
++        }
++    }
++
++    @ParameterizedTest
++    @ValueSource(booleans = {false, true})
++    void waxedOrNonEditableSignDoesNotOpen(boolean waxed) throws Exception {
++        try (Placement placement = new Placement(false, false)) {
++            if (waxed) {
++                placement.stack.set(DataComponents.WAXED, net.minecraft.util.Unit.INSTANCE);
++            } else {
++                SignText.Mutable text = SignText.EMPTY.asMutable();
++                text.setLine(0, Component.translatable("menu.quit"));
++                placement.stack.set(DataComponents.SIGN_TEXT_FRONT, text.asImmutable());
++            }
++            assertTrue(placement.place().consumesAction());
++            assertEquals(0, placement.editorCount());
++            assertTrue(placement.openEvents.isEmpty());
++            assertNull(placement.sign.getPlayerWhoMayEdit());
++        }
++    }
++
++    @Test
++    void pluginWaxingDuringPlaceEventIsRespected() throws Exception {
++        try (Placement placement = new Placement(false, false)) {
++            placement.duringPlaceEvent = () -> placement.sign.setWaxed(true);
++            assertTrue(placement.place().consumesAction());
++            assertEquals(0, placement.editorCount());
++            assertTrue(placement.openEvents.isEmpty());
++        }
++    }
++
++    @ParameterizedTest
++    @ValueSource(booleans = {false, true})
++    void editableTextWithCustomBlockEntityDataStillOpensOnce(boolean canApplyCustomData) throws Exception {
++        try (Placement placement = new Placement(false, false)) {
++            when(placement.player.canUseGameMasterBlocks()).thenReturn(canApplyCustomData);
++            CompoundTag nbt = new CompoundTag();
++            nbt.putString("tessera_test", "custom data makes updatedBlockEntity true");
++            placement.stack.set(DataComponents.BLOCK_ENTITY_DATA, TypedEntityData.of(BlockEntityTypes.SIGN, nbt));
++            SignText.Mutable text = SignText.EMPTY.asMutable();
++            text.setLine(0, Component.literal("Existing editable text"));
++            placement.stack.set(DataComponents.SIGN_TEXT_FRONT, text.asImmutable());
++            InteractionResult.Success result = assertInstanceOf(InteractionResult.Success.class, placement.place());
++            assertEquals(canApplyCustomData, result.paperSuccessContext().updatedBlockEntity(), "Custom sign NBT still requires vanilla permission");
++            assertEquals(1, placement.editorCount());
++            assertEquals("Existing editable text", placement.sign.getText(SignTextSlot.FRONT).getMessages(false).getFirst().getString());
++            placement.save("Edited");
++            assertEquals("Edited", placement.sign.getText(SignTextSlot.FRONT).getMessages(false).getFirst().getString());
++        }
++    }
++
++    @Test
++    void placementWithoutPlayerDoesNotReadRegionDataOrOpenEditor() throws Exception {
++        try (Placement placement = new Placement(false, false)) {
++            BlockState state = Blocks.OAK_SIGN.defaultBlockState();
++            ((SignBlock) state.getBlock()).setPlacedBy(placement.level, POS, state, null, placement.stack);
++            verify(placement.level, never()).getCurrentWorldData();
++            assertEquals(0, placement.editorCount());
++        }
++    }
++
++    @Test
++    void directUncapturedPlacementStillOpens() throws Exception {
++        try (Placement placement = new Placement(false, false)) {
++            placement.requirePlacementEvent = false;
++            placement.state = Blocks.OAK_SIGN.defaultBlockState();
++            placement.sign = new SignBlockEntity(POS, placement.state);
++            placement.sign.setLevel(placement.level);
++            ((SignBlock) placement.state.getBlock()).setPlacedBy(placement.level, POS, placement.state, placement.player, placement.stack);
++            assertEquals(1, placement.editorCount());
++            assertEquals(placement.player.getUUID(), placement.sign.getPlayerWhoMayEdit());
++        }
++    }
++
++    @Test
++    void subsequentManualEditingStillWorks() throws Exception {
++        try (Placement placement = new Placement(false, false)) {
++            placement.place();
++            placement.save("First");
++            // The existing manual interaction entry point sets the authorization again.
++            ((SignBlock) placement.state.getBlock()).openTextEdit(placement.player, placement.sign, SignTextSlot.FRONT, PlayerOpenSignEvent.Cause.INTERACT);
++            placement.save("Second");
++            assertEquals(2, placement.editorCount());
++            assertEquals(PlayerOpenSignEvent.Cause.INTERACT, placement.openEvents.getLast().getCause());
++            assertEquals("Second", placement.sign.getText(SignTextSlot.FRONT).getMessages(false).getFirst().getString());
++        }
++    }
++
++    @Test
++    void signChangeEventCanStillRejectText() throws Exception {
++        try (Placement placement = new Placement(false, false)) {
++            placement.place();
++            placement.cancelChange = true;
++            placement.save("Not allowed by plugin");
++            assertEquals(1, placement.changeEvents.size());
++            assertEquals("", placement.sign.getText(SignTextSlot.FRONT).getMessages(false).getFirst().getString());
++            assertNull(placement.sign.getPlayerWhoMayEdit());
++        }
++    }
++}
