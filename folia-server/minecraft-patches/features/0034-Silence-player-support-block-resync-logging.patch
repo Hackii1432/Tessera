@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Sun, 13 Sep 2026 21:35:12 +0200
+Subject: [PATCH] Silence player support block resync logging
+
+
+diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index deb120afc2f1859173cb31a86fe977c64f04a22e..9c7e7497f139802bd1bef64ba7696ab3ee1ec997 100644
+--- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -1824,7 +1824,7 @@ public class ServerGamePacketListenerImpl
+     private void forceSendPlayerSupportBlocks() {
+         if (this.tickCount >= this.lastSupportedBlocksSend + 200) {
+             this.lastSupportedBlocksSend = this.tickCount;
+-            LOGGER.info("Player {} standing on air - force-sending blocks below", this.player.getPlainTextName());
++            // LOGGER.info("Player {} standing on air - force-sending blocks below", this.player.getPlainTextName()); // Tessera - silence noisy support-block resync diagnostic
+             AABB box = this.player.getBoundingBox();
+             double justBelow = box.minY - 1.0E-5F;
+             Stream.of(
