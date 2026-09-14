@@ -19,9 +19,10 @@ Sinopia is Tessera's Paper-derived base, maintained in this repository under
 (Windows: `.\gradlew.bat buildTessera`). No separate Paper repository is needed.
 
 See [the Sinopia workflow](docs/SINOPIA-WORKFLOW.md) for patch editing, capture,
-and upstream updates. The 26.3-rc-2 port builds and passes the automated tests;
+and upstream updates. The current Minecraft baseline is 26.3-rc-3;
 it remains an experimental prerelease requiring in-game validation. See the
-[porting report](docs/PORTIERUNG-26.3-rc-2.md) and the
+[RC3 changelog](docs/CHANGELOG-26.3-001-RC3.md), the original
+[RC2 porting report](docs/PORTIERUNG-26.3-rc-2.md) and the
 [bed-fix follow-up](docs/CHANGELOG-26.3-001-BEDS.md).
 
 ### Runtime worlds and region-safe scoreboards

@@ -1,8 +1,8 @@
 ---
 version: 0.0.1
-title: "26.3-rc-2 – First alpha build"
-description: "Tessera Build 001 – 26.3-rc-2-Portierung, integrierte Sinopia-Basis und Fehlerkorrekturen"
-date: 2026-09-13
+title: "26.3-rc-2 – Sinopia, Paper-Backports und Fehlerkorrekturen"
+description: "Tessera Build 001 – 26.3-rc-2-Portierung, integrierte Sinopia-Basis, Paper-Backports und regionssichere Fehlerkorrekturen"
+date: 2026-09-14
 minecraftVersion: "26.3"
 status: alpha
 breaking: false
@@ -10,6 +10,7 @@ tags:
   - Tessera
   - First alpha build
   - Sinopia
+  - Paper-Backports
   - Bugfixes
 releaseUrl: "https://github.com/Hackii1432/Tessera/"
 downloadUrl: "https://home.mosaikdev.com"
@@ -59,6 +60,35 @@ downloadUrl: "https://home.mosaikdev.com"
 - Plugin-Abbrüche, die Ablehnung toter Spieler sowie Vanilla-Regeln für Schlafen, Spawnpunkte und Strohbetten beibehalten.
 - Die Minecraft-Korrektur als eigenen Sinopia-Patch `0036` aufgenommen und mit zwölf Regressionstestfällen abgesichert.
 
+### Schlafposition für andere Spieler
+
+- Versetzte Darstellung schlafender Spieler bei Beobachtern korrigiert, insbesondere beim Straw Bed. Die Position wird bereits beim Hinlegen synchronisiert und nicht erst beim Aufstehen berichtigt.
+- Schlaf-Metadaten und absolute Position in einem zusammengehörigen Paket-Bundle übertragen. Dadurch wird der Positionssprung zum Bett nicht doppelt auf die Client-Interpolation angewendet.
+- Schlafbeginn, Wechsel der Schlafposition und Aufstehen berücksichtigt; die Positionsbasis für nachfolgende Bewegungen bleibt synchron.
+- Wiederholte Zusatzpakete bei unverändertem Schlafzustand vermieden. Normale Betten und die separate Positionskorrektur des schlafenden Spielers bleiben erhalten.
+- Die Korrektur als eigenen Tessera-Patch `0035` aufgenommen und mit 13 Regressionstestfällen abgesichert.
+
+### Schildbearbeitung nach dem Platzieren
+
+- Fehler behoben, durch den direkt nach dem Platzieren eingegebener Schildtext mit „just tried to change non-editable sign“ abgelehnt wurde.
+- Doppeltes automatisches Öffnen des Schildeditors entfernt. Der Editor wird nach einer erfolgreichen Platzierung genau einmal geöffnet.
+- Plugin-Abbrüche, Wachsschicht, Bearbeitungsfreigabe und Vanilla-Prüfungen beibehalten.
+- Die Korrektur als eigenen Tessera-Patch `0036` aufgenommen und mit 16 Regressionstestfällen abgesichert.
+- Zusätzlich das Zeichenlimit für Schildzeilen korrigiert: Positive Limits zählen Unicode-Codepoints, ohne Surrogatpaare zu zerschneiden. Ein Wert von `0` oder kleiner deaktiviert das Limit.
+
+### Drachen-Respawn und Regionssicherheit
+
+- Den ungeschützten Kristallzugriff beim Abschluss der Drachen-Wiederbeschwörung abgesichert, der zur Ausnahme „Cannot remove entity off-main“ und zum Serverstopp führen konnte.
+- Welt, Regionszuständigkeit und Gültigkeit der Kristallreferenzen vor den Respawn-Phasen sowie erneut nach Spawn- und Explosions-Callbacks geprüft.
+- Beschwörungen mit unzulässigen Kristallreferenzen vor der Phase kontrolliert abgebrochen. Fremde oder übertragene Kristalle werden nicht vom falschen Regions-Thread verändert oder entfernt.
+- Diagnose auf eine Warnung pro Beschwörungsversuch begrenzt. Reguläre Vanilla-Phasen, Zeiten und Explosionen beibehalten.
+- Die Korrektur als eigenen Tessera-Patch `0033` aufgenommen und mit 21 Regressionstestfällen abgesichert.
+
+### Konsole
+
+- Wiederholte Info-Ausgabe „Player … standing on air - force-sending blocks below“ auskommentiert und als Tessera-Patch `0034` gespeichert.
+- Die zugrunde liegende erneute Übertragung der Blöcke unter dem Spieler bleibt unverändert aktiv.
+
 ### Gamerule-Rückmeldungen
 
 - Falsche Meldung „Game rule … is already set to …“ nach einer tatsächlich erfolgreichen Gamerule-Änderung behoben.
@@ -77,6 +107,47 @@ downloadUrl: "https://home.mosaikdev.com"
 - Die Baumtyp-Zuordnung bleibt in Tessera threadlokal. Vanilla-Farbgewichtung, Baumformen, Wachstumsvoraussetzungen und Plugin-Abbruchbehandlung bleiben unverändert.
 - Die Minecraft-Korrektur als eigenen Sinopia-Patch `0038` samt API-/Folia-Anpassungen aufgenommen und mit 22 Regressionstestfällen abgesichert.
 
+### Paper-Backports in Sinopia
+
+- Ausgewählte Korrekturen aus Paper `dev/26.3` bis einschließlich Commit `e285a336a6bc7ccdec8803d528c67c80d431760a` in die lokale Sinopia-/Tessera-Basis übernommen.
+- Die ursprüngliche Importreferenz `38b0bfeb67855206ede9cb1df4f3354c4611c4c2` beibehalten. Die Übernahme erfolgt selektiv und nicht als vollständiger Austausch der Basis.
+- Allgemeine Minecraft-Korrekturen im eigenen Sinopia-Patch `0039` zusammengefasst. Regionsabhängige Ergänzungen separat in Tessera gespeichert.
+
+### Partikel-API
+
+- Öffentliche Partikel-API um getrennte Geschwindigkeitswerte für X, Y und Z erweitert.
+- Randomisierungsarten `DEFAULT`, `ALTERNATIVE` und `ALTERNATIVE_WITH_SPEED` in die API aufgenommen.
+- `ParticleBuilder`, Welt- und Spieler-Methoden sowie die CraftBukkit-Paketübertragung an die erweiterte 26.3-Partikelstruktur angepasst.
+- Bisherige öffentliche Overloads erhalten. Ein einzelner Geschwindigkeitswert wird auf alle drei Achsen übertragen; die bisherige Standardrandomisierung bleibt erhalten.
+- `ParticleBuilder.extra(double)` als kompatiblen, veralteten Einstieg beibehalten und auf die neue Geschwindigkeitsbehandlung weitergeleitet.
+
+### Blockabbau über größere Entfernungen
+
+- Abbruchpakete für begonnenen Blockabbau auch außerhalb der normalen Interaktionsreichweite innerhalb der vorgesehenen 32-Block-Grenze zugelassen.
+- Paketannahme und Verarbeitung auf den zuständigen Spieler-/Regions-Thread, die aktuelle Welt und bereits geladene Chunks begrenzt.
+- Gespeicherte frühere Abbaupositionen vor erneutem Zugriff auf Regionszuständigkeit geprüft.
+- Synchrone Chunk-Ladevorgänge und Zugriffe auf fremde Regionen in diesem Pfad ausgeschlossen.
+- Die regionssichere Ergänzung als eigenen Tessera-Patch `0037` aufgenommen.
+
+### Zeitbefehl und Plugin-Ereignisse
+
+- Rückmeldung des Zeitbefehls korrigiert: Der bisherige Wert wird vor der Änderung erfasst und mit dem tatsächlich freigegebenen neuen Wert verglichen.
+- Verhindert, dass eine durch Plugins abgebrochene Zeitänderung die Weltuhr trotzdem verändert.
+- Von Plugins angepasste Zeitwerte korrekt übernommen; tatsächlich unveränderte Werte behalten die entsprechende Rückmeldung.
+- Bestehende globale Clock-Zuständigkeit und regionsbezogene Verteilung an Spieler erhalten.
+- `EntityChangeBlockEvent` bei Blocktransformationen vor Blockänderung, Drops und Itemverbrauch ausgelöst. Bei Abbruch bleiben diese Änderungen aus; erforderliche Inventarsynchronisierung bleibt erhalten.
+
+### Weitere Gameplay- und API-Korrekturen
+
+- Bukkit-Zuordnung der Kolbenreaktionen an die aktuelle Vanilla-Reihenfolge angepasst.
+- Neuberechnung des Advancement-Baums nach Änderungen korrigiert; leere Änderungen lösen keine unnötige Neuanordnung aus.
+- Synchronisierung aller vier Braustand-Menüwerte wiederhergestellt.
+- `BrewingStartEvent` verwendet die tatsächliche Rezeptbrauzeit statt eines fest vorgegebenen Werts.
+- Doppeltes Weiterschalten der Note bei Notenblöcken korrigiert und die Einstellung für deaktivierte Noten-Updates berücksichtigt.
+- Bei Bett-Explosionen den ursprünglichen Blockzustand vor dem Entfernen gesichert und als Schadensursache weitergegeben.
+- Konfigurierten Seed für verlassene Lager bei der Strukturplatzierung berücksichtigt.
+- Größenprüfung für NBT-Long-Arrays vor Speicherreservierung und Allokation ergänzt; negative und übergroße Längen werden abgewiesen.
+
 ### Bestehende Tessera-Funktionen beibehalten
 
 - Vorhandene Tick-, Gamerule-, Enderperlen-/Stasis-, Locatorbar- und Golem-Patches mitportiert.
@@ -84,11 +155,12 @@ downloadUrl: "https://home.mosaikdev.com"
 - Bestehende regionsichere Block-Nachbearbeitung für Laufzeit-Strukturen und die zugehörigen APIs beibehalten.
 - Diese Funktionen sind keine neuen 26.3-Features; ihre bestehenden Implementierungen wurden auf die neue Basis übernommen. MCC- und MVE-Code wurden dafür nicht geändert.
 
-### Prüfstand und Hinweise
+### Automatisierte Prüfung
 
 - Vollständigen Tessera-Build einschließlich Patch-Anwendung, Standardtests, Checkstyle, Prüfung verbotener API-Aufrufe und Paperclip-Erstellung erfolgreich ausgeführt.
 - Zusätzliche Regressionstests für Build-/Git-Integration, Datenmigration, Storage, Regionszugriffe, Betten, Gamerules und Poplar ergänzt.
-- Der zuletzt geprüfte Gesamtstand enthält 10.321 Einträge in den XML-Testberichten, ohne Fehler; 89 Einträge wurden übersprungen. Alle 45 Bett-, Gamerule- und Poplar-Regressionstestfälle bestanden ohne Überspringen.
-- Die erzeugte Server-JAR mit Java 25.0.3 und `--version` erfolgreich geprüft. Dieser Launcher-Test startet keine Spielwelt.
-- Der Build bleibt eine Alpha-Version auf Basis von Minecraft `26.3-rc-2`. Erfolgreiche Builds und automatisierte Tests ersetzen keine vollständige Ingame-Abnahme mit den eingesetzten Plugins.
-- Vor einem Einsatz bestehende Welten sichern und auf einer separaten Testwelt insbesondere Weltmigration, Regions- und Dimensionswechsel sowie die korrigierten Gameplay-Funktionen prüfen.
+- 53 zusätzliche Regressionstestfälle für die Paper-Backports ergänzt. Zusammen mit 41 bestehenden Schild-/Bett-Testfällen liefen alle 94 gezielt geprüften Fälle erfolgreich durch.
+- Der vollständige Build vom 14.09.2026 enthält 9.892 gemeldete Server-Testfälle und 529 API-Testfälle, ohne Fehler oder Fehlschläge; insgesamt 89 Fälle wurden übersprungen.
+- Alle gespeicherten Patchschichten erneut erfolgreich angewendet. Die erzeugten Minecraft- und Server-Quellbäume stimmen vollständig mit dem zuvor getesteten Stand überein.
+- Den Launcher im Rahmen der Portierung mit Java 25.0.3 und `--version` erfolgreich geprüft, ohne eine Spielwelt zu starten.
+- Ausführbare Server-JAR `tessera-server-26.3-rc-2.build.001-alpha.jar` erfolgreich erstellt.

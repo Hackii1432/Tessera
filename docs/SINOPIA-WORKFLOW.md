@@ -159,15 +159,19 @@ Das ist ausdrücklich KEINE Erklärung, dass die Minecraft-Portierung fertig ist
 
 ## 26.3-Status
 
-Die aktuelle Sinopia-Basis stammt aus Paper 26.3-rc-2. Die 34 ursprünglich
+Die Sinopia-Basis wurde ursprünglich aus Paper 26.3-rc-2 importiert und lokal
+auf Minecraft 26.3-rc-3 mit Mache `26.3-rc-3+build.1` umgestellt. Der Paper-
+Herkunftscommit und die selektiven Backports bleiben erhalten. Die 34 ursprünglich
 zurückgestellten Feature-Patches wurden portiert und aktiviert, einschließlich
 Moonrise, Starlight und DataConverter. Sinopia-Patch 0035 ergänzt die Vanilla-
-Datenmigration für 26.3. Die Folia-/Tessera-Serie enthält jetzt 32 Minecraft-
-und 23 Implementierungspatches; die jeweils letzten Patches sichern weitere
-26.3-Anpassungen bzw. deren Regions-Regressionsprüfungen.
+Datenmigration für 26.3. Die nachfolgenden Sinopia-Korrekturen, selektiven
+Paper-Backports und Folia-/Tessera-Patchserien bleiben erhalten und ließen sich
+konfliktfrei auf die RC3-Basis anwenden.
 
-Prüfergebnisse und verbleibende Laufzeitabnahme:
-[PORTIERUNG-26.3-rc-2.md](PORTIERUNG-26.3-rc-2.md). Diese Vorabversion ist nicht
+RC3-Änderungen und Prüfergebnisse:
+[CHANGELOG-26.3-001-RC3.md](CHANGELOG-26.3-001-RC3.md).
+Die ursprüngliche Portierung und ihre Laufzeit-Prüfgrenzen sind unter
+[PORTIERUNG-26.3-rc-2.md](PORTIERUNG-26.3-rc-2.md) dokumentiert. Diese Vorabversion ist nicht
 allein durch einen erfolgreichen Build als produktionsreif einzustufen.
 
 Siehe auch `MIGRATION-26.3-rc-2.md` für den historischen Migrationsversuch.

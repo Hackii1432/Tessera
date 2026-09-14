@@ -1,0 +1,62 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Mon, 14 Sep 2026 15:32:55 +0200
+Subject: [PATCH] Keep distant block break aborts region owned
+
+Adapt Paper a8210fd to the Folia packet admission path. Keep the existing eight-chunk ownership margin, never load chunks, reject stale world/player ownership, and check the previous destruction position before touching it.
+
+diff --git a/net/minecraft/server/level/ServerPlayerGameMode.java b/net/minecraft/server/level/ServerPlayerGameMode.java
+index 212f2a1f656b201018d07010095c82050f62cea3..23db3f59dd781af7d62aa7f4fd5c8c8f48e2c00c 100644
+--- a/net/minecraft/server/level/ServerPlayerGameMode.java
++++ b/net/minecraft/server/level/ServerPlayerGameMode.java
+@@ -188,9 +188,24 @@ public class ServerPlayerGameMode {
+         }
+     }
+ 
++    // Tessera start - admit Paper's distant aborts only on the owning region
++    public boolean tessera$canProcessBlockBreakAction(final BlockPos pos, final ServerboundPlayerActionPacket.Action action) {
++        if (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this.player)
++            || this.player.level() != this.level
++            || !ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this.level, pos.getX() >> 4, pos.getZ() >> 4, 8)
++            || this.level.getChunkIfLoadedImmediately(pos.getX() >> 4, pos.getZ() >> 4) == null) {
++            return false;
++        }
++        return this.player.isWithinBlockInteractionRange(pos, 1.0)
++            || action == ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK
++                && this.player.distanceToSqr(pos.getX(), pos.getY(), pos.getZ()) < Level.SHORT_PARTICLE_CLIP_RANGE * Level.SHORT_PARTICLE_CLIP_RANGE;
++    }
++    // Tessera end - admit Paper's distant aborts only on the owning region
++
+     public void handleBlockBreakAction(
+         final BlockPos pos, final ServerboundPlayerActionPacket.Action action, final Direction direction, final int maxY, final int sequence
+     ) {
++        if (!this.tessera$canProcessBlockBreakAction(pos, action)) return; // Tessera - also guard direct calls, not only incoming packets
+         if (!this.player.isWithinBlockInteractionRange(pos, 1.0)) {
+             if (this.player.distanceToSqr(pos.getX(), pos.getY(), pos.getZ()) >= Level.SHORT_PARTICLE_CLIP_RANGE * Level.SHORT_PARTICLE_CLIP_RANGE) return; // Paper - Don't notify if unreasonably far away
+             if (this.isDestroyingBlock && action == ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK) {
+@@ -333,7 +348,8 @@ public class ServerPlayerGameMode {
+         // Paper start - Don't allow digging into unloaded chunks
+         if (!Objects.equals(this.destroyPos, pos) && !BlockPos.ZERO.equals(this.destroyPos)) { // Paper
+             ServerPlayerGameMode.LOGGER.debug("Mismatch in destroy block pos: {} {}", this.destroyPos, pos); // CraftBukkit - SPIGOT-5457 sent by client when interact event cancelled
+-            BlockState destroyState = this.level.getBlockStateIfLoaded(this.destroyPos); // Don't load unloaded chunks for stale records here
++            BlockState destroyState = ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this.level, this.destroyPos)
++                ? this.level.getBlockStateIfLoaded(this.destroyPos) : null; // Tessera - a previous region may own a stale destruction record
+             if (destroyState != null) {
+             this.level.destroyBlockProgress(this.player.getId(), this.destroyPos, -1);
+             this.debugLogging(pos, true, sequence, "aborted mismatched destroying");
+diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 0fdf902dbeee3820235eef8b08699aa9bd345e37..9e6f55af3a2b0c3c562e9b0d5742d7d08cfd1ff0 100644
+--- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -2098,7 +2098,7 @@ public class ServerGamePacketListenerImpl
+                 case ABORT_DESTROY_BLOCK:
+                 case STOP_DESTROY_BLOCK:
+                     // Paper start - Don't allow digging into unloaded chunks
+-                    if (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this.player.level(), pos.getX() >> 4, pos.getZ() >> 4, 8) || this.player.level().getChunkIfLoadedImmediately(pos.getX() >> 4, pos.getZ() >> 4) == null || !this.player.isWithinBlockInteractionRange(pos, 1.0)) { // Folia - region threading - don't destroy blocks not owned
++                    if (!this.player.gameMode.tessera$canProcessBlockBreakAction(pos, action)) { // Tessera - keep Folia ownership/loading checks and allow bounded distant aborts
+                         this.player.connection.ackBlockChangesUpTo(packet.getSequence());
+                         return;
+                     }
+-- 
+2.45.1.windows.1
+
