@@ -1,0 +1,69 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Lulu13022002 <41980282+Lulu13022002@users.noreply.github.com>
+Date: Mon, 14 Sep 2026 15:46:48 +0000
+Subject: [PATCH] Backport Paper RC3 entity and player corrections
+
+Selected Minecraft changes from PaperMC/Paper:
+09d1b0ab3488038ad3cbbc9447be1fb9a486ccd0
+2a842951007886e64775c096d30167dfaffea05c
+
+Adapted for the versioned Sinopia base by Tessera. Guard the Hanging event
+bridge for cushions, classify obstruction consistently with Paper, update
+all map item types on drop, and report the invalid-movement kick cause.
+Keep the existing bed overload, sign editor and downstream region patches.
+No additional scheduling, chunk access or configuration changes.
+
+diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -3544,7 +3544,7 @@
+             }
+         }
+         // Paper start - remove player from map on drop
+-        if (droppedItemStack.is(net.minecraft.world.item.Items.FILLED_MAP)) {
++        if (droppedItemStack.getItem() instanceof MapItem) { // Sinopia - backport Paper support for every map item
+             final MapItemSavedData mapData = MapItem.getSavedData(droppedItemStack, this.level());
+             if (mapData != null) {
+                 mapData.tickCarriedBy(this, droppedItemStack, null);
+diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+--- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -1494,7 +1494,7 @@
+         } else {
+             if (packet.hasPosition()) {
+                 if (this.receivedPositionThisTick) {
+-                    this.disconnect(Component.translatable("multiplayer.disconnect.invalid_player_movement"));
++                    this.disconnect(Component.translatable("multiplayer.disconnect.invalid_player_movement"), org.bukkit.event.player.PlayerKickEvent.Cause.INVALID_PLAYER_MOVEMENT); // Paper - kick event cause
+                     return;
+                 }
+ 
+diff --git a/net/minecraft/world/entity/decoration/BlockAttachedEntity.java b/net/minecraft/world/entity/decoration/BlockAttachedEntity.java
+--- a/net/minecraft/world/entity/decoration/BlockAttachedEntity.java
++++ b/net/minecraft/world/entity/decoration/BlockAttachedEntity.java
+@@ -49,7 +49,7 @@
+                     // CraftBukkit start - fire break events
+                     boolean cancelled;
+                     final io.papermc.paper.event.entity.EntityBreakEvent.RemoveCause cause;
+-                    if (!this.level().getBlockState(this.blockPosition()).isSuffocating(this.level(), this.blockPosition())) {
++                    if (!this.level().getBlockState(this.blockPosition()).isAir()) { // Sinopia - backport Paper obstruction classification
+                         cause = io.papermc.paper.event.entity.EntityBreakEvent.RemoveCause.OBSTRUCTION;
+                     } else {
+                         cause = io.papermc.paper.event.entity.EntityBreakEvent.RemoveCause.PHYSICS;
+@@ -166,11 +166,13 @@
+         if (this.level() instanceof ServerLevel level && !this.isRemoved() && delta.lengthSqr() > 0.0) {
+             // CraftBukkit start - fire break events
+             // TODO - Does this need its own cause? Seems to only be triggered by pistons
+-            org.bukkit.event.hanging.HangingBreakEvent event = new org.bukkit.event.hanging.HangingBreakEvent((org.bukkit.entity.Hanging) this.getBukkitEntity(), org.bukkit.event.hanging.HangingBreakEvent.RemoveCause.PHYSICS);
+-            this.level().getCraftServer().getPluginManager().callEvent(event);
++            if (this.getBukkitEntity() instanceof org.bukkit.entity.Hanging hanging) { // Sinopia - cushions are not Bukkit Hanging entities
++                org.bukkit.event.hanging.HangingBreakEvent event = new org.bukkit.event.hanging.HangingBreakEvent(hanging, org.bukkit.event.hanging.HangingBreakEvent.RemoveCause.PHYSICS);
++                this.level().getCraftServer().getPluginManager().callEvent(event);
+ 
+-            if (this.isRemoved() || event.isCancelled()) {
+-                return;
++                if (this.isRemoved() || event.isCancelled()) {
++                    return;
++                }
+             }
+             // CraftBukkit end
+             this.kill(level);
