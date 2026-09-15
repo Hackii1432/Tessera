@@ -62,11 +62,11 @@ class BedSleepRegressionTest {
             when(this.level.isDarkOutside()).thenReturn(dark);
             when(this.level.canSleepThroughNights()).thenReturn(true);
             when(this.level.getBlockState(any(BlockPos.class))).thenReturn(Blocks.AIR.defaultBlockState());
-            this.eventFactory.when(() -> CraftEventFactory.callPlayerBedEnterEvent(eq(this.player), eq(POS), any()))
+            this.eventFactory.when(() -> CraftEventFactory.callPlayerBedEnterEvent(eq(this.player), eq(POS), same(this.rule), any()))
                 .thenAnswer(invocation -> {
                     // Fail immediately on recursion, without overflowing the test JVM's stack.
                     assertEquals(1, this.events.incrementAndGet(), "The bed event must not be dispatched recursively");
-                    return this.cancel ? Either.left(Player.BedSleepingProblem.OTHER_PROBLEM) : invocation.getArgument(2);
+                    return this.cancel ? Either.left(Player.BedSleepingProblem.OTHER_PROBLEM) : invocation.getArgument(3);
                 });
         }
 

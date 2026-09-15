@@ -55,7 +55,7 @@ Original-Commits, bewusst ausgelassene Änderungen, Tests und Build-Anleitung:
 
 ## Minecraft 26.3-rc-3
 
-Die lokale Minecraft-Basis ist auf `26.3-rc-3` umgestellt und verwendet
+Mit Build 001 wurde die lokale Minecraft-Basis auf `26.3-rc-3` umgestellt, mit
 `io.papermc:mache:26.3-rc-3+build.1` aus dem offiziellen Mache-Release.
 Mache-Herkunft: `88f922b9326db08bb96c6ca7aef80a92a9cc83ef`.
 Die Paper-Importreferenz und die oben beschriebenen selektiven Backports bleiben
@@ -70,3 +70,25 @@ aus der offiziellen RC3-Basis übernommen. Die Plugin-API-Version bleibt `26.3`.
 
 `MinecraftRc3VersionTest` prüft die tatsächlichen Laufzeit-Versionsdaten und
 Minecraft-Konstanten, nicht nur den Namen des Build-Artefakts.
+
+## Minecraft 26.3 Release – Build 005
+
+Die aktuelle lokale Minecraft-Basis ist das offizielle Release `26.3` mit
+`io.papermc:mache:26.3+build.1`. Mache-Herkunft ist Commit
+`56bbc351c83dd071f69a1a0f79c3ccfad8ca618e` im Branch `release/26.3`.
+Die Datenversion ist `5023`, das Release-Netzwerkprotokoll `777`.
+Ressourcenpakete verwenden Format `97.1`, Datenpakete Format `121.0`.
+
+Root- und Sinopia-Version sind gemeinsam umgestellt; der zugehörige
+Tessera-Gradle-Patch verweist auf denselben Mache-Build. `paperRef` bleibt die
+ursprüngliche Importreferenz. Es wurde kein vollständiger Paper-Rebase vorgenommen.
+Die bisherigen selektiven Backports und Folia-/Tessera-Patches bleiben erhalten.
+
+Der bisherige RC3-Test wurde durch `MinecraftReleaseVersionTest` ersetzt.
+Er prüft Versionskennung, Datenversion, Versionsserie, Release-Protokoll,
+Paketformate und den Stable-/Snapshot-Status der tatsächlichen Laufzeitdaten.
+Java 25, Plugin-API-Version `26.3` und Gradle `9.4.1` bleiben unverändert.
+Tessera bleibt trotz der veröffentlichten Minecraft-Basis im Alpha-Kanal.
+
+Änderungen und abschließender Prüfstand:
+[Build-005-Changelog](../docs/CHANGELOG-26.3-005-RELEASE.md).

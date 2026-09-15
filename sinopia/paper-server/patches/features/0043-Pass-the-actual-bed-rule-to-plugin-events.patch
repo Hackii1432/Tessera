@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Tue, 15 Sep 2026 16:00:00 +0200
+Subject: [PATCH] Pass the actual bed rule to plugin events
+
+Selective backport of Paper 2307f8f477997c9dbe17f789007c22356070e3a9,
+adapted for Sinopia and Tessera. See docs/PAPER-BACKPORTS-2026-09-15.md.
+
+diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -2504,6 +2504,6 @@
+         }
+ 
+-        bedResult = org.bukkit.craftbukkit.event.CraftEventFactory.callPlayerBedEnterEvent(this, pos, bedResult);
++        bedResult = org.bukkit.craftbukkit.event.CraftEventFactory.callPlayerBedEnterEvent(this, pos, rule, bedResult); // Sinopia - use this bed's rule, not the normal-bed dimension rule
+         if (bedResult.left().isPresent()) {
+             return bedResult;
+         }
+diff --git a/net/minecraft/world/level/block/AbstractBedBlock.java b/net/minecraft/world/level/block/AbstractBedBlock.java
+--- a/net/minecraft/world/level/block/AbstractBedBlock.java
++++ b/net/minecraft/world/level/block/AbstractBedBlock.java
+@@ -116,7 +116,7 @@
+                     }
+                     if (problem != null) {
+-                        io.papermc.paper.event.player.PlayerBedFailEnterEvent event = org.bukkit.craftbukkit.event.CraftEventFactory.callPlayerBedFailEnterEvent(player, finalPos, problem);
++                        io.papermc.paper.event.player.PlayerBedFailEnterEvent event = org.bukkit.craftbukkit.event.CraftEventFactory.callPlayerBedFailEnterEvent(player, finalPos, bedRule, problem); // Sinopia - respect straw and positional bed rules
+                         if (event.isCancelled()) {
+                             return;
+                         }
+                         // Paper end - PlayerBedFailEnterEvent

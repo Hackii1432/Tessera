@@ -1,0 +1,115 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Tue, 15 Sep 2026 16:00:00 +0200
+Subject: [PATCH] Guard command suggestion tag parsing
+
+Selective backport of Paper 2307f8f477997c9dbe17f789007c22356070e3a9,
+adapted for Sinopia and Tessera. See docs/PAPER-BACKPORTS-2026-09-15.md.
+
+diff --git a/net/minecraft/util/parsing/packrat/Scope.java b/net/minecraft/util/parsing/packrat/Scope.java
+--- a/net/minecraft/util/parsing/packrat/Scope.java
++++ b/net/minecraft/util/parsing/packrat/Scope.java
+@@ -271,6 +271,6 @@
+     private static final Term<?> INCREASING_DEPTH_TERM = (parseState, scope, control) -> {
+         if (++scope.depth > 512) {
+-            parseState.errorCollector().store(parseState.mark(), new IllegalStateException("Too deep"));
++            parseState.errorCollector().store(parseState.mark(), new io.papermc.paper.brigadier.TagParseCommandSyntaxException("Too deep")); // Paper - identify unrecoverable tag parses
+             return false;
+         }
+         return true;
+diff --git a/net/minecraft/server/network/ServerCommandSuggestionsProvider.java b/net/minecraft/server/network/ServerCommandSuggestionsProvider.java
+--- a/net/minecraft/server/network/ServerCommandSuggestionsProvider.java
++++ b/net/minecraft/server/network/ServerCommandSuggestionsProvider.java
+@@ -46,9 +46,24 @@
+                     ParseResults<CommandSourceStack> parse = dispatcher.parse(reader, this.player.createCommandSourceStack());
++                    // Sinopia - validate plugin-handled requests through the same budgeted parser.
++                    if (parse.getExceptions().values().stream().anyMatch(io.papermc.paper.brigadier.TagParseCommandSyntaxException.class::isInstance)) {
++                        request.future.cancel(false);
++                        this.player.connection.disconnect(net.minecraft.network.chat.Component.translatable("disconnect.spam"), org.bukkit.event.player.PlayerKickEvent.Cause.SPAM);
++                        return;
++                    }
+                     if (this.lastRequest.get() != null) {
++                        request.future.cancel(false);
+                         return;
+                     }
+ 
+-                    dispatcher.getCompletionSuggestions(parse).thenAccept(suggestions -> request.future.complete(limitSuggestionCount(suggestions)));
++                    if (!request.generateSuggestions) {
++                        request.future.complete(new Suggestions(com.mojang.brigadier.context.StringRange.at(request.command.length()), java.util.List.of()));
++                    } else {
++                        dispatcher.getCompletionSuggestions(parse).whenComplete((suggestions, failure) -> {
++                            if (failure != null) request.future.completeExceptionally(failure);
++                            else request.future.complete(limitSuggestionCount(suggestions));
++                        });
++                    }
+                 } catch (Exception e) {
++                    request.future.completeExceptionally(e);
+                     LOGGER.error("Failed to resolve command suggestions for {}", this.player.getGameProfile().name(), e);
+                 }
+@@ -73,8 +90,15 @@
+     public CompletableFuture<Suggestions> request(final String command) {
+-        ServerCommandSuggestionsProvider.Request request = new ServerCommandSuggestionsProvider.Request(command);
++        return this.request(command, true);
++    }
++
++    // false validates syntax without invoking vanilla/plugin suggestion providers a second time.
++    public CompletableFuture<Suggestions> request(final String command, final boolean generateSuggestions) {
++        ServerCommandSuggestionsProvider.Request request = new ServerCommandSuggestionsProvider.Request(command, generateSuggestions);
+         ServerCommandSuggestionsProvider.Request oldRequest = this.lastRequest.getAndSet(request);
+         if (oldRequest == null) {
+             this.trySchedule();
++        } else {
++            oldRequest.future.cancel(false);
+         }
+ 
+         return request.future;
+@@ -84,8 +111,10 @@
+     private static class Request {
+         private final String command;
++        private final boolean generateSuggestions;
+         private final CompletableFuture<Suggestions> future = new CompletableFuture<>();
+ 
+-        private Request(final String command) {
++        private Request(final String command, final boolean generateSuggestions) {
+             this.command = command;
++            this.generateSuggestions = generateSuggestions;
+         }
+     }
+diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+--- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -927,2 +927,13 @@
+         } else if (!completions.isEmpty()) {
++            // Sinopia - parsing touches player/world state; use the provider's owning-thread queue.
++            // Copy the plugin's mutable list before crossing the scheduling boundary.
++            final var snapshot = List.copyOf(completions);
++            this.commandSuggestionsProvider.request(packet.command(), false).thenAcceptAsync(ignored -> {
++                if (this.isAcceptingMessages()) this.sendPluginSuggestions(packet, snapshot);
++            }, TAB_COMPLETE_EXECUTOR);
++        }
++    }
++
++    private void sendPluginSuggestions(final ServerboundCommandSuggestionPacket packet,
++                                      final List<com.destroystokyo.paper.event.server.AsyncTabCompleteEvent.Completion> completions) {
+             final com.mojang.brigadier.suggestion.SuggestionsBuilder builder0 = new com.mojang.brigadier.suggestion.SuggestionsBuilder(packet.command(), packet.command().length());
+@@ -938,10 +949,9 @@
+-            com.mojang.brigadier.suggestion.Suggestions suggestions = builder.buildFuture().join();
++            com.mojang.brigadier.suggestion.Suggestions suggestions = builder.build();
+             com.destroystokyo.paper.event.brigadier.AsyncPlayerSendSuggestionsEvent suggestEvent = new com.destroystokyo.paper.event.brigadier.AsyncPlayerSendSuggestionsEvent(this.getCraftPlayer(), suggestions, packet.command());
+             suggestEvent.setCancelled(suggestions.isEmpty());
+-            if (suggestEvent.callEvent()) {
++            if (suggestEvent.callEvent() && this.isAcceptingMessages()) {
+                 this.connection.send(new ClientboundCommandSuggestionsPacket(
+                     packet.id(), ServerCommandSuggestionsProvider.limitSuggestionCount(suggestEvent.getSuggestions())
+                 ));
+             }
+-        }
+     }
+@@ -954,3 +965,5 @@
+             .request(packet.command())
+-            .thenAccept(suggestions -> this.send(new ClientboundCommandSuggestionsPacket(clientId, suggestions)));
++            .thenAccept(suggestions -> {
++                if (this.isAcceptingMessages()) this.send(new ClientboundCommandSuggestionsPacket(clientId, suggestions));
++            });
+     }
+

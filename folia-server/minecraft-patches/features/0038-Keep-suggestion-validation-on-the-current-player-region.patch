@@ -1,0 +1,85 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Tue, 15 Sep 2026 16:00:00 +0200
+Subject: [PATCH] Keep suggestion validation on the current player region
+
+Selective backport of Paper 2307f8f477997c9dbe17f789007c22356070e3a9,
+adapted for Sinopia and Tessera. See docs/PAPER-BACKPORTS-2026-09-15.md.
+
+diff --git a/net/minecraft/server/network/ServerCommandSuggestionsProvider.java b/net/minecraft/server/network/ServerCommandSuggestionsProvider.java
+--- a/net/minecraft/server/network/ServerCommandSuggestionsProvider.java
++++ b/net/minecraft/server/network/ServerCommandSuggestionsProvider.java
+@@ -18,3 +18,3 @@
+-    private final ServerPlayer player;
++    private volatile ServerPlayer player; // Tessera - resolve the current NMS player through its stable entity scheduler
+     private final AtomicReference<ServerCommandSuggestionsProvider.@Nullable Request> lastRequest = new AtomicReference<>();
+     private volatile boolean hasBudget;
+@@ -26,2 +26,10 @@
+-    public void tick() {
++    // Tessera - refresh ownership after respawn before consuming a request from the listener tick.
++    public void tessera$tick(final ServerPlayer currentPlayer) {
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(currentPlayer, "Cannot tick suggestions off-region");
++        this.player = currentPlayer;
++        this.tick();
++    }
++
++    public void tick() {
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this.player, "Cannot tick suggestions off-region");
+         if (this.player.tickCount % 1 == 0) {
+@@ -34,2 +42,7 @@
+     private void tryProcessRequest() {
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this.player, "Cannot parse suggestions off-region");
++        if (!this.player.connection.isAcceptingMessages()) {
++            this.tessera$cancelPendingRequests();
++            return;
++        }
+         if (this.hasBudget) {
+@@ -60,4 +65,13 @@
+                     MinecraftServer server = this.player.level().getServer();
+                     CommandDispatcher<CommandSourceStack> dispatcher = server.getCommands().getDispatcher();
+-                    ParseResults<CommandSourceStack> parse = dispatcher.parse(reader, this.player.createCommandSourceStack());
++                    final ParseResults<CommandSourceStack> parse;
++                    try {
++                        parse = dispatcher.parse(reader, this.player.createCommandSourceStack());
++                    } catch (StackOverflowError tooDeepForThreadStack) {
++                        // Tessera - stack sizes/JIT state vary; the parser can exhaust a small stack before its depth guard.
++                        // Catch only parsing, after unwinding it, without hiding unrelated errors in suggestion plugins.
++                        request.future.cancel(false);
++                        this.player.connection.disconnect(net.minecraft.network.chat.Component.translatable("disconnect.spam"), org.bukkit.event.player.PlayerKickEvent.Cause.SPAM);
++                        return;
++                    }
+                     // Sinopia - validate plugin-handled requests through the same budgeted parser.
+@@ -84,7 +97,21 @@
+     private void trySchedule() {
+-        if (this.hasBudget) {
+-            this.player.getBukkitEntity().taskScheduler.schedule(current -> this.tryProcessRequest(), null, 1L); // Folia - entity-owned suggestions
++        // One queued task per pending batch; follows transfers and resolves retired requests.
++        if (!this.player.getBukkitEntity().taskScheduler.schedule(current -> {
++            if (!(current instanceof ServerPlayer currentPlayer)) {
++                this.tessera$cancelPendingRequests();
++                return;
++            }
++            ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(currentPlayer, "Cannot schedule suggestions off-region");
++            this.player = currentPlayer;
++            this.tryProcessRequest();
++        }, retired -> this.tessera$cancelPendingRequests(), 1L)) {
++            this.tessera$cancelPendingRequests();
+         }
+     }
+ 
++    private void tessera$cancelPendingRequests() {
++        final Request pending = this.lastRequest.getAndSet(null);
++        if (pending != null) pending.future.cancel(false);
++    }
++
+     public CompletableFuture<Suggestions> request(final String command) {
+diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+--- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -390,5 +390,5 @@
+             this.commandSpamThrottler.tick();
+             this.dropSpamThrottler.tick();
+-            this.commandSuggestionsProvider.tick();
++            this.commandSuggestionsProvider.tessera$tick(this.player); // Tessera - current player after respawn/transfer
+             this.tabSpamThrottler.tick(); // Paper - configurable tab spam limits
+             this.recipeSpamPackets.tick(); // Paper - auto recipe limit

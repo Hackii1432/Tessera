@@ -34,6 +34,7 @@ import net.minecraft.world.level.chunk.ChunkGeneratorStructureState;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.LegacyRandomSource;
+import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.WorldgenRandom;
 import net.minecraft.world.level.levelgen.blending.Blender;
@@ -136,17 +137,19 @@ public class CustomChunkGenerator extends InternalChunkGenerator {
         }
     }
 
-    // TODO - snapshot - this was moved into NoiseChunkGenerator so...
-    public void buildSurface(WorldGenRegion level, StructureManager structureManager, RandomState randomState, ChunkAccess protoChunk) {
+    // Sinopia - restore Bukkit callbacks in the 26.3 terrain pipeline (Paper 2307f8f).
+    public boolean shouldGenerateSurface(ChunkAccess chunk) {
+        WorldgenRandom random = getSeededRandom();
+        int x = chunk.getPos().x();
+        int z = chunk.getPos().z();
+        random.setSeed(Mth.getSeed(x, "should-surface".hashCode(), z) ^ this.world.getSeed());
+        return this.generator.shouldGenerateSurface(this.world.getWorld(), new RandomSourceWrapper.RandomWrapper(random), x, z);
+    }
+
+    public void buildSurface(ChunkAccess protoChunk) {
         WorldgenRandom random = getSeededRandom();
         int x = protoChunk.getPos().x();
         int z = protoChunk.getPos().z();
-
-        random.setSeed(Mth.getSeed(x, "should-surface".hashCode(), z) ^ level.getSeed());
-        if (this.generator.shouldGenerateSurface(this.world.getWorld(), new RandomSourceWrapper.RandomWrapper(random), x, z)) {
-            // TODO - snapshot
-            //this.delegate.buildSurface(level, structureManager, randomState, protoChunk);
-        }
 
         CraftChunkData chunkData = new CraftChunkData(this.world.getWorld(), protoChunk);
 
@@ -235,22 +238,22 @@ public class CustomChunkGenerator extends InternalChunkGenerator {
         }
     }
 
-    // TODO - snapshot - this no longer exists?
-    public void applyCarvers(WorldGenRegion region, long seed, RandomState randomState, BiomeManager biomeManager, StructureManager structureManager, ChunkAccess chunk) {
+    public boolean shouldGenerateCaves(ChunkAccess chunk) {
         WorldgenRandom random = getSeededRandom();
         int x = chunk.getPos().x();
         int z = chunk.getPos().z();
+        random.setSeed(Mth.getSeed(x, "should-caves".hashCode(), z) ^ this.world.getSeed());
+        return this.generator.shouldGenerateCaves(this.world.getWorld(), new RandomSourceWrapper.RandomWrapper(random), x, z);
+    }
 
-        random.setSeed(Mth.getSeed(x, "should-caves".hashCode(), z) ^ region.getSeed());
-        if (this.generator.shouldGenerateCaves(this.world.getWorld(), new RandomSourceWrapper.RandomWrapper(random), x, z)) {
-            // TODO - snapshot
-            //this.delegate.applyCarvers(region, seed, randomState, biomeManager, structureManager, chunk);
-        }
-
+    public void applyCarvers(ChunkAccess chunk) {
+        WorldgenRandom random = getSeededRandom();
+        int x = chunk.getPos().x();
+        int z = chunk.getPos().z();
         // Minecraft removed the LIQUID_CARVERS stage from world generation, without removing the LIQUID Carving enum.
         // Meaning this method is only called once for each chunk, so no check is required.
         CraftChunkData chunkData = new CraftChunkData(this.world.getWorld(), chunk);
-        random.setDecorationSeed(seed, 0, 0);
+        random.setDecorationSeed(this.world.getSeed(), 0, 0);
 
         this.generator.generateCaves(this.world.getWorld(), new RandomSourceWrapper.RandomWrapper(random), x, z, chunkData);
         chunkData.breakLink();
@@ -266,26 +269,40 @@ public class CustomChunkGenerator extends InternalChunkGenerator {
         final @Nullable WorldGenRegion carverBiomeRegion,
         final Set<Holder<net.minecraft.world.level.biome.Biome>> possibleBiomes
     ) {
+        if (this.delegate instanceof NoiseBasedChunkGenerator noiseGenerator) {
+            return noiseGenerator.buildTerrain(chunk, blender, randomState, structureManager, biomeManager, carverBiomeRegion, possibleBiomes, this);
+        }
         CompletableFuture<ChunkAccess> future = null;
-        WorldgenRandom random = getSeededRandom();
-        int x = chunk.getPos().x();
-        int z = chunk.getPos().z();
-
-        random.setSeed(Mth.getSeed(x, "should-noise".hashCode(), z) ^ this.world.getSeed());
-        if (this.generator.shouldGenerateNoise(this.world.getWorld(), new RandomSourceWrapper.RandomWrapper(random), x, z)) {
+        if (this.shouldGenerateNoise(chunk)) {
             future = this.delegate.buildTerrain(chunk, blender, randomState, structureManager, biomeManager, carverBiomeRegion, possibleBiomes);
         }
 
         Function<ChunkAccess, ChunkAccess> work = chunkAccess -> {
-            CraftChunkData chunkData = new CraftChunkData(this.world.getWorld(), chunkAccess);
-            random.setLargeFeatureWithSalt(INITIAL_SEED, x, z, 0);
-
-            this.generator.generateNoise(this.world.getWorld(), new RandomSourceWrapper.RandomWrapper(random), x, z, chunkData);
-            chunkData.breakLink();
+            this.fillFromNoise(chunkAccess);
+            this.buildSurface(chunkAccess);
+            this.applyCarvers(chunkAccess);
             return chunkAccess;
         };
 
         return future == null ? CompletableFuture.supplyAsync(() -> work.apply(chunk), io.papermc.paper.FeatureHooks.getWorldgenExecutor()) : future.thenApply(work); // Paper - chunk system
+    }
+
+    public boolean shouldGenerateNoise(ChunkAccess chunk) {
+        WorldgenRandom random = getSeededRandom();
+        int x = chunk.getPos().x();
+        int z = chunk.getPos().z();
+        random.setSeed(Mth.getSeed(x, "should-noise".hashCode(), z) ^ this.world.getSeed());
+        return this.generator.shouldGenerateNoise(this.world.getWorld(), new RandomSourceWrapper.RandomWrapper(random), x, z);
+    }
+
+    public void fillFromNoise(ChunkAccess chunk) {
+        WorldgenRandom random = getSeededRandom();
+        int x = chunk.getPos().x();
+        int z = chunk.getPos().z();
+        CraftChunkData chunkData = new CraftChunkData(this.world.getWorld(), chunk);
+        random.setLargeFeatureWithSalt(INITIAL_SEED, x, z, 0);
+        this.generator.generateNoise(this.world.getWorld(), new RandomSourceWrapper.RandomWrapper(random), x, z, chunkData);
+        chunkData.breakLink();
     }
 
     @Override

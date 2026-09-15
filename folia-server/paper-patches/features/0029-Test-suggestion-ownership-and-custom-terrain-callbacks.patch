@@ -1,0 +1,471 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Tue, 15 Sep 2026 16:00:00 +0200
+Subject: [PATCH] Test suggestion ownership and custom terrain callbacks
+
+Selective backport of Paper 2307f8f477997c9dbe17f789007c22356070e3a9,
+adapted for Sinopia and Tessera. See docs/PAPER-BACKPORTS-2026-09-15.md.
+
+diff --git a/src/test/java/io/papermc/paper/porting/SuggestionOwnershipRegressionTest.java b/src/test/java/io/papermc/paper/porting/SuggestionOwnershipRegressionTest.java
+new file mode 100644
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/porting/SuggestionOwnershipRegressionTest.java
+@@ -0,0 +1,210 @@
++package io.papermc.paper.porting;
++
++import ca.spottedleaf.moonrise.common.util.TickThread;
++import com.mojang.brigadier.CommandDispatcher;
++import com.mojang.brigadier.builder.LiteralArgumentBuilder;
++import com.mojang.brigadier.builder.RequiredArgumentBuilder;
++import com.mojang.brigadier.suggestion.Suggestions;
++import io.papermc.paper.brigadier.TagParseCommandSyntaxException;
++import io.papermc.paper.threadedregions.EntityScheduler;
++import java.lang.reflect.Field;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.Executors;
++import java.util.concurrent.TimeUnit;
++import java.util.concurrent.atomic.AtomicReference;
++import java.util.function.Consumer;
++import net.minecraft.commands.CommandSourceStack;
++import net.minecraft.commands.Commands;
++import net.minecraft.commands.arguments.CompoundTagArgument;
++import net.minecraft.network.chat.Component;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.server.network.ServerCommandSuggestionsProvider;
++import net.minecraft.server.network.ServerGamePacketListenerImpl;
++import net.minecraft.world.entity.Entity;
++import org.bukkit.craftbukkit.entity.CraftEntity;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.event.player.PlayerKickEvent;
++import org.bukkit.support.environment.AllFeatures;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.params.ParameterizedTest;
++import org.junit.jupiter.params.provider.ValueSource;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.ArgumentMatchers.*;
++import static org.mockito.Mockito.*;
++
++@AllFeatures
++class SuggestionOwnershipRegressionTest {
++    private static final String DEEP = "/inspect " + "{a:".repeat(520) + "0" + "}".repeat(520);
++
++    private static void set(Object target, Class<?> owner, String name, Object value) throws Exception {
++        Field field = owner.getDeclaredField(name);
++        field.setAccessible(true);
++        field.set(target, value);
++    }
++
++    private static final class Fixture {
++        final ServerPlayer player = mock(ServerPlayer.class);
++        final ServerLevel level = mock(ServerLevel.class);
++        final MinecraftServer server = mock(MinecraftServer.class);
++        final Commands commands = mock(Commands.class);
++        final CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
++        final CommandSourceStack source = mock(CommandSourceStack.class);
++        final ServerGamePacketListenerImpl listener = mock(ServerGamePacketListenerImpl.class);
++        final CraftPlayer craft = mock(CraftPlayer.class);
++        final EntityScheduler scheduler = mock(EntityScheduler.class);
++        final AtomicReference<Consumer<Entity>> run = new AtomicReference<>();
++        final AtomicReference<Consumer<Entity>> retire = new AtomicReference<>();
++        final ServerCommandSuggestionsProvider provider = new ServerCommandSuggestionsProvider(this.player);
++
++        Fixture() throws Exception {
++            this.player.connection = this.listener;
++            when(this.listener.isAcceptingMessages()).thenReturn(true);
++            when(this.player.level()).thenReturn(this.level);
++            when(this.player.getBukkitEntity()).thenReturn(this.craft);
++            when(this.player.createCommandSourceStack()).thenReturn(this.source);
++            when(this.level.getServer()).thenReturn(this.server);
++            when(this.server.getCommands()).thenReturn(this.commands);
++            when(this.commands.getDispatcher()).thenReturn(this.dispatcher);
++            set(this.craft, CraftEntity.class, "taskScheduler", this.scheduler);
++            this.dispatcher.register(LiteralArgumentBuilder.<CommandSourceStack>literal("inspect")
++                .then(RequiredArgumentBuilder.argument("tag", CompoundTagArgument.compoundTag())));
++            doAnswer(invocation -> {
++                this.run.set(invocation.getArgument(0));
++                this.retire.set(invocation.getArgument(1));
++                return true;
++            }).when(this.scheduler).schedule(any(), any(), eq(1L));
++        }
++
++        void tick() {
++            try (var ownership = mockStatic(TickThread.class)) {
++                this.provider.tessera$tick(this.player);
++                ownership.verify(() -> TickThread.ensureTickThread(this.player, "Cannot parse suggestions off-region"));
++            }
++        }
++    }
++
++    @ParameterizedTest
++    @ValueSource(booleans = {false, true})
++    void tooDeepTagsAreRecognizedAndRejectedForBothCompletionPaths(boolean generateSuggestions) throws Exception {
++        Fixture f = new Fixture();
++        CompletableFuture<Suggestions> result = f.provider.request(DEEP, generateSuggestions);
++        verify(f.player, never()).createCommandSourceStack();
++        assertFalse(result.isDone());
++        f.tick();
++        assertTrue(result.isCancelled());
++        verify(f.listener).disconnect(any(Component.class), eq(PlayerKickEvent.Cause.SPAM));
++    }
++
++    @ParameterizedTest
++    @ValueSource(booleans = {false, true})
++    void ordinarySyntaxErrorsDoNotKickPlayers(boolean generateSuggestions) throws Exception {
++        Fixture f = new Fixture();
++        CompletableFuture<Suggestions> result = f.provider.request("/inspect {a:", generateSuggestions);
++        f.tick();
++        assertNotNull(result.get(1, TimeUnit.SECONDS));
++        verify(f.listener, never()).disconnect(any(Component.class), any(PlayerKickEvent.Cause.class));
++    }
++
++    @Test
++    void asyncSubmissionCoalescesRequestsAndNeverParsesOffRegion() throws Exception {
++        Fixture f = new Fixture();
++        try (var executor = Executors.newSingleThreadExecutor()) {
++            CompletableFuture<Suggestions> first = executor.submit(() -> f.provider.request("/inspect {a:1}", false)).get(1, TimeUnit.SECONDS);
++            CompletableFuture<Suggestions> second = executor.submit(() -> f.provider.request("/inspect {a:2}", false)).get(1, TimeUnit.SECONDS);
++            assertTrue(first.isCancelled());
++            assertFalse(second.isDone());
++            verify(f.scheduler, times(1)).schedule(any(), any(), eq(1L));
++            verify(f.player, never()).createCommandSourceStack();
++            verify(f.server, never()).getCommands();
++            f.tick();
++            assertNotNull(second.get(1, TimeUnit.SECONDS));
++        }
++    }
++
++    @Test
++    void validationOnlyDoesNotCallSuggestionProviders() throws Exception {
++        Fixture f = new Fixture();
++        var counter = new java.util.concurrent.atomic.AtomicInteger();
++        f.dispatcher.register(LiteralArgumentBuilder.<CommandSourceStack>literal("text")
++            .then(RequiredArgumentBuilder.<CommandSourceStack, String>argument("value", com.mojang.brigadier.arguments.StringArgumentType.word())
++                .suggests((context, builder) -> {
++                    counter.incrementAndGet();
++                    return builder.suggest("hello").buildFuture();
++                })));
++        var validation = f.provider.request("text h", false);
++        f.tick();
++        assertTrue(validation.get(1, TimeUnit.SECONDS).isEmpty());
++        assertEquals(0, counter.get());
++        var suggestions = f.provider.request("text h");
++        f.tick();
++        assertFalse(suggestions.get(1, TimeUnit.SECONDS).isEmpty());
++        assertEquals(1, counter.get());
++    }
++
++    @Test
++    void retiredAndDisconnectedRequestsAreCompletedWithoutWorldAccess() throws Exception {
++        Fixture f = new Fixture();
++        var pending = f.provider.request("/inspect {}", false);
++        f.retire.get().accept(f.player);
++        assertTrue(pending.isCancelled());
++        when(f.scheduler.schedule(any(), any(), eq(1L))).thenReturn(false);
++        assertTrue(f.provider.request("/inspect {}", false).isCancelled());
++        var disconnected = new Fixture();
++        when(disconnected.listener.isAcceptingMessages()).thenReturn(false);
++        var result = disconnected.provider.request("/inspect {}", false);
++        disconnected.tick();
++        assertTrue(result.isCancelled());
++        verify(f.player, never()).createCommandSourceStack();
++        verify(disconnected.player, never()).createCommandSourceStack();
++    }
++
++    @Test
++    void scheduledValidationFollowsTheCurrentPlayerAfterRespawnOrTransfer() throws Exception {
++        Fixture f = new Fixture();
++        ServerPlayer replacement = mock(ServerPlayer.class);
++        ServerLevel otherLevel = mock(ServerLevel.class);
++        CommandSourceStack otherSource = mock(CommandSourceStack.class);
++        replacement.connection = f.listener;
++        when(replacement.level()).thenReturn(otherLevel);
++        when(otherLevel.getServer()).thenReturn(f.server);
++        when(replacement.createCommandSourceStack()).thenReturn(otherSource);
++        f.tick(); // replenish budget without a request
++        var result = f.provider.request("/inspect {}", false);
++        try (var ownership = mockStatic(TickThread.class)) {
++            f.run.get().accept(replacement);
++            ownership.verify(() -> TickThread.ensureTickThread(replacement, "Cannot parse suggestions off-region"));
++        }
++        assertNotNull(result.get(1, TimeUnit.SECONDS));
++        verify(replacement).createCommandSourceStack();
++        verify(f.player, never()).createCommandSourceStack();
++    }
++
++    @Test
++    void logicalDepthLimitReportsTheSpecificParserFailure() {
++        var scope = new net.minecraft.util.parsing.packrat.Scope();
++        var state = mock(net.minecraft.util.parsing.packrat.ParseState.class);
++        var errors = mock(net.minecraft.util.parsing.packrat.ErrorCollector.class);
++        when(state.errorCollector()).thenReturn(errors);
++        var increase = net.minecraft.util.parsing.packrat.Scope.increaseDepth();
++        for (int depth = 0; depth < 512; depth++) assertTrue(increase.parse(state, scope, null));
++        assertFalse(increase.parse(state, scope, null));
++        verify(errors).store(anyInt(), isA(TagParseCommandSyntaxException.class));
++    }
++
++    @Test
++    void wrongOwnerIsRejectedBeforeReadingThePlayerOrWorld() throws Exception {
++        Fixture f = new Fixture();
++        var result = f.provider.request("/inspect {}", false);
++        try (var ownership = mockStatic(TickThread.class)) {
++            ownership.when(() -> TickThread.ensureTickThread(f.player, "Cannot tick suggestions off-region"))
++                .thenThrow(new IllegalStateException("wrong region"));
++            assertThrows(IllegalStateException.class, () -> f.provider.tessera$tick(f.player));
++        }
++        verify(f.player, never()).createCommandSourceStack();
++        assertFalse(result.isDone());
++        f.retire.get().accept(f.player);
++    }
++}
+diff --git a/src/test/java/io/papermc/paper/porting/CustomTerrainRegressionTest.java b/src/test/java/io/papermc/paper/porting/CustomTerrainRegressionTest.java
+new file mode 100644
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/porting/CustomTerrainRegressionTest.java
+@@ -0,0 +1,243 @@
++package io.papermc.paper.porting;
++
++import java.util.ArrayList;
++import java.util.List;
++import java.util.Random;
++import java.util.Set;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.CyclicBarrier;
++import java.util.concurrent.Executors;
++import java.util.concurrent.TimeUnit;
++import net.minecraft.core.Holder;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.world.level.ChunkPos;
++import net.minecraft.world.level.LevelHeightAccessor;
++import net.minecraft.world.level.biome.BiomeSource;
++import net.minecraft.world.level.chunk.ChunkAccess;
++import net.minecraft.world.level.chunk.LevelChunkSection;
++import net.minecraft.world.level.levelgen.Beardifier;
++import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
++import net.minecraft.world.level.levelgen.NoiseChunk;
++import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
++import net.minecraft.world.level.levelgen.NoiseSettings;
++import net.minecraft.world.level.levelgen.densityfunction.DensityVolume;
++import net.minecraft.world.level.levelgen.material.rule.MaterialRule;
++import org.bukkit.craftbukkit.CraftWorld;
++import org.bukkit.craftbukkit.generator.CraftChunkData;
++import org.bukkit.craftbukkit.generator.CustomChunkGenerator;
++import org.bukkit.craftbukkit.generator.OldCraftChunkData;
++import org.bukkit.generator.ChunkGenerator;
++import org.bukkit.support.environment.AllFeatures;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.params.ParameterizedTest;
++import org.junit.jupiter.params.provider.ValueSource;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.ArgumentMatchers.*;
++import static org.mockito.Mockito.*;
++
++@AllFeatures
++class CustomTerrainRegressionTest {
++    private static ChunkAccess chunk(int x) {
++        ChunkAccess chunk = mock(ChunkAccess.class);
++        when(chunk.getPos()).thenReturn(new ChunkPos(x, -7));
++        when(chunk.getHeightAccessorForGeneration()).thenReturn(LevelHeightAccessor.create(0, 16));
++        when(chunk.getSections()).thenReturn(new LevelChunkSection[0]);
++        when(chunk.getSection(anyInt())).thenReturn(mock(LevelChunkSection.class));
++        return chunk;
++    }
++
++    private static NoiseBasedChunkGenerator noise(int height) {
++        NoiseGeneratorSettings settings = mock(NoiseGeneratorSettings.class);
++        when(settings.noiseSettings()).thenReturn(new NoiseSettings(0, height));
++        when(settings.materialRule()).thenReturn(Holder.direct(mock(MaterialRule.class)));
++        return new NoiseBasedChunkGenerator(mock(BiomeSource.class), Holder.direct(settings));
++    }
++
++    private static final class Fixture {
++        final ServerLevel level = mock(ServerLevel.class);
++        final CraftWorld world = mock(CraftWorld.class);
++        final ChunkGenerator plugin = mock(ChunkGenerator.class);
++        final net.minecraft.world.level.chunk.ChunkGenerator delegate;
++        final CustomChunkGenerator generator;
++        final List<String> phases = new ArrayList<>();
++        final List<CraftChunkData> views = new ArrayList<>();
++        final Thread owner = Thread.currentThread();
++
++        Fixture(net.minecraft.world.level.chunk.ChunkGenerator delegate) {
++            this.delegate = delegate;
++            when(this.level.getWorld()).thenReturn(this.world);
++            when(this.level.getSeed()).thenReturn(913L);
++            when(this.world.getMinHeight()).thenReturn(0);
++            when(this.world.getMaxHeight()).thenReturn(16);
++            when(delegate.getBiomeSource()).thenReturn(mock(BiomeSource.class));
++            this.generator = new CustomChunkGenerator(this.level, delegate, this.plugin);
++            doAnswer(i -> { this.record("noise", i.getArgument(4)); return null; })
++                .when(this.plugin).generateNoise(any(), any(), anyInt(), anyInt(), any());
++            doAnswer(i -> { this.record("surface", i.getArgument(4)); return null; })
++                .when(this.plugin).generateSurface(any(), any(), anyInt(), anyInt(), any());
++            doAnswer(i -> { this.record("bedrock", i.getArgument(4)); return null; })
++                .when(this.plugin).generateBedrock(any(), any(), anyInt(), anyInt(), any());
++            doAnswer(i -> { this.record("caves", i.getArgument(4)); return null; })
++                .when(this.plugin).generateCaves(any(), any(), anyInt(), anyInt(), any());
++            doAnswer(i -> { this.phases.add("legacy"); throw new UnsupportedOperationException(); })
++                .when(this.plugin).generateChunkData(any(), any(), anyInt(), anyInt(), any());
++        }
++
++        void record(String phase, CraftChunkData view) {
++            assertSame(this.owner, Thread.currentThread(), "Callbacks must stay in the scheduled generation job");
++            this.phases.add(phase);
++            this.views.add(view);
++        }
++
++        CompletableFuture<ChunkAccess> generate(ChunkAccess chunk) {
++            return this.generator.buildTerrain(chunk, null, null, null, null, null, Set.of());
++        }
++
++        void assertViewsReleased() {
++            for (CraftChunkData view : this.views) assertThrows(IllegalStateException.class, view::getHandle);
++        }
++    }
++
++    @ParameterizedTest
++    @ValueSource(booleans = {false, true})
++    void flatAndOtherDelegatesRunCallbacksOnceInOrder(boolean vanillaNoise) {
++        Fixture f = new Fixture(mock(net.minecraft.world.level.chunk.ChunkGenerator.class));
++        ChunkAccess chunk = chunk(2);
++        when(f.plugin.shouldGenerateNoise(any(), any(), anyInt(), anyInt())).thenReturn(vanillaNoise);
++        doAnswer(i -> {
++            f.phases.add("vanilla");
++            return CompletableFuture.completedFuture(chunk);
++        }).when(f.delegate).buildTerrain(eq(chunk), isNull(), isNull(), isNull(), isNull(), isNull(), anySet());
++        assertSame(chunk, f.generate(chunk).join());
++        assertEquals(vanillaNoise ? List.of("vanilla", "noise", "surface", "bedrock", "legacy", "caves")
++            : List.of("noise", "surface", "bedrock", "legacy", "caves"), f.phases);
++        f.assertViewsReleased();
++    }
++
++    @Test
++    void zeroHeightNoiseStillRunsPluginPhasesWithoutMovingThreads() {
++        Fixture f = new Fixture(spy(noise(0)));
++        ChunkAccess chunk = chunk(2);
++        assertSame(chunk, f.generate(chunk).join());
++        assertEquals(List.of("noise", "surface", "bedrock", "legacy", "caves"), f.phases);
++        f.assertViewsReleased();
++    }
++
++    @Test
++    void normalNoiseHonorsDisabledVanillaPhasesButStillRunsPluginPhases() {
++        Fixture f = new Fixture(spy(noise(16)));
++        ChunkAccess chunk = chunk(2);
++        try (var beardifier = mockStatic(Beardifier.class);
++             var noiseChunks = mockConstruction(NoiseChunk.class, (noise, context) ->
++                 when(noise.volume()).thenReturn(new DensityVolume(16, 16, 16, 32, 0, -112)))) {
++            assertSame(chunk, f.generate(chunk).join());
++            assertEquals(List.of("noise", "surface", "bedrock", "legacy", "caves"), f.phases);
++            verify(f.plugin).shouldGenerateNoise(any(), any(), eq(2), eq(-7));
++            verify(f.plugin).shouldGenerateSurface(any(), any(), eq(2), eq(-7));
++            verify(f.plugin).shouldGenerateCaves(any(), any(), eq(2), eq(-7));
++            verify(noiseChunks.constructed().getFirst()).close();
++            f.assertViewsReleased();
++        }
++    }
++
++    @ParameterizedTest
++    @ValueSource(strings = {"noise", "surface", "bedrock", "caves"})
++    void callbackFailuresReleaseViewsAndStopLaterPhases(String failingPhase) {
++        Fixture f = new Fixture(mock(net.minecraft.world.level.chunk.ChunkGenerator.class));
++        org.mockito.stubbing.Answer<Void> failure = i -> {
++            f.record(failingPhase, i.getArgument(4));
++            throw new IllegalArgumentException("plugin failure");
++        };
++        switch (failingPhase) {
++            case "noise" -> doAnswer(failure).when(f.plugin).generateNoise(any(), any(), anyInt(), anyInt(), any());
++            case "surface" -> doAnswer(failure).when(f.plugin).generateSurface(any(), any(), anyInt(), anyInt(), any());
++            case "bedrock" -> doAnswer(failure).when(f.plugin).generateBedrock(any(), any(), anyInt(), anyInt(), any());
++            case "caves" -> doAnswer(failure).when(f.plugin).generateCaves(any(), any(), anyInt(), anyInt(), any());
++        }
++        var exception = assertThrows(java.util.concurrent.CompletionException.class, () -> f.generate(chunk(2)).join());
++        assertInstanceOf(IllegalArgumentException.class, exception.getCause());
++        assertEquals(failingPhase, f.phases.getLast());
++        f.assertViewsReleased();
++    }
++
++    @Test
++    void asynchronousDelegateFailureDoesNotRunPluginCallbacks() {
++        Fixture f = new Fixture(mock(net.minecraft.world.level.chunk.ChunkGenerator.class));
++        when(f.plugin.shouldGenerateNoise(any(), any(), anyInt(), anyInt())).thenReturn(true);
++        when(f.delegate.buildTerrain(any(), isNull(), isNull(), isNull(), isNull(), isNull(), anySet()))
++            .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("delegate failure")));
++        assertThrows(java.util.concurrent.CompletionException.class, () -> f.generate(chunk(2)).join());
++        assertTrue(f.phases.isEmpty());
++    }
++
++    @Test
++    void parallelLegacyGeneratorsHaveIndependentDeterministicRandomState() throws Exception {
++        Fixture f = new Fixture(mock(net.minecraft.world.level.chunk.ChunkGenerator.class));
++        // This test runs callbacks in two separate admitted generation jobs.
++        doNothing().when(f.plugin).generateSurface(any(), any(), anyInt(), anyInt(), any());
++        doNothing().when(f.plugin).generateBedrock(any(), any(), anyInt(), anyInt(), any());
++        when(f.plugin.isParallelCapable()).thenReturn(true);
++        CyclicBarrier bothInsidePlugin = new CyclicBarrier(2);
++        doAnswer(i -> {
++            int x = i.getArgument(2);
++            int z = i.getArgument(3);
++            Random random = i.getArgument(1);
++            bothInsidePlugin.await(5, TimeUnit.SECONDS);
++            assertEquals(new Random((long) x * 341873128712L + (long) z * 132897987541L).nextLong(), random.nextLong());
++            return new OldCraftChunkData(0, 16, null);
++        }).when(f.plugin).generateChunkData(any(), any(), anyInt(), anyInt(), any());
++        ChunkAccess first = chunk(2);
++        ChunkAccess second = chunk(200);
++        try (var workers = Executors.newFixedThreadPool(2)) {
++            var a = workers.submit(() -> f.generator.buildSurface(first));
++            var b = workers.submit(() -> f.generator.buildSurface(second));
++            a.get(10, TimeUnit.SECONDS);
++            b.get(10, TimeUnit.SECONDS);
++        }
++        verify(first, never()).setBlockEntity(any());
++        verify(second, never()).setBlockEntity(any());
++    }
++
++    @Test
++    void parallelCallbacksOnlyMutateTheirOwnChunkViews() throws Exception {
++        Fixture f = new Fixture(mock(net.minecraft.world.level.chunk.ChunkGenerator.class));
++        ChunkAccess first = chunk(2);
++        ChunkAccess second = chunk(200);
++        CyclicBarrier bothInNoise = new CyclicBarrier(2);
++        var owners = new java.util.concurrent.ConcurrentHashMap<Integer, Thread>();
++        var views = new java.util.concurrent.ConcurrentLinkedQueue<CraftChunkData>();
++        org.mockito.stubbing.Answer<Void> write = i -> {
++            int x = i.getArgument(2);
++            CraftChunkData view = i.getArgument(4);
++            assertSame(x == 2 ? first : second, view.getHandle());
++            assertSame(owners.get(x), Thread.currentThread());
++            views.add(view);
++            view.setBlock(1, 1, 1, org.bukkit.Material.STONE);
++            return null;
++        };
++        doAnswer(i -> {
++            int x = i.getArgument(2);
++            owners.put(x, Thread.currentThread());
++            bothInNoise.await(5, TimeUnit.SECONDS);
++            return write.answer(i);
++        }).when(f.plugin).generateNoise(any(), any(), anyInt(), anyInt(), any());
++        doAnswer(write).when(f.plugin).generateSurface(any(), any(), anyInt(), anyInt(), any());
++        doAnswer(write).when(f.plugin).generateBedrock(any(), any(), anyInt(), anyInt(), any());
++        doAnswer(write).when(f.plugin).generateCaves(any(), any(), anyInt(), anyInt(), any());
++        doThrow(new UnsupportedOperationException()).when(f.plugin).generateChunkData(any(), any(), anyInt(), anyInt(), any());
++        try (var workers = Executors.newFixedThreadPool(2)) {
++            var a = workers.submit(() -> f.generate(first).join());
++            var b = workers.submit(() -> f.generate(second).join());
++            assertSame(first, a.get(10, TimeUnit.SECONDS));
++            assertSame(second, b.get(10, TimeUnit.SECONDS));
++        }
++        assertNotSame(owners.get(2), owners.get(200));
++        for (ChunkAccess chunk : List.of(first, second)) {
++            var pos = new net.minecraft.core.BlockPos(chunk.getPos().getMinBlockX() + 1, 1, chunk.getPos().getMinBlockZ() + 1);
++            verify(chunk, times(4)).setBlockState(pos, net.minecraft.world.level.block.Blocks.STONE.defaultBlockState());
++            verify(chunk, times(4)).setBlockState(any(), any());
++        }
++        for (CraftChunkData view : views) assertThrows(IllegalStateException.class, view::getHandle);
++    }
++}

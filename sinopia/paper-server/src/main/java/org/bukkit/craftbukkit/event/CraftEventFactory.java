@@ -364,7 +364,20 @@ public class CraftEventFactory {
 
     public static PlayerBedFailEnterEvent callPlayerBedFailEnterEvent(
         net.minecraft.world.entity.player.Player player, BlockPos bed, net.minecraft.world.entity.player.Player.BedSleepingProblem bedSleepingProblem) {
-        net.minecraft.world.attribute.BedRule bedRule = player.level().environmentAttributes().getDimensionValue(EnvironmentAttributes.BED_RULE);
+        return callPlayerBedFailEnterEvent(player, bed, bedRuleAt(player, bed), bedSleepingProblem);
+    }
+
+    // Sinopia - retain the old bridge, but use the actual bed's positional rule.
+    private static net.minecraft.world.attribute.BedRule bedRuleAt(net.minecraft.world.entity.player.Player player, BlockPos bed) {
+        if (player.level().getBlockState(bed).getBlock() instanceof net.minecraft.world.level.block.AbstractBedBlock bedBlock) {
+            return bedBlock.getBedRule(player.level(), bed);
+        }
+        return player.level().environmentAttributes().getValue(EnvironmentAttributes.BED_RULE, bed);
+    }
+
+    public static PlayerBedFailEnterEvent callPlayerBedFailEnterEvent(
+        net.minecraft.world.entity.player.Player player, BlockPos bed, net.minecraft.world.attribute.BedRule bedRule,
+        net.minecraft.world.entity.player.Player.BedSleepingProblem bedSleepingProblem) {
         com.mojang.datafixers.util.Pair<PlayerBedFailEnterEvent.FailReason, io.papermc.paper.block.bed.BedEnterAction> actionPair = asFailReason(player, bedRule, bedSleepingProblem);
         final var event = new PlayerBedFailEnterEvent(
             (org.bukkit.entity.Player) player.getBukkitEntity(),
@@ -379,7 +392,12 @@ public class CraftEventFactory {
 
     public static Either<net.minecraft.world.entity.player.Player.BedSleepingProblem, Unit> callPlayerBedEnterEvent(
         net.minecraft.world.entity.player.Player player, BlockPos bed, Either<net.minecraft.world.entity.player.Player.BedSleepingProblem, Unit> nmsBedResult) {
-        final net.minecraft.world.attribute.BedRule bedRule = player.level().environmentAttributes().getDimensionValue(EnvironmentAttributes.BED_RULE);
+        return callPlayerBedEnterEvent(player, bed, bedRuleAt(player, bed), nmsBedResult);
+    }
+
+    public static Either<net.minecraft.world.entity.player.Player.BedSleepingProblem, Unit> callPlayerBedEnterEvent(
+        net.minecraft.world.entity.player.Player player, BlockPos bed, net.minecraft.world.attribute.BedRule bedRule,
+        Either<net.minecraft.world.entity.player.Player.BedSleepingProblem, Unit> nmsBedResult) {
         com.mojang.datafixers.util.Pair<BedEnterResult, io.papermc.paper.block.bed.BedEnterActionImpl> bedEnterResult = nmsBedResult.mapBoth(sleepingProblem -> {
             BedEnterResult enterResult = null;
             io.papermc.paper.block.bed.BedEnterProblem enterProblem = null;

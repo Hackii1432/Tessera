@@ -1,0 +1,70 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Tue, 15 Sep 2026 16:00:00 +0200
+Subject: [PATCH] Restore custom terrain generation phases
+
+Selective backport of Paper 2307f8f477997c9dbe17f789007c22356070e3a9,
+adapted for Sinopia and Tessera. See docs/PAPER-BACKPORTS-2026-09-15.md.
+
+diff --git a/net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java b/net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java
+--- a/net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java
++++ b/net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java
+@@ -365,4 +365,26 @@
+         final Set<Holder<Biome>> possibleBiomes
+     ) {
++        return this.buildTerrain(chunk, blender, randomState, structureManager, biomeManager, carverBiomeRegion, possibleBiomes, null);
++    }
++
++    // Sinopia - interleave Bukkit callbacks with their corresponding vanilla terrain phases.
++    public CompletableFuture<ChunkAccess> buildTerrain(
++        final ChunkAccess chunk,
++        final Blender blender,
++        final RandomState randomState,
++        final StructureManager structureManager,
++        final BiomeManager biomeManager,
++        final @Nullable WorldGenRegion carverBiomeRegion,
++        final Set<Holder<Biome>> possibleBiomes,
++        final org.bukkit.craftbukkit.generator.@Nullable CustomChunkGenerator customGenerator
++    ) {
+         NoiseSettings noiseSettings = this.settings.value().noiseSettings().clampToHeightAccessor(chunk.getHeightAccessorForGeneration());
++        if (customGenerator != null && (noiseSettings.height() <= 0 || SharedConstants.debugVoidTerrain(chunk.getPos()))) {
++            return CompletableFuture.supplyAsync(() -> {
++                customGenerator.fillFromNoise(chunk);
++                customGenerator.buildSurface(chunk);
++                customGenerator.applyCarvers(chunk);
++                return chunk;
++            }, io.papermc.paper.FeatureHooks.getWorldgenExecutor()); // Paper - retain the chunk-system generation executor
++        }
+         return noiseSettings.height() > 0 && !SharedConstants.debugVoidTerrain(chunk.getPos()) ? CompletableFuture.supplyAsync(() -> {
+@@ -384,19 +409,28 @@
+                 try (Zone var39 = profiler.zone("doFill")) {
+-                    this.doFill(noiseChunk, chunk);
++                    if (customGenerator == null || customGenerator.shouldGenerateNoise(chunk)) {
++                        this.doFill(noiseChunk, chunk);
++                    }
+                 } finally {
+                     for (LevelChunkSection section : sections) {
+                         section.release();
+                     }
+                 }
++                if (customGenerator != null) customGenerator.fillFromNoise(chunk);
+ 
+                 MaterialRule materialRule = this.settings.value().materialRule().value();
+ 
+                 try (Zone var41 = profiler.zone("buildSurface")) {
+-                    this.buildSurface(chunk, noiseChunk, randomState, biomeManager, possibleBiomes, materialRule, structureManager.level.getMinecraftWorld()); // Paper - Flat bedrock generator settings
++                    if (customGenerator == null || customGenerator.shouldGenerateSurface(chunk)) {
++                        this.buildSurface(chunk, noiseChunk, randomState, biomeManager, possibleBiomes, materialRule, structureManager.level.getMinecraftWorld()); // Paper - Flat bedrock generator settings
++                    }
+                 }
++                if (customGenerator != null) customGenerator.buildSurface(chunk);
+ 
+                 try (Zone var42 = profiler.zone("generateCarvers")) {
+-                    this.generateCarvers(chunk, blender, noiseChunk, randomState, biomeManager, carverBiomeRegion, materialRule);
++                    if (customGenerator == null || customGenerator.shouldGenerateCaves(chunk)) {
++                        this.generateCarvers(chunk, blender, noiseChunk, randomState, biomeManager, carverBiomeRegion, materialRule);
++                    }
+                 }
++                if (customGenerator != null) customGenerator.applyCarvers(chunk);
+ 
+                 return chunk;
