@@ -1,0 +1,6 @@
+name: TesseraRedstoneMergeSmoke
+version: '1.0.0'
+main: dev.tessera.smoke.RedstoneRegionMergeSmoke
+api-version: '26.3'
+folia-supported: true
+description: Live redstone propagation across natural region merges

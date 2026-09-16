@@ -1,0 +1,146 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Wed, 16 Sep 2026 02:00:00 +0200
+Subject: [PATCH] Test operator-only tick command access
+
+Cover explicit grants to non-operators, aliases, execute source identity,
+operator removal, console/RCON, and function compilation permissions.
+
+diff --git a/src/test/java/io/papermc/paper/permissions/TickCommandOperatorTest.java b/src/test/java/io/papermc/paper/permissions/TickCommandOperatorTest.java
+new file mode 100644
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/permissions/TickCommandOperatorTest.java
+@@ -0,0 +1,133 @@
++package io.papermc.paper.permissions;
++
++import com.mojang.brigadier.ParseResults;
++import java.util.List;
++import net.minecraft.commands.CommandBuildContext;
++import net.minecraft.commands.CommandSource;
++import net.minecraft.commands.CommandSourceStack;
++import net.minecraft.commands.Commands;
++import net.minecraft.network.chat.CommonComponents;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.server.permissions.LevelBasedPermissionSet;
++import net.minecraft.server.permissions.PermissionLevel;
++import net.minecraft.world.flag.FeatureFlags;
++import net.minecraft.world.phys.Vec2;
++import net.minecraft.world.phys.Vec3;
++import org.bukkit.command.CommandSender;
++import org.bukkit.command.ConsoleCommandSender;
++import org.bukkit.command.RemoteConsoleCommandSender;
++import org.bukkit.entity.Player;
++import org.bukkit.support.RegistryHelper;
++import org.bukkit.support.environment.AllFeatures;
++import org.junit.jupiter.api.BeforeAll;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.params.ParameterizedTest;
++import org.junit.jupiter.params.provider.CsvSource;
++import org.junit.jupiter.params.provider.EnumSource;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.ArgumentMatchers.any;
++import static org.mockito.Mockito.*;
++
++@AllFeatures
++class TickCommandOperatorTest {
++    private static final String PERMISSION = "minecraft.command.tick";
++    private static final List<String> LABELS = List.of("tick", "minecraft:tick");
++    private static final List<String> SUBCOMMANDS = List.of(
++        "query", "rate 10", "freeze", "unfreeze", "step", "step 5t", "step stop", "sprint 10t", "sprint stop"
++    );
++    private static List<Commands> registrations;
++
++    @BeforeAll
++    static void registerCommands() {
++        CommandBuildContext context = CommandBuildContext.simple(RegistryHelper.registryAccess(), FeatureFlags.VANILLA_SET);
++        registrations = List.of(
++            new Commands(Commands.CommandSelection.DEDICATED, context, true),
++            new Commands(Commands.CommandSelection.DEDICATED, context, false)
++        );
++    }
++
++    private static CommandSourceStack source(CommandSender sender, PermissionLevel level) {
++        CommandSource origin = mock(CommandSource.class);
++        when(origin.getBukkitSender(any())).thenReturn(sender);
++        return new CommandSourceStack(origin, Vec3.ZERO, Vec2.ZERO, null,
++            LevelBasedPermissionSet.forLevel(level), CommonComponents.EMPTY, null);
++    }
++
++    private static void assertAccess(CommandSourceStack source, boolean allowed) {
++        for (Commands commands : registrations) {
++            for (String label : LABELS) {
++                assertEquals(allowed, commands.getDispatcher().getRoot().getChild(label).canUse(source), label);
++                for (String subcommand : SUBCOMMANDS) {
++                    String input = label + " " + subcommand;
++                    ParseResults<CommandSourceStack> parsed = commands.getDispatcher().parse(input, source);
++                    if (allowed) {
++                        assertFalse(parsed.getReader().canRead(), input);
++                        assertNotNull(parsed.getContext().getLastChild().getCommand(), input);
++                    } else {
++                        assertEquals(0, parsed.getReader().getCursor(), input);
++                        assertNull(parsed.getContext().getCommand(), input);
++                    }
++                }
++            }
++        }
++    }
++
++    @ParameterizedTest
++    @CsvSource({
++        "false, false, ALL, false",
++        "false, true, ALL, false",
++        "false, true, ADMINS, false",
++        "false, false, OWNERS, false",
++        "true, true, ALL, true",
++        "true, true, GAMEMASTERS, true",
++        "true, true, ADMINS, true",
++        "true, false, OWNERS, true",
++        "true, false, ALL, false"
++    })
++    void tickRequiresOperatorEvenWithGrantedPermissionOrElevatedLevel(
++        boolean operator, boolean permission, PermissionLevel level, boolean allowed
++    ) {
++        Player player = mock(Player.class);
++        when(player.isOp()).thenReturn(operator);
++        when(player.hasPermission(PERMISSION)).thenReturn(permission);
++        assertAccess(source(player, level), allowed);
++    }
++
++    @Test
++    void consoleAndRconKeepAccess() {
++        for (CommandSender sender : List.of(mock(ConsoleCommandSender.class), mock(RemoteConsoleCommandSender.class))) {
++            when(sender.isOp()).thenReturn(true);
++            when(sender.hasPermission(PERMISSION)).thenReturn(true);
++            assertAccess(source(sender, PermissionLevel.OWNERS), true);
++        }
++    }
++
++    @Test
++    void changingExecuteEntityDoesNotReplaceTheCallersOperatorStatus() {
++        Player caller = mock(Player.class);
++        when(caller.hasPermission(PERMISSION)).thenReturn(true);
++        CommandSourceStack delegated = source(caller, PermissionLevel.OWNERS).withEntity(mock(ServerPlayer.class));
++        assertAccess(delegated, false);
++        when(caller.isOp()).thenReturn(true);
++        assertAccess(delegated, true);
++    }
++
++    @Test
++    void removingOperatorStatusRevokesAccessEvenWhilePermissionRemains() {
++        Player player = mock(Player.class);
++        when(player.isOp()).thenReturn(true);
++        when(player.hasPermission(PERMISSION)).thenReturn(true);
++        CommandSourceStack source = source(player, PermissionLevel.OWNERS);
++        assertAccess(source, true);
++        when(player.isOp()).thenReturn(false);
++        assertAccess(source, false);
++    }
++
++    @ParameterizedTest
++    @EnumSource(PermissionLevel.class)
++    void functionCompilationStillUsesItsVanillaPermissionLevel(PermissionLevel level) {
++        assertAccess(Commands.createCompilationContext(LevelBasedPermissionSet.forLevel(level)),
++            level.isEqualOrHigherThan(PermissionLevel.ADMINS));
++    }
++}

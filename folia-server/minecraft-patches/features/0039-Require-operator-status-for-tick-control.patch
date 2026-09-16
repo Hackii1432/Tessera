@@ -1,0 +1,51 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Wed, 16 Sep 2026 02:00:00 +0200
+Subject: [PATCH] Require operator status for tick control
+
+A granted minecraft.command.tick permission must not allow a non-operator
+to control the server tick loop. Preserve console and function permission checks.
+
+diff --git a/net/minecraft/server/commands/TickCommand.java b/net/minecraft/server/commands/TickCommand.java
+index b3c0e0ab..ba315e6e 100644
+--- a/net/minecraft/server/commands/TickCommand.java
++++ b/net/minecraft/server/commands/TickCommand.java
+@@ -10,12 +10,14 @@ import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
+ import io.papermc.paper.threadedregions.RegionizedServer;
+ import io.papermc.paper.threadedregions.TickRegionScheduler;
+ import java.util.Locale;
++import net.minecraft.commands.CommandSource;
+ import net.minecraft.commands.CommandSourceStack;
+ import net.minecraft.commands.Commands;
+ import net.minecraft.commands.SharedSuggestionProvider;
+ import net.minecraft.commands.arguments.TimeArgument;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.server.ServerTickRateManager;
++import net.minecraft.server.permissions.Permissions;
+ import net.minecraft.util.TimeUtil;
+ 
+ public class TickCommand {
+@@ -34,7 +36,7 @@ public class TickCommand {
+     public static void register(final CommandDispatcher<CommandSourceStack> dispatcher) {
+         dispatcher.register(
+             Commands.literal("tick")
+-                .requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
++                .requires(TickCommand::canUse) // Tessera - require operator status as well as command permission
+                 .then(Commands.literal("query").executes(c -> tickQuery(c.getSource())))
+                 .then(
+                     Commands.literal("rate")
+@@ -68,6 +70,14 @@ public class TickCommand {
+         );
+     }
+ 
++    // Tessera start - tick control is restricted to operators
++    private static boolean canUse(final CommandSourceStack source) {
++        // Function compilation has no operator sender; retain its vanilla permission-level check.
++        return (source.source == CommandSource.NULL || source.getBukkitSender().isOp())
++            && source.hasPermission(Permissions.COMMANDS_ADMIN, "minecraft.command.tick");
++    }
++    // Tessera end - tick control is restricted to operators
++
+     private static String nanosToMilisString(final long nanos) {
+         return String.format(Locale.ROOT, "%.1f", (float)nanos / (float)TimeUtil.NANOSECONDS_PER_MILLISECOND);
+     }
