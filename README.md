@@ -1,292 +1,148 @@
-[![Version](https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fartifactory.papermc.io%2Fartifactory%2Funiverse%2Fdev%2Ffolia%2Ffolia-api%2Fmaven-metadata.xml&strategy=highestVersion&filter=26.1*&label=version&color=%23344ceb
-)](https://papermc.io/downloads/folia)
-[![Folia Build Status](https://img.shields.io/github/actions/workflow/status/PaperMC/Folia/build.yml?branch=ver/26.1.x)](https://github.com/PaperMC/Folia/actions)
-[![Discord](https://img.shields.io/discord/289587909051416579.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/papermc)
-===========
+<p align="center">
+    <img src="./tessera.png" alt="Tessera" width="480">
+</p>
 
-<div align=center>
-    <img src="./tessera.png">
-    <br /><br />
-    <p>Fork of <a href="https://github.com/PaperMC/folia">Folia</a> which aims to fix some issues and add some features for our servers</p>
-</div>
+# Tessera
 
-## Overview of Tessera Features
+**A Minecraft server with parallel region ticking, dynamic worlds, and region-safe plugin APIs.**
 
-### Sinopia: the integrated server base
+Tessera develops its own server features, gameplay fixes, and tools for running
+multiple worlds and independent game areas. Its integrated base, **Sinopia**, is
+maintained alongside Tessera in this repository.
 
-Sinopia is Tessera's Paper-derived base, maintained in this repository under
-`sinopia/`. Build from the repository root with `./gradlew buildTessera`
-(Windows: `.\gradlew.bat buildTessera`). No separate Paper repository is needed.
+**Current version:** Minecraft **26.3** · Tessera **005-alpha** · Java **25**
 
-See [the Sinopia workflow](docs/SINOPIA-WORKFLOW.md) for patch editing, capture,
-and upstream updates. The current Minecraft baseline is the 26.3 release;
-Tessera remains an experimental alpha requiring in-game validation. See the
-[Build 005 release changelog](docs/CHANGELOG-26.3-005-RELEASE.md), the original
-[RC2 porting report](docs/PORTIERUNG-26.3-rc-2.md) and the
-[bed-fix follow-up](docs/CHANGELOG-26.3-001-BEDS.md).
+Tessera is in active alpha development. The
+[release changelog](docs/CHANGELOG-26.3-005-RELEASE.md) documents the current
+baseline and validation status; test your worlds and plugins before deployment.
 
-### Runtime worlds and region-safe scoreboards
+## What Tessera provides
 
-- [Asynchronous runtime world lifecycle](docs/runtime-world-lifecycle.md)
-- [Region-safe Bukkit scoreboards](docs/region-safe-scoreboards.md)
+| Feature | What it does |
+| --- | --- |
+| Parallel region ticking | Processes independent loaded areas on separate tick threads. |
+| Runtime worlds | Creates, loads, and unloads worlds asynchronously through the Tessera API. |
+| World cloning and snapshots | Clones read-only world templates and takes coordinated snapshots of live worlds. |
+| Region-safe scoreboards | Supports per-player scoreboards, teams, objectives, and scores with updates delivered on the owning player thread. |
+| Console and RCON support | Routes supported vanilla block and entity queries to the region that owns their data. |
+| Tick control | Supports querying, changing, freezing, stepping, and sprinting the server tick loop. Players must be OP to use `/tick`. |
+| Plugin extensions | Provides regional TPS measurements, capability detection, and additional game rules such as control over Eyes of Ender and End portal use. |
 
-### GameRules Changes
-- GameRule: allow_entering_nether_using_portals
-  - works now as intended.
-- New GameRule: allow_eyes_of_ender_use
-  - Enables the usage of eyes_of_ender on Blocks and as Projectile
-  - Also on false disables teleportation through the end
-        ```xml
-### Internal Changes
-- FetchSiteAPI has been removed
-- Manifest has been reworked
-- Environment Variables for the gradle builder have been replaced
+Gameplay and compatibility fixes are maintained with regression tests and
+documented in [the project documentation](docs/).
 
-## <span style="color:orange;">Version Changelog</span>
+## How regions work
 
-### <span style="color:lightgreen;">Build 005</span>
-- Added Gamerule: ***allow_eyes_of_ender_use***
+Tessera groups nearby loaded chunks into regions. Each region runs its own tick
+loop, allowing independent areas to be processed in parallel. Regions can merge
+or split as the set of loaded chunks changes.
 
-  `Default Value: True`
+This allows activity in separate arenas, islands, or distant parts of a world
+to use multiple CPU cores. Activity inside one region still shares that region's
+tick budget. Actual performance depends on the world, plugins, and workload.
 
-  `Enables throwing of eyes of ender`
+Plugin code must respect the region that owns a block, chunk, or entity. There
+is no single Bukkit main thread that can safely access every world at once.
 
-  `Enables Teleport through END_PORTAL_BLOCK`
+## Build Tessera
 
-  `Enables Interactaction with END_PORTAL_FRAME_BLOCK`
+Requirements: **JDK 25** and **Git**. Use the included Gradle wrapper, which pins
+the Gradle version required by the build tooling.
 
-  
-- Removed FetchingSiteAPI in favor of /about
+Run from the repository root:
 
+**Windows / PowerShell**
 
+```powershell
+.\gradlew.bat buildTessera
+```
 
-### <span style="color:darkgray;">Build 004</span>
-- Fixed GitFetching is causing errors in console.
+**Linux / macOS**
 
-  ` Manifest is no longer dependent on Paper -> Git`
+```bash
+./gradlew buildTessera
+```
 
-### <span style="color:darkgray;">Build 003</span>
-- Fixed Gamerule: ***allow_entering_nether_using_portals***
+The build prepares Sinopia, applies the patch layers, runs the tests, and creates
+the runnable server JAR under:
 
-  `works as intended now`
+```text
+build/libs/tessera-server-*.jar
+```
 
-### <span style="color:darkgray;">Build 002</span>
-- Created tessera branding for server engine (still a fork)
+Copy the resulting JAR into your server directory and run it with Java 25.
+Sinopia is included in this repository; build dependencies are resolved by Gradle.
 
-### <span style="color:darkgray;">Build 001</span>
-- First Compile to mc-version 26.2
-
-
-## Overview of Folia <--- THIS WILL BE REMOVED
-
-Folia groups nearby loaded chunks to form an "independent region."
-See [the PaperMC documentation](https://docs.papermc.io/folia/reference/region-logic) for exact details on how Folia
-will group nearby chunks.
-Each independent region has its own tick loop, which is ticked at the
-regular Minecraft tickrate (20TPS). The tick loops are executed
-on a thread pool in parallel. There is no main thread anymore, 
-as each region effectively has its own "main thread" that executes
-the entire tick loop.
-
-For a server with many spread out players, Folia will create many
-spread out regions and tick them all in parallel on a configurable sized
-threadpool. Thus, Folia should scale well for servers like this.
-
-Folia is also its own project, this will not be merged into Paper
-for the foreseeable future. 
-
-A more detailed but abstract overview: [Project overview](https://docs.papermc.io/folia/reference/overview).
-
-## FAQ
-
-### What server types can benefit from Folia?
-Server types that naturally spread players out, 
-like skyblock or SMP, will benefit the most from Folia. The server
-should have a sizeable player count, too.
-
-### What hardware will Folia run best on?
-Ideally, at least 16 _cores_ (not threads).
-
-### How to best configure Folia?
-First, it is recommended that the world is pre-generated so that the number
-of chunk system worker threads required is reduced greatly.
-
-The following is a _very rough_ estimation based off of the testing
-done before Folia was released on the test server we ran that
-had ~330 players peak. So, it is not exact and will require further tuning - 
-just take it as a starting point.
-
-The total number of cores on the machine available should be 
-taken into account. Then, allocate threads for: 
-- netty IO :~4 per 200-300 players
-- chunk system io threads: ~3 per 200-300 players
-- chunk system workers if pre-generated, ~2 per 200-300 players
-- There is no best guess for chunk system workers if not pre-generated, as
-  on the test server we ran we gave 16 threads but chunk generation was still
-  slow at ~300 players.
-- GC Settings: ???? But, GC settings _do_ allocate concurrent threads, and you need
-  to know exactly how many. This is typically through the `-XX:ConcGCThreads=n` flag. Do not
-  confuse this flag with `-XX:ParallelGCThreads=n`, as parallel GC threads only run when
-  the application is paused by GC and as such should not be taken into account.
-
-After all of that allocation, the remaining cores on the system until 80%
-allocation (total threads allocated < 80% of cpus available) can be
-allocated to tickthreads (under global config, threaded-regions.threads). 
-
-The reason you should not allocate more than 80% of the cores is due to the
-fact that plugins or even the server may make use of additional threads 
-that you cannot configure or even predict.
-
-Additionally, the above is all a rough guess based on player count, but
-it is very likely that the thread allocation will not be ideal, and you 
-will need to tune it based on usage of the threads that you end up seeing.
+For source editing, patch export, and upstream updates, see the
+[Sinopia and Tessera workflow](docs/SINOPIA-WORKFLOW.md). Export changes to
+generated sources into patches before running `buildTessera` again.
 
 ## Plugin compatibility
 
-There is no more main thread. I expect _every_ single plugin
-that exists to require _some_ level of modification to function
-in Folia. Additionally, multithreading of _any kind_ introduces
-possible race conditions in plugin held data - so, there are bound
-to be changes that need to be made.
+Plugins must support region-based execution. Bukkit or Paper compatibility
+alone does not establish compatibility with Tessera.
 
-So, have your expectations for compatibility at 0.
+The inherited plugin metadata flag is still required:
 
-## API plans
-
-Not planning anything here
-
-### The new rules
-
-First, Folia breaks many plugins. To aid users in figuring out which
-plugins work, only plugins that have been explicitly marked by the
-author(s) to work with Folia will be loaded. By placing
-"folia-supported: true" into the plugin's plugin.yml, plugin authors
-can mark their plugin as compatible with regionised multithreading.
-
-The other important rule is that the regions tick in _parallel_, and not 
-_concurrently_. They do not share data, they do not expect to share data,
-and sharing of data _will_ cause data corruption. 
-Code that is running in one region under no circumstance can 
-be accessing or modifying data that is in another region. Just 
-because multithreading is in the name, it doesn't mean that everything 
-is now thread-safe. In fact, there are only a _few_ things that were 
-made thread-safe to make this happen. As time goes on, the number 
-of thread context checks will only grow, even _if_ it comes at a 
-performance penalty - _nobody_ is going to use or develop for a 
-server platform that is buggy as hell, and the only way to 
-prevent and find these bugs is to make bad accesses fail _hard_ at the 
-source of the bad access.
-
-This means that Folia compatible plugins need to take advantage of 
-API like the RegionScheduler and the EntityScheduler to ensure 
-their code is running on the correct thread context.
-
-In general, it is safe to assume that a region owns chunk data
-in an approximate 8 chunks from the source of an event (i.e. player
-breaks block, can probably access 8 chunks around that block). But,
-this is not guaranteed - plugins should take advantage of upcoming
-thread-check API to ensure correct behavior.
-
-The only guarantee of thread-safety comes from the fact that a
-single region owns data in certain chunks - and if that region is
-ticking, then it has full access to that data. This data is 
-specifically entity/chunk/poi data, and is entirely unrelated
-to **ANY** plugin data.
-
-Normal multithreading rules apply to data that plugins store/access
-their own data or another plugin's - events/commands/etc. are called 
-in _parallel_ because regions are ticking in _parallel_ (we CANNOT 
-call them in a synchronous fashion, as this opens up deadlock issues 
-and would handicap performance). There are no easy ways out of this, 
-it depends solely on what data is being accessed. Sometimes a 
-concurrent collection (like ConcurrentHashMap) is enough, and often a 
-concurrent collection used carelessly will only _hide_ threading 
-issues, which then become near impossible to debug.
-
-### Current API additions
-
-To properly understand API additions, please read
-[Project overview](https://docs.papermc.io/folia/reference/overview).
-
-- RegionScheduler, AsyncScheduler, GlobalRegionScheduler, and EntityScheduler 
-  acting as a replacement for  the BukkitScheduler.
-  The entity scheduler is retrieved via Entity#getScheduler, and the
-  rest of the schedulers can be retrieved from the Bukkit/Server classes.
-- Bukkit#isOwnedByCurrentRegion to test if the current ticking region
-  owns positions/entities
-
-### Thread contexts for API
-
-To properly understand API additions, please read
-[Project overview](https://docs.papermc.io/folia/reference/overview).
-
-General rules of thumb:
-
-1. Commands for entities/players are called on the region which owns
-the entity/player. Console commands are executed on the global region.
-
-2. Events involving a single entity (i.e player breaks/places block) are
-called on the region owning entity. Events involving actions on an entity
-(such as entity damage) are invoked on the region owning the target entity.
-
-3. The async modifier for events is deprecated - all events
-fired from regions or the global region are considered _synchronous_, 
-even though there is no main thread anymore. 
-
-### Current broken API
-
-- Most API that interacts with portals / respawning players / some
-  player login API is broken.
-- ALL scoreboard API is considered broken (this is global state that
-  I've not figured out how to properly implement yet)
-- World loading/unloading
-- Entity#teleport. This will NEVER UNDER ANY CIRCUMSTANCE come back, 
-  use teleportAsync
-- Could be more
-
-### Planned API additions
-
-- Proper asynchronous events. This would allow the result of an event
-  to be completed later, on a different thread context. This is required
-  to implement some things like spawn position select, as asynchronous
-  chunk loads are required when accessing chunk data out-of-region.
-- World loading/unloading
-- More to come here
-
-### Planned API changes
-
-- Super aggressive thread checks across the board. This is absolutely
-  required to prevent plugin devs from shipping code that may randomly
-  break random parts of the server in entirely _undiagnosable_ manners.
-- More to come here
-
-### Maven information
-* Maven Repo (for folia-api):
-```xml
-<repository>
-    <id>papermc</id>
-    <url>https://repo.papermc.io/repository/maven-public/</url>
-</repository>
+```yaml
+api-version: '26.3'
+folia-supported: true
 ```
-* Artifact Information:
-```xml
-<dependency>
-    <groupId>dev.folia</groupId>
-    <artifactId>folia-api</artifactId>
-    <version>[26.1.2.build,)</version>
-    <scope>provided</scope>
-</dependency>
- ```
 
+This flag declares support; plugin code must also follow the threading rules:
 
-## License
-The [PATCHES-LICENSE](PATCHES-LICENSE) describes the license for Tessera/Folia
-API and server patches under `folia-api/` and `folia-server/`, except when noted
-otherwise. The integrated Sinopia base retains Paper's
-[license overview](sinopia/LICENSE.md), [license texts](sinopia/licenses/),
-and per-file copyright and attribution notices. Its provenance and local
-modifications are documented in [sinopia/BASELINE.md](sinopia/BASELINE.md).
+- Use the **RegionScheduler** for location-bound world and block operations.
+- Use the **EntityScheduler** for players and other entities, including after teleports.
+- Use the **GlobalRegionScheduler** for global server work.
+- Keep blocking file and database work off tick threads.
+- Use `teleportAsync` for teleports and `RuntimeWorldManager` for runtime world operations.
 
-The fork is based off of PaperMC's fork example found [here](https://github.com/PaperMC/paperweight-examples).
-As such, it contains modifications to it in this project, please see the repository for license information
-of modified files.
+Plugins using Tessera extensions can check `Bukkit.getTesseraCapabilities()`
+for runtime-world and scoreboard support. Compile those plugins against the
+matching Tessera API build; inherited package names and API coordinates remain
+for compatibility.
+
+See the [Tessera API reference](docs/tessera-api.md) for the API contracts and
+examples. Some examples describe earlier releases; use the API version that
+matches your server build.
+
+## Documentation and tests
+
+- [Build, patches, and Sinopia workflow](docs/SINOPIA-WORKFLOW.md)
+- [Runtime worlds, cloning, and snapshots](docs/runtime-world-lifecycle.md)
+- [Region-safe scoreboards](docs/region-safe-scoreboards.md)
+- [Console and RCON command handling](docs/console-command-context.md)
+- [Operator-only tick commands](docs/tick-operator-access.md)
+- [Redstone region-merge test and results](smoke-tests/redstone-region-merge/RESULTS.md)
+- [Minecraft 26.3 release changelog](docs/CHANGELOG-26.3-005-RELEASE.md)
+
+Reproducible server tests live in [`smoke-tests/`](smoke-tests/). Each test
+documents its setup and scope; individual test results apply to the scenarios
+and builds they cover.
+
+## Project structure
+
+| Path | Purpose |
+| --- | --- |
+| `sinopia/` | The maintained Paper-derived server base. |
+| `folia-api/paper-patches/` | Tessera's API patch layer. |
+| `folia-server/paper-patches/` | Server implementation and test patches. |
+| `folia-server/minecraft-patches/` | Minecraft gameplay and region-threading patches. |
+| `docs/` | Feature documentation, changelogs, and validation reports. |
+| `smoke-tests/` | Local server integration tests. |
+
+The `folia-*` module names are retained from the project's history. The server
+product built from this repository is Tessera. Generated source directories
+are build workspaces; their Minecraft changes are maintained as patches.
+
+## Origins and licensing
+
+Tessera grew out of Folia and builds on the work of the Paper, Folia, Bukkit,
+and Spigot projects. Their contributions, authorship, and license notices
+remain part of the project.
+
+[PATCHES-LICENSE](PATCHES-LICENSE) describes the license for the API and server
+patches under `folia-api/` and `folia-server/`, except where noted otherwise.
+Sinopia retains the upstream [license overview](sinopia/LICENSE.md),
+[license texts](sinopia/licenses/), and per-file notices. Its provenance and
+local changes are recorded in [sinopia/BASELINE.md](sinopia/BASELINE.md).
