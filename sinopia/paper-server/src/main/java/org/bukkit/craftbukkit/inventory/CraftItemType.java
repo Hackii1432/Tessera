@@ -5,13 +5,12 @@ import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
 import io.papermc.paper.registry.HolderableBase;
-import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.random.Weighted;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -22,10 +21,11 @@ import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
+import net.minecraft.world.level.storage.loot.providers.number.ints.ConstantValue;
 import net.minecraft.world.level.storage.loot.providers.number.ints.ContextIntProvider;
+import net.minecraft.world.level.storage.loot.providers.number.ints.NumberDispatcher;
 import net.minecraft.world.level.storage.loot.providers.number.ints.ResolvableInt;
 import net.minecraft.world.level.storage.loot.providers.number.ints.WeightedListValue;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Registry;
 import org.bukkit.World;
@@ -180,18 +180,20 @@ public class CraftItemType<M extends ItemMeta> extends HolderableBase<Item> impl
 
     @Override
     public int getBurnDuration() {
-        final net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(this.getHandle());
-        if (!stack.has(DataComponents.COOKING_FUEL)) {
+        final CookingFuel fuel = this.getHandle().components().get(DataComponents.COOKING_FUEL);
+        if (fuel == null) {
             return 0;
         }
-
-        final ServerLevel serverLevel = ((CraftWorld) Bukkit.getWorlds().getFirst()).getHandle();
-        final LootContext lootContext = new LootContext.Builder(
-            new LootParams.Builder(serverLevel).create(LootContextParamSets.EMPTY)
-        ).create(Optional.empty());
-
-        // TODO - snapshot - this in theory return the negative case (block is not blast furnace or smoker) because need pass a block in the LootContext
-        return ResolvableInt.getFromItem(stack, DataComponents.COOKING_FUEL, CookingFuel::burnTime, lootContext, 0);
+        if (fuel.burnTime() instanceof ResolvableInt.Constant constant) {
+            return constant.value();
+        }
+        // This legacy API has no block/world context: query the default furnace value.
+        // Never borrow a world's mutable random source from an arbitrary region.
+        Preconditions.checkArgument(MinecraftServer.getServer() != null, "Too early to call this method");
+        final LootContext context = new LootContext.Builder(new LootParams.Builder(null).create(LootContextParamSets.EMPTY))
+            .withOptionalRandomSeed(42L)
+            .createWithoutLevel();
+        return fuel.burnTime().get(context, 0);
     }
 
     @Override
@@ -201,32 +203,41 @@ public class CraftItemType<M extends ItemMeta> extends HolderableBase<Item> impl
 
     @Override
     public float getCompostChance() {
-        // TODO - snapshot - this cover vanilla but custom ones can break this.. maybe better deprecate this...
-        final net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(this.getHandle());
-        Compostable compostable = stack.get(DataComponents.COMPOSTABLE);
+        final Compostable compostable = this.getHandle().components().get(DataComponents.COMPOSTABLE);
         Preconditions.checkArgument(compostable != null, "The item type " + this.getKey() + " is not compostable");
-        if (compostable.layers() instanceof ResolvableInt.Constant) {
-            // Constant (ex: [minecraft:compostable={layers:10}]) case it's the 100% of cases add layers to the composter.
-            return 1;
+        if (compostable.layers() instanceof ResolvableInt.Constant constant) {
+            return constant.value() > 0 ? 1.0F : 0.0F;
         } else if (compostable.layers() instanceof ResolvableInt.Reference reference) {
-            final ServerLevel serverLevel = ((CraftWorld) Bukkit.getWorlds().getFirst()).getHandle();
-            final LootContext lootContext = new LootContext.Builder(
-                new LootParams.Builder(serverLevel).create(LootContextParamSets.EMPTY)
-            ).create(Optional.empty());
-
-            return reference.getProvider(lootContext)
-                .map(contextIntProvider -> {
-                    if (contextIntProvider instanceof WeightedListValue(
-                        net.minecraft.util.random.WeightedList<Holder<ContextIntProvider>> distribution
-                    )) {
-                        return distribution.unwrap().stream().mapToInt(Weighted::weight).max().orElse(0);
-                    } else {
-                        return 1;
-                    }
-                }).orElse(0);
+            Preconditions.checkArgument(MinecraftServer.getServer() != null, "Too early to call this method");
+            return MinecraftServer.getServer().reloadableRegistries().lookup().lookupOrThrow(Registries.CONTEXT_INT_PROVIDER)
+                .get(reference.key()).map(holder -> compostChance(holder.value(), 0)).orElse(0.0F);
         }
+        return 0.0F;
+    }
 
-        return 0;
+    // No composter is supplied by this API. Use the dispatcher's normal/default
+    // distribution, not the special guaranteed first-layer case. Context-dependent
+    // custom formulas cannot be represented by this legacy probability query.
+    private static float compostChance(final ContextIntProvider provider, final int depth) {
+        if (depth > 64) {
+            return 0.0F;
+        }
+        if (provider instanceof ConstantValue constant) {
+            return constant.value() > 0 ? 1.0F : 0.0F;
+        }
+        if (provider instanceof NumberDispatcher dispatcher) {
+            return compostChance(dispatcher.defaultValue().value(), depth + 1);
+        }
+        if (provider instanceof WeightedListValue weightedList) {
+            long total = 0;
+            double successful = 0;
+            for (final Weighted<Holder<ContextIntProvider>> entry : weightedList.distribution().unwrap()) {
+                total += entry.weight();
+                successful += entry.weight() * (double) compostChance(entry.value().value(), depth + 1);
+            }
+            return total == 0 ? 0.0F : (float) (successful / total);
+        }
+        return 0.0F;
     }
 
     @Override

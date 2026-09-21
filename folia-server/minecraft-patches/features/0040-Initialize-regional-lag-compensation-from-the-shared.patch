@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Mon, 21 Sep 2026 13:05:46 +0200
+Subject: [PATCH] Initialize regional lag compensation from the shared clock
+
+
+diff --git a/io/papermc/paper/threadedregions/RegionizedWorldData.java b/io/papermc/paper/threadedregions/RegionizedWorldData.java
+index bf40dde4..767c03cc 100644
+--- a/io/papermc/paper/threadedregions/RegionizedWorldData.java
++++ b/io/papermc/paper/threadedregions/RegionizedWorldData.java
+@@ -479,7 +479,8 @@ public final class RegionizedWorldData {
+         return this.tickData;
+     }
+ 
+-    private long lagCompensationTick;
++    // Tessera - use the same world-independent clock as players created before region admission.
++    private long lagCompensationTick = ServerLevel.currentLagCompensationTick();
+ 
+     public long getLagCompensationTick() {
+         return this.lagCompensationTick;
+@@ -491,7 +492,7 @@ public final class RegionizedWorldData {
+         this.hasEntityMoveEvent = io.papermc.paper.event.entity.EntityMoveEvent.getHandlerList().getRegisteredListeners().length > 0; // Paper - Add EntityMoveEvent
+         this.skipHopperEvents = this.world.paperConfig().hopper.disableMoveEvent || org.bukkit.event.inventory.InventoryMoveItemEvent.getHandlerList().getRegisteredListeners().length == 0; // Paper - Perf: Optimize Hoppers
+         // always subtract from server init so that the tick starts at zero, allowing us to cast to int without much worry
+-        this.lagCompensationTick = (System.nanoTime() - MinecraftServer.SERVER_INIT) / TickRegionScheduler.TIME_BETWEEN_TICKS;
++        this.lagCompensationTick = ServerLevel.currentLagCompensationTick(); // Tessera - shared lag compensation clock
+     }
+ 
+     public NearbyPlayers getNearbyPlayers() {

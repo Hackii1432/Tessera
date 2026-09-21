@@ -92,3 +92,18 @@ Tessera bleibt trotz der veröffentlichten Minecraft-Basis im Alpha-Kanal.
 
 Änderungen und abschließender Prüfstand:
 [Build-005-Changelog](../docs/CHANGELOG-26.3-005-RELEASE.md).
+
+## Selektive Paper-Backports vom 21. September 2026
+
+Aus dem geprüften `dev/26.3`-Stand `c13e3c9f0a79d0a117af4273d872c767f05b0751`
+sind acht empfohlene Korrekturgruppen und die kleine Region-Dateicache-Verbesserung
+übernommen. Minecraft-Patch 0044 enthält die allgemeinen Laufzeitkorrekturen;
+API-/Adapteränderungen und allgemeine Regressionstests liegen direkt in Sinopia.
+Tesseras ergänzende Regionsanpassungen stehen in den Minecraft-Patches 0040–0042.
+Es handelt sich nicht um einen vollständigen Rebase. Importreferenz, DataConverter
+und Minecraft-/Werkzeugversionen bleiben unverändert. Die Korrekturen sind
+Tessera Build `006-alpha` zugeordnet.
+
+Umfang, Original-Commits, Kompatibilitätsgrenzen und Build-Befehl:
+[Backport-Dokumentation](../docs/PAPER-BACKPORTS-2026-09-21.md).
+Veröffentlichungsnotizen: [Build-006-Changelog](../docs/CHANGELOG-26.3-006.md).

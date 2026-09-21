@@ -1,0 +1,208 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Mon, 21 Sep 2026 13:09:48 +0200
+Subject: [PATCH] Backport selected Paper September runtime corrections
+
+Selected changes from Paper cc95f00, e6e9780, c13e3c9, 0fd1cf7, baa0d82, 4dee7c4, a255185, 27553f5 and c5c8f6c. Preserve Sinopia storage semantics and expose a world-independent lag clock for Folia login initialization.
+
+diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/queue/ChunkUnloadQueue.java b/ca/spottedleaf/moonrise/patches/chunk_system/queue/ChunkUnloadQueue.java
+index 7dda31a98de2ddf0ca7a520ae48025fc96754011..78659864651362de4fc104cbeb3e2e9a31b101d9 100644
+--- a/ca/spottedleaf/moonrise/patches/chunk_system/queue/ChunkUnloadQueue.java
++++ b/ca/spottedleaf/moonrise/patches/chunk_system/queue/ChunkUnloadQueue.java
+@@ -109,7 +109,7 @@ public final class ChunkUnloadQueue {
+             ret.add(sectionJson);
+ 
+             sectionJson.addProperty("sectionX", section.sectionX());
+-            sectionJson.addProperty("sectionZ", section.sectionX());
++            sectionJson.addProperty("sectionZ", section.sectionZ());
+             sectionJson.addProperty("order", section.order());
+ 
+             final JsonArray coordinates = new JsonArray();
+diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/util/ParallelSearchRadiusIteration.java b/ca/spottedleaf/moonrise/patches/chunk_system/util/ParallelSearchRadiusIteration.java
+index 28d796a3fddebf0bb25ba759969aadecc5a6a2de..4e7138bce3b479f7013e929c870f69bfd775fcb9 100644
+--- a/ca/spottedleaf/moonrise/patches/chunk_system/util/ParallelSearchRadiusIteration.java
++++ b/ca/spottedleaf/moonrise/patches/chunk_system/util/ParallelSearchRadiusIteration.java
+@@ -62,7 +62,7 @@ public final class ParallelSearchRadiusIteration {
+     }
+ 
+     public static long[] getEuclideanIteration(final int radius) {
+-        return SEARCH_RADIUS_ITERATION_LIST[radius];
++        return EUCLIDEAN_RADIUS_ITERATION_LIST[radius];
+     }
+ 
+     private static class CustomLongArray extends LongArrayList {
+diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
+index 7b285200cac0f114566862f18626d85e682e2776..bcdd985d0f6fe70bb844a373573bf40934bee874 100644
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -3237,14 +3237,19 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+     // Paper end - check global player list where appropriate
+ 
+     // Paper start - lag compensation
+-    private long lagCompensationTick = MinecraftServer.SERVER_INIT;
++    // Sinopia - constructor-safe clock, also used before a player has a Folia region.
++    public static long currentLagCompensationTick() {
++        return (System.nanoTime() - MinecraftServer.SERVER_INIT) / java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(50L);
++    }
++
++    private long lagCompensationTick = currentLagCompensationTick();
+ 
+     public long getLagCompensationTick() {
+         return this.lagCompensationTick;
+     }
+ 
+     public void updateLagCompensationTick() {
+-        this.lagCompensationTick = (System.nanoTime() - MinecraftServer.SERVER_INIT) / (java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(50L));
++        this.lagCompensationTick = currentLagCompensationTick();
+     }
+     // Paper end - lag compensation
+ }
+diff --git a/net/minecraft/server/level/ServerPlayerGameMode.java b/net/minecraft/server/level/ServerPlayerGameMode.java
+index 3b98c02f05e06325354c0d11edcd74fa48c7da79..5b975aa7db797e874668ea49ba132f1c9d29af87 100644
+--- a/net/minecraft/server/level/ServerPlayerGameMode.java
++++ b/net/minecraft/server/level/ServerPlayerGameMode.java
+@@ -58,6 +58,7 @@ public class ServerPlayerGameMode {
+     public ServerPlayerGameMode(final ServerPlayer player) {
+         this.player = player;
+         this.level = player.level();
++        this.gameTicks = (int) ServerLevel.currentLagCompensationTick(); // Sinopia - initialize lag compensation without accessing region state
+     }
+ 
+     @Deprecated @io.papermc.paper.annotation.DoNotUse // Paper
+@@ -138,7 +139,7 @@ public class ServerPlayerGameMode {
+             if (blockState == null || blockState.isAir()) { // Paper - Don't allow digging into unloaded chunks
+                 this.hasDelayedDestroy = false;
+             } else {
+-                float destroyProgress = this.incrementDestroyProgress(blockState, this.delayedDestroyPos, this.delayedTickStart);
++                float destroyProgress = this.incrementDestroyProgress(blockState, this.delayedDestroyPos, this.gameTicks - this.delayedTickStart); // Paper - use elapsed destruction time
+                 if (destroyProgress >= 1.0F) {
+                     this.hasDelayedDestroy = false;
+                     this.destroyBlock(this.delayedDestroyPos);
+@@ -536,7 +537,7 @@ public class ServerPlayerGameMode {
+ 
+         if (this.gameModeForPlayer == GameType.SPECTATOR) {
+             MenuProvider menuProvider = state.getMenuProvider(level, pos);
+-            cancelledBlock = menuProvider == null;
++            cancelledBlock = menuProvider == null && !(state.getBlock() instanceof Portal); // Paper - permit spectator portal interactions
+         }
+ 
+         if (player.getCooldowns().isOnCooldown(itemStack)) {
+diff --git a/net/minecraft/world/entity/animal/bee/Bee.java b/net/minecraft/world/entity/animal/bee/Bee.java
+index 74ccf0947edbbdfd42986519f5065b7e4e251d13..fed07676ae1d7d8ce240e8ec8f0a2582ef45eea2 100644
+--- a/net/minecraft/world/entity/animal/bee/Bee.java
++++ b/net/minecraft/world/entity/animal/bee/Bee.java
+@@ -1033,7 +1033,7 @@ public class Bee extends Animal implements NeutralMob {
+         @Override
+         protected void alertOther(final Mob other, final LivingEntity hurtByMob) {
+             if (other instanceof Bee && this.mob.hasLineOfSight(hurtByMob)) {
+-                other.setTarget(hurtByMob, org.bukkit.event.entity.EntityTargetEvent.TargetReason.TARGET_ATTACKED_ENTITY); // CraftBukkit - reason
++                other.setTarget(hurtByMob, org.bukkit.event.entity.EntityTargetEvent.TargetReason.TARGET_ATTACKED_NEARBY_ENTITY); // CraftBukkit - reason
+             }
+         }
+     }
+diff --git a/net/minecraft/world/entity/animal/panda/Panda.java b/net/minecraft/world/entity/animal/panda/Panda.java
+index 4ed8dc9b97fe6319502f651a01d32e6eafa62718..c669ae4b6168d59073b8d7d96e1c076dbc98021c 100644
+--- a/net/minecraft/world/entity/animal/panda/Panda.java
++++ b/net/minecraft/world/entity/animal/panda/Panda.java
+@@ -873,7 +873,7 @@ public class Panda extends Animal {
+         @Override
+         protected void alertOther(final Mob other, final LivingEntity hurtByMob) {
+             if (other instanceof Panda && other.isAggressive()) {
+-                other.setTarget(hurtByMob, org.bukkit.event.entity.EntityTargetEvent.TargetReason.TARGET_ATTACKED_ENTITY); // CraftBukkit
++                other.setTarget(hurtByMob, org.bukkit.event.entity.EntityTargetEvent.TargetReason.TARGET_ATTACKED_NEARBY_ENTITY); // CraftBukkit
+             }
+         }
+     }
+diff --git a/net/minecraft/world/entity/monster/cubemob/SulfurCube.java b/net/minecraft/world/entity/monster/cubemob/SulfurCube.java
+index 00fda0be74922c2511242683b4ab12966f885f81..6894ec5b5ff6f2ade178060ae571c426e3774402 100644
+--- a/net/minecraft/world/entity/monster/cubemob/SulfurCube.java
++++ b/net/minecraft/world/entity/monster/cubemob/SulfurCube.java
+@@ -814,6 +814,12 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
+             double sulfurCubeTopPosition = sulfurCubeBottomPosition + this.getBbHeight();
+             double pusherTopPosition = pusherFeetPosition + pusher.getBbHeight();
+             if (cubeToPusher.horizontalDistance() < 1.3F && pusherFeetPosition <= sulfurCubeTopPosition && pusherTopPosition > sulfurCubeBottomPosition) {
++                // Paper start - allow plugins to cancel sulfur cube collisions
++                if (io.papermc.paper.event.entity.EntityCollideWithEntityEvent.getHandlerList().getRegisteredListeners().length != 0
++                    && !new io.papermc.paper.event.entity.EntityCollideWithEntityEvent(this.getBukkitEntity(), pusher.getBukkitEntity()).callEvent()) {
++                    return;
++                }
++                // Paper end - allow plugins to cancel sulfur cube collisions
+                 double knockback = Math.max(0.0, 1.0 - this.getAttributeValue(Attributes.KNOCKBACK_RESISTANCE));
+                 Vec3 pushDirection = cubeToPusher.horizontal().normalize().scale(knockback);
+                 float pushSpeedScale = player.isPassenger() ? 0.16F : 0.3F;
+diff --git a/net/minecraft/world/item/CushionItem.java b/net/minecraft/world/item/CushionItem.java
+index 23a45c65d4dc1e1a52d6ce7f9635e32d42e8119b..c64574ebd5a60cfcf468627e0faeb67936563f53 100644
+--- a/net/minecraft/world/item/CushionItem.java
++++ b/net/minecraft/world/item/CushionItem.java
+@@ -59,6 +59,11 @@ public class CushionItem extends Item {
+             }
+ 
+             cushion.snapTo(entityPos, Direction.fromYRot(placeContext.getRotation()).toYRot(), 0.0F);
++            // Paper start - allow plugins to cancel cushion placement
++            if (org.bukkit.craftbukkit.event.CraftEventFactory.callEntityPlaceEvent(context, cushion).isCancelled()) {
++                return InteractionResult.FAIL;
++            }
++            // Paper end - allow plugins to cancel cushion placement
+             serverLevel.addFreshEntity(cushion);
+             cushion.destroyIfInFire(serverLevel);
+             level.playSound(null, cushion.getX(), cushion.getY(), cushion.getZ(), SoundEvents.CUSHION_PLACE, SoundSource.BLOCKS, 0.75F, 0.8F);
+diff --git a/net/minecraft/world/level/block/state/properties/IntegerProperty.java b/net/minecraft/world/level/block/state/properties/IntegerProperty.java
+index 954e61059e07bf4bc36270d64c6aa513ecbabc26..8e89405ed73e68b641fd8a47963c60a1ccb1c907 100644
+--- a/net/minecraft/world/level/block/state/properties/IntegerProperty.java
++++ b/net/minecraft/world/level/block/state/properties/IntegerProperty.java
+@@ -16,7 +16,7 @@ public final class IntegerProperty extends Property<Integer> implements ca.spott
+         final int val = value.intValue();
+         final int ret = val - this.min;
+ 
+-        return ret | ((this.max - ret) >> 31);
++        return ret | ((this.max - this.min - ret) >> 31);
+     }
+ 
+     private void init() {
+diff --git a/net/minecraft/world/level/chunk/storage/RegionFileStorage.java b/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
+index 4220c2f581ff5b5ba47c10f65a513ca0f0cae233..2ded9e8207009130fd10157254965e38fe017bf3 100644
+--- a/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
++++ b/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
+@@ -110,10 +110,6 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
+ 
+         final int cacheSize = io.papermc.paper.configuration.GlobalConfiguration.get() == null ? 256 : io.papermc.paper.configuration.GlobalConfiguration.get().misc.regionFileCacheSize; // Paper - Sanitise RegionFileCache and make configurable - Config not available during initial FileFixerUpper run
+ 
+-        if (this.regionCache.size() >= cacheSize) {
+-            this.regionCache.removeLast().close();
+-        }
+-
+         final Path regionPath = this.folder.resolve(getRegionFileName(chunkX, chunkZ));
+ 
+         if (!Files.isRegularFile(regionPath)) { // Sinopia - preserve 26.3 handling of non-file paths
+@@ -121,6 +117,11 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
+             return null;
+         }
+ 
++        // Sinopia - a missing-file lookup must not evict an unrelated open region.
++        if (this.regionCache.size() >= cacheSize) {
++            this.regionCache.removeLast().close();
++        }
++
+         this.createRegionFile(key);
+ 
+         FileUtil.createDirectoriesSafe(this.folder);
+diff --git a/net/minecraft/world/level/storage/loot/LootContext.java b/net/minecraft/world/level/storage/loot/LootContext.java
+index abdd40870182ede55441d311a431a8ce16e8572d..43b2d70987167a84a1c7d8e32632e06e53a56666 100644
+--- a/net/minecraft/world/level/storage/loot/LootContext.java
++++ b/net/minecraft/world/level/storage/loot/LootContext.java
+@@ -142,6 +142,15 @@ public class LootContext {
+             RandomSource random = Optional.ofNullable(this.random).or(() -> randomSequenceKey.map(server::getRandomSequence)).orElseGet(level::getRandom);
+             return new LootContext(this.params, random, server.reloadableRegistries().lookup());
+         }
++
++        // Paper start - world-independent context for legacy item type queries
++        @Deprecated
++        public LootContext createWithoutLevel() {
++            MinecraftServer server = MinecraftServer.getServer();
++            RandomSource random = Optional.ofNullable(this.random).orElseThrow();
++            return new LootContext(this.params, random, server.reloadableRegistries().lookup());
++        }
++        // Paper end - world-independent context for legacy item type queries
+     }
+ 
+     public enum EntityTarget implements StringRepresentable, LootContextArg.SimpleGetter<Entity> {

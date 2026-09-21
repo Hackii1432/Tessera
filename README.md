@@ -10,10 +10,10 @@ Tessera develops its own server features, gameplay fixes, and tools for running
 multiple worlds and independent game areas. Its integrated base, **Sinopia**, is
 maintained alongside Tessera in this repository.
 
-**Current version:** Minecraft **26.3** · Tessera **005-alpha** · Java **25**
+**Current version:** Minecraft **26.3** · Tessera **006-alpha** · Java **25**
 
 Tessera is in active alpha development. The
-[release changelog](docs/CHANGELOG-26.3-005-RELEASE.md) documents the current
+[release changelog](docs/CHANGELOG-26.3-006.md) documents the current
 baseline and validation status; test your worlds and plugins before deployment.
 
 ## What Tessera provides
@@ -114,6 +114,7 @@ matches your server build.
 - [Console and RCON command handling](docs/console-command-context.md)
 - [Operator-only tick commands](docs/tick-operator-access.md)
 - [Redstone region-merge test and results](smoke-tests/redstone-region-merge/RESULTS.md)
+- [Build 006 changelog: Paper backports and regional fixes](docs/CHANGELOG-26.3-006.md)
 - [Minecraft 26.3 release changelog](docs/CHANGELOG-26.3-005-RELEASE.md)
 
 Reproducible server tests live in [`smoke-tests/`](smoke-tests/). Each test

@@ -1,0 +1,46 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Mon, 21 Sep 2026 13:11:05 +0200
+Subject: [PATCH] Route spectator portals through regional teleportation
+
+
+diff --git a/net/minecraft/server/level/ServerPlayerGameMode.java b/net/minecraft/server/level/ServerPlayerGameMode.java
+index 23db3f59..ec4f11e5 100644
+--- a/net/minecraft/server/level/ServerPlayerGameMode.java
++++ b/net/minecraft/server/level/ServerPlayerGameMode.java
+@@ -588,17 +588,27 @@ public class ServerPlayerGameMode {
+             }
+ 
+             if (state.getBlock() instanceof Portal portal) {
++                // Tessera start - spectator interactions must use the regional portal pipeline
+                 ServerLevel serverLevel = player.level();
+-                TeleportTransition teleportTransition = portal.getPortalDestination(serverLevel, player, pos);
+-                if (teleportTransition != null) {
+-                    if (player.getCamera() != player) {
+-                        player.setCamera(player);
+-                    }
+-
+-                    player.teleportToPortalDestination(serverLevel, teleportTransition);
+-                } else {
++                if (serverLevel != level || player.isRemoved()
++                    || !ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(player)
++                    || !ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(serverLevel, pos)) {
++                    return InteractionResult.CONSUME;
++                }
++                if (player.getCamera() != player) {
++                    player.setCamera(player);
++                }
++                // Camera events can cancel spectating or transfer the player.
++                if (player.getCamera() != player || player.isRemoved() || player.level() != serverLevel
++                    || !ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(player)) {
++                    return InteractionResult.CONSUME;
++                }
++                if (!portal.portalAsync(serverLevel, player, pos.immutable())
++                    && !player.isRemoved() && player.level() == serverLevel
++                    && ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(player)) {
+                     player.sendOverlayMessage(Component.translatable("spectator.cannot_teleport").withStyle(ChatFormatting.RED));
+                 }
++                // Tessera end - spectator interactions must use the regional portal pipeline
+ 
+                 return InteractionResult.CONSUME;
+             } else {

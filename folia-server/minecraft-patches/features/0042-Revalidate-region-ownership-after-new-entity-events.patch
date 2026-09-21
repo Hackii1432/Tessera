@@ -1,0 +1,67 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Mon, 21 Sep 2026 13:24:02 +0200
+Subject: [PATCH] Revalidate region ownership after new entity events
+
+
+diff --git a/net/minecraft/world/entity/monster/cubemob/SulfurCube.java b/net/minecraft/world/entity/monster/cubemob/SulfurCube.java
+index 6894ec5b..6ad56192 100644
+--- a/net/minecraft/world/entity/monster/cubemob/SulfurCube.java
++++ b/net/minecraft/world/entity/monster/cubemob/SulfurCube.java
+@@ -806,8 +806,15 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
+     }
+ 
+     private void playerPush(final Player player) {
++        // Tessera - playerTouch may originate from the player's tick; never touch a foreign entity.
++        if (!this.tessera$ownsPlayerCollision(player, player)) {
++            return;
++        }
+         if (this.hasBodyItem()) {
+             Entity pusher = player.isPassenger() ? player.getRootVehicle() : player;
++            if (!this.tessera$ownsPlayerCollision(player, pusher)) {
++                return;
++            }
+             Vec3 cubeToPusher = this.position().subtract(pusher.position());
+             double pusherFeetPosition = pusher.getY();
+             double sulfurCubeBottomPosition = this.getY();
+@@ -820,6 +827,7 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
+                     return;
+                 }
+                 // Paper end - allow plugins to cancel sulfur cube collisions
++                if (!this.tessera$ownsPlayerCollision(player, pusher)) return; // Tessera - plugins may retire or transfer either participant
+                 double knockback = Math.max(0.0, 1.0 - this.getAttributeValue(Attributes.KNOCKBACK_RESISTANCE));
+                 Vec3 pushDirection = cubeToPusher.horizontal().normalize().scale(knockback);
+                 float pushSpeedScale = player.isPassenger() ? 0.16F : 0.3F;
+@@ -839,6 +847,16 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
+         }
+     }
+ 
++    // Tessera start - collision mutations stay on the common owner
++    private boolean tessera$ownsPlayerCollision(final Player player, final Entity pusher) {
++        return ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this)
++            && ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(player)
++            && ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(pusher)
++            && !this.isRemoved() && !player.isRemoved() && !pusher.isRemoved()
++            && this.level() == player.level() && this.level() == pusher.level();
++    }
++    // Tessera end - collision mutations stay on the common owner
++
+     private Vec2 applyHorizontalHitAngleScale(
+         final float horizontalAngleScale, final Vec2 originalAngle, final Vec3 attackerPosition, final Vec3 attackerAimDirection, final Vec3 targetCenter
+     ) {
+diff --git a/net/minecraft/world/item/CushionItem.java b/net/minecraft/world/item/CushionItem.java
+index c64574eb..3a65f6a5 100644
+--- a/net/minecraft/world/item/CushionItem.java
++++ b/net/minecraft/world/item/CushionItem.java
+@@ -64,6 +64,11 @@ public class CushionItem extends Item {
+                 return InteractionResult.FAIL;
+             }
+             // Paper end - allow plugins to cancel cushion placement
++            // Tessera - a placement listener may move or remove the not-yet-tracked entity.
++            if (cushion.isRemoved() || cushion.level() != serverLevel
++                || !ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(serverLevel, cushion.blockPosition())) {
++                return InteractionResult.FAIL;
++            }
+             serverLevel.addFreshEntity(cushion);
+             cushion.destroyIfInFire(serverLevel);
+             level.playSound(null, cushion.getX(), cushion.getY(), cushion.getZ(), SoundEvents.CUSHION_PLACE, SoundSource.BLOCKS, 0.75F, 0.8F);

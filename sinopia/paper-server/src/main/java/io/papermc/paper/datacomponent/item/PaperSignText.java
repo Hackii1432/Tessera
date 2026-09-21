@@ -50,15 +50,12 @@ public record PaperSignText(
     static final class BuilderImpl implements Builder {
 
         private List<net.minecraft.network.chat.Component> lines;
-        private final List<net.minecraft.network.chat.Component> filteredLines;
+        private List<net.minecraft.network.chat.Component> filteredLines;
         private net.minecraft.world.item.DyeColor color = net.minecraft.world.level.block.entity.SignText.EMPTY.getColor();
         private boolean hasGlowingText = net.minecraft.world.level.block.entity.SignText.EMPTY.hasGlowingText();
 
         BuilderImpl() {
-            this(
-                net.minecraft.world.level.block.entity.SignText.EMPTY.getMessages(false),
-                net.minecraft.world.level.block.entity.SignText.EMPTY.getMessages(true)
-            );
+            this(List.of());
         }
 
         BuilderImpl(List<net.minecraft.network.chat.Component> messages) {
@@ -66,8 +63,10 @@ public record PaperSignText(
         }
 
         BuilderImpl(List<net.minecraft.network.chat.Component> messages, List<net.minecraft.network.chat.Component> filteredLines) {
-            this.lines = messages;
-            this.filteredLines = filteredLines;
+            validateLineCount(0, messages.size());
+            validateLineCount(0, filteredLines.size());
+            this.lines = new ArrayList<>(messages);
+            this.filteredLines = new ArrayList<>(filteredLines);
         }
 
         private static void validateLineCount(final int current, final int add) {
@@ -84,22 +83,25 @@ public record PaperSignText(
         public Builder lines(final List<? extends ComponentLike> messages) {
             validateLineCount(0, messages.size());
             this.lines = PaperAdventure.asVanilla(new ArrayList<>(ComponentLike.asComponents(messages)));
+            this.filteredLines = new ArrayList<>(this.lines);
             return this;
         }
 
         @Override
         public Builder line(final int index, final ComponentLike message) {
-            this.lines.set(
-                requireRange(index, "index", 0, net.minecraft.world.level.block.entity.SignText.LINES - 1),
-                PaperAdventure.asVanilla(message.asComponent())
-            );
+            requireRange(index, "index", 0, net.minecraft.world.level.block.entity.SignText.LINES - 1);
+            final net.minecraft.network.chat.Component line = PaperAdventure.asVanilla(message.asComponent());
+            fillWithBlankLines(this.lines, index + 1);
+            fillWithBlankLines(this.filteredLines, index + 1);
+            this.lines.set(index, line);
+            this.filteredLines.set(index, line);
             return this;
         }
 
         @Override
         public Builder addLine(final ComponentLike message) {
             validateLineCount(this.lines.size(), 1);
-            this.lines.add(PaperAdventure.asVanilla(message.asComponent()));
+            this.line(this.lines.size(), message);
             return this;
         }
 
@@ -122,11 +124,23 @@ public record PaperSignText(
             }
 
             return new PaperSignText(new net.minecraft.world.level.block.entity.SignText(
-                this.lines,
-                (this.filteredLines.isEmpty()) ? this.lines : this.filteredLines,
+                paddedCopy(this.lines),
+                paddedCopy(this.filteredLines),
                 this.color,
                 this.hasGlowingText
             ));
+        }
+
+        private static void fillWithBlankLines(final List<net.minecraft.network.chat.Component> messages, final int size) {
+            while (messages.size() < size) {
+                messages.add(net.minecraft.network.chat.CommonComponents.EMPTY);
+            }
+        }
+
+        private static List<net.minecraft.network.chat.Component> paddedCopy(final List<net.minecraft.network.chat.Component> messages) {
+            final List<net.minecraft.network.chat.Component> copy = new ArrayList<>(messages);
+            fillWithBlankLines(copy, net.minecraft.world.level.block.entity.SignText.LINES);
+            return List.copyOf(copy);
         }
     }
 }
