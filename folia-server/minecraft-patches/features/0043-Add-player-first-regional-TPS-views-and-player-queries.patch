@@ -1,0 +1,906 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Tue, 22 Sep 2026 20:47:14 +0200
+Subject: [PATCH] Add player-first regional TPS views and player queries
+
+
+diff --git a/io/papermc/paper/threadedregions/commands/CommandServerHealth.java b/io/papermc/paper/threadedregions/commands/CommandServerHealth.java
+index aa860cfe..014772c7 100644
+--- a/io/papermc/paper/threadedregions/commands/CommandServerHealth.java
++++ b/io/papermc/paper/threadedregions/commands/CommandServerHealth.java
+@@ -1,364 +1,102 @@
+ package io.papermc.paper.threadedregions.commands;
+ 
+-import ca.spottedleaf.common.time.TickData;
+-import io.papermc.paper.threadedregions.RegionizedServer;
+-import io.papermc.paper.threadedregions.ThreadedRegionizer;
+-import io.papermc.paper.threadedregions.TickRegionScheduler;
+-import io.papermc.paper.threadedregions.TickRegions;
+-import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
+-import it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair;
++import ca.spottedleaf.moonrise.common.util.TickThread;
++import java.util.List;
++import java.util.Locale;
++import java.util.function.BiFunction;
+ import net.kyori.adventure.text.Component;
+-import net.kyori.adventure.text.TextComponent;
+-import net.kyori.adventure.text.event.ClickEvent;
+-import net.kyori.adventure.text.event.ClickEvent.Payload;
+-import net.kyori.adventure.text.event.HoverEvent;
+-import net.kyori.adventure.text.format.NamedTextColor;
+-import net.kyori.adventure.text.format.TextColor;
+-import net.kyori.adventure.text.format.TextDecoration;
+-import net.minecraft.server.level.ServerLevel;
+-import net.minecraft.world.level.ChunkPos;
+ import org.bukkit.Bukkit;
+-import org.bukkit.World;
+ import org.bukkit.command.Command;
+ import org.bukkit.command.CommandSender;
+-import org.bukkit.craftbukkit.CraftWorld;
+-import org.bukkit.entity.Entity;
+-import org.bukkit.entity.Player;
+-import java.text.DecimalFormat;
+-import java.util.ArrayList;
+-import java.util.Arrays;
+-import java.util.List;
+-import java.util.Locale;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
+ 
++/** Tessera - player-first overview plus read-only region and player navigation. */
+ public final class CommandServerHealth extends Command {
+-
+-    private static final ThreadLocal<DecimalFormat> TWO_DECIMAL_PLACES = ThreadLocal.withInitial(() -> {
+-        return new DecimalFormat("#,##0.00");
+-    });
+-    private static final ThreadLocal<DecimalFormat> ONE_DECIMAL_PLACES = ThreadLocal.withInitial(() -> {
+-        return new DecimalFormat("#,##0.0");
+-    });
+-    private static final ThreadLocal<DecimalFormat> NO_DECIMAL_PLACES = ThreadLocal.withInitial(() -> {
+-        return new DecimalFormat("#,##0");
+-    });
+-
+-    private static final TextColor HEADER = TextColor.color(79, 164, 240);
+-    private static final TextColor PRIMARY = TextColor.color(48, 145, 237);
+-    private static final TextColor SECONDARY = TextColor.color(104, 177, 240);
+-    private static final TextColor INFORMATION = TextColor.color(145, 198, 243);
+-    private static final TextColor LIST = TextColor.color(33, 97, 188);
++    private static final List<String> SUBCOMMANDS = List.of("all", "help", "list", "player", "region", "server");
++    private final BiFunction<CommandSender, Boolean, RegionHealthSnapshot> collector;
+ 
+     public CommandServerHealth() {
+-        super("tps");
+-        this.setUsage("/<command> [server/region] [lowest regions to display]");
+-        this.setDescription("Reports information about server health.");
+-        this.setPermission("bukkit.command.tps");
+-    }
+-
+-    private static Component formatRegionInfo(final String prefix, final double util, final double mspt, final double tps,
+-                                              final boolean newline) {
+-        return Component.text()
+-            .append(Component.text(prefix, PRIMARY, TextDecoration.BOLD))
+-            .append(Component.text(ONE_DECIMAL_PLACES.get().format(util * 100.0), CommandUtil.getUtilisationColourRegion(util)))
+-            .append(Component.text("% util at ", PRIMARY))
+-            .append(Component.text(TWO_DECIMAL_PLACES.get().format(mspt), CommandUtil.getColourForMSPT(mspt)))
+-            .append(Component.text(" MSPT at ", PRIMARY))
+-            .append(Component.text(TWO_DECIMAL_PLACES.get().format(tps), CommandUtil.getColourForTPS(tps)))
+-            .append(Component.text(" TPS" + (newline ? "\n" : ""), PRIMARY))
+-            .build();
++        this(RegionHealthSnapshot::collect);
+     }
+ 
+-    private static Component formatRegionStats(final TickRegions.RegionStats stats, final boolean newline) {
+-        return Component.text()
+-            .append(Component.text("Chunks: ", PRIMARY))
+-            .append(Component.text(NO_DECIMAL_PLACES.get().format((long)stats.getChunkCount()), INFORMATION))
+-            .append(Component.text(" Players: ", PRIMARY))
+-            .append(Component.text(NO_DECIMAL_PLACES.get().format((long)stats.getPlayerCount()), INFORMATION))
+-            .append(Component.text(" Entities: ", PRIMARY))
+-            .append(Component.text(NO_DECIMAL_PLACES.get().format((long)stats.getEntityCount()) + (newline ? "\n" : ""), INFORMATION))
+-            .build();
++    CommandServerHealth(final BiFunction<CommandSender, Boolean, RegionHealthSnapshot> collector) {
++        super("tps");
++        this.collector = collector;
++        this.setUsage("/tps [list|region [ID]|player <name>|all|server [count]]");
++        this.setDescription("Shows your region, regional performance and visible players.");
++        this.setPermission("bukkit.command.tps");
+     }
+ 
+-    private static boolean executeRegion(final CommandSender sender, final String commandLabel, final String[] args) {
+-        final ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData> region =
+-            TickRegionScheduler.getCurrentRegion();
+-        if (region == null) {
+-            sender.sendMessage(Component.text("You are not in a region currently", NamedTextColor.RED));
++    @Override
++    public boolean execute(final CommandSender sender, final String label, final String[] args) {
++        final String[] request = args.clone();
++        if (sender instanceof CraftPlayer player && !TickThread.isTickThreadFor(player.getHandleRaw())) {
++            // Follow the entity through teleports; never read the viewer's visibility map off-owner.
++            player.taskScheduler.schedule(ignored -> this.execute(sender, label, request), null, 1L);
+             return true;
+         }
+-
+-        final long currTime = System.nanoTime();
+-
+-        final TickData.TickReportData report15s = region.getData().getRegionSchedulingHandle().getTickReport15s(currTime);
+-        final TickData.TickReportData report1m = region.getData().getRegionSchedulingHandle().getTickReport1m(currTime);
+-
+-        final ServerLevel world = region.regioniser.world;
+-        final ChunkPos chunkCenter = region.getCenterChunk();
+-        final int centerBlockX = ((chunkCenter.x() << 4) | 7);
+-        final int centerBlockZ = ((chunkCenter.z() << 4) | 7);
+-
+-        final double util15s = report15s.utilisation();
+-        final double tps15s = report15s.tpsData().segmentAll().average();
+-        final double mspt15s = report15s.timePerTickData().segmentAll().average() / 1.0E6;
+-
+-        final double util1m = report1m.utilisation();
+-        final double tps1m = report1m.tpsData().segmentAll().average();
+-        final double mspt1m = report1m.timePerTickData().segmentAll().average() / 1.0E6;
+-
+-        final int yLoc = 80;
+-        final String location = "[w:'" + world.getWorld().getName() + "'," + centerBlockX + "," + yLoc + "," + centerBlockZ + "]";
+-
+-        final Component line = Component.text()
+-            .append(Component.text("Region around block ", PRIMARY))
+-            .append(Component.text(location, INFORMATION))
+-            .append(Component.text(":\n", PRIMARY))
+-
+-            .append(
+-                formatRegionInfo("15s: ", util15s, mspt15s, tps15s, true)
+-            )
+-            .append(
+-                formatRegionInfo("1m: ", util1m, mspt1m, tps1m, true)
+-            )
+-            .append(
+-                formatRegionStats(region.getData().getRegionStats(), false)
+-            )
+-
+-            .build();
+-
+-        sender.sendMessage(line);
+-
+-        return true;
+-    }
+-
+-    private static boolean executeServer(final CommandSender sender, final String commandLabel, final String[] args) {
+-        final int lowestRegionsCount;
+-        if (args.length < 2) {
+-            lowestRegionsCount = 3;
+-        } else {
+-            try {
+-                lowestRegionsCount = Integer.parseInt(args[1]);
+-            } catch (final NumberFormatException ex) {
+-                sender.sendMessage(Component.text("Highest utilisation count '" + args[1] + "' must be an integer", NamedTextColor.RED));
+-                return true;
+-            }
+-        }
+-
+-        final List<ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData>> regions =
+-            new ArrayList<>();
+-
+-        for (final World bukkitWorld : Bukkit.getWorlds()) {
+-            final ServerLevel world = ((CraftWorld)bukkitWorld).getHandle();
+-            world.regioniser.computeForAllRegions(regions::add);
+-        }
+-
+-        final double minTps;
+-        final double medianTps;
+-        final double maxTps;
+-        double totalUtil = 0.0;
+-
+-        final DoubleArrayList tpsByRegion = new DoubleArrayList();
+-        final List<TickData.TickReportData> reportsByRegion = new ArrayList<>();
+-        final int maxThreadCount = TickRegions.getScheduler().getTotalThreadCount();
+-
+-        final long currTime = System.nanoTime();
+-        final TickData.TickReportData globalTickReport = RegionizedServer.getGlobalTickData().getTickReport15s(currTime);
+-
+-        for (final ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData> region : regions) {
+-            final TickData.TickReportData report = region.getData().getRegionSchedulingHandle().getTickReport15s(currTime);
+-            tpsByRegion.add(report == null ? 20.0 : report.tpsData().segmentAll().average());
+-            reportsByRegion.add(report);
+-            totalUtil += (report == null ? 0.0 : report.utilisation());
++        if (!this.testPermission(sender)) {
++            return true;
+         }
+-
+-        final double genRate = ca.spottedleaf.moonrise.patches.chunk_system.scheduling.task.ChunkFullTask.genRate(currTime);
+-        final double loadRate = ca.spottedleaf.moonrise.patches.chunk_system.scheduling.task.ChunkFullTask.loadRate(currTime);
+-
+-        totalUtil += globalTickReport.utilisation();
+-
+-        tpsByRegion.sort(null);
+-        if (!tpsByRegion.isEmpty()) {
+-            minTps = tpsByRegion.getDouble(0);
+-            maxTps = tpsByRegion.getDouble(tpsByRegion.size() - 1);
+-
+-            final int middle = tpsByRegion.size() >> 1;
+-            if ((tpsByRegion.size() & 1) == 0) {
+-                // even, average the two middle points
+-                medianTps = (tpsByRegion.getDouble(middle - 1) + tpsByRegion.getDouble(middle)) / 2.0;
+-            } else {
+-                // odd, can just grab middle
+-                medianTps = tpsByRegion.getDouble(middle);
+-            }
+-        } else {
+-            // no regions = green
+-            minTps = medianTps = maxTps = 20.0;
++        final String type = args.length == 0 ? "list" : args[0].toLowerCase(Locale.ROOT);
++        if (type.equals("help")) {
++            sender.sendMessage(RegionHealthView.help());
++            return true;
+         }
+-
+-        final List<ObjectObjectImmutablePair<ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData>, TickData.TickReportData>>
+-            regionsBelowThreshold = new ArrayList<>();
+-
+-        for (int i = 0, len = regions.size(); i < len; ++i) {
+-            final TickData.TickReportData report = reportsByRegion.get(i);
+-
+-            regionsBelowThreshold.add(new ObjectObjectImmutablePair<>(regions.get(i), report));
++        if (!validRequest(type, args)) {
++            sender.sendMessage(RegionHealthView.help());
++            return true;
+         }
+-
+-        regionsBelowThreshold.sort((p1, p2) -> {
+-            final TickData.TickReportData report1 = p1.right();
+-            final TickData.TickReportData report2 = p2.right();
+-            final double util1 = report1 == null ? 0.0 : report1.utilisation();
+-            final double util2 = report2 == null ? 0.0 : report2.utilisation();
+-
+-            // we want the largest first
+-            return Double.compare(util2, util1);
+-        });
+-
+-        final TextComponent.Builder lowestRegionsBuilder = Component.text();
+-
+-        if (sender instanceof Player) {
+-            lowestRegionsBuilder.append(Component.text(" Click to teleport\n", SECONDARY));
++        if (sender instanceof CraftPlayer player && !player.tessera$acquireHealthQuery(System.nanoTime())) {
++            sender.sendMessage(Component.text("Please wait a moment before refreshing again.", net.kyori.adventure.text.format.NamedTextColor.GRAY));
++            return true;
+         }
+-        for (int i = 0, len = Math.min(lowestRegionsCount, regionsBelowThreshold.size()); i < len; ++i) {
+-            final ObjectObjectImmutablePair<ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData>, TickData.TickReportData>
+-                pair = regionsBelowThreshold.get(i);
+-
+-            final TickData.TickReportData report = pair.right();
+-            final ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData> region =
+-                pair.left();
+-
+-            if (report == null) {
+-                // skip regions with no data
+-                continue;
+-            }
+-
+-            final ServerLevel world = region.regioniser.world;
+-            final ChunkPos chunkCenter = region.getCenterChunk();
+-            if (chunkCenter == null) {
+-                // region does not exist anymore
+-                continue;
+-            }
+-            final int centerBlockX = ((chunkCenter.x() << 4) | 7);
+-            final int centerBlockZ = ((chunkCenter.z() << 4) | 7);
+-            final double util = report.utilisation();
+-            final double tps = report.tpsData().segmentAll().average();
+-            final double mspt = report.timePerTickData().segmentAll().average() / 1.0E6;
+-
+-            final int yLoc = 80;
+-            final String location = "[w:'" + world.getWorld().getName() + "'," + centerBlockX + "," + yLoc + "," + centerBlockZ + "]";
+-            final Component line = Component.text()
+-                .append(Component.text(" - ", LIST, TextDecoration.BOLD))
+-                .append(Component.text("Region around block ", PRIMARY))
+-                .append(Component.text(location, INFORMATION))
+-                .append(Component.text(":\n", PRIMARY))
+-
+-                .append(Component.text("    ", PRIMARY))
+-                .append(Component.text(ONE_DECIMAL_PLACES.get().format(util * 100.0), CommandUtil.getUtilisationColourRegion(util)))
+-                .append(Component.text("% util at ", PRIMARY))
+-                .append(Component.text(TWO_DECIMAL_PLACES.get().format(mspt), CommandUtil.getColourForMSPT(mspt)))
+-                .append(Component.text(" MSPT at ", PRIMARY))
+-                .append(Component.text(TWO_DECIMAL_PLACES.get().format(tps), CommandUtil.getColourForTPS(tps)))
+-                .append(Component.text(" TPS\n", PRIMARY))
+-
+-                .append(Component.text("    ", PRIMARY))
+-                .append(formatRegionStats(region.getData().getRegionStats(), (i + 1) != len))
+-                .build()
+-
+-                .clickEvent(ClickEvent.clickEvent(ClickEvent.Action.RUN_COMMAND, Payload.string("/minecraft:execute as @s in " + world.getWorld().getKey().toString() + " run tp " + centerBlockX + ".5 " + yLoc + " " + centerBlockZ + ".5")))
+-                .hoverEvent(HoverEvent.hoverEvent(HoverEvent.Action.SHOW_TEXT, Component.text("Click to teleport to " + location, SECONDARY)));
+-
+-            lowestRegionsBuilder.append(line);
++        final boolean detailed = type.equals("region") || type.equals("player") || type.equals("all") || !SUBCOMMANDS.contains(type);
++        final RegionHealthSnapshot snapshot = this.collector.apply(sender, detailed);
++        final RegionHealthView view = new RegionHealthView(snapshot);
++        final Component result = switch (type) {
++            case "list", "server" -> view.overview(args.length == 2 ? Integer.parseInt(args[1]) : Integer.MAX_VALUE);
++            case "region" -> view.details(args.length == 2 ? Long.parseLong(args[1]) : null);
++            case "player" -> view.player(args[1]);
++            case "all" -> view.all();
++            default -> view.player(args[0]);
++        };
++        for (final Component line : RegionHealthView.lines(result)) {
++            sender.sendMessage(line);
+         }
+-
+-        sender.sendMessage(
+-            Component.text()
+-                .append(Component.text("Server Health Report\n", HEADER, TextDecoration.BOLD))
+-
+-                .append(Component.text(" - ", LIST, TextDecoration.BOLD))
+-                .append(Component.text("Online Players: ", PRIMARY))
+-                .append(Component.text(Bukkit.getOnlinePlayers().size() + "\n", INFORMATION))
+-
+-                .append(Component.text(" - ", LIST, TextDecoration.BOLD))
+-                .append(Component.text("Total regions: ", PRIMARY))
+-                .append(Component.text(regions.size() + "\n", INFORMATION))
+-
+-                .append(Component.text(" - ", LIST, TextDecoration.BOLD))
+-                .append(Component.text("Utilisation: ", PRIMARY))
+-                .append(Component.text(ONE_DECIMAL_PLACES.get().format(totalUtil * 100.0), CommandUtil.getUtilisationColourRegion(totalUtil / (double)maxThreadCount)))
+-                .append(Component.text("% / ", PRIMARY))
+-                .append(Component.text(ONE_DECIMAL_PLACES.get().format(maxThreadCount * 100.0), INFORMATION))
+-                .append(Component.text("%\n", PRIMARY))
+-
+-                .append(Component.text(" - ", LIST, TextDecoration.BOLD))
+-                .append(Component.text("Load rate: ", PRIMARY))
+-                .append(Component.text(TWO_DECIMAL_PLACES.get().format(loadRate) + ", ", INFORMATION))
+-                .append(Component.text("Gen rate: ", PRIMARY))
+-                .append(Component.text(TWO_DECIMAL_PLACES.get().format(genRate) + "\n", INFORMATION))
+-
+-                .append(Component.text(" - ", LIST, TextDecoration.BOLD))
+-                .append(Component.text("Lowest Region TPS: ", PRIMARY))
+-                .append(Component.text(TWO_DECIMAL_PLACES.get().format(minTps) + "\n", CommandUtil.getColourForTPS(minTps)))
+-
+-
+-                .append(Component.text(" - ", LIST, TextDecoration.BOLD))
+-                .append(Component.text("Median Region TPS: ", PRIMARY))
+-                .append(Component.text(TWO_DECIMAL_PLACES.get().format(medianTps) + "\n", CommandUtil.getColourForTPS(medianTps)))
+-
+-                .append(Component.text(" - ", LIST, TextDecoration.BOLD))
+-                .append(Component.text("Highest Region TPS: ", PRIMARY))
+-                .append(Component.text(TWO_DECIMAL_PLACES.get().format(maxTps) + "\n", CommandUtil.getColourForTPS(maxTps)))
+-
+-                .append(Component.text("Highest ", HEADER, TextDecoration.BOLD))
+-                .append(Component.text(Integer.toString(lowestRegionsCount), INFORMATION, TextDecoration.BOLD))
+-                .append(Component.text(" utilisation regions\n", HEADER, TextDecoration.BOLD))
+-
+-                .append(lowestRegionsBuilder.build())
+-                .build()
+-        );
+-
+         return true;
+     }
+ 
+-    @Override
+-    public boolean execute(final CommandSender sender, final String commandLabel, final String[] args) {
+-        final String type;
+-        if (args.length < 1) {
+-            type = "server";
+-        } else {
+-            type = args[0];
+-        }
+-
+-        switch (type.toLowerCase(Locale.ROOT)) {
+-            case "server": {
+-                return executeServer(sender, commandLabel, args);
+-            }
+-            case "region": {
+-                if (!(sender instanceof Entity)) {
+-                    sender.sendMessage(Component.text("Cannot see current region information as console", NamedTextColor.RED));
+-                    return true;
+-                }
+-                return executeRegion(sender, commandLabel, args);
+-            }
+-            default: {
+-                sender.sendMessage(Component.text("Type '" + args[0] + "' must be one of: [server, region]", NamedTextColor.RED));
+-                return true;
+-            }
++    static boolean validRequest(final String type, final String[] args) {
++        try {
++            return switch (type) {
++                case "list", "all" -> args.length <= 1;
++                case "region" -> args.length == 1 || args.length == 2 && Long.parseLong(args[1]) >= 0L;
++                case "server" -> args.length == 1 || args.length == 2 && Integer.parseInt(args[1]) > 0;
++                case "player" -> args.length == 2 && args[1].matches("[A-Za-z0-9_]{1,16}");
++                default -> args.length == 1 && args[0].matches("[A-Za-z0-9_]{1,16}");
++            };
++        } catch (final NumberFormatException ignored) {
++            return false;
+         }
+     }
+ 
+     @Override
+-    public List<String> tabComplete(final CommandSender sender, final String alias, final String[] args) throws IllegalArgumentException {
+-        if (args.length == 0) {
+-            if (sender instanceof Entity) {
+-                return CommandUtil.getSortedList(Arrays.asList("server", "region"));
+-            } else {
+-                return CommandUtil.getSortedList(Arrays.asList("server"));
+-            }
+-        } else if (args.length == 1) {
+-            if (sender instanceof Entity) {
+-                return CommandUtil.getSortedList(Arrays.asList("server", "region"), args[0]);
+-            } else {
+-                return CommandUtil.getSortedList(Arrays.asList("server"), args[0]);
+-            }
++    public List<String> tabComplete(final CommandSender sender, final String alias, final String[] args) {
++        // Plugin-triggered completion may be off-owner. Never inspect visibility/permissions there.
++        if (sender instanceof CraftPlayer player && !TickThread.isTickThreadFor(player.getHandleRaw())) {
++            return List.of();
++        }
++        if (!this.testPermissionSilent(sender)) {
++            return List.of();
++        }
++        if (args.length <= 1) {
++            return CommandUtil.getSortedList(SUBCOMMANDS, args.length == 0 ? "" : args[0]);
++        }
++        if (args.length == 2 && args[0].equalsIgnoreCase("player")) {
++            return CommandUtil.getSortedList(RegionHealthSnapshot.visiblePlayers(sender, Bukkit.getOnlinePlayers()),
++                org.bukkit.entity.Player::getName, args[1]);
+         }
+-        return new ArrayList<>();
++        return List.of();
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/io/papermc/paper/threadedregions/commands/RegionHealthSnapshot.java b/io/papermc/paper/threadedregions/commands/RegionHealthSnapshot.java
+new file mode 100644
+index 00000000..39cdb179
+--- /dev/null
++++ b/io/papermc/paper/threadedregions/commands/RegionHealthSnapshot.java
+@@ -0,0 +1,153 @@
++package io.papermc.paper.threadedregions.commands;
++
++import ca.spottedleaf.common.time.TickData;
++import io.papermc.paper.threadedregions.RegionizedServer;
++import io.papermc.paper.threadedregions.TickRegionScheduler;
++import io.papermc.paper.threadedregions.TickRegions;
++import java.util.ArrayList;
++import java.util.Collection;
++import java.util.Comparator;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++import java.util.Objects;
++import java.util.UUID;
++import net.minecraft.server.MinecraftServer;
++import org.bukkit.Bukkit;
++import org.bukkit.command.CommandSender;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.entity.Player;
++import org.jspecify.annotations.Nullable;
++
++/** Tessera - immutable, viewer-filtered copies of existing measurements. No sampling tasks. */
++record RegionHealthSnapshot(List<Region> regions, List<Person> players, @Nullable UUID viewer,
++                            TickMode mode, @Nullable Metrics global, int threads,
++                            double loadRate, double generationRate) {
++    static final List<String> WINDOWS = List.of("5 s", "15 s", "1 min", "5 min", "15 min");
++
++    RegionHealthSnapshot {
++        regions = List.copyOf(regions);
++        players = List.copyOf(players);
++    }
++
++    record Metrics(double tps, double mspt, double utilisation, double minMspt, double medianMspt,
++                   double maxMspt, long ticks) {
++        static @Nullable Metrics from(final TickData.@Nullable TickReportData report) {
++            if (report == null || report.collectedTicks() <= 0L) {
++                return null;
++            }
++            final var times = report.timePerTickData().segmentAll();
++            final Metrics result = new Metrics(report.tpsData().segmentAll().average(), times.average() / 1.0E6,
++                report.utilisation(), times.least() / 1.0E6, times.median() / 1.0E6, times.greatest() / 1.0E6,
++                report.collectedTicks());
++            return result.valid() ? result : null;
++        }
++
++        boolean valid() {
++            return ticks > 0L && Double.isFinite(tps) && tps >= 0.0 && Double.isFinite(mspt) && mspt >= 0.0
++                && Double.isFinite(utilisation) && utilisation >= 0.0 && Double.isFinite(minMspt)
++                && Double.isFinite(medianMspt) && Double.isFinite(maxMspt);
++        }
++    }
++
++    record TickMode(double target, boolean frozen, boolean sprinting) {}
++    record Person(UUID id, String name, @Nullable Long regionId) {}
++    record Region(long id, String world, int chunks, int entities, List<Person> players, Map<String, Metrics> history) {
++        Region {
++            players = List.copyOf(players);
++            history = Map.copyOf(history);
++        }
++
++        @Nullable Metrics recent() {
++            return history.get("15 s");
++        }
++    }
++
++    @Nullable Region region(final @Nullable Long id) {
++        return id == null ? null : regions.stream().filter(region -> region.id() == id).findFirst().orElse(null);
++    }
++
++    @Nullable Person player(final String name) {
++        return players.stream().filter(player -> player.name().equalsIgnoreCase(name)).findFirst().orElse(null);
++    }
++
++    @Nullable Region ownRegion() {
++        return players.stream().filter(player -> player.id().equals(viewer))
++            .map(player -> region(player.regionId())).filter(Objects::nonNull).findFirst().orElse(null);
++    }
++
++    List<Region> orderedRegions() {
++        final Region own = ownRegion();
++        return regions.stream().sorted(Comparator
++            .comparing((Region region) -> region != own)
++            .thenComparingDouble(region -> region.recent() == null ? Double.POSITIVE_INFINITY : region.recent().tps())
++            .thenComparing(Comparator.comparingDouble((Region region) -> region.recent() == null ? 0.0 : region.recent().mspt()).reversed())
++            .thenComparing(Region::world).thenComparingLong(Region::id)).toList();
++    }
++
++    static List<Player> visiblePlayers(final CommandSender sender, final Collection<? extends Player> online) {
++        // Player senders must be on their owner thread when reading their visibility map.
++        return online.stream().filter(player -> !(sender instanceof Player viewer) || viewer.canSee(player))
++            .sorted(Comparator.comparing(Player::getName, String.CASE_INSENSITIVE_ORDER)).map(player -> (Player)player).toList();
++    }
++
++    static RegionHealthSnapshot collect(final CommandSender sender, final boolean detailed) {
++        final MinecraftServer server = MinecraftServer.getServer();
++        final long now = System.nanoTime();
++        final List<Region> regions = new ArrayList<>();
++        for (final net.minecraft.server.level.ServerLevel world : server.getAllLevels()) {
++            final List<io.papermc.paper.threadedregions.ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData>> refs = new ArrayList<>();
++            // Hold the topology lock only while copying references, never while generating reports.
++            world.regioniser.computeForAllRegions(refs::add);
++            for (final var region : refs) {
++                final TickRegions.TickRegionData data = region.getData();
++                final TickRegionScheduler.RegionScheduleHandle handle = data.getRegionSchedulingHandle();
++                final Map<String, Metrics> history = new HashMap<>();
++                put(history, "15 s", handle.getTickReport15s(now));
++                if (detailed) {
++                    put(history, "5 s", handle.getTickReport5s(now));
++                    put(history, "1 min", handle.getTickReport1m(now));
++                    put(history, "5 min", handle.getTickReport5m(now));
++                    put(history, "15 min", handle.getTickReport15m(now));
++                }
++                final TickRegions.RegionStats stats = data.getRegionStats();
++                regions.add(new Region(region.id, world.getWorld().getName(), stats.getChunkCount(), stats.getEntityCount(), List.of(), history));
++            }
++        }
++
++        // Reject stale links after a split/merge or world unload.
++        final java.util.Set<Long> live = new java.util.HashSet<>();
++        for (final net.minecraft.server.level.ServerLevel world : server.getAllLevels()) {
++            world.regioniser.computeForAllRegions(region -> live.add(region.id));
++        }
++        regions.removeIf(region -> !live.contains(region.id()));
++
++        final List<Person> players = new ArrayList<>();
++        for (final Player player : visiblePlayers(sender, Bukkit.getOnlinePlayers())) {
++            final TickRegions.TickRegionData association = ((CraftPlayer)player).tessera$getHealthRegion();
++            final Long id = association == null || !live.contains(association.region.id) ? null : association.region.id;
++            players.add(new Person(player.getUniqueId(), player.getName(), id));
++        }
++        final Map<Long, List<Person>> byRegion = new HashMap<>();
++        for (final Person player : players) {
++            if (player.regionId() != null) {
++                byRegion.computeIfAbsent(player.regionId(), ignored -> new ArrayList<>()).add(player);
++            }
++        }
++        final List<Region> populated = regions.stream().map(region -> new Region(region.id(), region.world(),
++            region.chunks(), region.entities(), byRegion.getOrDefault(region.id(), List.of()), region.history())).toList();
++        final var manager = server.tickRateManager();
++        return new RegionHealthSnapshot(populated, players, sender instanceof Player player ? player.getUniqueId() : null,
++            new TickMode(manager.tickrate(), manager.isFrozen(), manager.isSprinting()),
++            Metrics.from(RegionizedServer.getGlobalTickData().getTickReport15s(now)), TickRegions.getScheduler().getTotalThreadCount(),
++            ca.spottedleaf.moonrise.patches.chunk_system.scheduling.task.ChunkFullTask.loadRate(now),
++            ca.spottedleaf.moonrise.patches.chunk_system.scheduling.task.ChunkFullTask.genRate(now));
++    }
++
++    private static void put(final Map<String, Metrics> into, final String window, final TickData.@Nullable TickReportData report) {
++        final Metrics metrics = Metrics.from(report);
++        if (metrics != null) {
++            into.put(window, metrics);
++        }
++    }
++}
+diff --git a/io/papermc/paper/threadedregions/commands/RegionHealthView.java b/io/papermc/paper/threadedregions/commands/RegionHealthView.java
+new file mode 100644
+index 00000000..4e6eeec3
+--- /dev/null
++++ b/io/papermc/paper/threadedregions/commands/RegionHealthView.java
+@@ -0,0 +1,293 @@
++package io.papermc.paper.threadedregions.commands;
++
++import java.util.ArrayList;
++import java.util.List;
++import java.util.Locale;
++import net.kyori.adventure.text.Component;
++import net.kyori.adventure.text.TextComponent;
++import net.kyori.adventure.text.event.ClickEvent;
++import net.kyori.adventure.text.format.NamedTextColor;
++import net.kyori.adventure.text.format.Style;
++import net.kyori.adventure.text.format.TextDecoration;
++import org.jspecify.annotations.Nullable;
++
++/** Tessera - presentation only. Measurements and player filtering come from the server snapshot. */
++final class RegionHealthView {
++    private static final String COMMAND = "/paper:tps";
++    private final RegionHealthSnapshot snapshot;
++
++    RegionHealthView(final RegionHealthSnapshot snapshot) {
++        this.snapshot = snapshot;
++    }
++
++    /** Bound each chat packet, including very long player lists; preserve inherited click/hover styles. */
++    static List<Component> lines(final Component output) {
++        final Lines lines = new Lines();
++        lines.append(output, Style.empty());
++        lines.result.add(lines.current.build());
++        return List.copyOf(lines.result);
++    }
++
++    private static final class Lines {
++        private final List<Component> result = new ArrayList<>();
++        private TextComponent.Builder current = Component.text();
++        private int length;
++
++        private void next() {
++            this.result.add(this.current.build());
++            this.current = Component.text();
++            this.length = 0;
++        }
++
++        private void append(final Component component, final Style parent) {
++            final Style style = component.style().merge(parent, Style.Merge.Strategy.IF_ABSENT_ON_TARGET);
++            // All presentation components in this view are literal text.
++            if (component instanceof TextComponent text) {
++                final String[] parts = text.content().split("\n", -1);
++                for (int i = 0; i < parts.length; ++i) {
++                    if (i != 0) {
++                        this.next();
++                    }
++                    for (int start = 0; start < parts[i].length();) {
++                        if (this.length == 512) {
++                            this.next();
++                        }
++                        final int end = Math.min(parts[i].length(), start + 512 - this.length);
++                        this.current.append(Component.text(parts[i].substring(start, end)).style(style));
++                        this.length += end - start;
++                        start = end;
++                    }
++                }
++            }
++            for (final Component child : component.children()) {
++                this.append(child, style);
++            }
++        }
++    }
++
++    enum Status {
++        OK(NamedTextColor.GREEN), BUSY(NamedTextColor.YELLOW), LAG(NamedTextColor.RED),
++        PAUSED(NamedTextColor.AQUA), SPRINT(NamedTextColor.AQUA), NO_DATA(NamedTextColor.GRAY);
++        final NamedTextColor colour;
++
++        Status(final NamedTextColor colour) {
++            this.colour = colour;
++        }
++
++        Component label() {
++            return Component.text("[" + name().replace('_', ' ') + "] ", this.colour, TextDecoration.BOLD);
++        }
++    }
++
++    static Status status(final RegionHealthSnapshot.@Nullable Metrics metrics, final RegionHealthSnapshot.TickMode mode) {
++        if (mode.frozen()) {
++            return Status.PAUSED;
++        }
++        if (mode.sprinting()) {
++            return Status.SPRINT;
++        }
++        if (metrics == null || !metrics.valid() || !Double.isFinite(mode.target()) || mode.target() <= 0.0) {
++            return Status.NO_DATA;
++        }
++        if (metrics.tps() < mode.target() * 0.95) {
++            return Status.LAG;
++        }
++        return metrics.mspt() >= (1000.0 / mode.target()) * 0.75 || metrics.utilisation() >= 0.85 ? Status.BUSY : Status.OK;
++    }
++
++    private static String number(final double value) {
++        return String.format(Locale.ROOT, "%.2f", value);
++    }
++
++    private static Component text(final String text) {
++        return Component.text(text, NamedTextColor.WHITE).decoration(TextDecoration.BOLD, false);
++    }
++
++    private static Component hint(final String text) {
++        return Component.text(text, NamedTextColor.GRAY).decoration(TextDecoration.BOLD, false);
++    }
++
++    private static Component action(final String label, final String arguments) {
++        return Component.text("[" + label + "]", NamedTextColor.AQUA)
++            .clickEvent(ClickEvent.runCommand(COMMAND + arguments))
++            .hoverEvent(hint("Open view – no teleport"));
++    }
++
++    private static Component footer() {
++        return Component.newline().append(action("My region", " region")).append(hint(" "))
++            .append(Component.text("[Find player]", NamedTextColor.AQUA)
++                .clickEvent(ClickEvent.suggestCommand(COMMAND + " player ")))
++            .append(hint(" ")).append(action("Overview", " list")).append(hint(" "))
++            .append(action("All details", " all"));
++    }
++
++    private Component heading(final String title) {
++        return Component.text("Tessera · " + title, NamedTextColor.AQUA, TextDecoration.BOLD)
++            .append(Component.newline())
++            .append(hint("Target: " + number(snapshot.mode().target()) + " TPS"
++                + (snapshot.mode().frozen() ? " · Simulation frozen" : snapshot.mode().sprinting() ? " · Tick sprint active" : "")))
++            .append(Component.newline());
++    }
++
++    private Component values(final RegionHealthSnapshot.@Nullable Metrics metrics) {
++        if (metrics == null || !metrics.valid()) {
++            return hint("No measurements yet");
++        }
++        return text(number(metrics.tps()) + " TPS · " + number(metrics.mspt()) + " ms/tick");
++    }
++
++    private Component players(final RegionHealthSnapshot.Region region) {
++        final TextComponent.Builder out = Component.text();
++        out.append(hint(snapshot.viewer() == null ? "Players: " : "Visible players: "));
++        if (region.players().isEmpty()) {
++            out.append(hint("none"));
++        }
++        for (int i = 0; i < region.players().size(); ++i) {
++            final RegionHealthSnapshot.Person player = region.players().get(i);
++            if (i != 0) {
++                out.append(hint(", "));
++            }
++            out.append(Component.text(player.id().equals(snapshot.viewer()) ? player.name() + " (you)" : player.name(), NamedTextColor.WHITE)
++                .clickEvent(ClickEvent.runCommand(COMMAND + " player " + player.name()))
++                .hoverEvent(hint("Compare this player's region")));
++        }
++        return out.build();
++    }
++
++    private Component regionTitle(final RegionHealthSnapshot.Region region) {
++        final boolean own = region == snapshot.ownRegion();
++        return Component.text((own ? "▶ " : "") + "Region #" + region.id(), own ? NamedTextColor.AQUA : NamedTextColor.WHITE, TextDecoration.BOLD)
++            .clickEvent(ClickEvent.runCommand(COMMAND + " region " + region.id()))
++            .hoverEvent(hint("Details · " + region.chunks() + " chunks · " + region.entities() + " entities"))
++            .append(hint(" · " + region.world())).append(own ? Component.text(" · YOUR REGION", NamedTextColor.AQUA) : Component.empty());
++    }
++
++    private Component summary(final RegionHealthSnapshot.Region region) {
++        return regionTitle(region).append(Component.newline())
++            .append(status(region.recent(), snapshot.mode()).label()).append(values(region.recent()))
++            .append(hint(" · " + region.players().size() + (snapshot.viewer() == null ? " " : " visible ")
++                + (region.players().size() == 1 ? "player" : "players")))
++            .append(Component.newline()).append(players(region));
++    }
++
++    Component overview(final int limit) {
++        final TextComponent.Builder out = Component.text().append(heading("Your region & overview"));
++        final RegionHealthSnapshot.Region own = snapshot.ownRegion();
++        if (snapshot.viewer() != null) {
++            if (own == null) {
++                out.append(hint("Your region is not assigned right now (login/region transfer).")).append(Component.newline());
++            } else {
++                final Status state = status(own.recent(), snapshot.mode());
++                out.append(text(switch (state) {
++                    case OK -> "Your region is running normally.";
++                    case BUSY -> "Your region has little tick-time headroom.";
++                    case LAG -> "Your region is not keeping up with the target tick rate.";
++                    case PAUSED -> "The simulation is intentionally frozen.";
++                    case SPRINT -> "Tick sprint active – normal load assessment disabled.";
++                    case NO_DATA -> "No measurements are available for your region yet.";
++                })).append(Component.newline());
++            }
++        }
++        out.append(hint(snapshot.regions().size() + " regions · 15 s averages")).append(Component.newline());
++        int shown = 0;
++        for (final RegionHealthSnapshot.Region region : snapshot.orderedRegions()) {
++            if (shown++ >= limit) {
++                break;
++            }
++            out.append(Component.newline()).append(summary(region)).append(Component.newline());
++        }
++        if (snapshot.regions().isEmpty()) {
++            out.append(hint("No regions currently available.")).append(Component.newline());
++        } else if (snapshot.regions().size() > limit) {
++            out.append(hint("More regions: ")).append(action("Show all", " list")).append(Component.newline());
++        }
++        out.append(hint("Snapshot · Player assignments can change."))
++            .append(footer()).append(hint(" ")).append(action("Refresh", " list"));
++        return out.build();
++    }
++
++    private Component detailBlock(final RegionHealthSnapshot.Region region) {
++        final TextComponent.Builder out = Component.text().append(regionTitle(region)).append(Component.newline())
++            .append(players(region)).append(Component.newline())
++            .append(hint("Chunks: " + region.chunks() + " · entities: " + region.entities())).append(Component.newline());
++        out.append(status(region.recent(), snapshot.mode()).label()).append(hint("Region metrics, not individual player performance")).append(Component.newline());
++        for (final String window : RegionHealthSnapshot.WINDOWS) {
++            final RegionHealthSnapshot.Metrics metrics = region.history().get(window);
++            out.append(text(window + ": ")).append(values(metrics));
++            if (metrics != null && metrics.valid()) {
++                out.append(hint(" · Utilisation " + number(metrics.utilisation() * 100.0) + "%"))
++                    .append(Component.newline())
++                    .append(hint("  Tick time min/median/max: " + number(metrics.minMspt()) + " / " + number(metrics.medianMspt())
++                        + " / " + number(metrics.maxMspt()) + " ms · " + metrics.ticks() + " ticks"));
++            }
++            out.append(Component.newline());
++        }
++        out.append(action("Refresh region", " region " + region.id())).append(Component.newline());
++        return out.build();
++    }
++
++    Component details(final @Nullable Long id) {
++        final RegionHealthSnapshot.Region region = id == null ? snapshot.ownRegion() : snapshot.region(id);
++        if (region == null) {
++            return heading("Region").append(hint(id == null
++                ? "No current region assigned. Console users must specify a region ID."
++                : "This region no longer exists or its world was unloaded."))
++                .append(footer());
++        }
++        return heading("Region details").append(detailBlock(region))
++            .append(hint("Windows contain available samples only; utilisation is not CPU usage."))
++            .append(footer());
++    }
++
++    Component player(final String name) {
++        final RegionHealthSnapshot.Person target = snapshot.player(name);
++        if (target == null) {
++            // Identical response for hidden and offline players, without revealing a region.
++            return heading("Player lookup").append(hint("Player is offline or not visible.")).append(footer());
++        }
++        final RegionHealthSnapshot.Region targetRegion = snapshot.region(target.regionId());
++        if (targetRegion == null) {
++            return heading("Player lookup").append(text(target.name()))
++                .append(hint(": no region assignment currently available (login/region transfer)."))
++                .append(Component.newline()).append(action("Retry lookup", " player " + target.name())).append(footer());
++        }
++        final TextComponent.Builder out = Component.text().append(heading("Player comparison"))
++            .append(text(target.name() + ": ")).append(values(targetRegion.recent())).append(Component.newline());
++        final RegionHealthSnapshot.Region own = snapshot.ownRegion();
++        if (snapshot.viewer() != null && own != null) {
++            out.append(text("You: ")).append(values(own.recent())).append(Component.newline())
++                .append(Component.text(own.id() == targetRegion.id() ? "You are in the same region." : "You are in different regions.",
++                    own.id() == targetRegion.id() ? NamedTextColor.AQUA : NamedTextColor.YELLOW)).append(Component.newline());
++        } else if (snapshot.viewer() != null) {
++            out.append(hint("Your region assignment is unavailable; comparison is not possible.")).append(Component.newline());
++        }
++        out.append(hint("15 s averages · These values do not identify who causes load.")).append(Component.newline())
++            .append(detailBlock(targetRegion)).append(action("Refresh player", " player " + target.name())).append(footer());
++        return out.build();
++    }
++
++    Component all() {
++        final TextComponent.Builder out = Component.text().append(heading("All region details"))
++            .append(hint("Global tick: ")).append(values(snapshot.global())).append(Component.newline())
++            .append(hint("Tick threads: " + snapshot.threads() + " · Chunk load rate: " + number(snapshot.loadRate())
++                + "/s · Generation rate: " + number(snapshot.generationRate()) + "/s (server-wide)")).append(Component.newline());
++        for (final RegionHealthSnapshot.Region region : snapshot.orderedRegions()) {
++            out.append(Component.newline()).append(detailBlock(region));
++        }
++        if (snapshot.regions().isEmpty()) {
++            out.append(hint("No regions currently available.")).append(Component.newline());
++        }
++        return out.append(hint("Snapshot · Available samples only · Utilisation is not CPU usage."))
++            .append(footer()).build();
++    }
++
++    static Component help() {
++        return Component.text("Tessera · TPS help\n", NamedTextColor.AQUA, TextDecoration.BOLD)
++            .append(text("/tps – your region and all regions\n"
++                + "/tps player <name> or /tps <name> – compare players\n"
++                + "/tps region [ID] – your region or a selected region\n"
++                + "/tps list – overview\n/tps all – all region details\n"
++                + "/tps server [count] – overview, optionally limited"))
++            .append(footer());
++    }
++}

@@ -1,0 +1,505 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Tue, 22 Sep 2026 20:47:17 +0200
+Subject: [PATCH] Publish safe TPS region lookup and test health commands
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+index 6545848bc..221858d31 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+@@ -257,6 +257,23 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
+     // used only to notify tasks for packets
+     private volatile io.papermc.paper.threadedregions.RegionizedWorldData lastRegion;
+ 
++    // Tessera - read the published association, never a foreign player's position.
++    public io.papermc.paper.threadedregions.TickRegions.@Nullable TickRegionData tessera$getHealthRegion() {
++        final io.papermc.paper.threadedregions.RegionizedWorldData region = this.lastRegion;
++        return region == null ? null : region.regionData;
++    }
++
++    private long tessera$nextHealthQuery;
++
++    // Called on the owning thread. Limit report generation, not measurement.
++    public boolean tessera$acquireHealthQuery(final long now) {
++        if (this.tessera$nextHealthQuery != 0L && now - this.tessera$nextHealthQuery < 0L) {
++            return false;
++        }
++        this.tessera$nextHealthQuery = now + 500_000_000L;
++        return true;
++    }
++
+     public void stopAcceptingPackets() {
+         this.packetProcessor.close();
+     }
+diff --git a/src/test/java/io/papermc/paper/threadedregions/commands/RegionHealthCommandTest.java b/src/test/java/io/papermc/paper/threadedregions/commands/RegionHealthCommandTest.java
+new file mode 100644
+index 000000000..5f0a0bb49
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/threadedregions/commands/RegionHealthCommandTest.java
+@@ -0,0 +1,334 @@
++package io.papermc.paper.threadedregions.commands;
++
++import ca.spottedleaf.moonrise.common.util.TickThread;
++import io.papermc.paper.threadedregions.EntityScheduler;
++import io.papermc.paper.threadedregions.RegionizedWorldData;
++import io.papermc.paper.threadedregions.TickRegions;
++import java.util.ArrayList;
++import java.util.List;
++import java.util.Map;
++import java.util.UUID;
++import java.util.concurrent.atomic.AtomicInteger;
++import java.util.concurrent.atomic.AtomicReference;
++import java.util.function.Consumer;
++import net.kyori.adventure.text.Component;
++import net.kyori.adventure.text.event.ClickEvent;
++import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
++import net.minecraft.network.PacketProcessor;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.entity.Entity;
++import org.bukkit.Bukkit;
++import org.bukkit.command.CommandSender;
++import org.bukkit.craftbukkit.entity.CraftEntity;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.entity.Player;
++import org.bukkit.support.environment.Normal;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.Mockito.*;
++
++@Normal
++class RegionHealthCommandTest {
++    private static final UUID SELF = UUID.fromString("00000000-0000-0000-0000-000000000001");
++    private static final UUID OTHER = UUID.fromString("00000000-0000-0000-0000-000000000002");
++    private static final RegionHealthSnapshot.TickMode NORMAL = new RegionHealthSnapshot.TickMode(20, false, false);
++
++    private static RegionHealthSnapshot.Metrics metrics(double tps, double mspt) {
++        return new RegionHealthSnapshot.Metrics(tps, mspt, mspt / 50.0, 1, mspt, mspt + 5, 300);
++    }
++
++    private static RegionHealthSnapshot snapshot(Long ownId, Long otherId) {
++        var self = new RegionHealthSnapshot.Person(SELF, "Alice", ownId);
++        var other = new RegionHealthSnapshot.Person(OTHER, "Bob", otherId);
++        var people = List.of(self, other);
++        var regions = new ArrayList<RegionHealthSnapshot.Region>();
++        for (long id : List.of(7L, 9L, 11L)) {
++            var recent = id == 9L ? metrics(12, 80) : metrics(20, 8);
++            Map<String, RegionHealthSnapshot.Metrics> history = id == 11L ? Map.of() : Map.of("15 s", recent, "1 min", recent);
++            regions.add(new RegionHealthSnapshot.Region(id, id == 9L ? "world_nether" : "world", 100, 42,
++                people.stream().filter(person -> Long.valueOf(id).equals(person.regionId())).toList(), history));
++        }
++        return new RegionHealthSnapshot(regions, people, SELF, NORMAL, metrics(20, 2), 4, 2.5, 0.25);
++    }
++
++    private static String plain(Component component) {
++        return PlainTextComponentSerializer.plainText().serialize(component);
++    }
++
++    private static List<ClickEvent> clicks(Component component) {
++        var result = new ArrayList<ClickEvent>();
++        if (component.clickEvent() != null) {
++            result.add(component.clickEvent());
++        }
++        component.children().forEach(child -> result.addAll(clicks(child)));
++        return result;
++    }
++
++    @Test
++    void overviewShowsOwnFirstThenBusyAndEmptyRegionsWithEnglishLabels() {
++        var state = snapshot(7L, 9L);
++        assertEquals(List.of(7L, 9L, 11L), state.orderedRegions().stream().map(RegionHealthSnapshot.Region::id).toList());
++        String output = plain(new RegionHealthView(state).overview(Integer.MAX_VALUE));
++        assertTrue(output.indexOf("Region #7") < output.indexOf("Region #9"));
++        assertTrue(output.contains("YOUR REGION"));
++        assertTrue(output.contains("Alice (you)"));
++        assertTrue(output.contains("Bob"));
++        assertTrue(output.contains("Region #11"));
++        assertTrue(output.contains("[NO DATA] No measurements yet"));
++        assertTrue(output.contains("Visible players: none"));
++        assertTrue(output.contains("20.00 TPS"));
++        assertTrue(output.contains("Snapshot · Player assignments can change."));
++        assertFalse(output.contains("NaN"));
++    }
++
++    @Test
++    void playerLookupIsCaseInsensitiveAndComparesRegionsNotPlayerCost() {
++        String different = plain(new RegionHealthView(snapshot(7L, 9L)).player("bOB"));
++        assertTrue(different.contains("Bob: 12.00 TPS"));
++        assertTrue(different.contains("You: 20.00 TPS"));
++        assertTrue(different.contains("You are in different regions."));
++        assertTrue(different.contains("These values do not identify who causes load."));
++        String same = plain(new RegionHealthView(snapshot(7L, 7L)).player("Bob"));
++        assertTrue(same.contains("You are in the same region."));
++        assertTrue(plain(new RegionHealthView(snapshot(7L, 9L)).player("Alice")).contains("same region"));
++    }
++
++    @Test
++    void staleRegionIdsAndUnassignedPlayersHaveSafeRetryMessages() {
++        var view = new RegionHealthView(snapshot(null, null));
++        assertTrue(plain(view.overview(Integer.MAX_VALUE)).contains("login/region transfer"));
++        assertTrue(plain(view.player("Bob")).contains("no region assignment currently available"));
++        assertTrue(plain(view.details(999L)).contains("no longer exists"));
++        assertTrue(plain(view.details(null)).contains("No current region assigned"));
++        assertTrue(plain(new RegionHealthView(snapshot(7L, 999L)).player("Bob")).contains("no region assignment"));
++    }
++
++    @Test
++    void hiddenAndOfflineLookupsCannotBeDistinguished() {
++        var base = snapshot(7L, 9L);
++        var state = new RegionHealthSnapshot(base.regions(), List.of(base.players().getFirst()), SELF, NORMAL, null, 4, 0, 0);
++        var view = new RegionHealthView(state);
++        assertEquals(plain(view.player("Hidden")), plain(view.player("Offline")));
++        assertEquals(plain(view.player("Bob")), plain(view.player("Offline")));
++        assertTrue(plain(view.player("Bob")).contains("Player is offline or not visible."));
++    }
++
++    @Test
++    void playerVisibilityFilteringAlsoFeedsCompletionAndCounts() {
++        Player viewer = mock(Player.class);
++        Player visible = mock(Player.class);
++        Player hidden = mock(Player.class);
++        when(viewer.getName()).thenReturn("Zoe");
++        when(visible.getName()).thenReturn("Alice");
++        when(hidden.getName()).thenReturn("Secret");
++        when(viewer.canSee(viewer)).thenReturn(true);
++        when(viewer.canSee(visible)).thenReturn(true);
++        var online = List.of(viewer, hidden, visible);
++        assertEquals(List.of(visible, viewer), RegionHealthSnapshot.visiblePlayers(viewer, online));
++        assertEquals(List.of(visible, hidden, viewer), RegionHealthSnapshot.visiblePlayers(mock(CommandSender.class), online));
++        when(viewer.hasPermission("bukkit.command.tps")).thenReturn(true);
++        try (var bukkit = mockStatic(Bukkit.class)) {
++            bukkit.when(Bukkit::getOnlinePlayers).thenReturn(online);
++            assertEquals(List.of("Alice", "Zoe"), new CommandServerHealth().tabComplete(viewer, "tps", new String[]{"player", ""}));
++        }
++    }
++
++    @Test
++    void statusRespectsCustomTickRatesAndIntentionalFreezeOrSprint() {
++        assertEquals(RegionHealthView.Status.OK, RegionHealthView.status(metrics(20, 8), NORMAL));
++        assertEquals(RegionHealthView.Status.BUSY, RegionHealthView.status(metrics(20, 40), NORMAL));
++        assertEquals(RegionHealthView.Status.LAG, RegionHealthView.status(metrics(12, 60), NORMAL));
++        assertEquals(RegionHealthView.Status.OK, RegionHealthView.status(metrics(10, 8), new RegionHealthSnapshot.TickMode(10, false, false)));
++        assertEquals(RegionHealthView.Status.BUSY, RegionHealthView.status(metrics(40, 20), new RegionHealthSnapshot.TickMode(40, false, false)));
++        assertEquals(RegionHealthView.Status.BUSY, RegionHealthView.status(metrics(100, 8), new RegionHealthSnapshot.TickMode(100, false, false)));
++        assertEquals(RegionHealthView.Status.PAUSED, RegionHealthView.status(null, new RegionHealthSnapshot.TickMode(20, true, false)));
++        assertEquals(RegionHealthView.Status.SPRINT, RegionHealthView.status(metrics(2, 500), new RegionHealthSnapshot.TickMode(20, false, true)));
++        assertEquals(RegionHealthView.Status.NO_DATA, RegionHealthView.status(null, NORMAL));
++        assertEquals(RegionHealthView.Status.NO_DATA, RegionHealthView.status(metrics(Double.NaN, 1), NORMAL));
++        assertEquals(RegionHealthView.Status.NO_DATA, RegionHealthView.status(metrics(20, 1), new RegionHealthSnapshot.TickMode(0, false, false)));
++    }
++
++    @Test
++    void detailViewsUseExistingWindowsAndExplainUnavailableSamples() {
++        String details = plain(new RegionHealthView(snapshot(7L, 9L)).details(7L));
++        for (String window : RegionHealthSnapshot.WINDOWS) {
++            assertTrue(details.contains(window + ":"));
++        }
++        assertTrue(details.contains("5 s: No measurements yet"));
++        assertTrue(details.contains("Tick time min/median/max:"));
++        assertTrue(details.contains("utilisation is not CPU usage"));
++        String all = plain(new RegionHealthView(snapshot(7L, 9L)).all());
++        assertTrue(all.contains("Global tick:"));
++        assertTrue(all.contains("Tick threads: 4"));
++        assertTrue(all.contains("(server-wide)"));
++        assertTrue(all.contains("Region #11"));
++    }
++
++    @Test
++    void clickableNavigationUsesNamespacedReadOnlyCommands() {
++        var view = new RegionHealthView(snapshot(7L, 9L));
++        var events = clicks(view.overview(Integer.MAX_VALUE));
++        assertTrue(events.contains(ClickEvent.runCommand("/paper:tps region 7")));
++        assertTrue(events.contains(ClickEvent.runCommand("/paper:tps player Bob")));
++        assertTrue(events.contains(ClickEvent.suggestCommand("/paper:tps player ")));
++        assertTrue(events.contains(ClickEvent.runCommand("/paper:tps all")));
++        assertTrue(clicks(view.player("Bob")).contains(ClickEvent.runCommand("/paper:tps player Bob")));
++        assertTrue(clicks(view.details(9L)).contains(ClickEvent.runCommand("/paper:tps region 9")));
++        assertFalse(plain(view.all()).contains("Position:"));
++    }
++
++    @Test
++    void linePacketsKeepTextAndClicksWithoutOversizedPlayerLists() {
++        Component output = new RegionHealthView(snapshot(7L, 9L)).all();
++        var lines = RegionHealthView.lines(output);
++        assertEquals(plain(output), String.join("\n", lines.stream().map(RegionHealthCommandTest::plain).toList()));
++        assertTrue(lines.stream().flatMap(line -> clicks(line).stream()).anyMatch(ClickEvent.runCommand("/paper:tps region 7")::equals));
++        var longLine = Component.text("x".repeat(2000)).clickEvent(ClickEvent.runCommand("/paper:tps list"));
++        var bounded = RegionHealthView.lines(longLine);
++        assertEquals(4, bounded.size());
++        assertTrue(bounded.stream().allMatch(line -> plain(line).length() <= 512));
++        assertEquals(plain(longLine), String.join("", bounded.stream().map(RegionHealthCommandTest::plain).toList()));
++        assertTrue(bounded.stream().allMatch(line -> clicks(line).contains(ClickEvent.runCommand("/paper:tps list"))));
++    }
++
++    @Test
++    void emptyConsoleSnapshotDoesNotInventHealthyRegionOrMeasurements() {
++        var state = new RegionHealthSnapshot(List.of(), List.of(), null, NORMAL, null, 2, 0, 0);
++        String output = plain(new RegionHealthView(state).overview(Integer.MAX_VALUE));
++        assertTrue(output.contains("No regions currently available."));
++        assertFalse(output.contains("[OK]"));
++        assertFalse(output.contains("YOUR REGION"));
++        assertFalse(output.contains("login/region transfer"));
++        assertTrue(plain(new RegionHealthView(state).all()).contains("Global tick: No measurements yet"));
++    }
++
++    @Test
++    void legacyServerLimitAndHelpStayAvailableInEnglish() {
++        String output = plain(new RegionHealthView(snapshot(7L, 9L)).overview(1));
++        assertTrue(output.contains("Region #7"));
++        assertFalse(output.contains("Region #9"));
++        assertTrue(output.contains("Show all"));
++        String help = plain(RegionHealthView.help());
++        assertTrue(help.contains("/tps player <name> or /tps <name> – compare players"));
++        assertTrue(help.contains("/tps server [count]"));
++    }
++
++    @Test
++    void validatesIdsCountsAndNamesBeforeCollecting() {
++        assertTrue(CommandServerHealth.validRequest("region", new String[]{"region", "0"}));
++        assertTrue(CommandServerHealth.validRequest("region", new String[]{"region"}));
++        assertTrue(CommandServerHealth.validRequest("alice", new String[]{"Alice"}));
++        for (String[] invalid : List.of(new String[]{"region", "-1"}, new String[]{"region", "999999999999999999999"},
++            new String[]{"server", "0"}, new String[]{"server", "x"}, new String[]{"player"},
++            new String[]{"player", "Alice\n/tp"}, new String[]{"all", "extra"})) {
++            assertFalse(CommandServerHealth.validRequest(invalid[0], invalid));
++        }
++    }
++
++    @Test
++    void overviewIsLightweightButDetailsAndDirectPlayerQueriesRequestHistory() {
++        var calls = new ArrayList<Boolean>();
++        CommandSender sender = mock(CommandSender.class);
++        when(sender.hasPermission("bukkit.command.tps")).thenReturn(true);
++        var command = new CommandServerHealth((source, detailed) -> {
++            calls.add(detailed);
++            return snapshot(7L, 9L);
++        });
++        for (String[] args : List.of(new String[0], new String[]{"list"}, new String[]{"server", "1"},
++            new String[]{"player", "Bob"}, new String[]{"Bob"}, new String[]{"region", "7"}, new String[]{"all"})) {
++            assertTrue(command.execute(sender, "tps", args));
++        }
++        assertEquals(List.of(false, false, false, true, true, true, true), calls);
++        command.execute(sender, "tps", new String[]{"help"});
++        command.execute(sender, "tps", new String[]{"region", "invalid"});
++        assertEquals(7, calls.size());
++    }
++
++    @Test
++    void deniedPermissionNeverCollectsAndNeverCompletesNames() {
++        CommandSender sender = mock(CommandSender.class);
++        var command = new CommandServerHealth((source, detailed) -> fail("must not collect"));
++        command.permissionMessage(Component.text("No permission"));
++        assertTrue(command.execute(sender, "tps", new String[0]));
++        assertEquals(List.of(), command.tabComplete(sender, "tps", new String[]{"player", ""}));
++        verify(sender).sendMessage(Component.text("No permission"));
++    }
++
++    @Test
++    @SuppressWarnings("unchecked")
++    void offOwnerCommandFollowsSchedulerAndDoesNotReadVisibilityEarly() throws Exception {
++        CraftPlayer viewer = mock(CraftPlayer.class);
++        ServerPlayer entity = mock(ServerPlayer.class);
++        when(viewer.getHandleRaw()).thenReturn(entity);
++        EntityScheduler scheduler = mock(EntityScheduler.class);
++        var schedulerField = CraftEntity.class.getField("taskScheduler");
++        schedulerField.setAccessible(true);
++        schedulerField.set(viewer, scheduler);
++        var queued = new AtomicReference<Consumer<Entity>>();
++        when(scheduler.schedule(any(), nullable(Consumer.class), eq(1L))).thenAnswer(invocation -> {
++            queued.set(invocation.getArgument(0));
++            return true;
++        });
++        var calls = new AtomicInteger();
++        var command = new CommandServerHealth((source, detailed) -> {
++            calls.incrementAndGet();
++            return snapshot(7L, 9L);
++        });
++        try (var threads = mockStatic(TickThread.class)) {
++            command.execute(viewer, "tps", new String[0]);
++            assertEquals(0, calls.get());
++            assertNotNull(queued.get());
++            assertEquals(List.of(), command.tabComplete(viewer, "tps", new String[]{"player", ""}));
++            verify(viewer, never()).hasPermission(anyString());
++            verify(viewer, never()).canSee(any(org.bukkit.entity.Entity.class));
++            threads.when(() -> TickThread.isTickThreadFor(entity)).thenReturn(true);
++            when(viewer.hasPermission("bukkit.command.tps")).thenReturn(true);
++            when(viewer.tessera$acquireHealthQuery(anyLong())).thenReturn(true);
++            queued.get().accept(entity);
++            assertEquals(1, calls.get());
++        }
++    }
++
++    @Test
++    void queryRateLimitPreventsReportCollection() {
++        CraftPlayer viewer = mock(CraftPlayer.class);
++        ServerPlayer entity = mock(ServerPlayer.class);
++        when(viewer.getHandleRaw()).thenReturn(entity);
++        when(viewer.hasPermission("bukkit.command.tps")).thenReturn(true);
++        var command = new CommandServerHealth((source, detailed) -> fail("rate limited"));
++        try (var threads = mockStatic(TickThread.class)) {
++            threads.when(() -> TickThread.isTickThreadFor(entity)).thenReturn(true);
++            command.execute(viewer, "tps", new String[0]);
++            verify(viewer).sendMessage(Component.text("Please wait a moment before refreshing again.", net.kyori.adventure.text.format.NamedTextColor.GRAY));
++        }
++    }
++
++    @Test
++    void publishedAssociationTracksRemovalAndReplacementWithoutPositions() throws Exception {
++        CraftPlayer player = mock(CraftPlayer.class, CALLS_REAL_METHODS);
++        var packetField = CraftPlayer.class.getField("packetProcessor");
++        packetField.setAccessible(true);
++        packetField.set(player, mock(PacketProcessor.class));
++        RegionizedWorldData first = mock(RegionizedWorldData.class);
++        RegionizedWorldData second = mock(RegionizedWorldData.class);
++        var regionField = RegionizedWorldData.class.getField("regionData");
++        regionField.setAccessible(true);
++        var data = mock(TickRegions.TickRegionData.class);
++        var replacement = mock(TickRegions.TickRegionData.class);
++        regionField.set(first, data);
++        regionField.set(second, replacement);
++        assertNull(player.tessera$getHealthRegion());
++        player.updateRegion(first);
++        assertSame(data, player.tessera$getHealthRegion());
++        player.updateRegion(null);
++        assertNull(player.tessera$getHealthRegion());
++        player.updateRegion(second);
++        assertSame(replacement, player.tessera$getHealthRegion());
++        verify(player, never()).getLocation();
++        verify(player, never()).getHandleRaw();
++        assertTrue(player.tessera$acquireHealthQuery(1L));
++        assertFalse(player.tessera$acquireHealthQuery(500_000_000L));
++        assertTrue(player.tessera$acquireHealthQuery(500_000_001L));
++    }
++}
+diff --git a/src/test/java/io/papermc/paper/threadedregions/commands/RegionHealthSnapshotTest.java b/src/test/java/io/papermc/paper/threadedregions/commands/RegionHealthSnapshotTest.java
+new file mode 100644
+index 000000000..a0ebf792f
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/threadedregions/commands/RegionHealthSnapshotTest.java
+@@ -0,0 +1,125 @@
++package io.papermc.paper.threadedregions.commands;
++
++import ca.spottedleaf.common.time.TickData;
++import io.papermc.paper.threadedregions.RegionizedServer;
++import io.papermc.paper.threadedregions.ThreadedRegionizer;
++import io.papermc.paper.threadedregions.TickRegionScheduler;
++import io.papermc.paper.threadedregions.TickRegions;
++import java.util.List;
++import java.util.UUID;
++import java.util.concurrent.atomic.AtomicInteger;
++import java.util.function.Consumer;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.level.ServerLevel;
++import org.bukkit.Bukkit;
++import org.bukkit.craftbukkit.CraftWorld;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.support.environment.Normal;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.Mockito.*;
++
++@Normal
++class RegionHealthSnapshotTest {
++    private static void field(Object target, Class<?> owner, String name, Object value) throws Exception {
++        var field = owner.getField(name);
++        field.setAccessible(true);
++        field.set(target, value);
++    }
++
++    @Test
++    void convertsNanosecondsAndRejectsEmptyOrInvalidReports() {
++        assertNull(RegionHealthSnapshot.Metrics.from(null));
++        var report = mock(TickData.TickReportData.class, RETURNS_DEEP_STUBS);
++        assertNull(RegionHealthSnapshot.Metrics.from(report));
++        when(report.collectedTicks()).thenReturn(200);
++        when(report.tpsData().segmentAll().average()).thenReturn(19.5);
++        when(report.timePerTickData().segmentAll().average()).thenReturn(12_000_000.0);
++        when(report.timePerTickData().segmentAll().least()).thenReturn(1_000_000.0);
++        when(report.timePerTickData().segmentAll().median()).thenReturn(10_000_000.0);
++        when(report.timePerTickData().segmentAll().greatest()).thenReturn(25_000_000.0);
++        when(report.utilisation()).thenReturn(0.5);
++        var result = RegionHealthSnapshot.Metrics.from(report);
++        assertNotNull(result);
++        assertEquals(19.5, result.tps());
++        assertEquals(12, result.mspt());
++        assertEquals(1, result.minMspt());
++        assertEquals(10, result.medianMspt());
++        assertEquals(25, result.maxMspt());
++        assertEquals(200, result.ticks());
++        when(report.tpsData().segmentAll().average()).thenReturn(Double.NaN);
++        assertNull(RegionHealthSnapshot.Metrics.from(report));
++    }
++
++    @Test
++    @SuppressWarnings("unchecked")
++    void collectionUsesPublishedOwnershipFiltersHiddenPlayersAndRejectsRemovedRegions() throws Exception {
++        MinecraftServer server = mock(MinecraftServer.class, RETURNS_DEEP_STUBS);
++        ServerLevel world = mock(ServerLevel.class);
++        CraftWorld craftWorld = mock(CraftWorld.class);
++        when(world.getWorld()).thenReturn(craftWorld);
++        when(craftWorld.getName()).thenReturn("world");
++        when(server.getAllLevels()).thenReturn(List.of(world));
++        when(server.tickRateManager().tickrate()).thenReturn(20.0F);
++        ThreadedRegionizer<TickRegions.TickRegionData, TickRegions.TickRegionSectionData> regionizer = mock(ThreadedRegionizer.class);
++        field(world, ServerLevel.class, "regioniser", regionizer);
++        ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData> region = mock(ThreadedRegionizer.ThreadedRegion.class);
++        field(region, ThreadedRegionizer.ThreadedRegion.class, "id", 42L);
++        TickRegions.TickRegionData data = mock(TickRegions.TickRegionData.class);
++        field(data, TickRegions.TickRegionData.class, "region", region);
++        var handle = mock(TickRegions.ConcreteRegionTickHandle.class);
++        var stats = mock(TickRegions.RegionStats.class);
++        when(region.getData()).thenReturn(data);
++        when(data.getRegionSchedulingHandle()).thenReturn(handle);
++        when(data.getRegionStats()).thenReturn(stats);
++        when(stats.getChunkCount()).thenReturn(100);
++        when(stats.getEntityCount()).thenReturn(5);
++        var pass = new AtomicInteger();
++        doAnswer(invocation -> {
++            Consumer<ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData>> visitor = invocation.getArgument(0);
++            // Passes 1/2: stable snapshot. Pass 3: collected reference, removed before pass 4.
++            if (pass.incrementAndGet() <= 3) {
++                visitor.accept(region);
++            }
++            return null;
++        }).when(regionizer).computeForAllRegions(any());
++        CraftPlayer visible = mock(CraftPlayer.class);
++        CraftPlayer hidden = mock(CraftPlayer.class);
++        when(visible.getName()).thenReturn("Alice");
++        when(visible.getUniqueId()).thenReturn(UUID.randomUUID());
++        when(visible.canSee(visible)).thenReturn(true);
++        when(visible.tessera$getHealthRegion()).thenReturn(data);
++        var scheduler = mock(TickRegionScheduler.class);
++        when(scheduler.getTotalThreadCount()).thenReturn(4);
++        var global = mock(TickRegionScheduler.RegionScheduleHandle.class);
++        try (var minecraft = mockStatic(MinecraftServer.class); var bukkit = mockStatic(Bukkit.class);
++             var regions = mockStatic(TickRegions.class); var globalRegion = mockStatic(RegionizedServer.class)) {
++            minecraft.when(MinecraftServer::getServer).thenReturn(server);
++            bukkit.when(Bukkit::getOnlinePlayers).thenReturn(List.of(visible, hidden));
++            regions.when(TickRegions::getScheduler).thenReturn(scheduler);
++            globalRegion.when(RegionizedServer::getGlobalTickData).thenReturn(global);
++            var first = RegionHealthSnapshot.collect(visible, false);
++            assertEquals(1, first.regions().size());
++            assertEquals(1, first.players().size());
++            assertEquals(42L, first.ownRegion().id());
++            assertEquals(List.of("Alice"), first.ownRegion().players().stream().map(RegionHealthSnapshot.Person::name).toList());
++            assertNull(first.ownRegion().recent());
++            verify(handle).getTickReport15s(anyLong());
++            verify(handle, never()).getTickReport5s(anyLong());
++            verify(hidden, never()).getName();
++            verify(hidden, never()).tessera$getHealthRegion();
++            verify(visible, never()).getLocation();
++            verify(visible, never()).getHandleRaw();
++            verify(stats, never()).getPlayerCount();
++            var removed = RegionHealthSnapshot.collect(visible, true);
++            assertTrue(removed.regions().isEmpty());
++            assertNull(removed.ownRegion());
++            assertNull(removed.players().getFirst().regionId());
++            verify(handle).getTickReport5s(anyLong());
++            verify(handle).getTickReport1m(anyLong());
++            verify(handle).getTickReport5m(anyLong());
++            verify(handle).getTickReport15m(anyLong());
++        }
++    }
++}

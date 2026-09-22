@@ -160,12 +160,13 @@ Das ist ausdrücklich KEINE Erklärung, dass die Minecraft-Portierung fertig ist
 ## 26.3-Status
 
 Die aktuelle Minecraft-Basis ist das Release `26.3` mit Mache
-`26.3+build.1` und Tessera Build `006-alpha`. Java 25, Gradle `9.4.1` und
+`26.3+build.1` und Tessera Build `007-alpha`. Java 25, Gradle `9.4.1` und
 die Plugin-API-Version `26.3` bleiben erhalten. Der Build erzeugt die ausführbare JAR unter
-`build/libs/tessera-server-26.3.build.006-alpha.jar`.
+`build/libs/tessera-server-26.3.build.007-alpha.jar`.
 Tessera bleibt ein Alpha-Build; das Minecraft-Release ist keine automatische
 Produktionsfreigabe des Forks. Änderungen und Prüfstand:
-[Build 006](CHANGELOG-26.3-006.md). Die Umstellung auf das Minecraft-Release
+[Build 007](CHANGELOG-26.3-007.md). Die Paper-Backports sind unter
+[Build 006](CHANGELOG-26.3-006.md) dokumentiert. Die Umstellung auf das Minecraft-Release
 ist weiterhin unter [Build 005](CHANGELOG-26.3-005-RELEASE.md) dokumentiert.
 
 Die Sinopia-Basis wurde ursprünglich aus Paper 26.3-rc-2 importiert und lokal
