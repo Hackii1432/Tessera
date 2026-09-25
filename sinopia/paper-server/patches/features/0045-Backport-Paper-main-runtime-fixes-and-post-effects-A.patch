@@ -1,0 +1,249 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Fri, 25 Sep 2026 13:23:09 +0200
+Subject: [PATCH] Backport Paper main runtime fixes and post effects API
+
+Paper commits a22040d, 6db70e0, 0c803ba, 18f05bb, e1f150a, beac08f, d5cc7d4, 217fb92, f8a210f and dd9d103. Integrate memory cleanup into the existing vanilla DFU bridge and preserve budgeted suggestions.
+
+diff --git a/net/minecraft/network/chat/ComponentSerialization.java b/net/minecraft/network/chat/ComponentSerialization.java
+index 5e6d3f0f1990e52f05b638fa407aa4c0f6b1a79b..f8e637abc12ffb4814276514f0c9a36c0993c547 100644
+--- a/net/minecraft/network/chat/ComponentSerialization.java
++++ b/net/minecraft/network/chat/ComponentSerialization.java
+@@ -116,14 +116,15 @@ public class ComponentSerialization {
+     }
+ 
+     // Paper start - adventure; create separate codec for each locale
+-    private static final java.util.Map<java.util.Locale, Codec<Component>> LOCALIZED_CODECS = new java.util.concurrent.ConcurrentHashMap<>();
++    private static final com.google.common.cache.LoadingCache<java.util.Locale, Codec<Component>> LOCALIZED_CODECS = com.google.common.cache.CacheBuilder.newBuilder()
++        .maximumSize(256)
++        .build(com.google.common.cache.CacheLoader.from(loc -> Codec.recursive("Component", selfCodec -> createCodec(selfCodec, loc))));
+ 
+     public static Codec<Component> localizedCodec(final java.util.@org.checkerframework.checker.nullness.qual.Nullable Locale locale) {
+         if (locale == null) {
+             return CODEC;
+         }
+-        return LOCALIZED_CODECS.computeIfAbsent(locale,
+-            loc -> Codec.recursive("Component", selfCodec -> createCodec(selfCodec, loc)));
++        return LOCALIZED_CODECS.getUnchecked(locale);
+     }
+     // Paper end - adventure; create separate codec for each locale
+ 
+diff --git a/net/minecraft/network/protocol/game/ServerboundSetGameRulePacket.java b/net/minecraft/network/protocol/game/ServerboundSetGameRulePacket.java
+index f29347c395f8441b69dc15261797cbbaa1afdfbb..794b9505ae35996ace6949ac3db08ca6c45d3171 100644
+--- a/net/minecraft/network/protocol/game/ServerboundSetGameRulePacket.java
++++ b/net/minecraft/network/protocol/game/ServerboundSetGameRulePacket.java
+@@ -12,7 +12,7 @@ import net.minecraft.world.level.gamerules.GameRule;
+ 
+ public record ServerboundSetGameRulePacket(List<ServerboundSetGameRulePacket.Entry> entries) implements Packet<ServerGamePacketListener> {
+     public static final StreamCodec<ByteBuf, ServerboundSetGameRulePacket> STREAM_CODEC = StreamCodec.composite(
+-        ServerboundSetGameRulePacket.Entry.STREAM_CODEC.apply(ByteBufCodecs.list()), ServerboundSetGameRulePacket::entries, ServerboundSetGameRulePacket::new
++        ServerboundSetGameRulePacket.Entry.STREAM_CODEC.apply(ByteBufCodecs.list(128)), ServerboundSetGameRulePacket::entries, ServerboundSetGameRulePacket::new // Paper - add limit
+     );
+ 
+     @Override
+diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+index f6b7128b7f1312f85511da9293b7eb4d0844da45..a66b547e78e786588bd51606b4813af71b3d5e9a 100644
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -1436,6 +1436,18 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         this.connection.send(new ClientboundPostEffectsPacket(this.postEffects));
+     }
+ 
++    // Paper start - Post effects API
++    public boolean setPostEffects(final Collection<Identifier> postEffects) {
++        if (com.google.common.collect.Iterables.elementsEqual(this.postEffects, postEffects)) {
++            return false;
++        }
++        this.postEffects.clear();
++        this.postEffects.addAll(postEffects);
++        this.postEffectsDirty = true;
++        return true;
++    }
++    // Paper end - Post effects API
++
+     public boolean addPostEffect(final Identifier postEffect) {
+         if (this.postEffects.contains(postEffect)) {
+             return false;
+diff --git a/net/minecraft/server/network/ServerCommandSuggestionsProvider.java b/net/minecraft/server/network/ServerCommandSuggestionsProvider.java
+index 0a0d2bd53d2cb8b928a860b7a8ecc9704572b77f..14aab0deecb8a3f4f741fdf70b34a7d80fbaa1d0 100644
+--- a/net/minecraft/server/network/ServerCommandSuggestionsProvider.java
++++ b/net/minecraft/server/network/ServerCommandSuggestionsProvider.java
+@@ -63,7 +63,7 @@ public class ServerCommandSuggestionsProvider {
+                     } else {
+                         dispatcher.getCompletionSuggestions(parse).whenComplete((suggestions, failure) -> {
+                             if (failure != null) request.future.completeExceptionally(failure);
+-                            else request.future.complete(limitSuggestionCount(suggestions));
++                            else request.future.complete(limitSuggestionCount(filterNamespacedSuggestions(suggestions)));
+                         });
+                     }
+                 } catch (Exception e) {
+@@ -78,6 +78,15 @@ public class ServerCommandSuggestionsProvider {
+         return suggestions.getList().size() <= 1000 ? suggestions : new Suggestions(suggestions.getRange(), suggestions.getList().subList(0, 1000));
+     }
+ 
++    // Paper - respect send-namespaced without mutating a plugin's potentially immutable/shared result.
++    public static Suggestions filterNamespacedSuggestions(final Suggestions suggestions) {
++        if (org.spigotmc.SpigotConfig.sendNamespaced || suggestions.getRange().getStart() > 1) {
++            return suggestions;
++        }
++        return new Suggestions(suggestions.getRange(), suggestions.getList().stream()
++            .filter(suggestion -> !suggestion.getText().contains(":")).toList());
++    }
++
+     private void trySchedule() {
+         if (this.hasBudget) {
+             this.player.level().getServer().execute(this::tryProcessRequest);
+diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 07f2b4ccf799c82333edbd5fde1dd3e3456d27ee..6769245bebca208cf5d9d6fb33915172ac77dd6b 100644
+--- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -697,7 +697,7 @@ public class ServerGamePacketListenerImpl
+ 
+                 // Prevent 40 event-calls for less than a single pixel of movement >.>
+                 double delta = Mth.square(this.lastPosX - to.getX()) + Mth.square(this.lastPosY - to.getY()) + Mth.square(this.lastPosZ - to.getZ());
+-                float deltaAngle = Math.abs(this.lastYRot - to.getYaw()) + Math.abs(this.lastXRot - to.getPitch());
++                float deltaAngle = Math.abs(Mth.wrapDegrees(this.lastYRot - to.getYaw())) + Math.abs(this.lastXRot - to.getPitch()); // Paper - yaw wraparound
+ 
+                 if ((delta > 1f / 256 || deltaAngle > 10f) && !this.player.isImmobile()) {
+                     this.lastPosX = to.getX();
+@@ -917,8 +917,7 @@ public class ServerGamePacketListenerImpl
+             }
+             com.mojang.brigadier.suggestion.Suggestions suggestions = builder.build();
+             com.destroystokyo.paper.event.brigadier.AsyncPlayerSendSuggestionsEvent suggestEvent = new com.destroystokyo.paper.event.brigadier.AsyncPlayerSendSuggestionsEvent(this.getCraftPlayer(), suggestions, packet.command());
+-            suggestEvent.setCancelled(suggestions.isEmpty());
+-            if (suggestEvent.callEvent() && this.isAcceptingMessages()) {
++            if (suggestEvent.callEvent() && !suggestEvent.getSuggestions().isEmpty() && this.isAcceptingMessages()) {
+                 this.connection.send(new ClientboundCommandSuggestionsPacket(
+                     packet.id(), ServerCommandSuggestionsProvider.limitSuggestionCount(suggestEvent.getSuggestions())
+                 ));
+@@ -930,7 +929,12 @@ public class ServerGamePacketListenerImpl
+         this.commandSuggestionsProvider
+             .request(packet.command())
+             .thenAccept(suggestions -> {
+-                if (this.isAcceptingMessages()) this.send(new ClientboundCommandSuggestionsPacket(clientId, suggestions));
++                if (!this.isAcceptingMessages()) return;
++                // Paper - fire the suggestions event for the server completion path as well.
++                final var event = new com.destroystokyo.paper.event.brigadier.AsyncPlayerSendSuggestionsEvent(this.getCraftPlayer(), suggestions, packet.command());
++                if (event.callEvent() && !event.getSuggestions().isEmpty() && this.isAcceptingMessages()) {
++                    this.send(new ClientboundCommandSuggestionsPacket(clientId, ServerCommandSuggestionsProvider.limitSuggestionCount(event.getSuggestions())));
++                }
+             });
+     }
+ 
+@@ -1704,7 +1708,7 @@ public class ServerGamePacketListenerImpl
+ 
+                     // Prevent 40 event-calls for less than a single pixel of movement >.>
+                     double delta = Mth.square(this.lastPosX - to.getX()) + Mth.square(this.lastPosY - to.getY()) + Mth.square(this.lastPosZ - to.getZ());
+-                    float deltaAngle = Math.abs(this.lastYRot - to.getYaw()) + Math.abs(this.lastXRot - to.getPitch());
++                    float deltaAngle = Math.abs(Mth.wrapDegrees(this.lastYRot - to.getYaw())) + Math.abs(this.lastXRot - to.getPitch()); // Paper - yaw wraparound
+ 
+                     if ((delta > 1f / 256 || deltaAngle > 10.0F) && !this.player.isImmobile()) {
+                         this.lastPosX = to.getX();
+diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
+index 42fd84f078eb3268d820de8f211e78023eab85f9..c5608c5442274968ea5decf59e94c1d21c753a35 100644
+--- a/net/minecraft/server/players/PlayerList.java
++++ b/net/minecraft/server/players/PlayerList.java
+@@ -1011,6 +1011,10 @@ public abstract class PlayerList {
+             // player.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.THUNDER_LEVEL_CHANGE, level.getThunderLevel(1.0F)));
+             player.setPlayerWeather(org.bukkit.WeatherType.DOWNFALL, false);
+             player.updateWeather(-level.rainLevel, level.rainLevel, -level.thunderLevel, level.thunderLevel);
++        } else {
++            // Paper - explicitly clear stale client weather after respawn, preserving plugin overrides.
++            player.setPlayerWeather(org.bukkit.WeatherType.CLEAR, false);
++            player.updateWeather(-1, level.rainLevel, -1, level.thunderLevel);
+             // CraftBukkit end
+         }
+ 
+diff --git a/net/minecraft/util/datafix/DataFixers.java b/net/minecraft/util/datafix/DataFixers.java
+index 002042d3a57e317f8a628c889092ed37bf3dccbb..cf267f286c96cf58f85ec50929c87774805e44a3 100644
+--- a/net/minecraft/util/datafix/DataFixers.java
++++ b/net/minecraft/util/datafix/DataFixers.java
+@@ -1698,6 +1698,7 @@ public class DataFixers {
+         fixerUpper.addFixer(new MapColorComponentRemovalFix(v5008));
+         Schema v5009 = fixerUpper.addSchema(5009, SAME_NAMESPACED);
+         fixerUpper.addFixer(new BlendingDataNoValueHeightFix(v5009));
++        fixerUpper.addFixer(new net.minecraft.util.datafix.fixes.SinopiaRemoveTemptedMemoryFix(v5009)); // Sinopia - Paper's V5009 correction on our vanilla DFU path
+         Schema v5012 = fixerUpper.addSchema(5012, SAME_NAMESPACED);
+         fixerUpper.addFixer(
+             ItemRenameFix.create(
+diff --git a/net/minecraft/util/datafix/fixes/SinopiaRemoveTemptedMemoryFix.java b/net/minecraft/util/datafix/fixes/SinopiaRemoveTemptedMemoryFix.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..31d557f5185e0f6b23df9002ea4a662c9667e43c
+--- /dev/null
++++ b/net/minecraft/util/datafix/fixes/SinopiaRemoveTemptedMemoryFix.java
+@@ -0,0 +1,22 @@
++package net.minecraft.util.datafix.fixes;
++
++import com.mojang.datafixers.DSL;
++import com.mojang.datafixers.DataFix;
++import com.mojang.datafixers.TypeRewriteRule;
++import com.mojang.datafixers.schemas.Schema;
++
++/** Paper's removed-memory migration, integrated with Sinopia's post-26.2 vanilla DFU path. */
++@org.jspecify.annotations.NullMarked
++public final class SinopiaRemoveTemptedMemoryFix extends DataFix {
++    public SinopiaRemoveTemptedMemoryFix(final Schema schema) {
++        super(schema, false);
++    }
++
++    @Override
++    protected TypeRewriteRule makeRule() {
++        return this.fixTypeEverywhereTyped("Sinopia remove obsolete is_tempted memory",
++            this.getInputSchema().getType(References.ENTITY), entity -> entity.update(DSL.remainderFinder(),
++                data -> data.update("Brain", brain -> brain.update("memories",
++                    memories -> memories.remove("minecraft:is_tempted")))));
++    }
++}
+diff --git a/net/minecraft/world/entity/InsideBlockEffectApplier.java b/net/minecraft/world/entity/InsideBlockEffectApplier.java
+index fc7cfc75e3e5c274f01498e4afd8693236b4e394..c2f124383be06ae777c1ee7f0820c959c8359f87 100644
+--- a/net/minecraft/world/entity/InsideBlockEffectApplier.java
++++ b/net/minecraft/world/entity/InsideBlockEffectApplier.java
+@@ -96,10 +96,10 @@ public interface InsideBlockEffectApplier {
+         }
+ 
+         // Paper start - track position inside effect was triggered on
+-        private net.minecraft.core.BlockPos currentBlockPos = null;
++        private net.minecraft.core.@org.jspecify.annotations.Nullable BlockPos currentBlockPos = null;
+ 
+         private Consumer<Entity> recorded(final InsideBlockEffectType type) {
+-            return new RecordedEffect(this.currentBlockPos.immutable(), type.effect());
++            return new RecordedEffect(java.util.Objects.requireNonNull(this.currentBlockPos, "Cannot record effect without a current block position set").immutable(), type.effect());
+         }
+ 
+         record RecordedEffect(
+diff --git a/net/minecraft/world/entity/ai/behavior/TransportItemsBetweenContainers.java b/net/minecraft/world/entity/ai/behavior/TransportItemsBetweenContainers.java
+index 10ff003e12032d0d6a595e24d055e81915ea39d6..2ea765e060d67592aaaa9675c68750e8e2b11b38 100644
+--- a/net/minecraft/world/entity/ai/behavior/TransportItemsBetweenContainers.java
++++ b/net/minecraft/world/entity/ai/behavior/TransportItemsBetweenContainers.java
+@@ -380,9 +380,18 @@ public class TransportItemsBetweenContainers extends Behavior<PathfinderMob> {
+     }
+ 
+     private boolean targetHasNotChanged(final Level level, final TransportItemsBetweenContainers.TransportItemTarget target) {
+-        return target.blockEntity.equals(level.getBlockEntity(target.pos));
++        return target.blockEntity.equals(level.getBlockEntity(target.pos)) && !isContainerRemoved(target.container); // Paper - validate compound targets
+     }
+ 
++    // Paper start - validate compound targets
++    private static boolean isContainerRemoved(final Container container) {
++        if (container instanceof net.minecraft.world.CompoundContainer compoundContainer) {
++            return isContainerRemoved(compoundContainer.container1) || isContainerRemoved(compoundContainer.container2);
++        }
++        return container instanceof BlockEntity blockEntity && blockEntity.isRemoved();
++    }
++    // Paper end - validate compound targets
++
+     private Stream<TransportItemsBetweenContainers.TransportItemTarget> getConnectedTargets(
+         final TransportItemsBetweenContainers.TransportItemTarget target, final Level level
+     ) {
+diff --git a/net/minecraft/world/entity/decoration/Cushion.java b/net/minecraft/world/entity/decoration/Cushion.java
+index 6334fddb057d85e1f36a5a8a4e79f28cf032f1f2..5766e5564e5047076c5fd326864a1a2c9ba5c8fd 100644
+--- a/net/minecraft/world/entity/decoration/Cushion.java
++++ b/net/minecraft/world/entity/decoration/Cushion.java
+@@ -122,6 +122,7 @@ public class Cushion extends BlockAttachedEntity {
+             BlockPos blockPos = this.blockPosition();
+             FluidState fluidState = level.getBlockState(blockPos).getFluidState();
+             if (this.collidedWithFluid(fluidState, blockPos, this.position(), this.position())) {
++                this.insideEffectCollector.advanceStep(0, blockPos); // Paper - track position inside effect was triggered on
+                 fluidState.entityInside(level, blockPos, this, this.insideEffectCollector);
+                 this.insideEffectCollector.applyAndClear(this);
+             }

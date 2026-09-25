@@ -16,8 +16,6 @@ releaseUrl: "https://github.com/Hackii1432/Tessera/"
 downloadUrl: "https://home.mosaikdev.com"
 ---
 
-## Beschreibung
-
 ### Paper-Korrekturen und Blockabbau
 
 - Ausgewählte Korrekturen aus Papers `dev/26.3` bis zum geprüften Stand `c13e3c9` in die lokale Sinopia-Basis übernommen. Die ursprüngliche Paper-Importreferenz und bestehende Tessera-Anpassungen beibehalten; kein vollständiger Paper-Rebase durchgeführt.
@@ -50,16 +48,3 @@ downloadUrl: "https://home.mosaikdev.com"
 - Den Folia-Basispatch an die aktualisierte Sinopia-Basis angepasst und zusätzliche Regionsprüfungen als Testpatch `0031` aufgenommen.
 - Buildnummer auf `006-alpha` angehoben und README, Build-Workflow sowie Backport-Dokumentation aktualisiert.
 - Minecraft `26.3`, Mache `26.3+build.1`, Java 25, Gradle `9.4.1` und Plugin-API-Version `26.3` beibehalten.
-
-### Automatisierte Prüfung
-
-- Alle Patchschichten gemeinsam erfolgreich angewendet und den vollständigen `buildTessera`-Durchlauf einschließlich Kompilierung, Tests, Checkstyle, Bad-Call-Prüfungen und Paperclip-JAR-Erstellung erfolgreich abgeschlossen.
-- 47 neue Regressionstestfälle für Metadaten, Schildtexte, Events, Blockabbau, Portalverarbeitung, Regionszuständigkeit, Suchreihenfolge und Dateicache ergänzt.
-- Server-Testsuite mit `10.012` erfassten Testfällen ohne Fehler oder Fehlschläge geprüft; `87` Fälle wurden übersprungen. API-Tests mit `529` erfassten Fällen ohne Fehler oder Fehlschläge geprüft; `2` Fälle wurden übersprungen.
-
-Der erfolgreiche Prüf- und Buildlauf enthielt bereits diese Codeänderungen und
-erfolgte noch unter `005-alpha`, vor der anschließenden Anhebung der Buildnummer.
-Für die Dokumentationsanpassung wurde kein erneuter Build ausgeführt. Die
-automatisierten Regionsprüfungen verwenden kontrollierte Mocks; ein Live-Test
-mit Spielern, Plugins und Dimensionswechseln war nicht Bestandteil der Prüfung.
-Tessera bleibt ein Alpha-Build.

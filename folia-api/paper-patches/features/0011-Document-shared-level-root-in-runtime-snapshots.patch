@@ -5,7 +5,7 @@ Subject: [PATCH] Document shared level root in runtime snapshots
 
 
 diff --git a/src/main/java/io/papermc/paper/world/RuntimeWorldManager.java b/src/main/java/io/papermc/paper/world/RuntimeWorldManager.java
-index 2a8405c47..366487960 100644
+index 2a8405c47fc067361ca64ada9ca38d6a4a092a06..366487960eaec51fd9d8530b4632923eff4a6f1a 100644
 --- a/src/main/java/io/papermc/paper/world/RuntimeWorldManager.java
 +++ b/src/main/java/io/papermc/paper/world/RuntimeWorldManager.java
 @@ -68,6 +68,22 @@ public interface RuntimeWorldManager {
@@ -31,6 +31,3 @@ index 2a8405c47..366487960 100644
       * <p>This method does not use the immutable-template cache used by
       * {@link #cloneWorldAsync(World, NamespacedKey, WorldCloneOptions)}. Every
       * invocation saves and copies a new state. The operation is asynchronous
--- 
-2.45.1.windows.1
-

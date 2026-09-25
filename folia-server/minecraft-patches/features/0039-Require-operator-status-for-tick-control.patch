@@ -7,7 +7,7 @@ A granted minecraft.command.tick permission must not allow a non-operator
 to control the server tick loop. Preserve console and function permission checks.
 
 diff --git a/net/minecraft/server/commands/TickCommand.java b/net/minecraft/server/commands/TickCommand.java
-index b3c0e0ab..ba315e6e 100644
+index b3c0e0ab280a0715ee21237e1bbf99742a89437d..ba315e6e318c45bc360b40e402abe0686a6eb1cc 100644
 --- a/net/minecraft/server/commands/TickCommand.java
 +++ b/net/minecraft/server/commands/TickCommand.java
 @@ -10,12 +10,14 @@ import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;

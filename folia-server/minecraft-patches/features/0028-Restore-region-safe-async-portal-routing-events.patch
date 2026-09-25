@@ -5,10 +5,10 @@ Subject: [PATCH] Restore region-safe async portal routing events
 
 
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 380f7c17f3fe65fc861aa3490c4c758fbd76aaf0..357001378bca2698e74ef1e58a0b1a40af75e21a 100644
+index 6aca9f2f0037f83ec83dc351de25dabde2e646f1..77db63f19c334857cd3b9630867617761ddf8fe9 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
-@@ -2044,6 +2044,11 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -2056,6 +2056,11 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
              // finished
  
              this.postChangeDimension();

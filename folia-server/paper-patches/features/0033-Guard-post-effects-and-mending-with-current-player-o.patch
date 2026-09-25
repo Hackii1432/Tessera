@@ -1,0 +1,408 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Fri, 25 Sep 2026 13:58:12 +0200
+Subject: [PATCH] Guard post effects and mending with current player ownership
+
+
+diff --git a/src/main/java/io/papermc/paper/entity/PaperPlayerPostEffects.java b/src/main/java/io/papermc/paper/entity/PaperPlayerPostEffects.java
+index 230495adadd308687f1b289f614157a099f87411..0991573d0bedfd93922ec6581398369b7cd70f48 100644
+--- a/src/main/java/io/papermc/paper/entity/PaperPlayerPostEffects.java
++++ b/src/main/java/io/papermc/paper/entity/PaperPlayerPostEffects.java
+@@ -13,14 +13,17 @@ import org.jspecify.annotations.NullMarked;
+ @NullMarked
+ public final class PaperPlayerPostEffects implements PlayerPostEffects {
+ 
+-    private final ServerPlayer handle;
++    private final org.bukkit.craftbukkit.entity.CraftPlayer player;
+ 
+-    public PaperPlayerPostEffects(final ServerPlayer handle) {
+-        this.handle = handle;
++    public PaperPlayerPostEffects(final org.bukkit.craftbukkit.entity.CraftPlayer player) {
++        this.player = player;
+     }
+ 
+     private ServerPlayer getHandle() {
+-        return this.handle;
++        final ServerPlayer handle = this.player.getHandle();
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(handle, "Cannot access player post effects off-region");
++        Preconditions.checkState(!handle.isRemoved() && !handle.hasDisconnected(), "Player is no longer in an active region");
++        return handle;
+     }
+ 
+     @Override
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+index 3bdbdc81afd19d05897b922fe706341936810334..332d149943b6697ef170181e9f7d3e1a3fabafd6 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+@@ -1744,6 +1744,9 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
+     @Override
+     public int applyMending(int amount) {
+         ServerPlayer handle = this.getHandle();
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(handle, "Cannot apply mending off-region");
++        Preconditions.checkState(!handle.isRemoved(), "Player is no longer in an active region");
++        final net.minecraft.server.level.ServerLevel originalLevel = handle.level();
+         // Logic copied from ExperienceOrb#repairPlayerItems
+ 
+         final Optional<net.minecraft.world.item.enchantment.EnchantedItemInUse> selected = net.minecraft.world.item.enchantment.EnchantmentHelper
+@@ -1765,7 +1768,12 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
+             final int consumedExperience = repair > 0 ? repair * amount / toRepairFromXpAmount : toRepairFromXpAmount; // Paper - prevent division by 0
+             org.bukkit.event.player.PlayerItemMendEvent event = org.bukkit.craftbukkit.event.CraftEventFactory.callPlayerItemMendEvent(handle, orb, itemstack, selected.get().inSlot(), repair, consumedExperience);
+             repair = event.getRepairAmount();
+-            orb.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.DESPAWN);
++            if (ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(orb) && !orb.isRemoved()) {
++                orb.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.DESPAWN);
++            }
++            // Tessera - plugins may replace or transfer the player during the event.
++            if (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(handle)
++                || this.getHandle() != handle || handle.isRemoved() || handle.level() != originalLevel) return amount;
+             if (!event.isCancelled()) {
+                 amount -= consumedExperience; // Use previously computed variable to reduce diff on change.
+                 itemstack.setDamageValue(itemstack.getDamageValue() - repair);
+@@ -1779,7 +1787,10 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
+         if (applyMending) {
+             exp = this.applyMending(exp);
+         }
+-        this.getHandle().giveExperiencePoints(exp);
++        final ServerPlayer handle = this.getHandle();
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(handle, "Cannot grant experience off-region");
++        Preconditions.checkState(!handle.isRemoved(), "Player is no longer in an active region");
++        handle.giveExperiencePoints(exp);
+     }
+ 
+     @Override
+@@ -3459,6 +3470,6 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
+ 
+     @Override
+     public PlayerPostEffects postEffects() {
+-        return new PaperPlayerPostEffects(this.getHandle());
++        return new PaperPlayerPostEffects(this); // Tessera - resolve the current player after respawn
+     }
+ }
+diff --git a/src/test/java/io/papermc/paper/porting/TesseraMainOwnershipTest.java b/src/test/java/io/papermc/paper/porting/TesseraMainOwnershipTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..3a8d9347a28da3dc7e8ad2038196a2f8a68836e9
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/porting/TesseraMainOwnershipTest.java
+@@ -0,0 +1,201 @@
++package io.papermc.paper.porting;
++
++import ca.spottedleaf.moonrise.common.util.TickThread;
++import ca.spottedleaf.moonrise.patches.chunk_system.scheduling.NewChunkHolder;
++import java.lang.reflect.Field;
++import java.lang.reflect.Method;
++import net.minecraft.core.BlockPos;
++import net.minecraft.server.level.ServerChunkCache;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.world.CompoundContainer;
++import net.minecraft.world.Container;
++import net.minecraft.world.entity.ai.behavior.TransportItemsBetweenContainers;
++import net.minecraft.world.level.Level;
++import net.minecraft.world.level.block.entity.ChestBlockEntity;
++import net.minecraft.world.level.chunk.LevelChunk;
++import net.minecraft.world.level.chunk.storage.SerializableChunkData;
++import org.bukkit.support.environment.Normal;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.Mockito.*;
++import static org.mockito.ArgumentMatchers.*;
++
++@Normal
++class TesseraMainOwnershipTest {
++    @org.junit.jupiter.params.ParameterizedTest
++    @org.junit.jupiter.params.provider.ValueSource(strings = {"send", "empty", "cancel", "transfer", "removed", "replaced"})
++    void serverSuggestionEventRevalidatesStateBeforeSending(String outcome) throws Exception {
++        var player = mock(net.minecraft.server.level.ServerPlayer.class);
++        var listener = mock(net.minecraft.server.network.ServerGamePacketListenerImpl.class, CALLS_REAL_METHODS);
++        listener.player = player;
++        player.connection = listener;
++        doReturn(true).when(listener).isAcceptingMessages();
++        doNothing().when(listener).send(any(net.minecraft.network.protocol.Packet.class));
++        var range = com.mojang.brigadier.context.StringRange.at(1);
++        var empty = new com.mojang.brigadier.suggestion.Suggestions(range, java.util.List.of());
++        var filled = new com.mojang.brigadier.suggestion.Suggestions(range,
++            java.util.List.of(new com.mojang.brigadier.suggestion.Suggestion(range, "help")));
++        var owner = new java.util.concurrent.atomic.AtomicBoolean(true);
++        try (var threads = mockStatic(TickThread.class);
++             var events = mockConstruction(com.destroystokyo.paper.event.brigadier.AsyncPlayerSendSuggestionsEvent.class, (event, context) -> {
++                 when(event.getSuggestions()).thenReturn(outcome.equals("empty") ? empty : filled);
++                 when(event.callEvent()).thenAnswer(call -> {
++                     if (outcome.equals("transfer")) owner.set(false);
++                     if (outcome.equals("removed")) when(player.isRemoved()).thenReturn(true);
++                     if (outcome.equals("replaced")) listener.player = mock(net.minecraft.server.level.ServerPlayer.class);
++                     return !outcome.equals("cancel");
++                 });
++             })) {
++            threads.when(() -> TickThread.isTickThreadFor(player)).thenAnswer(call -> owner.get());
++            Method send = net.minecraft.server.network.ServerGamePacketListenerImpl.class.getDeclaredMethod(
++                "tessera$sendServerSuggestions", net.minecraft.server.level.ServerPlayer.class,
++                net.minecraft.network.protocol.game.ServerboundCommandSuggestionPacket.class,
++                com.mojang.brigadier.suggestion.Suggestions.class);
++            send.setAccessible(true);
++            send.invoke(listener, player, new net.minecraft.network.protocol.game.ServerboundCommandSuggestionPacket(1, "/help"), empty);
++            assertEquals(1, events.constructed().size());
++            verify(events.constructed().getFirst()).callEvent();
++            verify(listener, times(outcome.equals("send") ? 1 : 0)).send(any(net.minecraft.network.protocol.Packet.class));
++        }
++    }
++
++    @Test
++    void asynchronousSuggestionsWaitForThePlayersScheduler() throws Exception {
++        var player = mock(net.minecraft.server.level.ServerPlayer.class);
++        var craft = mock(org.bukkit.craftbukkit.entity.CraftPlayer.class);
++        var scheduler = mock(io.papermc.paper.threadedregions.EntityScheduler.class);
++        Field schedulerField = org.bukkit.craftbukkit.entity.CraftEntity.class.getDeclaredField("taskScheduler");
++        schedulerField.setAccessible(true);
++        schedulerField.set(craft, scheduler);
++        var listener = mock(net.minecraft.server.network.ServerGamePacketListenerImpl.class, CALLS_REAL_METHODS);
++        listener.player = player;
++        doReturn(craft).when(listener).getCraftPlayer();
++        var provider = mock(net.minecraft.server.network.ServerCommandSuggestionsProvider.class);
++        var future = new java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions>();
++        when(provider.request("/help")).thenReturn(future);
++        Field providerField = net.minecraft.server.network.ServerGamePacketListenerImpl.class.getDeclaredField("commandSuggestionsProvider");
++        providerField.setAccessible(true);
++        providerField.set(listener, provider);
++        try (var threads = mockStatic(TickThread.class)) {
++            listener.sendServerSuggestions(new net.minecraft.network.protocol.game.ServerboundCommandSuggestionPacket(1, "/help"));
++            verifyNoInteractions(scheduler);
++            future.complete(new com.mojang.brigadier.suggestion.Suggestions(com.mojang.brigadier.context.StringRange.at(1), java.util.List.of()));
++            verify(scheduler).schedule(any(), isNull(), eq(1L));
++            verify(listener, never()).isAcceptingMessages();
++        }
++    }
++
++    @Test
++    void cushionRecordsFluidPositionBeforeApplyingEffects() throws Exception {
++        var cushion = mock(net.minecraft.world.entity.decoration.Cushion.class, CALLS_REAL_METHODS);
++        var level = mock(ServerLevel.class, RETURNS_DEEP_STUBS);
++        var pos = new BlockPos(32, 70, 48);
++        doReturn(level).when(cushion).level();
++        doReturn(pos).when(cushion).blockPosition();
++        doReturn(net.minecraft.world.phys.Vec3.ZERO).when(cushion).position();
++        doReturn(true).when(cushion).collidedWithFluid(any(), any(), any(), any());
++        doReturn(false).when(cushion).canFreeze();
++        doNothing().when(cushion).destroyIfInFire(level);
++        var collector = spy(new net.minecraft.world.entity.InsideBlockEffectApplier.StepBasedCollector());
++        Field field = net.minecraft.world.entity.Entity.class.getDeclaredField("insideEffectCollector");
++        field.setAccessible(true);
++        field.set(cushion, collector);
++        var fluid = level.getBlockState(pos).getFluidState();
++        doAnswer(call -> {
++            // This used to throw because currentBlockPos had never been set.
++            collector.apply(net.minecraft.world.entity.InsideBlockEffectType.values()[0]);
++            return null;
++        }).when(fluid).entityInside(level, pos, cushion, collector);
++        Method tick = net.minecraft.world.entity.decoration.Cushion.class.getDeclaredMethod("tickAtCheckInterval");
++        tick.setAccessible(true);
++        assertDoesNotThrow(() -> tick.invoke(cushion));
++        var order = inOrder(collector, fluid);
++        order.verify(collector).advanceStep(0, pos);
++        order.verify(fluid).entityInside(level, pos, cushion, collector);
++        order.verify(collector).applyAndClear(cushion);
++    }
++
++    @Test
++    void compoundContainerRejectsForeignHalfWithoutReadingIt() throws Exception {
++        ServerLevel level = mock(ServerLevel.class, RETURNS_DEEP_STUBS);
++        ChestBlockEntity first = mock(ChestBlockEntity.class);
++        ChestBlockEntity second = mock(ChestBlockEntity.class);
++        BlockPos foreign = new BlockPos(512, 64, 512);
++        when(first.getBlockPos()).thenReturn(BlockPos.ZERO);
++        when(second.getBlockPos()).thenReturn(foreign);
++        when(first.getLevel()).thenReturn(level);
++        when(second.getLevel()).thenReturn(level);
++        when(level.getBlockEntity(BlockPos.ZERO)).thenReturn(first);
++        when(level.getChunkSource().getChunkAtIfLoadedImmediately(0, 0)).thenReturn(mock(LevelChunk.class));
++        when(level.getChunkSource().getChunkAtIfLoadedImmediately(32, 32)).thenReturn(mock(LevelChunk.class));
++        when(level.getBlockEntity(foreign)).thenReturn(second);
++        Method check = TransportItemsBetweenContainers.class.getDeclaredMethod("isContainerRemoved", Level.class, Container.class);
++        check.setAccessible(true);
++        CompoundContainer compound = new CompoundContainer(first, second);
++        try (var threads = mockStatic(TickThread.class)) {
++            threads.when(() -> TickThread.isTickThreadFor(level, BlockPos.ZERO)).thenReturn(true);
++            assertEquals(true, check.invoke(null, level, compound));
++            verify(second, never()).isRemoved();
++            verify(level, never()).getBlockEntity(foreign);
++            threads.when(() -> TickThread.isTickThreadFor(level, foreign)).thenReturn(true);
++            assertEquals(false, check.invoke(null, level, compound));
++            when(second.isRemoved()).thenReturn(true);
++            assertEquals(true, check.invoke(null, level, compound));
++        }
++    }
++
++    @Test
++    void targetDiscoveryRejectsUnloadedAndForeignPositions() {
++        ServerLevel level = mock(ServerLevel.class, RETURNS_DEEP_STUBS);
++        try (var threads = mockStatic(TickThread.class)) {
++            assertNull(TransportItemsBetweenContainers.TransportItemTarget.tryCreatePossibleTarget(BlockPos.ZERO, level));
++            verify(level, never()).getBlockEntity(any());
++            threads.when(() -> TickThread.isTickThreadFor(level, BlockPos.ZERO)).thenReturn(true);
++            when(level.getChunkSource().getChunkAtIfLoadedImmediately(0, 0)).thenReturn(null);
++            assertNull(TransportItemsBetweenContainers.TransportItemTarget.tryCreatePossibleTarget(BlockPos.ZERO, level));
++            verify(level, never()).getBlockEntity(any());
++        }
++    }
++
++    @Test
++    void unloadBroadcastRemovalUsesOnlyTheOwningRegionsSet() throws Exception {
++        ServerLevel level = mock(ServerLevel.class);
++        var own = mock(io.papermc.paper.threadedregions.RegionizedWorldData.class);
++        var other = mock(io.papermc.paper.threadedregions.RegionizedWorldData.class);
++        Field broadcasts = io.papermc.paper.threadedregions.RegionizedWorldData.class.getDeclaredField("chunkHoldersToBroadcast");
++        broadcasts.setAccessible(true);
++        broadcasts.set(own, new it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet<>());
++        broadcasts.set(other, new it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet<>());
++        NewChunkHolder holder = mock(NewChunkHolder.class);
++        var vanilla = mock(net.minecraft.server.level.ChunkHolder.class);
++        Field vanillaField = NewChunkHolder.class.getDeclaredField("vanillaChunkHolder");
++        vanillaField.setAccessible(true);
++        vanillaField.set(holder, vanilla);
++        own.chunkHoldersToBroadcast.add(vanilla);
++        other.chunkHoldersToBroadcast.add(vanilla);
++        when(level.getCurrentWorldData()).thenReturn(own);
++        ServerChunkCache cache = mock(ServerChunkCache.class, CALLS_REAL_METHODS);
++        Field world = ServerChunkCache.class.getDeclaredField("level");
++        world.setAccessible(true);
++        world.set(cache, level);
++        try (var threads = mockStatic(TickThread.class)) {
++            cache.moonrise$chunkHolderUnload(holder);
++            assertTrue(own.chunkHoldersToBroadcast.isEmpty());
++            assertTrue(other.chunkHoldersToBroadcast.contains(vanilla));
++            threads.verify(() -> TickThread.ensureTickThread(level, 0, 0, "Cannot remove chunk broadcasts off-region"));
++        }
++    }
++
++    @Test
++    void loadedChunkCannotTransferSectionsToAsyncSaving() {
++        ServerLevel level = mock(ServerLevel.class);
++        LevelChunk chunk = mock(LevelChunk.class);
++        when(chunk.getPos()).thenReturn(new net.minecraft.world.level.ChunkPos(0, 0));
++        when(chunk.isLoaded()).thenReturn(true);
++        try (var threads = mockStatic(TickThread.class)) {
++            assertThrows(IllegalStateException.class, () -> SerializableChunkData.copyOfForUnload(level, chunk));
++            verify(chunk, never()).getSections();
++        }
++    }
++}
+diff --git a/src/test/java/io/papermc/paper/porting/TesseraPostEffectsTest.java b/src/test/java/io/papermc/paper/porting/TesseraPostEffectsTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..eb42fc23c5af6057a98e7b14033727aa96ad9070
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/porting/TesseraPostEffectsTest.java
+@@ -0,0 +1,115 @@
++package io.papermc.paper.porting;
++
++import ca.spottedleaf.moonrise.common.util.TickThread;
++import io.papermc.paper.entity.PaperPlayerPostEffects;
++import java.lang.reflect.Field;
++import java.util.ArrayList;
++import java.util.List;
++import java.util.concurrent.atomic.AtomicReference;
++import net.kyori.adventure.key.Key;
++import net.minecraft.resources.Identifier;
++import net.minecraft.server.level.ServerPlayer;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.support.environment.Normal;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.Mockito.*;
++
++@Normal
++class TesseraPostEffectsTest {
++    private static ServerPlayer player() throws Exception {
++        ServerPlayer player = mock(ServerPlayer.class, CALLS_REAL_METHODS);
++        Class<?> type = ServerPlayer.class;
++        while (type != null) {
++            try {
++                Field field = type.getDeclaredField("postEffects");
++                field.setAccessible(true);
++                field.set(player, new ArrayList<Identifier>());
++                break;
++            } catch (NoSuchFieldException ignored) {
++                type = type.getSuperclass();
++            }
++        }
++        assertNotNull(type);
++        doReturn(false).when(player).isRemoved();
++        doReturn(false).when(player).hasDisconnected();
++        return player;
++    }
++
++    @Test
++    void retainedApiResolvesTheCurrentPlayerAfterRespawn() throws Exception {
++        ServerPlayer first = player();
++        ServerPlayer replacement = player();
++        AtomicReference<ServerPlayer> current = new AtomicReference<>(first);
++        CraftPlayer craft = mock(CraftPlayer.class);
++        when(craft.getHandle()).thenAnswer(call -> current.get());
++        var effects = new PaperPlayerPostEffects(craft);
++        try (var threads = mockStatic(TickThread.class)) {
++            assertTrue(effects.add(Key.key("minecraft", "blur")));
++            List<Key> snapshot = effects.values();
++            current.set(replacement);
++            assertTrue(effects.add(Key.key("minecraft", "invert")));
++            assertEquals(List.of(Key.key("minecraft", "invert")), effects.values());
++            assertEquals(List.of(Key.key("minecraft", "blur")), snapshot);
++            assertThrows(UnsupportedOperationException.class, () -> snapshot.add(Key.key("minecraft", "test")));
++            assertEquals(List.of(Identifier.withDefaultNamespace("blur")), first.getPostEffects());
++            threads.verify(() -> TickThread.ensureTickThread(replacement, "Cannot access player post effects off-region"), atLeastOnce());
++        }
++    }
++
++    @Test
++    void allOperationsRejectForeignRegionAccess() throws Exception {
++        ServerPlayer player = player();
++        CraftPlayer craft = mock(CraftPlayer.class);
++        when(craft.getHandle()).thenReturn(player);
++        var effects = new PaperPlayerPostEffects(craft);
++        try (var threads = mockStatic(TickThread.class)) {
++            threads.when(() -> TickThread.ensureTickThread(player, "Cannot access player post effects off-region"))
++                .thenThrow(new IllegalStateException("foreign region"));
++            assertThrows(IllegalStateException.class, effects::values);
++            assertThrows(IllegalStateException.class, () -> effects.set(List.of(Key.key("minecraft", "blur"))));
++            assertThrows(IllegalStateException.class, () -> effects.add(Key.key("minecraft", "blur")));
++            assertThrows(IllegalStateException.class, () -> effects.remove(Key.key("minecraft", "blur")));
++            assertThrows(IllegalStateException.class, effects::clear);
++        }
++        assertTrue(player.getPostEffects().isEmpty());
++    }
++
++    @Test
++    void orderingDuplicateValidationAndDirtyFlagMatchPaper() throws Exception {
++        ServerPlayer player = player();
++        CraftPlayer craft = mock(CraftPlayer.class);
++        when(craft.getHandle()).thenReturn(player);
++        var effects = new PaperPlayerPostEffects(craft);
++        Key blur = Key.key("minecraft", "blur");
++        Key invert = Key.key("minecraft", "invert");
++        Field dirty = ServerPlayer.class.getDeclaredField("postEffectsDirty");
++        dirty.setAccessible(true);
++        try (var threads = mockStatic(TickThread.class)) {
++            assertTrue(effects.set(List.of(blur, invert)));
++            assertTrue(dirty.getBoolean(player));
++            dirty.setBoolean(player, false);
++            assertFalse(effects.set(List.of(blur, invert)));
++            assertFalse(dirty.getBoolean(player));
++            assertTrue(effects.set(List.of(invert, blur)));
++            assertEquals(List.of(invert, blur), effects.values());
++            assertThrows(IllegalArgumentException.class, () -> effects.set(List.of(blur, blur)));
++            assertThrows(IllegalArgumentException.class, () -> effects.set(null));
++            assertThrows(IllegalArgumentException.class, () -> effects.add(null));
++            assertThrows(IllegalArgumentException.class, () -> effects.remove(null));
++            assertEquals(List.of(invert, blur), effects.values());
++            assertFalse(effects.add(blur));
++            assertTrue(effects.remove(blur));
++            assertFalse(effects.remove(blur));
++            assertTrue(effects.clear());
++            assertFalse(effects.clear());
++            doReturn(true).when(player).isRemoved();
++            assertThrows(IllegalStateException.class, effects::values);
++            doReturn(false).when(player).isRemoved();
++            doReturn(true).when(player).hasDisconnected();
++            assertThrows(IllegalStateException.class, () -> effects.add(blur));
++        }
++    }
++}
++

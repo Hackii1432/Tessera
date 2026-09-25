@@ -7,15 +7,22 @@ Selective backport of Paper 2307f8f477997c9dbe17f789007c22356070e3a9,
 adapted for Sinopia and Tessera. See docs/PAPER-BACKPORTS-2026-09-15.md.
 
 diff --git a/net/minecraft/server/network/ServerCommandSuggestionsProvider.java b/net/minecraft/server/network/ServerCommandSuggestionsProvider.java
+index 5208ef6cb5ef53ed916f38df97c29acf4881d14e..4f352070fd73d1ef5638e03ee69f9bb7d9557b40 100644
 --- a/net/minecraft/server/network/ServerCommandSuggestionsProvider.java
 +++ b/net/minecraft/server/network/ServerCommandSuggestionsProvider.java
-@@ -18,3 +18,3 @@
+@@ -17,7 +17,7 @@ public class ServerCommandSuggestionsProvider {
+     private static final int MAX_COMMAND_SUGGESTIONS = 1000;
+     private static final Logger LOGGER = LogUtils.getLogger();
+     private static final int MIN_INTERVAL_TICKS = 1;
 -    private final ServerPlayer player;
 +    private volatile ServerPlayer player; // Tessera - resolve the current NMS player through its stable entity scheduler
      private final AtomicReference<ServerCommandSuggestionsProvider.@Nullable Request> lastRequest = new AtomicReference<>();
      private volatile boolean hasBudget;
-@@ -26,2 +26,10 @@
--    public void tick() {
+ 
+@@ -25,7 +25,15 @@ public class ServerCommandSuggestionsProvider {
+         this.player = player;
+     }
+ 
 +    // Tessera - refresh ownership after respawn before consuming a request from the listener tick.
 +    public void tessera$tick(final ServerPlayer currentPlayer) {
 +        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(currentPlayer, "Cannot tick suggestions off-region");
@@ -23,10 +30,14 @@ diff --git a/net/minecraft/server/network/ServerCommandSuggestionsProvider.java 
 +        this.tick();
 +    }
 +
-+    public void tick() {
+     public void tick() {
 +        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this.player, "Cannot tick suggestions off-region");
          if (this.player.tickCount % 1 == 0) {
-@@ -34,2 +42,7 @@
+             this.hasBudget = true;
+             this.tryProcessRequest();
+@@ -33,6 +41,11 @@ public class ServerCommandSuggestionsProvider {
+     }
+ 
      private void tryProcessRequest() {
 +        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this.player, "Cannot parse suggestions off-region");
 +        if (!this.player.connection.isAcceptingMessages()) {
@@ -34,7 +45,10 @@ diff --git a/net/minecraft/server/network/ServerCommandSuggestionsProvider.java 
 +            return;
 +        }
          if (this.hasBudget) {
-@@ -60,4 +65,13 @@
+             ServerCommandSuggestionsProvider.Request request = this.lastRequest.getAndSet(null);
+             if (request != null) {
+@@ -46,7 +59,16 @@ public class ServerCommandSuggestionsProvider {
+ 
                      MinecraftServer server = this.player.level().getServer();
                      CommandDispatcher<CommandSourceStack> dispatcher = server.getCommands().getDispatcher();
 -                    ParseResults<CommandSourceStack> parse = dispatcher.parse(reader, this.player.createCommandSourceStack());
@@ -49,7 +63,11 @@ diff --git a/net/minecraft/server/network/ServerCommandSuggestionsProvider.java 
 +                        return;
 +                    }
                      // Sinopia - validate plugin-handled requests through the same budgeted parser.
-@@ -84,7 +97,21 @@
+                     if (parse.getExceptions().values().stream().anyMatch(io.papermc.paper.brigadier.TagParseCommandSyntaxException.class::isInstance)) {
+                         request.future.cancel(false);
+@@ -88,11 +110,25 @@ public class ServerCommandSuggestionsProvider {
+     }
+ 
      private void trySchedule() {
 -        if (this.hasBudget) {
 -            this.player.getBukkitEntity().taskScheduler.schedule(current -> this.tryProcessRequest(), null, 1L); // Folia - entity-owned suggestions
@@ -73,13 +91,18 @@ diff --git a/net/minecraft/server/network/ServerCommandSuggestionsProvider.java 
 +    }
 +
      public CompletableFuture<Suggestions> request(final String command) {
+         return this.request(command, true);
+     }
 diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 65f49beaf41b94aa37b88fda260c860eda5efc4d..00ebe5c20950c67446c48fc61034c51655ee6ac8 100644
 --- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -390,5 +390,5 @@
+@@ -389,7 +389,7 @@ public class ServerGamePacketListenerImpl
+             this.chatSpamThrottler.tick();
              this.commandSpamThrottler.tick();
              this.dropSpamThrottler.tick();
 -            this.commandSuggestionsProvider.tick();
 +            this.commandSuggestionsProvider.tessera$tick(this.player); // Tessera - current player after respawn/transfer
              this.tabSpamThrottler.tick(); // Paper - configurable tab spam limits
              this.recipeSpamPackets.tick(); // Paper - auto recipe limit
+             if (this.player.getLastActionTime() > 0L

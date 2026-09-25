@@ -5,7 +5,7 @@ Subject: [PATCH] Initialize regional lag compensation from the shared clock
 
 
 diff --git a/io/papermc/paper/threadedregions/RegionizedWorldData.java b/io/papermc/paper/threadedregions/RegionizedWorldData.java
-index bf40dde4..767c03cc 100644
+index bf40dde4be58053e48c9793d8f56f5f402d73c90..767c03cc70b5c0a996348b6d8b34a8ea78b2d35d 100644
 --- a/io/papermc/paper/threadedregions/RegionizedWorldData.java
 +++ b/io/papermc/paper/threadedregions/RegionizedWorldData.java
 @@ -479,7 +479,8 @@ public final class RegionizedWorldData {

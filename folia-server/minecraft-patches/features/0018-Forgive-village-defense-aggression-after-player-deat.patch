@@ -5,7 +5,7 @@ Subject: [PATCH] Forgive village defense aggression after player death
 
 
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 4580b8a61f827e8f9c0a23ba9da45dd9cb99d39b..2e404ea73b0605252bc4decb77e2018982dea560 100644
+index 771576b5c2603ff69c9eb499a95068f6f80f7cb8..8a9d3d06cbc582d677cc20d6d92606b6418538c5 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
 @@ -22,6 +22,7 @@ import java.util.Set;
@@ -87,7 +87,7 @@ index 4580b8a61f827e8f9c0a23ba9da45dd9cb99d39b..2e404ea73b0605252bc4decb77e20189
      }
  
      @Override
-@@ -2780,6 +2797,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -2792,6 +2809,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          this.enteredNetherPosition = oldPlayer.enteredNetherPosition;
          this.currentExplosionImpactPos = oldPlayer.currentExplosionImpactPos;
          this.currentExplosionCause = oldPlayer.currentExplosionCause;

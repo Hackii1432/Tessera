@@ -66,8 +66,8 @@ Lizenzen und bestehende Urheberhinweise werden nicht verändert.
 | --- | --- |
 | Sinopia / Minecraft | `sinopia/paper-server/patches/features/0041-Guard-command-suggestion-tag-parsing.patch`, `0042-Restore-custom-terrain-generation-phases.patch`, `0043-Pass-the-actual-bed-rule-to-plugin-events.patch` |
 | Sinopia / Implementierung | `CustomChunkGenerator.java`, `CraftEventFactory.java` und Bett-Regressionstests unter `sinopia/paper-server/src/` |
-| Tessera / Folia-Minecraft | `folia-server/minecraft-patches/features/0038-Keep-suggestion-validation-on-the-current-player-region.patch` |
-| Tessera / Folia-Implementierung | `folia-server/paper-patches/features/0028-Isolate-custom-generation-callback-state.patch`, `0029-Test-suggestion-ownership-and-custom-terrain-callbacks.patch` |
+| Tessera / Folia-Minecraft | `folia-server/minecraft-patches/features/0038-Keep-suggestion-validation-on-the-current-player-reg.patch` |
+| Tessera / Folia-Implementierung | `folia-server/paper-patches/features/0028-Isolate-custom-generation-callback-state.patch`, `0029-Test-suggestion-ownership-and-custom-terrain-callbac.patch` |
 
 Die erzeugten Java-Dateien unter `paper-server/` und `folia-server/src/minecraft/`
 sind keine weiteren Wartungsstellen. Nach erneutem Anwenden der Patches werden

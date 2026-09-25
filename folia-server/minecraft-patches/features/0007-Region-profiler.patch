@@ -417,10 +417,10 @@ index 0000000000000000000000000000000000000000..48223704c769b1920e5b7ad444f0ffea
 +    ) {}
 +}
 diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
-index 25263ada9e9414427e27980c3f07f4d71b352ad5..8b06d0c893e07c969d35c4d7528927552c27b48b 100644
+index 9146c313ed54759a0b9251f99ff502357a5378e4..f28fecf17b63dd6adb8f5e519a50605b06e8124d 100644
 --- a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
 +++ b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
-@@ -1563,6 +1563,7 @@ public final class ChunkHolderManager {
+@@ -1565,6 +1565,7 @@ public final class ChunkHolderManager {
      }
  
      public boolean processTicketUpdates() {
@@ -428,7 +428,7 @@ index 25263ada9e9414427e27980c3f07f4d71b352ad5..8b06d0c893e07c969d35c4d752892755
          if (BLOCK_TICKET_UPDATES.get() == Boolean.TRUE) {
              throw new IllegalStateException("Cannot update ticket level while unloading chunks or updating entity manager");
          }
-@@ -1600,6 +1601,7 @@ public final class ChunkHolderManager {
+@@ -1602,6 +1603,7 @@ public final class ChunkHolderManager {
          }
  
          return ret;
@@ -437,7 +437,7 @@ index 25263ada9e9414427e27980c3f07f4d71b352ad5..8b06d0c893e07c969d35c4d752892755
  
      private static final ThreadLocal<List<ChunkProgressionTask>> CURRENT_TICKET_UPDATE_SCHEDULING = new ThreadLocal<>();
 diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/NewChunkHolder.java b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/NewChunkHolder.java
-index fdb0bcdca1cd38f55f191d42e422c354af4452b5..24c8581b2fa9c3ef6f6aad64bd4454d64fe233ae 100644
+index 1b8ed9b77ad4f1c18d3259d80501c40dc0dbb7d5..98cb9bc8741c5dec0f2406e01916d3b8a47a8c25 100644
 --- a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/NewChunkHolder.java
 +++ b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/NewChunkHolder.java
 @@ -1646,6 +1646,8 @@ public final class NewChunkHolder {
@@ -1009,10 +1009,10 @@ index d08ca8f6f264ced724b07740c2a875d5254c15ca..ca42cf77a3a8fbee639a94e582e1e3a5
      // Paper end - optimise entity tracker
  
 diff --git a/net/minecraft/server/level/ServerChunkCache.java b/net/minecraft/server/level/ServerChunkCache.java
-index 04332a3d9921e1a7def1fa2500de461cc3133b4c..18af9c491ea5e9f10d945cfa6fc540d8da17d1e3 100644
+index 6ebf8c622a8d2170c28bee217ff551a47a399a98..e7b029d2995202f85bc87f0e98eba1d08059295e 100644
 --- a/net/minecraft/server/level/ServerChunkCache.java
 +++ b/net/minecraft/server/level/ServerChunkCache.java
-@@ -157,6 +157,8 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+@@ -162,6 +162,8 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
      // Paper start - chunk tick iteration optimisations
      private final ca.spottedleaf.moonrise.common.util.SimpleThreadUnsafeRandom shuffleRandom = new ca.spottedleaf.moonrise.common.util.SimpleThreadUnsafeRandom(0L);
      private void iterateTickingChunksFaster() {
@@ -1021,7 +1021,7 @@ index 04332a3d9921e1a7def1fa2500de461cc3133b4c..18af9c491ea5e9f10d945cfa6fc540d8
          final ServerLevel world = this.level;
          final int randomTickSpeed = world.getGameRules().get(GameRules.RANDOM_TICK_SPEED);
  
-@@ -168,7 +170,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+@@ -173,7 +175,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
          // 1. we do not care about new additions
          // 2. _removes_ are impossible at this stage in the tick
          final LevelChunk[] raw = entityTickingChunks.getRawDataUnchecked();
@@ -1030,7 +1030,7 @@ index 04332a3d9921e1a7def1fa2500de461cc3133b4c..18af9c491ea5e9f10d945cfa6fc540d8
  
          java.util.Objects.checkFromToIndex(0, size, raw.length);
          for (int i = 0; i < size; ++i) {
-@@ -180,6 +182,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+@@ -185,6 +187,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
                  continue;
              }
          }
@@ -1038,7 +1038,7 @@ index 04332a3d9921e1a7def1fa2500de461cc3133b4c..18af9c491ea5e9f10d945cfa6fc540d8
      }
      // Paper end - chunk tick iteration optimisations
  
-@@ -480,17 +483,24 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+@@ -485,17 +488,24 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
  
      @Override
      public void tick(final BooleanSupplier haveTime, final boolean tickChunks) {
@@ -1063,7 +1063,7 @@ index 04332a3d9921e1a7def1fa2500de461cc3133b4c..18af9c491ea5e9f10d945cfa6fc540d8
              this.chunkMap.tick();
          }
  
-@@ -501,6 +511,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+@@ -506,6 +516,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
      }
  
      private void tickChunks() {
@@ -1071,7 +1071,7 @@ index 04332a3d9921e1a7def1fa2500de461cc3133b4c..18af9c491ea5e9f10d945cfa6fc540d8
          if (!this.level.isDebug()) {
              ProfilerFiller profiler = Profiler.get();
              profiler.push("pollingChunks");
-@@ -510,7 +521,9 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+@@ -515,7 +526,9 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
                  profiler.pop();
              }
  
@@ -1081,7 +1081,7 @@ index 04332a3d9921e1a7def1fa2500de461cc3133b4c..18af9c491ea5e9f10d945cfa6fc540d8
              profiler.pop();
          }
      }
-@@ -532,12 +545,15 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+@@ -537,12 +550,15 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
  
      private void tickChunks(final ProfilerFiller profiler) {
          io.papermc.paper.threadedregions.RegionizedWorldData regionizedWorldData = this.level.getCurrentWorldData(); // Folia - region threading
@@ -1099,7 +1099,7 @@ index 04332a3d9921e1a7def1fa2500de461cc3133b4c..18af9c491ea5e9f10d945cfa6fc540d8
                  // Paper start - per player mob spawning backoff
                  for (int j = 0; j < ServerPlayer.MOBCATEGORY_TOTAL_ENUMS; j++) {
                      player.mobCounts[j] = 0;
-@@ -549,6 +565,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+@@ -554,6 +570,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
          } else {
              spawnCookie = NaturalSpawner.createState(chunkCount, this.level, this::getFullChunk, !this.level.paperConfig().entities.spawning.perPlayerMobSpawns ? new LocalMobCapCalculator(this.chunkMap) : null, false);
          }
@@ -1107,7 +1107,7 @@ index 04332a3d9921e1a7def1fa2500de461cc3133b4c..18af9c491ea5e9f10d945cfa6fc540d8
          // Paper end - Optional per player mob spawns
          regionizedWorldData.lastSpawnState = spawnCookie; // Folia - region threading
          boolean doMobSpawning = this.level.getGameRules().get(GameRules.SPAWN_MOBS) && !this.level.getLocalPlayers().isEmpty(); // CraftBukkit // Folia - region threading
-@@ -573,7 +590,9 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+@@ -578,7 +595,9 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
  
          try {
              profiler.popPush("filteringSpawningChunks");
@@ -1117,7 +1117,7 @@ index 04332a3d9921e1a7def1fa2500de461cc3133b4c..18af9c491ea5e9f10d945cfa6fc540d8
              profiler.popPush("shuffleSpawningChunks");
              // Paper start - chunk tick iteration optimisation
              this.shuffleRandom.setSeed(this.level.getRandom().nextLong());
-@@ -581,9 +600,12 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+@@ -586,9 +605,12 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
              // Paper end - chunk tick iteration optimisation
              profiler.popPush("tickSpawningChunks");
  
@@ -1130,7 +1130,7 @@ index 04332a3d9921e1a7def1fa2500de461cc3133b4c..18af9c491ea5e9f10d945cfa6fc540d8
          } finally {
              spawningChunks.clear();
          }
-@@ -592,7 +614,9 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+@@ -597,7 +619,9 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
          this.iterateTickingChunksFaster(); // Paper - chunk tick iteration optimizations
          if (doMobSpawning) {
              profiler.popPush("customSpawners");
@@ -1141,7 +1141,7 @@ index 04332a3d9921e1a7def1fa2500de461cc3133b4c..18af9c491ea5e9f10d945cfa6fc540d8
  
          profiler.pop();
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index 6312194de237f18d2be46aa41b1fc6ddb0719f2a..1bca593009b096728c6d01314022913d1e672815 100644
+index a1278f1897f3fa316dbd11fdc5d082891ddfe214..ad801fbfb0d27fe2a78993edca3d422fda16a61c 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
 @@ -818,6 +818,7 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
@@ -1277,7 +1277,7 @@ index 6312194de237f18d2be46aa41b1fc6ddb0719f2a..1bca593009b096728c6d01314022913d
      }
  
 diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
-index d744f7659b05da153fff9eea4448f7b3cf76bfe4..27d70935b49ef6c8f2e2f5a958b3e1a4114549bc 100644
+index 198756b127027ef0c79d98a75d1b592f5ffbd25e..012b5f5bd2f988c54518d27b3f18c4d45789a46b 100644
 --- a/net/minecraft/server/players/PlayerList.java
 +++ b/net/minecraft/server/players/PlayerList.java
 @@ -1037,6 +1037,7 @@ public abstract class PlayerList {
@@ -1420,10 +1420,10 @@ index b7a9d07e49511773ba6d9ceb6603be3596e9ba53..b098801c88e824e9afe204638ccfe3e1
  
      private static <T extends BlockEntity> BlockEntityType<T> register(
 diff --git a/net/minecraft/world/level/chunk/LevelChunk.java b/net/minecraft/world/level/chunk/LevelChunk.java
-index 5940bc40b9c9d0ad92c7ecad01c1ba632ba1f727..6d3b441de2417e7f2d8b32af285057eea7f1ff79 100644
+index 9eb489e9f6f95e9e8c2ec6e8fcac3d2dea8e2b60..8734c7705c4e62fd6e3cf4dc29b6b38325bcfecd 100644
 --- a/net/minecraft/world/level/chunk/LevelChunk.java
 +++ b/net/minecraft/world/level/chunk/LevelChunk.java
-@@ -951,9 +951,12 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
+@@ -956,9 +956,12 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
              if (!this.blockEntity.isRemoved() && this.blockEntity.hasLevel()) {
                  BlockPos pos = this.blockEntity.getBlockPos();
                  if (LevelChunk.this.isTicking(pos)) {
@@ -1436,7 +1436,7 @@ index 5940bc40b9c9d0ad92c7ecad01c1ba632ba1f727..6d3b441de2417e7f2d8b32af285057ee
                          BlockState blockState = LevelChunk.this.getBlockState(pos);
                          if (this.blockEntity.getType().isValid(blockState)) {
                              this.ticker.tick(LevelChunk.this.level, this.blockEntity.getBlockPos(), blockState, this.blockEntity);
-@@ -973,6 +976,7 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
+@@ -978,6 +981,7 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
                                  );
                              } // Paper - Remove the Block Entity if it's invalid
                          }

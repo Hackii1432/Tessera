@@ -47,6 +47,21 @@ Das finale Artefakt liegt wie bisher unter `build/libs/tessera-server-*.jar`.
 Ein fehlgeschlagener Build erzeugt keine Freigabe; vorhandene alte JARs in
 diesem Verzeichnis sind kein Nachweis für einen erfolgreichen neuen Build.
 
+### Gradle-Cache im Sinopia-Quellverzeichnis
+
+Die Meldung `Generated/Git files must not be stored in sinopia: .gradle/...`
+bedeutet, dass ein lokaler Gradle-Cache im versionierten Quellverzeichnis liegt.
+Ein direkter Gradle-Aufruf in `sinopia/` kann diesen bereits anlegen, bevor
+die dortige Schutzprüfung abbricht – auch bei `--dry-run`. Die Git-Ignore-Regel
+verhindert das Einchecken, nicht die Prüfung beim Erstellen des Sinopia-Snapshots.
+
+In diesem Fall laufende Gradle-Aufrufe für dieses Verzeichnis beenden und
+ausschließlich `sinopia/.gradle/` aus dem Quellverzeichnis verschieben oder
+entfernen. Keine Quellen, Patches oder `.git`-Verzeichnisse löschen. Anschließend
+`buildTessera` im Tessera-Root ausführen. In IntelliJ das Root-Projekt verknüpfen,
+nicht `sinopia/` als zusätzliches Gradle-Projekt importieren. Die Schutzprüfung
+bleibt aktiv, damit Caches nicht in den versionierten Basis-Snapshot gelangen.
+
 ## Quellen und Arbeitskopien
 
 | Ort | Bedeutung |
@@ -136,6 +151,17 @@ Die vorhandenen API-, Implementierungs- und Minecraft-Patchserien bleiben
 getrennt bestehen. Ihre bisherigen Rebuild-Aufgaben gelten weiterhin; Sinopia-
 Minecraft-Änderungen gehören nicht in einen Tessera-Gameplay-Patch.
 
+Nach Feature-Commits in den jeweiligen generierten Arbeitsrepositories können
+die drei Tessera-Serien mit den expliziten Aufgaben neu geschrieben werden:
+
+```powershell
+.\gradlew.bat rebuildPaperApiFeaturePatches :folia-server:rebuildMinecraftFeaturePatches :folia-server:rebuildPaperServerFeaturePatches
+```
+
+Der kurze Name `rebuildPatches` ist im Tessera-Root mehrdeutig. Diese Befehle
+ersetzen nicht das vorherige Sichern uncommitteter Änderungen als Feature-
+beziehungsweise Dateipatches.
+
 Bei Basisänderungen erst die Patch-Anwendbarkeit prüfen und dann die betroffenen
 Tessera-Patches aktualisieren. Keine manuelle Bearbeitung der generierten
 `build.gradle.kts` als alleinige Änderung: Änderungen dort müssen weiterhin in
@@ -160,8 +186,10 @@ Das ist ausdrücklich KEINE Erklärung, dass die Minecraft-Portierung fertig ist
 ## 26.3-Status
 
 Die aktuelle Minecraft-Basis ist das Release `26.3` mit Mache
-`26.3+build.1` und Tessera Build `007-alpha`. Java 25, Gradle `9.4.1` und
-die Plugin-API-Version `26.3` bleiben erhalten. Der Build erzeugt die ausführbare JAR unter
+`26.3+build.1` und Tessera Build `007-alpha`. Java 25 und die
+Plugin-API-Version `26.3` bleiben erhalten. Seit der Paper-main-Integration
+vom 25. September werden Gradle `9.8.0` und Paperweight `2.0.0-beta.24`
+gemeinsam verwendet. Der Build erzeugt die ausführbare JAR unter
 `build/libs/tessera-server-26.3.build.007-alpha.jar`.
 Tessera bleibt ein Alpha-Build; das Minecraft-Release ist keine automatische
 Produktionsfreigabe des Forks. Änderungen und Prüfstand:

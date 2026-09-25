@@ -5,7 +5,7 @@ Subject: [PATCH] Add runtime world group snapshot barriers
 
 
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index 0c8b6276d16439ba9ebd4c5dd0dfcd166aadf56d..7a6121fb460bd88dae20acc252f65927cbcf8aec 100644
+index e9d0512b62b0bb0daa90c4d4cb84d91e17478184..77292a0aebf8def5c5f7d9c04ef6203898623381 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
 @@ -731,6 +731,7 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
@@ -29,7 +29,7 @@ index 0c8b6276d16439ba9ebd4c5dd0dfcd166aadf56d..7a6121fb460bd88dae20acc252f65927
              || state == RuntimeLifecycleState.INITIALIZING
              || state == RuntimeLifecycleState.QUIESCING;
 diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
-index c21d3f4a95c7ce84382d9ce47fa5a0451a36f53e..87a92c04dceac7408ed87508c98eb5594a09b49f 100644
+index 3512a12d9706f5b88ee7efe9d9932f29083f9055..35ce89c6c9e98d0b8bc30ba32cf9af3e1586cbb7 100644
 --- a/net/minecraft/server/players/PlayerList.java
 +++ b/net/minecraft/server/players/PlayerList.java
 @@ -502,6 +502,18 @@ public abstract class PlayerList {

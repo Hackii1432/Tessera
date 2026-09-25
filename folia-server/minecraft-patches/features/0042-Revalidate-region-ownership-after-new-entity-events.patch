@@ -5,7 +5,7 @@ Subject: [PATCH] Revalidate region ownership after new entity events
 
 
 diff --git a/net/minecraft/world/entity/monster/cubemob/SulfurCube.java b/net/minecraft/world/entity/monster/cubemob/SulfurCube.java
-index 6894ec5b..6ad56192 100644
+index 6894ec5b5ff6f2ade178060ae571c426e3774402..6ad561921bb42df098df1aaa441055ad5d0ee8fa 100644
 --- a/net/minecraft/world/entity/monster/cubemob/SulfurCube.java
 +++ b/net/minecraft/world/entity/monster/cubemob/SulfurCube.java
 @@ -806,8 +806,15 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
@@ -50,7 +50,7 @@ index 6894ec5b..6ad56192 100644
          final float horizontalAngleScale, final Vec2 originalAngle, final Vec3 attackerPosition, final Vec3 attackerAimDirection, final Vec3 targetCenter
      ) {
 diff --git a/net/minecraft/world/item/CushionItem.java b/net/minecraft/world/item/CushionItem.java
-index c64574eb..3a65f6a5 100644
+index c64574ebd5a60cfcf468627e0faeb67936563f53..3a65f6a55995fddb9d409f0393109d7a1bcddb20 100644
 --- a/net/minecraft/world/item/CushionItem.java
 +++ b/net/minecraft/world/item/CushionItem.java
 @@ -64,6 +64,11 @@ public class CushionItem extends Item {

@@ -5,7 +5,7 @@ Subject: [PATCH] Restore async player respawn lifecycle
 
 
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 357001378bca2698e74ef1e58a0b1a40af75e21a..0c962306dc16246079154dda20a064b431a40de7 100644
+index 77db63f19c334857cd3b9630867617761ddf8fe9..9e4c3a7553bf40955ac5bd7c9f5521d3bf5ff22c 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
 @@ -292,6 +292,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
@@ -16,7 +16,7 @@ index 357001378bca2698e74ef1e58a0b1a40af75e21a..0c962306dc16246079154dda20a064b4
      // Tessera end - restore vanilla ender pearl ownership
      private boolean postEffectsDirty = true;
      private long timeEntitySatOnShoulder;
-@@ -1736,7 +1737,24 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -1748,7 +1749,24 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
              Runnable consumeAnchorCharge = null; // Paper - Fix SPIGOT-5989 (don't use charge until after respawn event)
              Optional<Vec3> standUpPosition = RespawnAnchorBlock.findStandUpPosition(EntityTypes.PLAYER, level, pos);
              if (!forced && consumeSpawnBlock && standUpPosition.isPresent()) {
@@ -42,7 +42,7 @@ index 357001378bca2698e74ef1e58a0b1a40af75e21a..0c962306dc16246079154dda20a064b4
              }
              final Runnable finalConsumeAnchorCharge = consumeAnchorCharge; // Paper - Fix SPIGOT-5989
  
-@@ -1808,103 +1826,298 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -1820,103 +1838,298 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
              throw new IllegalStateException("Dead player should not be a vehicle or passenger");
          }
  

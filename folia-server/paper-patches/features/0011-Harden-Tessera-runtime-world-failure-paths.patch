@@ -39,10 +39,10 @@ index b8dd102fecdcae5145ddc653a040190c98f6e79f..bb27bece6e0a60ea3fc9acee0d481747
      // Tessera end - runtime world lifecycle
  
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index d7010524b5907f02cc04c6f91ca7a581afa96b2e..9c6a68cadc8161a82aa3c4ef167036d9ed3e6add 100644
+index 6acfeb31d148c5abfb7f17245f59836b3e2c48dc..add0242bdaed41e55814495cdc57f673103a508f 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-@@ -2041,6 +2041,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+@@ -2035,6 +2035,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
      // Paper start
      @Override
      public void getChunkAtAsync(int x, int z, boolean gen, boolean urgent, @NotNull Consumer<? super Chunk> cb) {
@@ -50,7 +50,7 @@ index d7010524b5907f02cc04c6f91ca7a581afa96b2e..9c6a68cadc8161a82aa3c4ef167036d9
          warnUnsafeChunk("getting a faraway chunk async", x, z); // Paper
          ca.spottedleaf.moonrise.common.PlatformHooks.get().scheduleChunkLoad(
              this.getHandle(), x, z, gen, ChunkStatus.FULL, true,
-@@ -2054,6 +2055,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+@@ -2048,6 +2049,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
  
      @Override
      public void getChunksAtAsync(int minX, int minZ, int maxX, int maxZ, boolean urgent, Runnable cb) {

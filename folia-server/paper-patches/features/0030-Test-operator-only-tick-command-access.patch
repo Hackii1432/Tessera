@@ -8,6 +8,7 @@ operator removal, console/RCON, and function compilation permissions.
 
 diff --git a/src/test/java/io/papermc/paper/permissions/TickCommandOperatorTest.java b/src/test/java/io/papermc/paper/permissions/TickCommandOperatorTest.java
 new file mode 100644
+index 0000000000000000000000000000000000000000..835435c230ff99462d6b77790180c0927218ea76
 --- /dev/null
 +++ b/src/test/java/io/papermc/paper/permissions/TickCommandOperatorTest.java
 @@ -0,0 +1,133 @@

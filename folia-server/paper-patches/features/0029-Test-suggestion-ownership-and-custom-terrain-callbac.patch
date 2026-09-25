@@ -6,223 +6,9 @@ Subject: [PATCH] Test suggestion ownership and custom terrain callbacks
 Selective backport of Paper 2307f8f477997c9dbe17f789007c22356070e3a9,
 adapted for Sinopia and Tessera. See docs/PAPER-BACKPORTS-2026-09-15.md.
 
-diff --git a/src/test/java/io/papermc/paper/porting/SuggestionOwnershipRegressionTest.java b/src/test/java/io/papermc/paper/porting/SuggestionOwnershipRegressionTest.java
-new file mode 100644
---- /dev/null
-+++ b/src/test/java/io/papermc/paper/porting/SuggestionOwnershipRegressionTest.java
-@@ -0,0 +1,210 @@
-+package io.papermc.paper.porting;
-+
-+import ca.spottedleaf.moonrise.common.util.TickThread;
-+import com.mojang.brigadier.CommandDispatcher;
-+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-+import com.mojang.brigadier.builder.RequiredArgumentBuilder;
-+import com.mojang.brigadier.suggestion.Suggestions;
-+import io.papermc.paper.brigadier.TagParseCommandSyntaxException;
-+import io.papermc.paper.threadedregions.EntityScheduler;
-+import java.lang.reflect.Field;
-+import java.util.concurrent.CompletableFuture;
-+import java.util.concurrent.Executors;
-+import java.util.concurrent.TimeUnit;
-+import java.util.concurrent.atomic.AtomicReference;
-+import java.util.function.Consumer;
-+import net.minecraft.commands.CommandSourceStack;
-+import net.minecraft.commands.Commands;
-+import net.minecraft.commands.arguments.CompoundTagArgument;
-+import net.minecraft.network.chat.Component;
-+import net.minecraft.server.MinecraftServer;
-+import net.minecraft.server.level.ServerLevel;
-+import net.minecraft.server.level.ServerPlayer;
-+import net.minecraft.server.network.ServerCommandSuggestionsProvider;
-+import net.minecraft.server.network.ServerGamePacketListenerImpl;
-+import net.minecraft.world.entity.Entity;
-+import org.bukkit.craftbukkit.entity.CraftEntity;
-+import org.bukkit.craftbukkit.entity.CraftPlayer;
-+import org.bukkit.event.player.PlayerKickEvent;
-+import org.bukkit.support.environment.AllFeatures;
-+import org.junit.jupiter.api.Test;
-+import org.junit.jupiter.params.ParameterizedTest;
-+import org.junit.jupiter.params.provider.ValueSource;
-+
-+import static org.junit.jupiter.api.Assertions.*;
-+import static org.mockito.ArgumentMatchers.*;
-+import static org.mockito.Mockito.*;
-+
-+@AllFeatures
-+class SuggestionOwnershipRegressionTest {
-+    private static final String DEEP = "/inspect " + "{a:".repeat(520) + "0" + "}".repeat(520);
-+
-+    private static void set(Object target, Class<?> owner, String name, Object value) throws Exception {
-+        Field field = owner.getDeclaredField(name);
-+        field.setAccessible(true);
-+        field.set(target, value);
-+    }
-+
-+    private static final class Fixture {
-+        final ServerPlayer player = mock(ServerPlayer.class);
-+        final ServerLevel level = mock(ServerLevel.class);
-+        final MinecraftServer server = mock(MinecraftServer.class);
-+        final Commands commands = mock(Commands.class);
-+        final CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
-+        final CommandSourceStack source = mock(CommandSourceStack.class);
-+        final ServerGamePacketListenerImpl listener = mock(ServerGamePacketListenerImpl.class);
-+        final CraftPlayer craft = mock(CraftPlayer.class);
-+        final EntityScheduler scheduler = mock(EntityScheduler.class);
-+        final AtomicReference<Consumer<Entity>> run = new AtomicReference<>();
-+        final AtomicReference<Consumer<Entity>> retire = new AtomicReference<>();
-+        final ServerCommandSuggestionsProvider provider = new ServerCommandSuggestionsProvider(this.player);
-+
-+        Fixture() throws Exception {
-+            this.player.connection = this.listener;
-+            when(this.listener.isAcceptingMessages()).thenReturn(true);
-+            when(this.player.level()).thenReturn(this.level);
-+            when(this.player.getBukkitEntity()).thenReturn(this.craft);
-+            when(this.player.createCommandSourceStack()).thenReturn(this.source);
-+            when(this.level.getServer()).thenReturn(this.server);
-+            when(this.server.getCommands()).thenReturn(this.commands);
-+            when(this.commands.getDispatcher()).thenReturn(this.dispatcher);
-+            set(this.craft, CraftEntity.class, "taskScheduler", this.scheduler);
-+            this.dispatcher.register(LiteralArgumentBuilder.<CommandSourceStack>literal("inspect")
-+                .then(RequiredArgumentBuilder.argument("tag", CompoundTagArgument.compoundTag())));
-+            doAnswer(invocation -> {
-+                this.run.set(invocation.getArgument(0));
-+                this.retire.set(invocation.getArgument(1));
-+                return true;
-+            }).when(this.scheduler).schedule(any(), any(), eq(1L));
-+        }
-+
-+        void tick() {
-+            try (var ownership = mockStatic(TickThread.class)) {
-+                this.provider.tessera$tick(this.player);
-+                ownership.verify(() -> TickThread.ensureTickThread(this.player, "Cannot parse suggestions off-region"));
-+            }
-+        }
-+    }
-+
-+    @ParameterizedTest
-+    @ValueSource(booleans = {false, true})
-+    void tooDeepTagsAreRecognizedAndRejectedForBothCompletionPaths(boolean generateSuggestions) throws Exception {
-+        Fixture f = new Fixture();
-+        CompletableFuture<Suggestions> result = f.provider.request(DEEP, generateSuggestions);
-+        verify(f.player, never()).createCommandSourceStack();
-+        assertFalse(result.isDone());
-+        f.tick();
-+        assertTrue(result.isCancelled());
-+        verify(f.listener).disconnect(any(Component.class), eq(PlayerKickEvent.Cause.SPAM));
-+    }
-+
-+    @ParameterizedTest
-+    @ValueSource(booleans = {false, true})
-+    void ordinarySyntaxErrorsDoNotKickPlayers(boolean generateSuggestions) throws Exception {
-+        Fixture f = new Fixture();
-+        CompletableFuture<Suggestions> result = f.provider.request("/inspect {a:", generateSuggestions);
-+        f.tick();
-+        assertNotNull(result.get(1, TimeUnit.SECONDS));
-+        verify(f.listener, never()).disconnect(any(Component.class), any(PlayerKickEvent.Cause.class));
-+    }
-+
-+    @Test
-+    void asyncSubmissionCoalescesRequestsAndNeverParsesOffRegion() throws Exception {
-+        Fixture f = new Fixture();
-+        try (var executor = Executors.newSingleThreadExecutor()) {
-+            CompletableFuture<Suggestions> first = executor.submit(() -> f.provider.request("/inspect {a:1}", false)).get(1, TimeUnit.SECONDS);
-+            CompletableFuture<Suggestions> second = executor.submit(() -> f.provider.request("/inspect {a:2}", false)).get(1, TimeUnit.SECONDS);
-+            assertTrue(first.isCancelled());
-+            assertFalse(second.isDone());
-+            verify(f.scheduler, times(1)).schedule(any(), any(), eq(1L));
-+            verify(f.player, never()).createCommandSourceStack();
-+            verify(f.server, never()).getCommands();
-+            f.tick();
-+            assertNotNull(second.get(1, TimeUnit.SECONDS));
-+        }
-+    }
-+
-+    @Test
-+    void validationOnlyDoesNotCallSuggestionProviders() throws Exception {
-+        Fixture f = new Fixture();
-+        var counter = new java.util.concurrent.atomic.AtomicInteger();
-+        f.dispatcher.register(LiteralArgumentBuilder.<CommandSourceStack>literal("text")
-+            .then(RequiredArgumentBuilder.<CommandSourceStack, String>argument("value", com.mojang.brigadier.arguments.StringArgumentType.word())
-+                .suggests((context, builder) -> {
-+                    counter.incrementAndGet();
-+                    return builder.suggest("hello").buildFuture();
-+                })));
-+        var validation = f.provider.request("text h", false);
-+        f.tick();
-+        assertTrue(validation.get(1, TimeUnit.SECONDS).isEmpty());
-+        assertEquals(0, counter.get());
-+        var suggestions = f.provider.request("text h");
-+        f.tick();
-+        assertFalse(suggestions.get(1, TimeUnit.SECONDS).isEmpty());
-+        assertEquals(1, counter.get());
-+    }
-+
-+    @Test
-+    void retiredAndDisconnectedRequestsAreCompletedWithoutWorldAccess() throws Exception {
-+        Fixture f = new Fixture();
-+        var pending = f.provider.request("/inspect {}", false);
-+        f.retire.get().accept(f.player);
-+        assertTrue(pending.isCancelled());
-+        when(f.scheduler.schedule(any(), any(), eq(1L))).thenReturn(false);
-+        assertTrue(f.provider.request("/inspect {}", false).isCancelled());
-+        var disconnected = new Fixture();
-+        when(disconnected.listener.isAcceptingMessages()).thenReturn(false);
-+        var result = disconnected.provider.request("/inspect {}", false);
-+        disconnected.tick();
-+        assertTrue(result.isCancelled());
-+        verify(f.player, never()).createCommandSourceStack();
-+        verify(disconnected.player, never()).createCommandSourceStack();
-+    }
-+
-+    @Test
-+    void scheduledValidationFollowsTheCurrentPlayerAfterRespawnOrTransfer() throws Exception {
-+        Fixture f = new Fixture();
-+        ServerPlayer replacement = mock(ServerPlayer.class);
-+        ServerLevel otherLevel = mock(ServerLevel.class);
-+        CommandSourceStack otherSource = mock(CommandSourceStack.class);
-+        replacement.connection = f.listener;
-+        when(replacement.level()).thenReturn(otherLevel);
-+        when(otherLevel.getServer()).thenReturn(f.server);
-+        when(replacement.createCommandSourceStack()).thenReturn(otherSource);
-+        f.tick(); // replenish budget without a request
-+        var result = f.provider.request("/inspect {}", false);
-+        try (var ownership = mockStatic(TickThread.class)) {
-+            f.run.get().accept(replacement);
-+            ownership.verify(() -> TickThread.ensureTickThread(replacement, "Cannot parse suggestions off-region"));
-+        }
-+        assertNotNull(result.get(1, TimeUnit.SECONDS));
-+        verify(replacement).createCommandSourceStack();
-+        verify(f.player, never()).createCommandSourceStack();
-+    }
-+
-+    @Test
-+    void logicalDepthLimitReportsTheSpecificParserFailure() {
-+        var scope = new net.minecraft.util.parsing.packrat.Scope();
-+        var state = mock(net.minecraft.util.parsing.packrat.ParseState.class);
-+        var errors = mock(net.minecraft.util.parsing.packrat.ErrorCollector.class);
-+        when(state.errorCollector()).thenReturn(errors);
-+        var increase = net.minecraft.util.parsing.packrat.Scope.increaseDepth();
-+        for (int depth = 0; depth < 512; depth++) assertTrue(increase.parse(state, scope, null));
-+        assertFalse(increase.parse(state, scope, null));
-+        verify(errors).store(anyInt(), isA(TagParseCommandSyntaxException.class));
-+    }
-+
-+    @Test
-+    void wrongOwnerIsRejectedBeforeReadingThePlayerOrWorld() throws Exception {
-+        Fixture f = new Fixture();
-+        var result = f.provider.request("/inspect {}", false);
-+        try (var ownership = mockStatic(TickThread.class)) {
-+            ownership.when(() -> TickThread.ensureTickThread(f.player, "Cannot tick suggestions off-region"))
-+                .thenThrow(new IllegalStateException("wrong region"));
-+            assertThrows(IllegalStateException.class, () -> f.provider.tessera$tick(f.player));
-+        }
-+        verify(f.player, never()).createCommandSourceStack();
-+        assertFalse(result.isDone());
-+        f.retire.get().accept(f.player);
-+    }
-+}
 diff --git a/src/test/java/io/papermc/paper/porting/CustomTerrainRegressionTest.java b/src/test/java/io/papermc/paper/porting/CustomTerrainRegressionTest.java
 new file mode 100644
+index 0000000000000000000000000000000000000000..c8f5f38b10d7983ca7937342c03d689acb25064e
 --- /dev/null
 +++ b/src/test/java/io/papermc/paper/porting/CustomTerrainRegressionTest.java
 @@ -0,0 +1,243 @@
@@ -467,5 +253,221 @@ new file mode 100644
 +            verify(chunk, times(4)).setBlockState(any(), any());
 +        }
 +        for (CraftChunkData view : views) assertThrows(IllegalStateException.class, view::getHandle);
++    }
++}
+diff --git a/src/test/java/io/papermc/paper/porting/SuggestionOwnershipRegressionTest.java b/src/test/java/io/papermc/paper/porting/SuggestionOwnershipRegressionTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..fb023e410ece9d15ca659c1754f5af179f640890
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/porting/SuggestionOwnershipRegressionTest.java
+@@ -0,0 +1,210 @@
++package io.papermc.paper.porting;
++
++import ca.spottedleaf.moonrise.common.util.TickThread;
++import com.mojang.brigadier.CommandDispatcher;
++import com.mojang.brigadier.builder.LiteralArgumentBuilder;
++import com.mojang.brigadier.builder.RequiredArgumentBuilder;
++import com.mojang.brigadier.suggestion.Suggestions;
++import io.papermc.paper.brigadier.TagParseCommandSyntaxException;
++import io.papermc.paper.threadedregions.EntityScheduler;
++import java.lang.reflect.Field;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.Executors;
++import java.util.concurrent.TimeUnit;
++import java.util.concurrent.atomic.AtomicReference;
++import java.util.function.Consumer;
++import net.minecraft.commands.CommandSourceStack;
++import net.minecraft.commands.Commands;
++import net.minecraft.commands.arguments.CompoundTagArgument;
++import net.minecraft.network.chat.Component;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.server.network.ServerCommandSuggestionsProvider;
++import net.minecraft.server.network.ServerGamePacketListenerImpl;
++import net.minecraft.world.entity.Entity;
++import org.bukkit.craftbukkit.entity.CraftEntity;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.event.player.PlayerKickEvent;
++import org.bukkit.support.environment.AllFeatures;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.params.ParameterizedTest;
++import org.junit.jupiter.params.provider.ValueSource;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.ArgumentMatchers.*;
++import static org.mockito.Mockito.*;
++
++@AllFeatures
++class SuggestionOwnershipRegressionTest {
++    private static final String DEEP = "/inspect " + "{a:".repeat(520) + "0" + "}".repeat(520);
++
++    private static void set(Object target, Class<?> owner, String name, Object value) throws Exception {
++        Field field = owner.getDeclaredField(name);
++        field.setAccessible(true);
++        field.set(target, value);
++    }
++
++    private static final class Fixture {
++        final ServerPlayer player = mock(ServerPlayer.class);
++        final ServerLevel level = mock(ServerLevel.class);
++        final MinecraftServer server = mock(MinecraftServer.class);
++        final Commands commands = mock(Commands.class);
++        final CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
++        final CommandSourceStack source = mock(CommandSourceStack.class);
++        final ServerGamePacketListenerImpl listener = mock(ServerGamePacketListenerImpl.class);
++        final CraftPlayer craft = mock(CraftPlayer.class);
++        final EntityScheduler scheduler = mock(EntityScheduler.class);
++        final AtomicReference<Consumer<Entity>> run = new AtomicReference<>();
++        final AtomicReference<Consumer<Entity>> retire = new AtomicReference<>();
++        final ServerCommandSuggestionsProvider provider = new ServerCommandSuggestionsProvider(this.player);
++
++        Fixture() throws Exception {
++            this.player.connection = this.listener;
++            when(this.listener.isAcceptingMessages()).thenReturn(true);
++            when(this.player.level()).thenReturn(this.level);
++            when(this.player.getBukkitEntity()).thenReturn(this.craft);
++            when(this.player.createCommandSourceStack()).thenReturn(this.source);
++            when(this.level.getServer()).thenReturn(this.server);
++            when(this.server.getCommands()).thenReturn(this.commands);
++            when(this.commands.getDispatcher()).thenReturn(this.dispatcher);
++            set(this.craft, CraftEntity.class, "taskScheduler", this.scheduler);
++            this.dispatcher.register(LiteralArgumentBuilder.<CommandSourceStack>literal("inspect")
++                .then(RequiredArgumentBuilder.argument("tag", CompoundTagArgument.compoundTag())));
++            doAnswer(invocation -> {
++                this.run.set(invocation.getArgument(0));
++                this.retire.set(invocation.getArgument(1));
++                return true;
++            }).when(this.scheduler).schedule(any(), any(), eq(1L));
++        }
++
++        void tick() {
++            try (var ownership = mockStatic(TickThread.class)) {
++                this.provider.tessera$tick(this.player);
++                ownership.verify(() -> TickThread.ensureTickThread(this.player, "Cannot parse suggestions off-region"));
++            }
++        }
++    }
++
++    @ParameterizedTest
++    @ValueSource(booleans = {false, true})
++    void tooDeepTagsAreRecognizedAndRejectedForBothCompletionPaths(boolean generateSuggestions) throws Exception {
++        Fixture f = new Fixture();
++        CompletableFuture<Suggestions> result = f.provider.request(DEEP, generateSuggestions);
++        verify(f.player, never()).createCommandSourceStack();
++        assertFalse(result.isDone());
++        f.tick();
++        assertTrue(result.isCancelled());
++        verify(f.listener).disconnect(any(Component.class), eq(PlayerKickEvent.Cause.SPAM));
++    }
++
++    @ParameterizedTest
++    @ValueSource(booleans = {false, true})
++    void ordinarySyntaxErrorsDoNotKickPlayers(boolean generateSuggestions) throws Exception {
++        Fixture f = new Fixture();
++        CompletableFuture<Suggestions> result = f.provider.request("/inspect {a:", generateSuggestions);
++        f.tick();
++        assertNotNull(result.get(1, TimeUnit.SECONDS));
++        verify(f.listener, never()).disconnect(any(Component.class), any(PlayerKickEvent.Cause.class));
++    }
++
++    @Test
++    void asyncSubmissionCoalescesRequestsAndNeverParsesOffRegion() throws Exception {
++        Fixture f = new Fixture();
++        try (var executor = Executors.newSingleThreadExecutor()) {
++            CompletableFuture<Suggestions> first = executor.submit(() -> f.provider.request("/inspect {a:1}", false)).get(1, TimeUnit.SECONDS);
++            CompletableFuture<Suggestions> second = executor.submit(() -> f.provider.request("/inspect {a:2}", false)).get(1, TimeUnit.SECONDS);
++            assertTrue(first.isCancelled());
++            assertFalse(second.isDone());
++            verify(f.scheduler, times(1)).schedule(any(), any(), eq(1L));
++            verify(f.player, never()).createCommandSourceStack();
++            verify(f.server, never()).getCommands();
++            f.tick();
++            assertNotNull(second.get(1, TimeUnit.SECONDS));
++        }
++    }
++
++    @Test
++    void validationOnlyDoesNotCallSuggestionProviders() throws Exception {
++        Fixture f = new Fixture();
++        var counter = new java.util.concurrent.atomic.AtomicInteger();
++        f.dispatcher.register(LiteralArgumentBuilder.<CommandSourceStack>literal("text")
++            .then(RequiredArgumentBuilder.<CommandSourceStack, String>argument("value", com.mojang.brigadier.arguments.StringArgumentType.word())
++                .suggests((context, builder) -> {
++                    counter.incrementAndGet();
++                    return builder.suggest("hello").buildFuture();
++                })));
++        var validation = f.provider.request("text h", false);
++        f.tick();
++        assertTrue(validation.get(1, TimeUnit.SECONDS).isEmpty());
++        assertEquals(0, counter.get());
++        var suggestions = f.provider.request("text h");
++        f.tick();
++        assertFalse(suggestions.get(1, TimeUnit.SECONDS).isEmpty());
++        assertEquals(1, counter.get());
++    }
++
++    @Test
++    void retiredAndDisconnectedRequestsAreCompletedWithoutWorldAccess() throws Exception {
++        Fixture f = new Fixture();
++        var pending = f.provider.request("/inspect {}", false);
++        f.retire.get().accept(f.player);
++        assertTrue(pending.isCancelled());
++        when(f.scheduler.schedule(any(), any(), eq(1L))).thenReturn(false);
++        assertTrue(f.provider.request("/inspect {}", false).isCancelled());
++        var disconnected = new Fixture();
++        when(disconnected.listener.isAcceptingMessages()).thenReturn(false);
++        var result = disconnected.provider.request("/inspect {}", false);
++        disconnected.tick();
++        assertTrue(result.isCancelled());
++        verify(f.player, never()).createCommandSourceStack();
++        verify(disconnected.player, never()).createCommandSourceStack();
++    }
++
++    @Test
++    void scheduledValidationFollowsTheCurrentPlayerAfterRespawnOrTransfer() throws Exception {
++        Fixture f = new Fixture();
++        ServerPlayer replacement = mock(ServerPlayer.class);
++        ServerLevel otherLevel = mock(ServerLevel.class);
++        CommandSourceStack otherSource = mock(CommandSourceStack.class);
++        replacement.connection = f.listener;
++        when(replacement.level()).thenReturn(otherLevel);
++        when(otherLevel.getServer()).thenReturn(f.server);
++        when(replacement.createCommandSourceStack()).thenReturn(otherSource);
++        f.tick(); // replenish budget without a request
++        var result = f.provider.request("/inspect {}", false);
++        try (var ownership = mockStatic(TickThread.class)) {
++            f.run.get().accept(replacement);
++            ownership.verify(() -> TickThread.ensureTickThread(replacement, "Cannot parse suggestions off-region"));
++        }
++        assertNotNull(result.get(1, TimeUnit.SECONDS));
++        verify(replacement).createCommandSourceStack();
++        verify(f.player, never()).createCommandSourceStack();
++    }
++
++    @Test
++    void logicalDepthLimitReportsTheSpecificParserFailure() {
++        var scope = new net.minecraft.util.parsing.packrat.Scope();
++        var state = mock(net.minecraft.util.parsing.packrat.ParseState.class);
++        var errors = mock(net.minecraft.util.parsing.packrat.ErrorCollector.class);
++        when(state.errorCollector()).thenReturn(errors);
++        var increase = net.minecraft.util.parsing.packrat.Scope.increaseDepth();
++        for (int depth = 0; depth < 512; depth++) assertTrue(increase.parse(state, scope, null));
++        assertFalse(increase.parse(state, scope, null));
++        verify(errors).store(anyInt(), isA(TagParseCommandSyntaxException.class));
++    }
++
++    @Test
++    void wrongOwnerIsRejectedBeforeReadingThePlayerOrWorld() throws Exception {
++        Fixture f = new Fixture();
++        var result = f.provider.request("/inspect {}", false);
++        try (var ownership = mockStatic(TickThread.class)) {
++            ownership.when(() -> TickThread.ensureTickThread(f.player, "Cannot tick suggestions off-region"))
++                .thenThrow(new IllegalStateException("wrong region"));
++            assertThrows(IllegalStateException.class, () -> f.provider.tessera$tick(f.player));
++        }
++        verify(f.player, never()).createCommandSourceStack();
++        assertFalse(result.isDone());
++        f.retire.get().accept(f.player);
 +    }
 +}

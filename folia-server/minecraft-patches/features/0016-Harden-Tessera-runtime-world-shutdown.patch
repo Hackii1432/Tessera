@@ -114,7 +114,7 @@ index 65110a19fdd43d991499f9a93545253ba4d95bab..ea345aca39301877fcd7ac7440816a3a
              ca.spottedleaf.moonrise.common.util.MoonriseCommon.haltExecutors();
          }
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index 201a5357bdaa1ea5f1052ed0df654519ddb00e16..8246613c3aadacf70270d8f0a61ee1a9fcd52a61 100644
+index 4eedc8c2b412f203a6a140d05a2d5ffad5f49079..3c2df7cc692e03331cd3359c205be02fa4df85d1 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
 @@ -770,6 +770,16 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet

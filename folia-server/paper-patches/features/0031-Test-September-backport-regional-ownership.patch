@@ -6,7 +6,7 @@ Subject: [PATCH] Test September backport regional ownership
 
 diff --git a/src/test/java/io/papermc/paper/porting/TesseraSeptemberOwnershipTest.java b/src/test/java/io/papermc/paper/porting/TesseraSeptemberOwnershipTest.java
 new file mode 100644
-index 000000000..ccec75998
+index 0000000000000000000000000000000000000000..b123111a93ca405a18872da8a43f2a5beb9c897f
 --- /dev/null
 +++ b/src/test/java/io/papermc/paper/porting/TesseraSeptemberOwnershipTest.java
 @@ -0,0 +1,177 @@

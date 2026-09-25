@@ -5,7 +5,7 @@ Subject: [PATCH] Restore vanilla ender pearl behavior
 
 
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 96789895e3ae1f6e5454f4d92370ad8591e9cfeb..30ad6ce7bed3844ce92b89e9d9dd9490d004401b 100644
+index ce8cc389715299686d632a7b6ce4bc62c9f0dd3f..65d3856688baae6c21fcbef2d1dc919149ba0b02 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
 @@ -14,7 +14,6 @@ import com.mojang.serialization.MapCodec;
@@ -146,7 +146,7 @@ index 96789895e3ae1f6e5454f4d92370ad8591e9cfeb..30ad6ce7bed3844ce92b89e9d9dd9490
      public void setExperiencePoints(final int amount) {
          float limit = this.getXpNeededForNextLevel();
          float max = (limit - 1.0F) / limit;
-@@ -3459,11 +3514,11 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -3471,11 +3526,11 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
      }
  
      public void registerEnderPearl(final ThrownEnderpearl enderPearl) {
@@ -161,7 +161,7 @@ index 96789895e3ae1f6e5454f4d92370ad8591e9cfeb..30ad6ce7bed3844ce92b89e9d9dd9490
  
      public Set<ThrownEnderpearl> getEnderPearls() {
 diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
-index 27d70935b49ef6c8f2e2f5a958b3e1a4114549bc..d453f1747c9f567b07c676660384dd48ec8c07ca 100644
+index 012b5f5bd2f988c54518d27b3f18c4d45789a46b..060912ba781d179134512b0ff7c849ceacf8d332 100644
 --- a/net/minecraft/server/players/PlayerList.java
 +++ b/net/minecraft/server/players/PlayerList.java
 @@ -558,11 +558,11 @@ public abstract class PlayerList {

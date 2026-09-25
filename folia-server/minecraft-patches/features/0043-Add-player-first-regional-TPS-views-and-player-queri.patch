@@ -5,7 +5,7 @@ Subject: [PATCH] Add player-first regional TPS views and player queries
 
 
 diff --git a/io/papermc/paper/threadedregions/commands/CommandServerHealth.java b/io/papermc/paper/threadedregions/commands/CommandServerHealth.java
-index aa860cfe..014772c7 100644
+index aa860cfe9de616f185163fe74e0f4f49bd13a805..014772c7a4f61726afd601a6c7c95f49ba93914a 100644
 --- a/io/papermc/paper/threadedregions/commands/CommandServerHealth.java
 +++ b/io/papermc/paper/threadedregions/commands/CommandServerHealth.java
 @@ -1,364 +1,102 @@
@@ -448,7 +448,7 @@ index aa860cfe..014772c7 100644
 +}
 diff --git a/io/papermc/paper/threadedregions/commands/RegionHealthSnapshot.java b/io/papermc/paper/threadedregions/commands/RegionHealthSnapshot.java
 new file mode 100644
-index 00000000..39cdb179
+index 0000000000000000000000000000000000000000..39cdb179cd6531f2eb8f6b152e152a19d2e5c086
 --- /dev/null
 +++ b/io/papermc/paper/threadedregions/commands/RegionHealthSnapshot.java
 @@ -0,0 +1,153 @@
@@ -607,7 +607,7 @@ index 00000000..39cdb179
 +}
 diff --git a/io/papermc/paper/threadedregions/commands/RegionHealthView.java b/io/papermc/paper/threadedregions/commands/RegionHealthView.java
 new file mode 100644
-index 00000000..4e6eeec3
+index 0000000000000000000000000000000000000000..4e6eeec39b091012939613902bbb93bf83e08587
 --- /dev/null
 +++ b/io/papermc/paper/threadedregions/commands/RegionHealthView.java
 @@ -0,0 +1,293 @@

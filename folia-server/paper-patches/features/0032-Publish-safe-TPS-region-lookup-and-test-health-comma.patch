@@ -5,10 +5,10 @@ Subject: [PATCH] Publish safe TPS region lookup and test health commands
 
 
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-index 6545848bc..221858d31 100644
+index 96162cf9b6e018963ac0705404102ab19b2d33f8..3bdbdc81afd19d05897b922fe706341936810334 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-@@ -257,6 +257,23 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
+@@ -259,6 +259,23 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
      // used only to notify tasks for packets
      private volatile io.papermc.paper.threadedregions.RegionizedWorldData lastRegion;
  
@@ -34,7 +34,7 @@ index 6545848bc..221858d31 100644
      }
 diff --git a/src/test/java/io/papermc/paper/threadedregions/commands/RegionHealthCommandTest.java b/src/test/java/io/papermc/paper/threadedregions/commands/RegionHealthCommandTest.java
 new file mode 100644
-index 000000000..5f0a0bb49
+index 0000000000000000000000000000000000000000..5f0a0bb49d404c3a19fdbc7fb655e2e039038408
 --- /dev/null
 +++ b/src/test/java/io/papermc/paper/threadedregions/commands/RegionHealthCommandTest.java
 @@ -0,0 +1,334 @@
@@ -374,7 +374,7 @@ index 000000000..5f0a0bb49
 +}
 diff --git a/src/test/java/io/papermc/paper/threadedregions/commands/RegionHealthSnapshotTest.java b/src/test/java/io/papermc/paper/threadedregions/commands/RegionHealthSnapshotTest.java
 new file mode 100644
-index 000000000..a0ebf792f
+index 0000000000000000000000000000000000000000..a0ebf792fcb9c91a35fa50bc693190f043c7a55a
 --- /dev/null
 +++ b/src/test/java/io/papermc/paper/threadedregions/commands/RegionHealthSnapshotTest.java
 @@ -0,0 +1,125 @@

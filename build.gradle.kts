@@ -6,7 +6,7 @@ import dev.tessera.buildsupport.LocalPaperTask
 
 plugins {
     java // TODO java launcher tasks
-    id("io.papermc.paperweight.patcher") version "2.0.0-beta.23"
+    id("io.papermc.paperweight.patcher") version "2.0.0-beta.24"
 }
 
 paperweight {
@@ -127,6 +127,22 @@ val paperMavenPublicUrl = "https://repo.papermc.io/repository/maven-public/"
 subprojects {
     apply(plugin = "java-library")
     apply(plugin = "maven-publish")
+
+    // Paperweight core consumes the patcher's checkout through a directory path.
+    // Declare the producer for combined rebuild graphs too, not only nested apply builds.
+    plugins.withId("io.papermc.paperweight.core") {
+        afterEvaluate {
+            tasks.matching {
+                it.name in setOf(
+                    "applyPaperMinecraftResourcePatches", "applyPaperMinecraftSourcePatches",
+                    "applyPaperMinecraftFilePatches", "applyPaperMinecraftFeaturePatches",
+                    "collectPaperATsFromPatches", "importPaperLibraryFiles", "filterPaperServerFromPaper"
+                )
+            }.configureEach {
+                dependsOn(rootProject.tasks.named("checkoutPaperRepo"))
+            }
+        }
+    }
 
     extensions.configure<JavaPluginExtension> {
         toolchain {

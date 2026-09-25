@@ -5,10 +5,10 @@ Subject: [PATCH] Clear Nether travel origin on player death
 
 
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 2e404ea73b0605252bc4decb77e2018982dea560..380f7c17f3fe65fc861aa3490c4c758fbd76aaf0 100644
+index 8a9d3d06cbc582d677cc20d6d92606b6418538c5..6aca9f2f0037f83ec83dc351de25dabde2e646f1 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
-@@ -3739,6 +3739,10 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -3751,6 +3751,10 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
              this.newLevel = this.experienceLevel;
          }
  

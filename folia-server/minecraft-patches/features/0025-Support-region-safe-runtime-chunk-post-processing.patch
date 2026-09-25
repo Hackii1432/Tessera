@@ -5,7 +5,7 @@ Subject: [PATCH] Support region-safe runtime chunk post-processing
 
 
 diff --git a/net/minecraft/world/level/chunk/LevelChunk.java b/net/minecraft/world/level/chunk/LevelChunk.java
-index 6d3b441de2417e7f2d8b32af285057eea7f1ff79..b4408b64cdbbad0f9b5a68c2a35acb112fea56ea 100644
+index 8734c7705c4e62fd6e3cf4dc29b6b38325bcfecd..ae3abdd03909b0a82bcd142cb3e2cfb35f763c17 100644
 --- a/net/minecraft/world/level/chunk/LevelChunk.java
 +++ b/net/minecraft/world/level/chunk/LevelChunk.java
 @@ -11,6 +11,8 @@ import java.util.Collections;
@@ -30,7 +30,7 @@ index 6d3b441de2417e7f2d8b32af285057eea7f1ff79..b4408b64cdbbad0f9b5a68c2a35acb11
      private ca.spottedleaf.moonrise.patches.chunk_system.scheduling.NewChunkHolder chunkAndHolder;
  
      @Override
-@@ -760,34 +768,156 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
+@@ -765,34 +773,156 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
          return this.blockEntities;
      }
  

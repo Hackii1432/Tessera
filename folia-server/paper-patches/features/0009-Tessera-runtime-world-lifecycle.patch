@@ -239,10 +239,10 @@ index 64ce090bd90db38204fe4901f7aef4a5fe8e05f0..b8dd102fecdcae5145ddc653a040190c
      @Override
      public WorldBorder createWorldBorder() {
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index 84155d859dc14b648385ab53732edca0b2e189e6..d7010524b5907f02cc04c6f91ca7a581afa96b2e 100644
+index d6ec7c46d582de9a4228528337dcec3f97aa9c52..6acfeb31d148c5abfb7f17245f59836b3e2c48dc 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-@@ -565,6 +565,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+@@ -564,6 +564,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
  
      @Override
      public boolean addPluginChunkTicket(int x, int z, Plugin plugin) {
@@ -250,7 +250,7 @@ index 84155d859dc14b648385ab53732edca0b2e189e6..d7010524b5907f02cc04c6f91ca7a581
          warnUnsafeChunk("adding a faraway chunk ticket", x, z); // Paper
          Preconditions.checkArgument(plugin != null, "null plugin");
          Preconditions.checkArgument(plugin.isEnabled(), "plugin is not enabled");
-@@ -632,6 +633,9 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+@@ -631,6 +632,9 @@ public class CraftWorld extends CraftRegionAccessor implements World {
      @Override
      public void setChunkForceLoaded(int x, int z, boolean forced) {
          io.papermc.paper.threadedregions.RegionizedServer.ensureGlobalTickThread("Cannot modify force-loaded chunks off global region"); // Folia - region threading

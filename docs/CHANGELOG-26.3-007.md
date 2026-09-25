@@ -15,8 +15,6 @@ releaseUrl: "https://github.com/Hackii1432/Tessera/"
 downloadUrl: "https://home.mosaikdev.com"
 ---
 
-## Beschreibung
-
 ### TPS-Übersicht und Navigation
 
 - `/tps` zeigt zuerst die eigene Region und danach die übrigen geladenen Regionen mit TPS, durchschnittlicher Tickzeit und sichtbaren Spielern.
@@ -48,13 +46,3 @@ downloadUrl: "https://home.mosaikdev.com"
 - Buildnummer auf `007-alpha` angehoben und README, Build-Workflow sowie die TPS-Dokumentation aktualisiert.
 - Minecraft `26.3`, Mache `26.3+build.1`, Java 25, Gradle `9.4.1` und Plugin-API-Version `26.3` beibehalten. Keine MVE-Änderungen vorgenommen.
 
-### Automatisierte Prüfung
-
-- Vollständigen `buildTessera`-Durchlauf unter Build `007-alpha` erfolgreich abgeschlossen, einschließlich Patch-Anwendung, Kompilierung, Tests, Checkstyle-/Bad-Call-Prüfungen und ausführbarer Paperclip-JAR unter `build/libs/tessera-server-26.3.build.007-alpha.jar`.
-- Beide neuen Patchschichten erneut angewendet und die erzeugten Quellen ohne Abweichung zum exportierten Stand geprüft.
-- 19 neue Regressionstestfälle erfolgreich ausgeführt: Regions- und Spieleransichten, englische Texte, Navigation, begrenzte Chatzeilen, Berechtigungen, Sichtbarkeit, fehlende Messdaten, Tickraten, Pause/Sprint, Thread-Weiterleitung sowie geänderte und verschwundene Regionszuordnungen.
-- Server-Testsuite mit `10.031` erfassten Testfällen ohne Fehler oder Fehlschläge geprüft; `87` Fälle wurden übersprungen.
-- API-Testsuite mit `529` erfassten Testfällen ohne Fehler oder Fehlschläge geprüft; `2` Fälle wurden übersprungen.
-
-Tessera bleibt ein Alpha-Build. Automatisierte Tests ersetzen keinen Live-Test
-mit mehreren Spielern, Regionswechseln und den tatsächlich eingesetzten Plugins.

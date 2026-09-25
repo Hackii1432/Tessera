@@ -107,3 +107,18 @@ Tessera Build `006-alpha` zugeordnet.
 Umfang, Original-Commits, Kompatibilitätsgrenzen und Build-Befehl:
 [Backport-Dokumentation](../docs/PAPER-BACKPORTS-2026-09-21.md).
 Veröffentlichungsnotizen: [Build-006-Changelog](../docs/CHANGELOG-26.3-006.md).
+
+## Paper main vom 25. September 2026
+
+Die 17 Commits zwischen dem zuvor geprüften c13e3c9 und
+`a15fed9c16a5cc93e4ff38d6e2135623e2dc9daa` wurden inhaltlich integriert:
+Laufzeit-/API-Korrekturen, Moonrise-Paletten- und NBT-I/O-Optimierungen,
+Unload-Kopieroptimierung, Leafpile 1.2.2 sowie Gradle 9.8.0 mit Paperweight beta24.
+Gleichwertig vorhandene Änderungen wurden nicht doppelt übernommen.
+Minecraft-/Mache-Basis, ursprüngliche Importreferenz und DataConverter bleiben erhalten.
+Die obsolete Brain-Memory wird im bestehenden 26.3-DFU-Pfad entfernt.
+
+Sinopia-Minecraft-Patches 0045 und 0046 enthalten die allgemeinen Änderungen;
+ergänzende Tessera-Patches sichern die Regionszuständigkeit.
+Umfang, Quellen und Prüfergebnisse:
+[Paper-main-Integration](../docs/PAPER-MAIN-INTEGRATION-2026-09-25.md).

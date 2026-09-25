@@ -5,10 +5,10 @@ Subject: [PATCH] Silence player support block resync logging
 
 
 diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index deb120afc2f1859173cb31a86fe977c64f04a22e..9c7e7497f139802bd1bef64ba7696ab3ee1ec997 100644
+index 66ed4ecfa5c28777a4433874f2df90a9d691dc41..1be76c03cb7390a0e8fa444ebe90e132d4a0c966 100644
 --- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -1824,7 +1824,7 @@ public class ServerGamePacketListenerImpl
+@@ -1840,7 +1840,7 @@ public class ServerGamePacketListenerImpl
      private void forceSendPlayerSupportBlocks() {
          if (this.tickCount >= this.lastSupportedBlocksSend + 200) {
              this.lastSupportedBlocksSend = this.tickCount;

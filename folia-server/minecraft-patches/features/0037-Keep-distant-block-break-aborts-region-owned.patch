@@ -6,10 +6,10 @@ Subject: [PATCH] Keep distant block break aborts region owned
 Adapt Paper a8210fd to the Folia packet admission path. Keep the existing eight-chunk ownership margin, never load chunks, reject stale world/player ownership, and check the previous destruction position before touching it.
 
 diff --git a/net/minecraft/server/level/ServerPlayerGameMode.java b/net/minecraft/server/level/ServerPlayerGameMode.java
-index 212f2a1f656b201018d07010095c82050f62cea3..23db3f59dd781af7d62aa7f4fd5c8c8f48e2c00c 100644
+index f4c1b4bedbc7f94e61c1b9a0690475c73a96a266..a9d1e454e1edb8df99f314e61cf237a4cef2b5a8 100644
 --- a/net/minecraft/server/level/ServerPlayerGameMode.java
 +++ b/net/minecraft/server/level/ServerPlayerGameMode.java
-@@ -188,9 +188,24 @@ public class ServerPlayerGameMode {
+@@ -189,9 +189,24 @@ public class ServerPlayerGameMode {
          }
      }
  
@@ -34,7 +34,7 @@ index 212f2a1f656b201018d07010095c82050f62cea3..23db3f59dd781af7d62aa7f4fd5c8c8f
          if (!this.player.isWithinBlockInteractionRange(pos, 1.0)) {
              if (this.player.distanceToSqr(pos.getX(), pos.getY(), pos.getZ()) >= Level.SHORT_PARTICLE_CLIP_RANGE * Level.SHORT_PARTICLE_CLIP_RANGE) return; // Paper - Don't notify if unreasonably far away
              if (this.isDestroyingBlock && action == ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK) {
-@@ -333,7 +348,8 @@ public class ServerPlayerGameMode {
+@@ -334,7 +349,8 @@ public class ServerPlayerGameMode {
          // Paper start - Don't allow digging into unloaded chunks
          if (!Objects.equals(this.destroyPos, pos) && !BlockPos.ZERO.equals(this.destroyPos)) { // Paper
              ServerPlayerGameMode.LOGGER.debug("Mismatch in destroy block pos: {} {}", this.destroyPos, pos); // CraftBukkit - SPIGOT-5457 sent by client when interact event cancelled
@@ -45,10 +45,10 @@ index 212f2a1f656b201018d07010095c82050f62cea3..23db3f59dd781af7d62aa7f4fd5c8c8f
              this.level.destroyBlockProgress(this.player.getId(), this.destroyPos, -1);
              this.debugLogging(pos, true, sequence, "aborted mismatched destroying");
 diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 0fdf902dbeee3820235eef8b08699aa9bd345e37..9e6f55af3a2b0c3c562e9b0d5742d7d08cfd1ff0 100644
+index 1be76c03cb7390a0e8fa444ebe90e132d4a0c966..65f49beaf41b94aa37b88fda260c860eda5efc4d 100644
 --- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -2098,7 +2098,7 @@ public class ServerGamePacketListenerImpl
+@@ -2114,7 +2114,7 @@ public class ServerGamePacketListenerImpl
                  case ABORT_DESTROY_BLOCK:
                  case STOP_DESTROY_BLOCK:
                      // Paper start - Don't allow digging into unloaded chunks
@@ -57,6 +57,3 @@ index 0fdf902dbeee3820235eef8b08699aa9bd345e37..9e6f55af3a2b0c3c562e9b0d5742d7d0
                          this.player.connection.ackBlockChangesUpTo(packet.getSequence());
                          return;
                      }
--- 
-2.45.1.windows.1
-

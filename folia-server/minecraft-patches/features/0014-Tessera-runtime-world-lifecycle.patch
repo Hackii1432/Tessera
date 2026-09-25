@@ -439,7 +439,7 @@ index ed8dd1caa3e3cd289ac94f40c120e031f8099ee3..65110a19fdd43d991499f9a93545253b
      protected GlobalPos selectLevelLoadFocusPos() {
          return this.worldData.overworldData().getRespawnData().globalPos();
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index 1bca593009b096728c6d01314022913d1e672815..201a5357bdaa1ea5f1052ed0df654519ddb00e16 100644
+index ad801fbfb0d27fe2a78993edca3d422fda16a61c..4eedc8c2b412f203a6a140d05a2d5ffad5f49079 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
 @@ -721,6 +721,57 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet

@@ -145,10 +145,10 @@ index e71746072144d4c8b68fdbc990a72d3c49974425..927e89bf4d13d81b21f043f74b1a7a7d
                  .withOptionalParameter(LootContextParams.THIS_ENTITY, source.getEntity())
                  .withParameter(LootContextParams.ORIGIN, source.getPosition());
 diff --git a/net/minecraft/server/level/ServerChunkCache.java b/net/minecraft/server/level/ServerChunkCache.java
-index 18af9c491ea5e9f10d945cfa6fc540d8da17d1e3..2c124034ece224cfdd3e1476bd35b16c357d87e7 100644
+index e7b029d2995202f85bc87f0e98eba1d08059295e..6c975413b2f0a780ff9dc0dff01c5b51aeab21c5 100644
 --- a/net/minecraft/server/level/ServerChunkCache.java
 +++ b/net/minecraft/server/level/ServerChunkCache.java
-@@ -850,7 +850,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+@@ -855,7 +855,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
  
          // Folia start - region threading
          @Override
@@ -158,7 +158,7 @@ index 18af9c491ea5e9f10d945cfa6fc540d8da17d1e3..2c124034ece224cfdd3e1476bd35b16c
                  throw new UnsupportedOperationException();
              }
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index c8e5e55fcc1ada7777619efc144f7750b94d61d0..70db8ac25e897c71ddfbbfe4e4a7a4403808f547 100644
+index 7ff67e34f8e92ae3ad0f091af611cf7386d577e5..3d5f3779478d823a6fd25f1dffd5f841050d3acd 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
 @@ -1046,7 +1046,7 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet

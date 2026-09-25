@@ -1,0 +1,143 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Fri, 25 Sep 2026 13:58:12 +0200
+Subject: [PATCH] Keep Paper main optimisations and callbacks region-owned
+
+
+diff --git a/net/minecraft/server/level/ServerChunkCache.java b/net/minecraft/server/level/ServerChunkCache.java
+index 6c975413b2f0a780ff9dc0dff01c5b51aeab21c5..2c1f9b1249c618dd2516878b86e6cb37bda7f277 100644
+--- a/net/minecraft/server/level/ServerChunkCache.java
++++ b/net/minecraft/server/level/ServerChunkCache.java
+@@ -97,7 +97,8 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+ 
+     @Override
+     public void moonrise$chunkHolderUnload(final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.NewChunkHolder chunkHolder) {
+-        this.chunkHoldersToBroadcast.remove(chunkHolder.vanillaChunkHolder);
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this.level, chunkHolder.chunkX, chunkHolder.chunkZ, "Cannot remove chunk broadcasts off-region");
++        this.level.getCurrentWorldData().chunkHoldersToBroadcast.remove(chunkHolder.vanillaChunkHolder); // Tessera - region-local ownership
+     }
+ 
+     private ChunkAccess syncLoad(final int chunkX, final int chunkZ, final ChunkStatus toStatus) {
+diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 00ebe5c20950c67446c48fc61034c51655ee6ac8..ec83bd835e22a08f4a9adfbcbe3ee365afa01616 100644
+--- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -958,19 +958,35 @@ public class ServerGamePacketListenerImpl
+     }
+     public void sendServerSuggestions(final ServerboundCommandSuggestionPacket packet) {
+         // Paper end - Async TabComplete Event
+-        int clientId = packet.id();
++        final org.bukkit.craftbukkit.entity.CraftPlayer target = this.getCraftPlayer(); // Tessera - stable across respawn
+         this.commandSuggestionsProvider
+             .request(packet.command())
+             .thenAccept(suggestions -> {
+-                if (!this.isAcceptingMessages()) return;
+-                // Paper - fire the suggestions event for the server completion path as well.
+-                final var event = new com.destroystokyo.paper.event.brigadier.AsyncPlayerSendSuggestionsEvent(this.getCraftPlayer(), suggestions, packet.command());
+-                if (event.callEvent() && !event.getSuggestions().isEmpty() && this.isAcceptingMessages()) {
+-                    this.send(new ClientboundCommandSuggestionsPacket(clientId, ServerCommandSuggestionsProvider.limitSuggestionCount(event.getSuggestions())));
++                // Tessera - plugin suggestion futures may complete on any thread.
++                if (ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this.player)) {
++                    this.tessera$sendServerSuggestions(this.player, packet, suggestions);
++                } else {
++                    target.taskScheduler.schedule(current -> {
++                        if (current instanceof ServerPlayer currentPlayer) {
++                            this.tessera$sendServerSuggestions(currentPlayer, packet, suggestions);
++                        }
++                    }, null, 1L);
+                 }
+             });
+     }
+ 
++    private void tessera$sendServerSuggestions(final ServerPlayer currentPlayer, final ServerboundCommandSuggestionPacket packet,
++                                              final com.mojang.brigadier.suggestion.Suggestions suggestions) {
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(currentPlayer, "Cannot deliver server suggestions off-region");
++        if (this.player != currentPlayer || currentPlayer.connection != this || currentPlayer.isRemoved() || !this.isAcceptingMessages()) return;
++        final var event = new com.destroystokyo.paper.event.brigadier.AsyncPlayerSendSuggestionsEvent(currentPlayer.getBukkitEntity(), suggestions, packet.command());
++        if (event.callEvent() && !event.getSuggestions().isEmpty()
++            && ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(currentPlayer)
++            && this.player == currentPlayer && currentPlayer.connection == this && !currentPlayer.isRemoved() && this.isAcceptingMessages()) {
++            this.send(new ClientboundCommandSuggestionsPacket(packet.id(), ServerCommandSuggestionsProvider.limitSuggestionCount(event.getSuggestions())));
++        }
++    }
++
+     @Override
+     public void handleSetCommandBlock(final ServerboundSetCommandBlockPacket packet) {
+         PacketUtils.ensureRunningOnSameThread(packet, this, this.player.level());
+diff --git a/net/minecraft/world/entity/ai/behavior/TransportItemsBetweenContainers.java b/net/minecraft/world/entity/ai/behavior/TransportItemsBetweenContainers.java
+index 2ea765e060d67592aaaa9675c68750e8e2b11b38..84f2a664b407f2007fbc68c3c02a516b527ac83f 100644
+--- a/net/minecraft/world/entity/ai/behavior/TransportItemsBetweenContainers.java
++++ b/net/minecraft/world/entity/ai/behavior/TransportItemsBetweenContainers.java
+@@ -380,18 +380,30 @@ public class TransportItemsBetweenContainers extends Behavior<PathfinderMob> {
+     }
+ 
+     private boolean targetHasNotChanged(final Level level, final TransportItemsBetweenContainers.TransportItemTarget target) {
+-        return target.blockEntity.equals(level.getBlockEntity(target.pos)) && !isContainerRemoved(target.container); // Paper - validate compound targets
++        return tessera$ownsLoadedPosition(level, target.pos)
++            && target.blockEntity == level.getBlockEntity(target.pos)
++            && !isContainerRemoved(level, target.container); // Tessera - validate both halves on their owner
+     }
+ 
+     // Paper start - validate compound targets
+-    private static boolean isContainerRemoved(final Container container) {
++    private static boolean isContainerRemoved(final Level level, final Container container) {
+         if (container instanceof net.minecraft.world.CompoundContainer compoundContainer) {
+-            return isContainerRemoved(compoundContainer.container1) || isContainerRemoved(compoundContainer.container2);
++            return isContainerRemoved(level, compoundContainer.container1) || isContainerRemoved(level, compoundContainer.container2);
+         }
+-        return container instanceof BlockEntity blockEntity && blockEntity.isRemoved();
++        return container instanceof BlockEntity blockEntity
++            && (!tessera$ownsLoadedPosition(level, blockEntity.getBlockPos())
++                || blockEntity.isRemoved() || blockEntity.getLevel() != level
++                || level.getBlockEntity(blockEntity.getBlockPos()) != blockEntity);
+     }
+     // Paper end - validate compound targets
+ 
++    // Tessera - never load or inspect a foreign region while validating a remembered container.
++    private static boolean tessera$ownsLoadedPosition(final Level level, final BlockPos pos) {
++        return level instanceof ServerLevel serverLevel
++            && ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(serverLevel, pos)
++            && serverLevel.getChunkSource().getChunkAtIfLoadedImmediately(pos.getX() >> 4, pos.getZ() >> 4) != null;
++    }
++
+     private Stream<TransportItemsBetweenContainers.TransportItemTarget> getConnectedTargets(
+         final TransportItemsBetweenContainers.TransportItemTarget target, final Level level
+     ) {
+@@ -648,12 +660,14 @@ public class TransportItemsBetweenContainers extends Behavior<PathfinderMob> {
+     public record TransportItemTarget(BlockPos pos, Container container, BlockEntity blockEntity, BlockState state) {
+         public static TransportItemsBetweenContainers.@Nullable TransportItemTarget tryCreatePossibleTarget(final BlockEntity blockEntity, final Level level) {
+             BlockPos blockPos = blockEntity.getBlockPos();
++            if (!tessera$ownsLoadedPosition(level, blockPos)) return null; // Tessera
+             BlockState blockState = blockEntity.getBlockState();
+             Container container = getBlockEntityContainer(blockEntity, blockState, level, blockPos);
+             return container != null ? new TransportItemsBetweenContainers.TransportItemTarget(blockPos, container, blockEntity, blockState) : null;
+         }
+ 
+         public static TransportItemsBetweenContainers.@Nullable TransportItemTarget tryCreatePossibleTarget(final BlockPos blockPos, final Level level) {
++            if (!tessera$ownsLoadedPosition(level, blockPos)) return null; // Tessera
+             BlockEntity blockEntity = level.getBlockEntity(blockPos);
+             return blockEntity == null ? null : tryCreatePossibleTarget(blockEntity, level);
+         }
+@@ -662,6 +676,10 @@ public class TransportItemsBetweenContainers extends Behavior<PathfinderMob> {
+             final BlockEntity blockEntity, final BlockState blockState, final Level level, final BlockPos blockPos
+         ) {
+             if (blockState.getBlock() instanceof ChestBlock chestBlock) {
++                if (blockState.getValue(ChestBlock.TYPE) != ChestType.SINGLE
++                    && !tessera$ownsLoadedPosition(level, blockPos.relative(ChestBlock.getConnectedDirection(blockState)))) {
++                    return null; // Tessera - the second half may belong to a different region
++                }
+                 return ChestBlock.getContainer(chestBlock, blockState, level, blockPos, false);
+             } else {
+                 return blockEntity instanceof Container container ? container : null;
+diff --git a/net/minecraft/world/level/chunk/storage/SerializableChunkData.java b/net/minecraft/world/level/chunk/storage/SerializableChunkData.java
+index 23d8fe9c0c61980726b684098f3ee69f93200404..ecb91d353c1e07377c729fa84c251cc57ad55932 100644
+--- a/net/minecraft/world/level/chunk/storage/SerializableChunkData.java
++++ b/net/minecraft/world/level/chunk/storage/SerializableChunkData.java
+@@ -438,6 +438,7 @@ public record SerializableChunkData(
+ 
+     // Sinopia - only the chunk-system unload path may transfer detached section ownership.
+     public static SerializableChunkData copyOfForUnload(final ServerLevel level, final ChunkAccess chunk) {
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(level, chunk.getPos(), "Cannot transfer unloaded chunk sections off-region"); // Tessera
+         if (chunk instanceof LevelChunk levelChunk && levelChunk.isLoaded()) {
+             throw new IllegalStateException("Cannot transfer sections of a loaded chunk to asynchronous saving");
+         }

@@ -1,0 +1,21 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Fri, 25 Sep 2026 13:58:12 +0200
+Subject: [PATCH] Document regional post effects ownership
+
+
+diff --git a/src/main/java/io/papermc/paper/entity/PlayerPostEffects.java b/src/main/java/io/papermc/paper/entity/PlayerPostEffects.java
+index a89cce60ae043e99985ff7ba6c9ea4d2acf5b522..73490c71858bde8ad6c4af0f55e2505a6d0aeb4e 100644
+--- a/src/main/java/io/papermc/paper/entity/PlayerPostEffects.java
++++ b/src/main/java/io/papermc/paper/entity/PlayerPostEffects.java
+@@ -8,6 +8,10 @@ import org.jspecify.annotations.NullMarked;
+ 
+ /**
+  * Represents the post-effects that can be applied to a player.
++ * <p>On region-threaded servers, every operation, including {@link #values()},
++ * must run on the player's owning thread (for example, via the player's entity
++ * scheduler). The player must be active. Retained instances resolve the current
++ * player after respawn; returned lists are immutable snapshots.</p>
+  * @see <a href="https://minecraft.wiki/w/Shader#Post-processing_effects">Post-Effects - Minecraft Wiki</a>
+  */
+ @NullMarked
