@@ -186,14 +186,16 @@ Das ist ausdrücklich KEINE Erklärung, dass die Minecraft-Portierung fertig ist
 ## 26.3-Status
 
 Die aktuelle Minecraft-Basis ist das Release `26.3` mit Mache
-`26.3+build.1` und Tessera Build `007-alpha`. Java 25 und die
+`26.3+build.1` und Tessera Build `009-alpha`. Java 25 und die
 Plugin-API-Version `26.3` bleiben erhalten. Seit der Paper-main-Integration
 vom 25. September werden Gradle `9.8.0` und Paperweight `2.0.0-beta.24`
 gemeinsam verwendet. Der Build erzeugt die ausführbare JAR unter
-`build/libs/tessera-server-26.3.build.007-alpha.jar`.
+`build/libs/tessera-server-26.3.build.009-alpha.jar`.
 Tessera bleibt ein Alpha-Build; das Minecraft-Release ist keine automatische
 Produktionsfreigabe des Forks. Änderungen und Prüfstand:
-[Build 007](CHANGELOG-26.3-007.md). Die Paper-Backports sind unter
+[Build 009](CHANGELOG-26.3-009.md). Die Paper-main-Integration ist unter
+[Build 008](CHANGELOG-26.3-008.md), die TPS-Übersicht unter
+[Build 007](CHANGELOG-26.3-007.md) beschrieben. Die vorherigen Paper-Backports sind unter
 [Build 006](CHANGELOG-26.3-006.md) dokumentiert. Die Umstellung auf das Minecraft-Release
 ist weiterhin unter [Build 005](CHANGELOG-26.3-005-RELEASE.md) dokumentiert.
 

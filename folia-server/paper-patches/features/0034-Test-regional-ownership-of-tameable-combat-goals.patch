@@ -1,0 +1,354 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Sat, 26 Sep 2026 23:06:51 +0200
+Subject: [PATCH] Test regional ownership of tameable combat goals
+
+
+diff --git a/src/test/java/io/papermc/paper/porting/TesseraOwnerCombatTest.java b/src/test/java/io/papermc/paper/porting/TesseraOwnerCombatTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..bdd4c4dea4dfbc337c0a8a269b69b2909931797b
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/porting/TesseraOwnerCombatTest.java
+@@ -0,0 +1,342 @@
++package io.papermc.paper.porting;
++
++import ca.spottedleaf.moonrise.common.util.TickThread;
++import java.util.Arrays;
++import java.util.stream.Stream;
++import net.minecraft.core.BlockPos;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.tags.DamageTypeTags;
++import net.minecraft.world.damagesource.DamageSource;
++import net.minecraft.world.entity.LivingEntity;
++import net.minecraft.world.entity.TamableAnimal;
++import net.minecraft.world.entity.ai.goal.target.OwnerHurtByTargetGoal;
++import net.minecraft.world.entity.ai.goal.target.OwnerHurtTargetGoal;
++import net.minecraft.world.entity.ai.goal.target.TargetGoal;
++import net.minecraft.world.entity.ai.sensing.Sensing;
++import org.bukkit.event.entity.EntityTargetEvent.TargetReason;
++import org.bukkit.support.environment.Normal;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.params.ParameterizedTest;
++import org.junit.jupiter.params.provider.Arguments;
++import org.junit.jupiter.params.provider.EnumSource;
++import org.junit.jupiter.params.provider.MethodSource;
++import org.mockito.MockedStatic;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.ArgumentMatchers.*;
++import static org.mockito.Mockito.*;
++
++@Normal
++class TesseraOwnerCombatTest {
++    enum Kind { DEFEND, ASSIST }
++
++    static Stream<Arguments> foreignEntities() {
++        return Arrays.stream(Kind.values()).flatMap(kind -> Stream.of("dimension", "region", "removed", "missing")
++            .map(state -> Arguments.of(kind, state)));
++    }
++
++    static Stream<Arguments> changedSelections() {
++        return Arrays.stream(Kind.values()).flatMap(kind -> Stream.of(
++                "owner-region", "owner-world", "owner-removed", "owner-replaced",
++                "target-region", "target-world", "target-removed", "target-replaced",
++                "pet-region", "pet-removed", "new-attack", "sitting", "untamed")
++            .map(state -> Arguments.of(kind, state)));
++    }
++
++    @ParameterizedTest
++    @EnumSource(Kind.class)
++    void localCombatStillUsesVanillaPredicatesAndTargetReason(Kind kind) {
++        try (Fixture f = new Fixture(kind)) {
++            assertTrue(f.goal.canUse());
++            verify(f.animal).canAttack(f.target);
++            verify(f.animal).wantsToAttack(f.target, f.owner);
++            f.goal.start();
++            verify(f.animal).setTarget(f.target, f.reason);
++            assertFalse(f.goal.canUse(), "The selected combat timestamp should be consumed");
++            f.timestamp(2);
++            assertTrue(f.goal.canUse(), "The next attack must still be processed");
++        }
++    }
++
++    @ParameterizedTest
++    @MethodSource("foreignEntities")
++    void foreignOwnersAreNeverQueriedForCombatData(Kind kind, String state) {
++        try (Fixture f = new Fixture(kind)) {
++            switch (state) {
++                // Leave ownership mocked true for this case to independently exercise the world check.
++                case "dimension" -> when(f.owner.level()).thenReturn(mock(ServerLevel.class));
++                case "region" -> f.owned(f.owner, false);
++                case "removed" -> when(f.owner.isRemoved()).thenReturn(true);
++                case "missing" -> when(f.animal.getOwner()).thenReturn(null);
++                default -> throw new AssertionError(state);
++            }
++            clearInvocations(f.owner);
++            assertFalse(f.goal.canUse());
++            verify(f.owner, never()).getLastDamageSource(anyInt());
++            verify(f.owner, never()).getLastHurtByMob();
++            verify(f.owner, never()).getLastHurtByMobTimestamp();
++            verify(f.owner, never()).getLastHurtMob();
++            verify(f.owner, never()).getLastHurtMobTimestamp();
++            if (state.equals("region")) {
++                verify(f.owner, never()).isRemoved();
++                verify(f.owner, never()).level();
++            }
++            verify(f.animal, never()).setTarget(any(), any());
++            verify(f.animal, never()).setOwnerReference(any());
++        }
++    }
++
++    @ParameterizedTest
++    @MethodSource("foreignEntities")
++    void foreignCombatTargetsAreRejectedBeforeTargetingReads(Kind kind, String state) {
++        try (Fixture f = new Fixture(kind)) {
++            switch (state) {
++                case "dimension" -> when(f.target.level()).thenReturn(mock(ServerLevel.class));
++                case "region" -> f.owned(f.target, false);
++                case "removed" -> when(f.target.isRemoved()).thenReturn(true);
++                case "missing" -> f.target(null);
++                default -> throw new AssertionError(state);
++            }
++            clearInvocations(f.target);
++            assertFalse(f.goal.canUse());
++            verify(f.target, never()).canBeSeenByAnyone();
++            verify(f.target, never()).blockPosition();
++            verify(f.animal, never()).canAttack(any());
++            verify(f.animal, never()).wantsToAttack(any(), any());
++            f.goal.start();
++            verify(f.animal, never()).setTarget(any(), any());
++        }
++    }
++
++    @Test
++    void originalWorldMismatchPathIsNotReachedAndCanResumeAfterReturn() {
++        try (Fixture f = new Fixture(Kind.DEFEND)) {
++            f.owned(f.owner, false);
++            when(f.owner.getLastDamageSource(100)).thenThrow(new IllegalStateException("World mismatch: expected world_the_end but got world"));
++            assertFalse(assertDoesNotThrow(f.goal::canUse));
++            f.owned(f.owner, true);
++            doReturn(f.damage).when(f.owner).getLastDamageSource(100);
++            assertTrue(f.goal.canUse());
++            f.goal.start();
++            verify(f.animal).setTarget(f.target, f.reason);
++            verify(f.animal, never()).setOwnerReference(any());
++        }
++    }
++
++    @ParameterizedTest
++    @MethodSource("changedSelections")
++    void startRevalidatesSelectionAfterOtherGoalsHaveStopped(Kind kind, String change) {
++        try (Fixture f = new Fixture(kind)) {
++            assertTrue(f.goal.canUse());
++            switch (change) {
++                case "owner-region" -> f.owned(f.owner, false);
++                case "owner-world" -> when(f.owner.level()).thenReturn(mock(ServerLevel.class));
++                case "owner-removed" -> when(f.owner.isRemoved()).thenReturn(true);
++                case "owner-replaced" -> when(f.animal.getOwner()).thenReturn(mock(LivingEntity.class));
++                case "target-region" -> f.owned(f.target, false);
++                case "target-world" -> when(f.target.level()).thenReturn(mock(ServerLevel.class));
++                case "target-removed" -> when(f.target.isRemoved()).thenReturn(true);
++                case "target-replaced" -> f.target(mock(LivingEntity.class));
++                case "pet-region" -> f.owned(f.animal, false);
++                case "pet-removed" -> when(f.animal.isRemoved()).thenReturn(true);
++                case "new-attack" -> f.timestamp(2);
++                case "sitting" -> when(f.animal.isOrderedToSit()).thenReturn(true);
++                case "untamed" -> when(f.animal.isTame()).thenReturn(false);
++                default -> throw new AssertionError(change);
++            }
++            clearInvocations(f.owner);
++            assertDoesNotThrow(f.goal::start);
++            verify(f.animal, never()).setTarget(any(), any());
++            if (change.equals("owner-region") || change.equals("pet-region")) {
++                verify(f.owner, never()).getLastHurtByMobTimestamp();
++                verify(f.owner, never()).getLastHurtMobTimestamp();
++            }
++        }
++    }
++
++    @ParameterizedTest
++    @EnumSource(Kind.class)
++    void failedSelectionClearsAnOlderPendingTarget(Kind kind) {
++        try (Fixture f = new Fixture(kind)) {
++            assertTrue(f.goal.canUse());
++            f.owned(f.owner, false);
++            assertFalse(f.goal.canUse());
++            f.owned(f.owner, true);
++            f.goal.start();
++            verify(f.animal, never()).setTarget(any(), any());
++            assertTrue(f.goal.canUse());
++            f.goal.start();
++            f.goal.start(); // A start without a fresh selection cannot replay the target event.
++            verify(f.animal, times(1)).setTarget(f.target, f.reason);
++        }
++    }
++
++    @ParameterizedTest
++    @EnumSource(Kind.class)
++    void ownerTransferInsideTargetEventDoesNotReadForeignState(Kind kind) {
++        try (Fixture f = new Fixture(kind)) {
++            assertTrue(f.goal.canUse());
++            when(f.animal.setTarget(f.target, f.reason)).thenAnswer(call -> {
++                f.owned(f.owner, false);
++                doThrow(new AssertionError("Combat state read after transfer")).when(f.owner).getLastHurtByMobTimestamp();
++                doThrow(new AssertionError("Combat state read after transfer")).when(f.owner).getLastHurtMobTimestamp();
++                return true;
++            });
++            assertDoesNotThrow(f.goal::start);
++            f.owned(f.owner, true);
++            doReturn(1).when(f.owner).getLastHurtByMobTimestamp();
++            doReturn(1).when(f.owner).getLastHurtMobTimestamp();
++            assertTrue(f.goal.canUse(), "The foreign owner's timestamp must not be consumed");
++        }
++    }
++
++    @ParameterizedTest
++    @EnumSource(Kind.class)
++    void petTransferInsideTargetEventDoesNotReadItsOwnerAgain(Kind kind) {
++        try (Fixture f = new Fixture(kind)) {
++            assertTrue(f.goal.canUse());
++            when(f.animal.setTarget(f.target, f.reason)).thenAnswer(call -> {
++                f.owned(f.animal, false);
++                doThrow(new AssertionError("Owner queried after pet transfer")).when(f.animal).getOwner();
++                return true;
++            });
++            assertDoesNotThrow(f.goal::start);
++        }
++    }
++
++    @ParameterizedTest
++    @EnumSource(Kind.class)
++    void newCombatDuringTargetEventIsNotAccidentallyConsumed(Kind kind) {
++        try (Fixture f = new Fixture(kind)) {
++            assertTrue(f.goal.canUse());
++            when(f.animal.setTarget(f.target, f.reason)).thenAnswer(call -> {
++                f.timestamp(2);
++                return true;
++            });
++            f.goal.start();
++            assertTrue(f.goal.canUse());
++        }
++    }
++
++    @ParameterizedTest
++    @EnumSource(Kind.class)
++    void changingTheOwnerDuringTargetEventDoesNotConsumeTheOldOwnersAttempt(Kind kind) {
++        try (Fixture f = new Fixture(kind)) {
++            assertTrue(f.goal.canUse());
++            when(f.animal.setTarget(f.target, f.reason)).thenAnswer(call -> {
++                when(f.animal.getOwner()).thenReturn(mock(LivingEntity.class));
++                return true;
++            });
++            f.goal.start();
++            when(f.animal.getOwner()).thenReturn(f.owner);
++            assertTrue(f.goal.canUse());
++        }
++    }
++
++    @ParameterizedTest
++    @EnumSource(Kind.class)
++    void cancellingTargetSelectionStillConsumesTheAttemptAsInVanilla(Kind kind) {
++        try (Fixture f = new Fixture(kind)) {
++            when(f.animal.setTarget(f.target, f.reason)).thenReturn(false);
++            assertTrue(f.goal.canUse());
++            f.goal.start();
++            verify(f.animal, times(1)).setTarget(f.target, f.reason);
++            assertFalse(f.goal.canUse());
++        }
++    }
++
++    @ParameterizedTest
++    @EnumSource(Kind.class)
++    void sittingUntamedAndUnwantedTargetsStillDoNotStartCombat(Kind kind) {
++        try (Fixture f = new Fixture(kind)) {
++            when(f.animal.isOrderedToSit()).thenReturn(true);
++            assertFalse(f.goal.canUse());
++            when(f.animal.isOrderedToSit()).thenReturn(false);
++            when(f.animal.isTame()).thenReturn(false);
++            assertFalse(f.goal.canUse());
++            when(f.animal.isTame()).thenReturn(true);
++            when(f.animal.wantsToAttack(f.target, f.owner)).thenReturn(false);
++            assertFalse(f.goal.canUse());
++            when(f.animal.wantsToAttack(f.target, f.owner)).thenReturn(true);
++            when(f.animal.canAttack(f.target)).thenReturn(false);
++            assertFalse(f.goal.canUse());
++            verify(f.animal, never()).setTarget(any(), any());
++        }
++    }
++
++    @Test
++    void damageTimeoutAndNoWolfRetaliationTagRemainEffective() {
++        try (Fixture f = new Fixture(Kind.DEFEND)) {
++            when(f.owner.getLastDamageSource(100)).thenReturn(null);
++            assertFalse(f.goal.canUse());
++            when(f.owner.getLastDamageSource(100)).thenReturn(f.damage);
++            when(f.damage.is(DamageTypeTags.NO_WOLF_RETALIATION)).thenReturn(true);
++            assertFalse(f.goal.canUse());
++            verify(f.owner, never()).getLastHurtByMob();
++            when(f.damage.is(DamageTypeTags.NO_WOLF_RETALIATION)).thenReturn(false);
++            assertTrue(f.goal.canUse());
++        }
++    }
++
++    private static final class Fixture implements AutoCloseable {
++        final Kind kind;
++        final TamableAnimal animal = mock(TamableAnimal.class);
++        final LivingEntity owner = mock(LivingEntity.class);
++        final LivingEntity target = mock(LivingEntity.class);
++        final DamageSource damage = mock(DamageSource.class);
++        final ServerLevel level = mock(ServerLevel.class);
++        final MockedStatic<TickThread> threads = mockStatic(TickThread.class);
++        final TargetGoal goal;
++        final TargetReason reason;
++
++        Fixture(Kind kind) {
++            this.kind = kind;
++            this.reason = kind == Kind.DEFEND ? TargetReason.TARGET_ATTACKED_OWNER : TargetReason.OWNER_ATTACKED_TARGET;
++            this.goal = kind == Kind.DEFEND ? new OwnerHurtByTargetGoal(this.animal) : new OwnerHurtTargetGoal(this.animal);
++            when(this.animal.isTame()).thenReturn(true);
++            when(this.animal.getOwner()).thenReturn(this.owner);
++            when(this.animal.level()).thenReturn(this.level);
++            when(this.owner.level()).thenReturn(this.level);
++            when(this.target.level()).thenReturn(this.level);
++            when(this.owner.getLastDamageSource(100)).thenReturn(this.damage);
++            this.timestamp(1);
++            this.target(this.target);
++            this.owned(this.animal, true);
++            this.owned(this.owner, true);
++            this.owned(this.target, true);
++            when(this.target.canBeSeenByAnyone()).thenReturn(true);
++            when(this.target.blockPosition()).thenReturn(BlockPos.ZERO);
++            when(this.animal.canAttack(this.target)).thenReturn(true);
++            when(this.animal.wantsToAttack(this.target, this.owner)).thenReturn(true);
++            when(this.animal.isWithinHome(BlockPos.ZERO)).thenReturn(true);
++            Sensing sensing = mock(Sensing.class);
++            when(this.animal.getSensing()).thenReturn(sensing);
++            when(sensing.hasLineOfSight(this.target)).thenReturn(true);
++        }
++
++        void owned(LivingEntity entity, boolean owned) {
++            this.threads.when(() -> TickThread.isTickThreadFor(entity)).thenReturn(owned);
++        }
++
++        void timestamp(int value) {
++            if (this.kind == Kind.DEFEND) {
++                when(this.owner.getLastHurtByMobTimestamp()).thenReturn(value);
++            } else {
++                when(this.owner.getLastHurtMobTimestamp()).thenReturn(value);
++            }
++        }
++
++        void target(LivingEntity value) {
++            if (this.kind == Kind.DEFEND) {
++                when(this.owner.getLastHurtByMob()).thenReturn(value);
++            } else {
++                when(this.owner.getLastHurtMob()).thenReturn(value);
++            }
++        }
++
++        @Override
++        public void close() {
++            this.threads.close();
++        }
++    }
++}

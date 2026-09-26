@@ -1,0 +1,179 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Sat, 26 Sep 2026 23:06:51 +0200
+Subject: [PATCH] Keep tameable owner combat on the owning region
+
+
+diff --git a/net/minecraft/world/entity/ai/goal/target/OwnerHurtByTargetGoal.java b/net/minecraft/world/entity/ai/goal/target/OwnerHurtByTargetGoal.java
+index dfd92c98b09d118199aa3c7b5d46f354cc8b8b01..2971c99cc00a68349cd285a0904466c7cf28424b 100644
+--- a/net/minecraft/world/entity/ai/goal/target/OwnerHurtByTargetGoal.java
++++ b/net/minecraft/world/entity/ai/goal/target/OwnerHurtByTargetGoal.java
+@@ -12,6 +12,18 @@ public class OwnerHurtByTargetGoal extends TargetGoal {
+     private final TamableAnimal tameAnimal;
+     private LivingEntity ownerLastHurtBy;
+     private int timestamp;
++    // Tessera start - keep owner combat reads on the pet's region
++    private @org.jspecify.annotations.Nullable LivingEntity tessera$pendingOwner;
++    private int tessera$pendingTimestamp;
++
++    private boolean tessera$isLocal(final @org.jspecify.annotations.Nullable LivingEntity entity) {
++        return entity != null
++            && ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this.tameAnimal)
++            && ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(entity)
++            && !this.tameAnimal.isRemoved() && !entity.isRemoved()
++            && entity.level() == this.tameAnimal.level();
++    }
++    // Tessera end - keep owner combat reads on the pet's region
+ 
+     public OwnerHurtByTargetGoal(final TamableAnimal tameAnimal) {
+         super(tameAnimal, false);
+@@ -21,18 +33,30 @@ public class OwnerHurtByTargetGoal extends TargetGoal {
+ 
+     @Override
+     public boolean canUse() {
++        this.tessera$pendingOwner = null; // Tessera - discard an earlier selection, not the pet's owner binding
++        this.ownerLastHurtBy = null; // Tessera - never reuse a target after a failed selection
+         if (this.tameAnimal.isTame() && !this.tameAnimal.isOrderedToSit()) {
+             LivingEntity owner = this.tameAnimal.getOwner();
+-            if (owner == null) {
++            if (!this.tessera$isLocal(owner)) { // Tessera - cached owners can be in another region or dimension
+                 return false;
+             } else {
+                 DamageSource lastDamageSource = owner.getLastDamageSource(100);
+                 if (lastDamageSource != null && !lastDamageSource.is(DamageTypeTags.NO_WOLF_RETALIATION)) {
+                     this.ownerLastHurtBy = owner.getLastHurtByMob();
+                     int ts = owner.getLastHurtByMobTimestamp();
+-                    return ts != this.timestamp
++                    // Tessera start - validate the attacker before the targeting predicates read it
++                    boolean usable = ts != this.timestamp
++                        && this.tessera$isLocal(this.ownerLastHurtBy)
+                         && this.canAttack(this.ownerLastHurtBy, TargetingConditions.DEFAULT)
+                         && this.tameAnimal.wantsToAttack(this.ownerLastHurtBy, owner);
++                    if (usable) {
++                        this.tessera$pendingOwner = owner;
++                        this.tessera$pendingTimestamp = ts;
++                    } else {
++                        this.ownerLastHurtBy = null;
++                    }
++                    return usable;
++                    // Tessera end - validate the attacker before the targeting predicates read it
+                 } else {
+                     return false;
+                 }
+@@ -44,12 +68,25 @@ public class OwnerHurtByTargetGoal extends TargetGoal {
+ 
+     @Override
+     public void start() {
+-        this.mob.setTarget(this.ownerLastHurtBy, org.bukkit.event.entity.EntityTargetEvent.TargetReason.TARGET_ATTACKED_OWNER); // CraftBukkit - reason
+-        LivingEntity owner = this.tameAnimal.getOwner();
+-        if (owner != null) {
+-            this.timestamp = owner.getLastHurtByMobTimestamp();
++        // Tessera start - other goals and target events may transfer entities or change the owner
++        final LivingEntity owner = this.tessera$pendingOwner;
++        final LivingEntity target = this.ownerLastHurtBy;
++        final int selectedTimestamp = this.tessera$pendingTimestamp;
++        this.tessera$pendingOwner = null;
++        this.ownerLastHurtBy = null;
++        if (!this.tessera$isLocal(owner) || !this.tessera$isLocal(target)
++            || !this.tameAnimal.isTame() || this.tameAnimal.isOrderedToSit()
++            || this.tameAnimal.getOwner() != owner
++            || owner.getLastHurtByMobTimestamp() != selectedTimestamp || owner.getLastHurtByMob() != target) {
++            return;
+         }
+ 
+-        super.start();
++        this.mob.setTarget(target, org.bukkit.event.entity.EntityTargetEvent.TargetReason.TARGET_ATTACKED_OWNER); // CraftBukkit - reason
++        if (this.tessera$isLocal(owner) && this.tameAnimal.getOwner() == owner) {
++            // Consume only the selected event, not damage received during the plugin callback.
++            this.timestamp = selectedTimestamp;
++            super.start();
++        }
++        // Tessera end - other goals and target events may transfer entities or change the owner
+     }
+ }
+diff --git a/net/minecraft/world/entity/ai/goal/target/OwnerHurtTargetGoal.java b/net/minecraft/world/entity/ai/goal/target/OwnerHurtTargetGoal.java
+index dc73325928444f5cee8f468754957368be9d30c7..1935e44ace5ae617a798ca7fd6ec8a3c9a813093 100644
+--- a/net/minecraft/world/entity/ai/goal/target/OwnerHurtTargetGoal.java
++++ b/net/minecraft/world/entity/ai/goal/target/OwnerHurtTargetGoal.java
+@@ -10,6 +10,18 @@ public class OwnerHurtTargetGoal extends TargetGoal {
+     private final TamableAnimal tameAnimal;
+     private LivingEntity ownerLastHurt;
+     private int timestamp;
++    // Tessera start - keep owner combat reads on the pet's region
++    private @org.jspecify.annotations.Nullable LivingEntity tessera$pendingOwner;
++    private int tessera$pendingTimestamp;
++
++    private boolean tessera$isLocal(final @org.jspecify.annotations.Nullable LivingEntity entity) {
++        return entity != null
++            && ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this.tameAnimal)
++            && ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(entity)
++            && !this.tameAnimal.isRemoved() && !entity.isRemoved()
++            && entity.level() == this.tameAnimal.level();
++    }
++    // Tessera end - keep owner combat reads on the pet's region
+ 
+     public OwnerHurtTargetGoal(final TamableAnimal tameAnimal) {
+         super(tameAnimal, false);
+@@ -19,17 +31,29 @@ public class OwnerHurtTargetGoal extends TargetGoal {
+ 
+     @Override
+     public boolean canUse() {
++        this.tessera$pendingOwner = null; // Tessera - discard an earlier selection, not the pet's owner binding
++        this.ownerLastHurt = null; // Tessera - never reuse a target after a failed selection
+         if (this.tameAnimal.isTame() && !this.tameAnimal.isOrderedToSit()) {
+             LivingEntity owner = this.tameAnimal.getOwner();
+-            if (owner == null) {
++            if (!this.tessera$isLocal(owner)) { // Tessera - cached owners can be in another region or dimension
+                 return false;
+             }
+ 
+             this.ownerLastHurt = owner.getLastHurtMob();
+             int ts = owner.getLastHurtMobTimestamp();
+-            return ts != this.timestamp
++            // Tessera start - validate the target before the targeting predicates read it
++            boolean usable = ts != this.timestamp
++                && this.tessera$isLocal(this.ownerLastHurt)
+                 && this.canAttack(this.ownerLastHurt, TargetingConditions.DEFAULT)
+                 && this.tameAnimal.wantsToAttack(this.ownerLastHurt, owner);
++            if (usable) {
++                this.tessera$pendingOwner = owner;
++                this.tessera$pendingTimestamp = ts;
++            } else {
++                this.ownerLastHurt = null;
++            }
++            return usable;
++            // Tessera end - validate the target before the targeting predicates read it
+         } else {
+             return false;
+         }
+@@ -37,12 +61,25 @@ public class OwnerHurtTargetGoal extends TargetGoal {
+ 
+     @Override
+     public void start() {
+-        this.mob.setTarget(this.ownerLastHurt, org.bukkit.event.entity.EntityTargetEvent.TargetReason.OWNER_ATTACKED_TARGET); // CraftBukkit - reason
+-        LivingEntity owner = this.tameAnimal.getOwner();
+-        if (owner != null) {
+-            this.timestamp = owner.getLastHurtMobTimestamp();
++        // Tessera start - other goals and target events may transfer entities or change the owner
++        final LivingEntity owner = this.tessera$pendingOwner;
++        final LivingEntity target = this.ownerLastHurt;
++        final int selectedTimestamp = this.tessera$pendingTimestamp;
++        this.tessera$pendingOwner = null;
++        this.ownerLastHurt = null;
++        if (!this.tessera$isLocal(owner) || !this.tessera$isLocal(target)
++            || !this.tameAnimal.isTame() || this.tameAnimal.isOrderedToSit()
++            || this.tameAnimal.getOwner() != owner
++            || owner.getLastHurtMobTimestamp() != selectedTimestamp || owner.getLastHurtMob() != target) {
++            return;
+         }
+ 
+-        super.start();
++        this.mob.setTarget(target, org.bukkit.event.entity.EntityTargetEvent.TargetReason.OWNER_ATTACKED_TARGET); // CraftBukkit - reason
++        if (this.tessera$isLocal(owner) && this.tameAnimal.getOwner() == owner) {
++            // Consume only the selected event, not an attack made during the plugin callback.
++            this.timestamp = selectedTimestamp;
++            super.start();
++        }
++        // Tessera end - other goals and target events may transfer entities or change the owner
+     }
+ }
