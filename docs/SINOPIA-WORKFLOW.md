@@ -225,6 +225,16 @@ Siehe auch `MIGRATION-26.3-rc-2.md` für den historischen Migrationsversuch.
 Der vollständige 26.2-Vergleichsbuild der neuen Infrastruktur war erfolgreich;
 Details und Testzahlen stehen in [der Integrationsprüfung](SINOPIA-INTEGRATION-VALIDATION.md).
 
+## Öffentliche API-Dokumentation
+
+Die gepflegte [Plugin-Referenz](api/index.md) liegt flach unter `docs/api/` und
+wird von der Website aus `ver/26.3.x` importiert. Bei öffentlichen API- oder
+Vertragsänderungen die betroffenen Artikel gemeinsam mit Code und dauerhaften
+Patches aktualisieren, auch bei Übernahmen aus Sinopia. Metadaten, Links,
+Threadannahmen und vollständige Beispiele nach der
+[Pflegeanleitung](api/README.md) prüfen. Alte Referenzdateien bleiben kurze
+Weiterverweise, keine zweite vollständige Dokumentation.
+
 ## Release-Dokumentation
 
 Neue Changelogs ausschließlich unter `docs/builds/<minecraftVersion>/<version>.md`

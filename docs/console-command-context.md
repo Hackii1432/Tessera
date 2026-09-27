@@ -1,5 +1,8 @@
 # Console and RCON command world context
 
+This implementation/test note supplements the maintained
+[command API guidance](api/commands.md); it is not a separate API contract.
+
 Tessera accepts console input before startup worlds are available. The raw
 command text is placed in the existing FIFO queue, but a server-console world
 context is resolved only when the Global Region processes that queue. At that

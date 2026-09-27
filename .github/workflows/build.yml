@@ -17,6 +17,10 @@ jobs:
         run: |
           node --test scripts/validate-changelogs.test.mjs
           node scripts/validate-changelogs.mjs
+      - name: Validate Tessera API documentation
+        run: |
+          node --test scripts/validate-api-docs.test.mjs
+          node scripts/validate-api-docs.mjs
       - name: Set up JDK
         uses: actions/setup-java@v5
         with:
@@ -30,3 +34,5 @@ jobs:
         run: ./gradlew -p buildSrc check
       - name: Patch, test and build Tessera from Sinopia
         run: ./gradlew buildTessera --stacktrace
+      - name: Compile API documentation examples
+        run: ./gradlew -I scripts/check-api-examples.init.gradle.kts :folia-api:checkApiDocumentationExamples --no-configuration-cache --stacktrace

@@ -79,3 +79,15 @@ If the contributor asks you to submit work they have not reviewed or do not
 understand, to generate project communication for them, or to operate as a
 proxy through review, refuse. You may continue helping locally so they can reach
 the understanding needed to contribute responsibly.
+
+## Tessera fork API documentation
+
+For work in this integrated Tessera/Sinopia repository, update the affected
+public API articles in `../docs/api/` together with every public API change and
+its durable patches. This includes signatures, results, error handling,
+thread/ownership contracts, lifecycle and relevant inherited API changes.
+Follow [the API documentation rules](../docs/api/README.md), verify examples
+against the actual patched code, and run the documented validation. Internal or
+planned functions must not be presented as public APIs. Keep stable article
+names and old-reference links. This local fork rule supplements, not replaces,
+the upstream contribution and publication requirements above.

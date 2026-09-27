@@ -1,5 +1,10 @@
 # Nativer Spieler-Restore – Tessera 26.3-010-alpha
 
+Dieser datierte Build-/Prüfbericht bleibt als Nachweis erhalten. Die gepflegte
+öffentliche Referenz steht unter [Spieler-Restore](api/player-restore.md),
+einschließlich [Teleport-Scope](api/player-restore.md#teleport-scope) und
+[Fehlerbehandlung](api/error-handling.md).
+
 Stand: 27.09.2026. Die native Serveranbindung implementiert Vertrag **1**.
 Die öffentliche Transaktion wurde auf eigenen isolierten Servern mit verbundenen
 Protokollclients geprüft. Der komplette MCC-/MVE-Stack ist separat zu prüfen.

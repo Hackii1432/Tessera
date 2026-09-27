@@ -162,16 +162,18 @@ Plugins also targeting stock Paper/Folia must isolate Tessera-only classes or
 use an adapter before linking them. NMS, reflection and packet integrations are
 version-specific; retained package names do not guarantee binary compatibility.
 
-See [the API reference](docs/tessera-api.md), [runtime-world contracts](docs/runtime-world-lifecycle.md)
-and [scoreboard ownership rules](docs/region-safe-scoreboards.md). Historical
+See [the API reference](docs/api/index.md), [runtime-world contracts](docs/api/runtime-worlds.md)
+and [scoreboard ownership rules](docs/api/scoreboards.md). Historical
 examples do not override the contracts of the API version you compile against.
 
 ## Documentation and tests
 
 - [Release history and authoring rules](docs/builds/README.md)
+- [Plugin API reference](docs/api/index.md) and [API documentation maintenance](docs/api/README.md)
 - [Build, patches and Sinopia workflow](docs/SINOPIA-WORKFLOW.md)
 - [Sinopia provenance and local upstream changes](sinopia/BASELINE.md)
-- [Runtime worlds, templates and snapshots](docs/runtime-world-lifecycle.md)
+- [Runtime worlds](docs/api/runtime-worlds.md), [templates](docs/api/world-cloning.md) and [snapshots](docs/api/world-snapshots.md)
+- [Player restore API](docs/api/player-restore.md)
 - [Native player restore and remaining integration checks](docs/mcc-player-restore-status.md)
 - [Console/RCON command handling](docs/console-command-context.md)
 - [Operator-only tick commands](docs/tick-operator-access.md)
@@ -192,6 +194,7 @@ documented builds and scenarios, not all plugins or workloads.
 | `folia-server/paper-patches/` | Server implementation and test patches. |
 | `folia-server/minecraft-patches/` | Minecraft gameplay and region-threading patches. |
 | `docs/builds/` | Common Tessera/Sinopia release history for website import. |
+| `docs/api/` | Public API articles for website import; `README.md` contains maintenance rules. |
 | `docs/`, `smoke-tests/` | Technical documentation, evidence and tests. |
 
 Tessera builds on the work of Paper, Folia, Bukkit and Spigot. Their contributions,

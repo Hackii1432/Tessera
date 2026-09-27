@@ -532,3 +532,16 @@ everything like usual.
 > ❗ Do not use the `/mnt/` directory in WSL! Instead, mount the WSL directories
 > in Windows as described here:
 > <https://learn.microsoft.com/en-us/windows/wsl/filesystems#view-your-current-directory-in-windows-file-explorer>
+
+## Tessera fork API reference
+
+This checkout integrates Sinopia into Tessera. When changing a public API or its
+documented behavior, update the corresponding `../docs/api/` articles in the
+same change as the code and persistent patches. Include signatures, results,
+errors, lifecycle, ownership/thread rules, dependencies and examples affected
+by the change, including changes inherited through Sinopia. Follow
+[the API documentation maintenance guide](../docs/api/README.md) and run its
+metadata/link validation and Java-example compilation. Preserve stable links;
+do not maintain duplicate full references or expose internal/planned APIs as
+public contracts. This paragraph governs the local Tessera fork and does not
+alter Paper's upstream contribution requirements.
