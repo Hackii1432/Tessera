@@ -91,7 +91,7 @@ Java 25, Plugin-API-Version `26.3` und Gradle `9.4.1` bleiben unverändert.
 Tessera bleibt trotz der veröffentlichten Minecraft-Basis im Alpha-Kanal.
 
 Änderungen und abschließender Prüfstand:
-[Build-005-Changelog](../docs/CHANGELOG-26.3-005-RELEASE.md).
+[Build-005-Changelog](../docs/builds/26.3/0.0.5.md).
 
 ## Selektive Paper-Backports vom 21. September 2026
 
@@ -106,7 +106,7 @@ Tessera Build `006-alpha` zugeordnet.
 
 Umfang, Original-Commits, Kompatibilitätsgrenzen und Build-Befehl:
 [Backport-Dokumentation](../docs/PAPER-BACKPORTS-2026-09-21.md).
-Veröffentlichungsnotizen: [Build-006-Changelog](../docs/CHANGELOG-26.3-006.md).
+Veröffentlichungsnotizen: [Build-006-Changelog](../docs/builds/26.3/0.0.6.md).
 
 ## Paper main vom 25. September 2026
 

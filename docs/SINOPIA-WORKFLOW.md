@@ -193,15 +193,18 @@ gemeinsam verwendet. Der Build erzeugt die ausführbare JAR unter
 `build/libs/tessera-server-26.3.build.010-alpha.jar`.
 Tessera bleibt ein Alpha-Build; das Minecraft-Release ist keine automatische
 Produktionsfreigabe des Forks. Änderungen und Prüfstand:
-[Build 010](CHANGELOG-26.3-010.md). **010 ist ein unvollständiger Restore-Prüfbuild,
-kein freigegebener MCC-Seamless-Fix; der öffentliche Restore-Vertrag bleibt 0.**
-Details und verbleibende Sicherheitslücken stehen im
+[Build 010](builds/26.3/0.0.10.md). **010 implementiert den nativen Restore-Vertrag 1**
+und wurde mit verbundenen Protokollclients auf eigenen Testservern geprüft.
+Die gemeinsame MCC-/MVE-/TAB-/LuckPerms-Integration bleibt eine separate Folgeabnahme;
+native Tests ersetzen weder diesen Plugin-Stack noch eine visuelle Vanilla-Client-Prüfung.
+Die finalen Nachweise stehen im [Buildbericht](BUILD-26.3-010.md), die Verträge und
+Prüfgrenzen im
 [Restore-Status](mcc-player-restore-status.md). Die Wolfs-KI-Korrektur aus
-[Build 009](CHANGELOG-26.3-009.md) bleibt erhalten. Die Paper-main-Integration ist unter
-[Build 008](CHANGELOG-26.3-008.md), die TPS-Übersicht unter
-[Build 007](CHANGELOG-26.3-007.md) beschrieben. Die vorherigen Paper-Backports sind unter
-[Build 006](CHANGELOG-26.3-006.md) dokumentiert. Die Umstellung auf das Minecraft-Release
-ist weiterhin unter [Build 005](CHANGELOG-26.3-005-RELEASE.md) dokumentiert.
+[Build 009](builds/26.3/0.0.9.md) bleibt erhalten. Die Paper-main-Integration ist unter
+[Build 008](builds/26.3/0.0.8.md), die TPS-Übersicht unter
+[Build 007](builds/26.3/0.0.7.md) beschrieben. Die vorherigen Paper-Backports sind unter
+[Build 006](builds/26.3/0.0.6.md) dokumentiert. Die Umstellung auf das Minecraft-Release
+ist weiterhin unter [Build 005](builds/26.3/0.0.5.md) dokumentiert.
 
 Die Sinopia-Basis wurde ursprünglich aus Paper 26.3-rc-2 importiert und lokal
 auf Minecraft 26.3-rc-3 mit Mache `26.3-rc-3+build.1` umgestellt. Der Paper-
@@ -213,7 +216,7 @@ Paper-Backports und Folia-/Tessera-Patchserien bleiben erhalten und ließen sich
 konfliktfrei auf die RC3-Basis anwenden.
 
 RC3-Änderungen und Prüfergebnisse:
-[CHANGELOG-26.3-001-RC3.md](CHANGELOG-26.3-001-RC3.md).
+[Build 001: RC3-Update](builds/26.3/0.0.1.md#minecraft-263-rc-3).
 Die ursprüngliche Portierung und ihre Laufzeit-Prüfgrenzen sind unter
 [PORTIERUNG-26.3-rc-2.md](PORTIERUNG-26.3-rc-2.md) dokumentiert. Diese Vorabversion ist nicht
 allein durch einen erfolgreichen Build als produktionsreif einzustufen.
@@ -221,3 +224,13 @@ allein durch einen erfolgreichen Build als produktionsreif einzustufen.
 Siehe auch `MIGRATION-26.3-rc-2.md` für den historischen Migrationsversuch.
 Der vollständige 26.2-Vergleichsbuild der neuen Infrastruktur war erfolgreich;
 Details und Testzahlen stehen in [der Integrationsprüfung](SINOPIA-INTEGRATION-VALIDATION.md).
+
+## Release-Dokumentation
+
+Neue Changelogs ausschließlich unter `docs/builds/<minecraftVersion>/<version>.md`
+anlegen. Sinopia erhält keine eigene Versionshistorie; seine Änderungen gehören
+zum jeweiligen Tessera-Release. Vorlage, YAML-Stil und Importgrenzen stehen in
+[der Pflegeanleitung](builds/README.md). Die Build-CI prüft das Format und lokale
+Release-Links mit `node scripts/validate-changelogs.mjs`; die Testfälle dafür laufen
+über `node --test scripts/validate-changelogs.test.mjs`. Es gibt keinen bestehenden
+automatischen Release-Generator, der darüber hinaus umgestellt werden müsste.

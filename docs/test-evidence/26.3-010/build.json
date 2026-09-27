@@ -2,28 +2,28 @@
   "date": "2026-09-27",
   "branch": "ver/26.3.x",
   "baselineCommit": "6ededc28656e3adf1d2881d0e5e68854884353cf",
-  "sourceCommit": "369e367b71deca62d2bef6018b669a3c22195f8d",
+  "sourceCommit": "a767a0ab30a65ad7faa7f693a544506bd7c694c9",
   "version": "26.3-010-alpha",
   "minecraft": "26.3",
   "java": "25.0.3",
-  "result": "INCOMPLETE_NATIVE_RESTORE_TEST_BUILD",
-  "contractVersion": 0,
+  "result": "NATIVE_CONTRACT_1_ACCEPTED_EXTERNAL_PLUGIN_INTEGRATION_PENDING",
+  "contractVersion": 1,
   "fullBuild": {
     "command": ".\\gradlew.bat buildTessera :test-plugin:jar --console=plain --no-daemon --max-workers=2 --no-parallel",
     "exitCode": 0,
-    "duration": "8m 2s",
-    "log": "build/native-restore-full-build.log"
+    "duration": "8m",
+    "log": "build/native-restore-final-full-build.log"
   },
   "additionalTests": {
     "command": ".\\gradlew.bat :folia-api:test --rerun :paper-checkstyle:test --rerun --console=plain --no-daemon --max-workers=2 --no-parallel",
     "exitCode": 0,
-    "duration": "16s",
-    "log": "build/native-restore-additional-tests.log"
+    "duration": "19s",
+    "log": "build/native-restore-final-additional-tests.log"
   },
   "testReports": [
     {
       "project": "folia-server",
-      "tests": 10150,
+      "tests": 10153,
       "failures": 0,
       "errors": 0,
       "skipped": 87
@@ -44,45 +44,103 @@
     }
   ],
   "reapplication": {
-    "minecraftTree": "3cabe701f98f7da0a3b6a6b2d90a795696da8593",
-    "paperServerSrcTree": "e6ee3616fe757557a0ccbfda5e9367a684c847e6",
-    "matchesPreExport": true
+    "minecraft": "c681fed63bbea4e72b7a5d0d0a7edeb9f1a4ab23",
+    "paperServerSrc": "fb6f679a76f2150b40febe1274f218a4a45d8832",
+    "matchesPreExport": true,
+    "exportLog": "build/native-restore-final-export.log"
   },
   "files": [
     {
-      "Algorithm": "SHA256",
-      "Hash": "9F2229DC5C7760AF9DF5E4B5F162013434125309B6F8710A4DD72C1A7AF0A4E6",
-      "Path": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.010-alpha.jar"
+      "path": "build/libs/tessera-server-26.3.build.010-alpha.jar",
+      "sha256": "fb1f59a9b7875f3aba3773321032d29235be6ba67886c5a66811c0864429fe75",
+      "bytes": 66524064
     },
     {
-      "Algorithm": "SHA256",
-      "Hash": "C4FF9DEDD759BC45CCE6AB11D238CEC6DB66B87368F7BD2F9A674CBFDDC70BF8",
-      "Path": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\test-plugin\\build\\libs\\tessera-runtime-world-smoke.jar"
+      "path": "test-plugin/build/libs/tessera-runtime-world-smoke.jar",
+      "sha256": "fc67f8018f63f16c9e29608db601e616b4a212545ae3c94afef3da42b21472d5",
+      "bytes": 89510
     },
     {
-      "Algorithm": "SHA256",
-      "Hash": "6CDC8A05355A57D7EFD95A24973FC47D18B41800B05343010D50BA45BC628844",
-      "Path": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\folia-server\\minecraft-patches\\features\\0046-Connect-native-player-restore-components-without-ena.patch"
+      "path": "folia-server/minecraft-patches/features/0046-Connect-native-player-restore-components-without-ena.patch",
+      "sha256": "6cdc8a05355a57d7efd95a24973fc47d18b41800b05343010d50ba45bc628844",
+      "bytes": 44935
     },
     {
-      "Algorithm": "SHA256",
-      "Hash": "42AAB043EA18D6E7529CDA0339D7241A5DC6AE6BE55AD0CB780F0FEECD595D70",
-      "Path": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\folia-server\\paper-patches\\features\\0035-Add-owner-drained-native-restore-components-and-admi.patch"
+      "path": "folia-server/minecraft-patches/features/0047-Complete-native-restore-login-admission-client-trans.patch",
+      "sha256": "8feba70e22cbc7bb45e331beda38253699661131220bcd72de1aafb6ff15e95e",
+      "bytes": 36765
+    },
+    {
+      "path": "folia-server/paper-patches/features/0035-Add-owner-drained-native-restore-components-and-admi.patch",
+      "sha256": "42aab043ea18d6e7529cda0339d7241a5dc6ae6be55ad0cb780f0feecd595d70",
+      "bytes": 40770
+    },
+    {
+      "path": "folia-server/paper-patches/features/0036-Implement-native-player-restore-contract-one-with-du.patch",
+      "sha256": "0c5f5152855a91a93615d1b98e94e8c6397aa95a775043d98afc57c641b121c1",
+      "bytes": 85255
     }
   ],
-  "live": {
-    "fixture": "build/native-restore-smoke-1790504791743",
-    "port": 61912,
-    "log": "build/native-restore-final-live.log",
-    "exitCode": 0,
-    "componentChecksPassed": true,
-    "publicTransactionAccepted": false
+  "nativeAcceptance": {
+    "transaction": "native-transaction.json",
+    "races": "native-races.json",
+    "recovery": "native-recovery.json",
+    "sameFinalJarSha256": "fb1f59a9b7875f3aba3773321032d29235be6ba67886c5a66811c0864429fe75",
+    "allExitCodes": 0,
+    "publicTransactionAccepted": true,
+    "mainClients": [
+      {
+        "username": "RestoreOne",
+        "logins": 1,
+        "kicks": 0,
+        "disconnects": 0,
+        "teleports": 39,
+        "statsResets": 8,
+        "advancementResets": 12
+      },
+      {
+        "username": "RestoreTwo",
+        "logins": 1,
+        "kicks": 0,
+        "disconnects": 0,
+        "teleports": 35,
+        "statsResets": 8,
+        "advancementResets": 12
+      }
+    ],
+    "raceClients": [
+      {
+        "name": "RestoreOne",
+        "logins": 1,
+        "kicks": 0,
+        "disconnects": 0
+      },
+      {
+        "name": "RestoreTwo",
+        "logins": 2,
+        "kicks": 1,
+        "disconnects": 1
+      }
+    ],
+    "recoveryStages": [
+      "prepared",
+      "applied",
+      "inflight",
+      "committed",
+      "login"
+    ],
+    "connectionCounterWindow": "Initial login through final assertions, before controlled server stop. Intentional race disconnect and process restart are not seamless successes."
   },
   "externalPluginIntegration": "NOT_RUN",
   "limitations": [
-    "No public native prepare/apply/complete backend",
-    "Logout capture and legacy login admission incomplete",
-    "Shutdown/transfer drain and crash recovery incomplete",
-    "Attachment preflight/rollback, dead players and generator-binding acceptance incomplete"
+    "Full MCC 0.7.5 / MVE 26.3-1.5.00 / TAB 6.2.0 / LuckPerms 5.5.85 stack unavailable for this native run",
+    "Protocol clients do not render a Vanilla UI",
+    "Native runtime tested on Windows, not additionally on Linux",
+    "Controlled process restart, not hardware power-loss or disk-failure testing"
+  ],
+  "diagnostics": [
+    "Existing OSHI Windows performance-counter startup errors",
+    "Occasional initial protocol-client moved-too-quickly warnings",
+    "Existing file-patch exporter logo.png diagnostic; successful feature export, exact source-tree roundtrip and full build"
   ]
 }

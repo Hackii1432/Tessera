@@ -88,4 +88,4 @@ Die automatisierten Regionsprüfungen verwenden kontrollierte Mocks. Sie ersetze
 keinen Live-Test mit Plugins, mehreren Spielern, getrennten Regionen und
 Dimensionswechseln auf einer separaten Testwelt.
 
-Veröffentlichungsnotizen: [Changelog für Build 006](CHANGELOG-26.3-006.md).
+Veröffentlichungsnotizen: [Changelog für Build 006](builds/26.3/0.0.6.md).

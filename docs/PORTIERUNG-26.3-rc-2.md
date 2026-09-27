@@ -1,6 +1,6 @@
 # Tessera / Sinopia – Portierung auf 26.3-rc-2
 
-> Folgeänderung vom 13.09.2026: [Sinopia-Aufnahme und Bett-Korrektur](CHANGELOG-26.3-001-BEDS.md)
+> Folgeänderung vom 13.09.2026: [Sinopia-Aufnahme und Bett-Korrektur](builds/26.3/0.0.1.md#historischer-bett-fix-vom-13092026)
 > ergänzt Patch 0036 und dokumentiert den neueren Build mit den lokalen Werten `001-alpha`.
 
 Lokaler Arbeitsstand auf `ver/26.3.x`, ausgehend von Tessera `0b66675` und

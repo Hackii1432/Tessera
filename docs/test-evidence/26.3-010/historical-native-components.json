@@ -1,4 +1,7 @@
 {
+  "historicalOnly": true,
+  "sourceCommit": "369e367b71deca62d2bef6018b669a3c22195f8d",
+  "supersededBy": "native-transaction.json",
   "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.010-alpha.jar",
   "jarSha256": "9f2229dc5c7760af9df5e4b5f162013434125309b6f8710a4dd72c1a7af0a4e6",
   "port": 61912,

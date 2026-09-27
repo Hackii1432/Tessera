@@ -4,57 +4,110 @@
 
 # Tessera
 
-**A Minecraft server with parallel region ticking, dynamic worlds, and region-safe plugin APIs.**
+A Minecraft server with parallel region ticking, runtime worlds, and region-aware
+plugin APIs. Tessera is intended for SMP servers, independent arenas and
+multi-world game modes whose plugins support Folia's threading model.
 
-Tessera develops its own server features, gameplay fixes, and tools for running
-multiple worlds and independent game areas. Its integrated base, **Sinopia**, is
-maintained alongside Tessera in this repository.
+**Current branch:** `ver/26.3.x` · **Minecraft/API:** `26.3` ·
+**Tessera:** `010-alpha` · **Java:** `25`
 
-**Current version:** Minecraft **26.3** · Tessera **010-alpha** · Java **25**
+Tessera remains an **alpha** server even though Minecraft 26.3 is a release.
+The [current changelog](docs/builds/26.3/0.0.10.md) and
+[Build 010 acceptance report](docs/BUILD-26.3-010.md) distinguish implemented
+features from completed tests and outstanding integration checks. Older 26.2
+and 26.3 RC entries in the [release history](docs/builds/) are historical,
+not a promise that this branch builds or supports all those versions.
 
-Tessera is in active alpha development. The
-[release changelog](docs/CHANGELOG-26.3-010.md) documents the current
-baseline and validation status; test your worlds and plugins before deployment.
+## Sinopia, Folia, and Tessera
 
-Build 010 implements **native player-restore contract 1**, including connected
-player transfers, durable rollback stores, and region-owned state replacement.
-See the [native restore status](docs/mcc-player-restore-status.md) for the
-real-client acceptance tests and the separate, still-open MCC/MVE stack integration.
+**Sinopia** is the maintained, Paper-derived base included in this repository.
+It is not a separate server installation, Git submodule, or independently
+versioned Tessera release. Its original Paper import and subsequent local
+changes are recorded in [the baseline](sinopia/BASELINE.md).
 
-## What Tessera provides
+The build starts from Sinopia and applies Folia's region-threading layer and
+Tessera's API, implementation and Minecraft patches. Paper/Bukkit package names
+and the inherited `folia-*` module names remain for compatibility. The runnable
+product is Tessera; Sinopia changes are documented in its release changelogs.
 
-| Feature | What it does |
+Sinopia permits local fixes and selective upstream integration without a separate
+Paper checkout on every build. It does **not** remove dependencies on Minecraft,
+Mache, Paperweight, Gradle, or external libraries. `paperRef` records the original
+import; changing that hash alone does not update the local base. See the
+[build and upstream workflow](docs/SINOPIA-WORKFLOW.md).
+
+## Available features
+
+| Feature | Current implementation and limits |
 | --- | --- |
-| Parallel region ticking | Processes independent loaded areas on separate tick threads. |
-| Runtime worlds | Creates, loads, and unloads worlds asynchronously through the Tessera API. |
-| World cloning and snapshots | Clones read-only world templates and takes coordinated snapshots of live worlds. |
-| Region-safe scoreboards | Supports per-player scoreboards, teams, objectives, and scores with updates delivered on the owning player thread. |
-| Console and RCON support | Routes supported vanilla block and entity queries to the region that owns their data. |
-| Tick control | Supports querying, changing, freezing, stepping, and sprinting the server tick loop. Players must be OP to use `/tick`. |
-| Plugin extensions | Provides regional TPS measurements, capability detection, and additional game rules such as control over Eyes of Ender and End portal use. |
+| Parallel region ticking | Independent loaded regions can tick concurrently; chunks in the same region share a tick budget. |
+| Runtime worlds | Asynchronous create, load, clone and unload through `Bukkit.getRuntimeWorldManager()`; synchronous Bukkit world operations remain restricted. |
+| World snapshots | Coordinated snapshots of live worlds, player stores and shared level-root data. Participating worlds pause during flush/copy; this is not an unrestricted filesystem backup or a power-loss-atomic transaction. |
+| Native player restore | Contract 1 through `Bukkit.getPlayerRestoreService()`: connected-player state replacement, prepared target worlds and rollback. Requires explicit plugin integration, not an automatic SMP rollback feature. |
+| Scoreboards | Region-aware per-player scoreboards, teams, objectives and scores, with delivery on the owning player thread. |
+| Console/RCON commands | Region routing for supported Vanilla block queries and entity commands; unsupported cross-region or unloaded targets are rejected rather than bypassing thread checks. |
+| Tick control | Rate, freeze, step and sprint support. Player use of `/tick` requires actual OP status, not only a granted permission. |
+| Regional TPS display | English, clickable `/tps` overview, `/tps player <name>`, region details and `/tps all`, using existing server measurements and `bukkit.command.tps`. |
+| Gameplay and API corrections | Region-safe runtime structure post-processing, portal/respawn handling, Ender pearl/stasis and locator-bar adaptations, plus documented Vanilla and plugin fixes. |
 
-Gameplay and compatibility fixes are maintained with regression tests and
-documented in [the project documentation](docs/).
+The native restore backend was tested with connected protocol clients, including
+repeat load/save, rollback, dimensions and error recovery. The complete
+**MCC/MVE/TAB/LuckPerms integration remains a separate acceptance test**; native
+tests are not a claim that this plugin stack or every Vanilla interaction passed.
+See [restore contracts and test boundaries](docs/mcc-player-restore-status.md).
+Without a caller starting a restore, no restore transaction or restore login
+barrier is automatically started; the supporting save/thread hooks still exist.
 
 ## How regions work
 
-Tessera groups nearby loaded chunks into regions. Each region runs its own tick
-loop, allowing independent areas to be processed in parallel. Regions can merge
-or split as the set of loaded chunks changes.
+Nearby loaded chunks form regions that can merge or split as chunk ownership
+changes. Each region has its own tick loop. Independent regions can run on
+different worker threads; a large machine inside one region still consumes
+that region's tick budget. Distance alone does not guarantee a split.
 
-This allows activity in separate arenas, islands, or distant parts of a world
-to use multiple CPU cores. Activity inside one region still shares that region's
-tick budget. Actual performance depends on the world, plugins, and workload.
+There is no single Bukkit main thread that can safely access all worlds.
+The global-region thread handles global coordination, not arbitrary blocks or
+entities. CPU capacity, shared I/O, global work and plugins can still affect
+multiple regions: region separation is not a guarantee of lag isolation.
+See [the region architecture](REGION_LOGIC.md) and
+[TPS measurements and their limits](docs/TPS-REGION-OVERVIEW.md).
 
-Plugin code must respect the region that owns a block, chunk, or entity. There
-is no single Bukkit main thread that can safely access every world at once.
+## Install and update
 
-## Build Tessera
+1. Obtain a Tessera JAR built from the intended source revision, or build it below.
+   This branch produces `tessera-server-26.3.build.010-alpha.jar` for Minecraft
+   **26.3** clients, not RC2/RC3 clients. Use Java **25** to run it.
+2. Use a dedicated server directory. Before migrating an existing server, stop it
+   cleanly and make a separate backup of **all** worlds, player stores, level-root
+   data, plugin data and configuration. First try the update on a copy.
+3. Copy the runnable JAR into that directory. Start it from that directory, for example:
 
-Requirements: **JDK 25** and **Git**. Use the included Gradle wrapper, which pins
-the Gradle version required by the build tooling.
+   ```text
+   java -Xms2G -Xmx4G -jar tessera-server-26.3.build.010-alpha.jar --nogui
+   ```
 
-Run from the repository root:
+   The heap values are examples, not sizing guarantees. Leave memory and CPU
+   capacity for the operating system and server workers.
+4. Read the generated `eula.txt`; set `eula=true` only if you accept its terms.
+   Review the generated configuration and restart. Install only plugins verified
+   for this Minecraft/API version **and** region-based execution.
+5. Before opening the server to players, test joins, world changes, saves, shutdown
+   and restart with the actual plugin set. For an update, replace the JAR while
+   stopped and perform a full restart; do not rely on plugin reloads.
+
+Read the target [release notes](docs/builds/) before each update. Minecraft data
+upgrades and plugin migrations may make a downgrade unsafe: rollback means
+restoring the complete pre-update backup, not just swapping an older JAR in.
+Paper plugin compatibility alone does not make a Paper server an automatically
+safe drop-in migration to Tessera.
+
+## Build and develop
+
+Requirements: **JDK 25**, **Git**, and network access to the build dependencies.
+Use the included Gradle wrapper, currently **9.8.0**, with the configured
+Paperweight **2.0.0-beta.24**. Do not upgrade one build layer independently.
+
+Run from the **Tessera repository root**, not from `sinopia/`:
 
 **Windows / PowerShell**
 
@@ -68,92 +121,84 @@ Run from the repository root:
 ./gradlew buildTessera
 ```
 
-The build prepares Sinopia, applies the patch layers, runs the tests, and creates
-the runnable server JAR under:
+This prepares Sinopia, reapplies all patch layers, runs the tests/checks and
+creates the runnable JAR in `build/libs/`. The final Build 010 source commit,
+SHA-256 and actual test results are in [its build report](docs/BUILD-26.3-010.md).
 
-```text
-build/libs/tessera-server-*.jar
-```
+Export edits to generated sources into the proper patches **before** rerunning
+`buildTessera`. A normal `build` uses an already prepared source workspace; it
+does not replace the complete patch preparation workflow. Follow
+[Sinopia/Tessera patch development](docs/SINOPIA-WORKFLOW.md) for edits,
+rebuilds, upstream integration and workspace safeguards.
 
-Copy the resulting JAR into your server directory and run it with Java 25.
-Sinopia is included in this repository; build dependencies are resolved by Gradle.
-
-For source editing, patch export, and upstream updates, see the
-[Sinopia and Tessera workflow](docs/SINOPIA-WORKFLOW.md). Export changes to
-generated sources into patches before running `buildTessera` again.
+Release notes now belong only in `docs/builds/<minecraftVersion>/<version>.md`.
+Use the [maintenance guide and validator](docs/builds/README.md); Sinopia changes
+belong to the same Tessera release. This does not change the separately managed
+website landingpage or automatically import this README.
 
 ## Plugin compatibility
 
-Plugins must support region-based execution. Bukkit or Paper compatibility
-alone does not establish compatibility with Tessera.
-
-The inherited plugin metadata flag is still required:
+Plugins must declare Folia support **and actually obey its threading rules**.
+Adding the metadata flag to an incompatible plugin does not fix it:
 
 ```yaml
 api-version: '26.3'
 folia-supported: true
 ```
 
-This flag declares support; plugin code must also follow the threading rules:
+- Use `RegionScheduler` for location-bound block/world work.
+- Use an entity's `EntityScheduler` for players and entities, including after
+  region or dimension changes.
+- Use `GlobalRegionScheduler` only for genuinely global work; it grants no
+  ownership of foreign chunks or entities.
+- Keep blocking file/database work off tick threads and never synchronously
+  wait for asynchronous world, teleport, snapshot or restore futures there.
+- Use `teleportAsync` and the runtime-world API where appropriate.
 
-- Use the **RegionScheduler** for location-bound world and block operations.
-- Use the **EntityScheduler** for players and other entities, including after teleports.
-- Use the **GlobalRegionScheduler** for global server work.
-- Keep blocking file and database work off tick threads.
-- Use `teleportAsync` for teleports and `RuntimeWorldManager` for runtime world operations.
+Compile against the matching Tessera API for its extensions. Detect runtime-world
+and scoreboard capabilities with `Bukkit.getTesseraCapabilities()`; check
+`PlayerRestoreService.contractVersion()` separately for native restore.
+Plugins also targeting stock Paper/Folia must isolate Tessera-only classes or
+use an adapter before linking them. NMS, reflection and packet integrations are
+version-specific; retained package names do not guarantee binary compatibility.
 
-Plugins using Tessera extensions can check `Bukkit.getTesseraCapabilities()`
-for runtime-world and scoreboard support. Compile those plugins against the
-matching Tessera API build; inherited package names and API coordinates remain
-for compatibility.
-
-See the [Tessera API reference](docs/tessera-api.md) for the API contracts and
-examples. Some examples describe earlier releases; use the API version that
-matches your server build.
+See [the API reference](docs/tessera-api.md), [runtime-world contracts](docs/runtime-world-lifecycle.md)
+and [scoreboard ownership rules](docs/region-safe-scoreboards.md). Historical
+examples do not override the contracts of the API version you compile against.
 
 ## Documentation and tests
 
-- [Build, patches, and Sinopia workflow](docs/SINOPIA-WORKFLOW.md)
-- [Runtime worlds, cloning, and snapshots](docs/runtime-world-lifecycle.md)
-- [Region-safe scoreboards](docs/region-safe-scoreboards.md)
-- [Console and RCON command handling](docs/console-command-context.md)
+- [Release history and authoring rules](docs/builds/README.md)
+- [Build, patches and Sinopia workflow](docs/SINOPIA-WORKFLOW.md)
+- [Sinopia provenance and local upstream changes](sinopia/BASELINE.md)
+- [Runtime worlds, templates and snapshots](docs/runtime-world-lifecycle.md)
+- [Native player restore and remaining integration checks](docs/mcc-player-restore-status.md)
+- [Console/RCON command handling](docs/console-command-context.md)
 - [Operator-only tick commands](docs/tick-operator-access.md)
-- [Redstone region-merge test and results](smoke-tests/redstone-region-merge/RESULTS.md)
-- [Build 009 changelog: region-safe pet owner combat](docs/CHANGELOG-26.3-009.md)
-- [Build 010 changelog: native seamless player restore](docs/CHANGELOG-26.3-010.md)
-- [Build 008 changelog: Paper integration and Moonrise optimisations](docs/CHANGELOG-26.3-008.md)
-- [Build 007 changelog: regional TPS overview and player queries](docs/CHANGELOG-26.3-007.md)
 - [TPS commands and region diagnostics](docs/TPS-REGION-OVERVIEW.md)
-- [Build 006 changelog: Paper backports and regional fixes](docs/CHANGELOG-26.3-006.md)
-- [Minecraft 26.3 release changelog](docs/CHANGELOG-26.3-005-RELEASE.md)
+- [Redstone region-merge tests](smoke-tests/redstone-region-merge/RESULTS.md)
 
-Reproducible server tests live in [`smoke-tests/`](smoke-tests/). Each test
-documents its setup and scope; individual test results apply to the scenarios
-and builds they cover.
+Architecture and validation reports remain in `docs/`. Reproducible integration
+tests live in [`smoke-tests/`](smoke-tests/); their results apply only to the
+documented builds and scenarios, not all plugins or workloads.
 
-## Project structure
+## Project structure and licensing
 
 | Path | Purpose |
 | --- | --- |
-| `sinopia/` | The maintained Paper-derived server base. |
-| `folia-api/paper-patches/` | Tessera's API patch layer. |
+| `sinopia/` | Versioned Paper-derived base and its local patches. |
+| `buildSrc/` | Shared build and Sinopia workspace support. |
+| `folia-api/paper-patches/` | Tessera API patch layer. |
 | `folia-server/paper-patches/` | Server implementation and test patches. |
 | `folia-server/minecraft-patches/` | Minecraft gameplay and region-threading patches. |
-| `docs/` | Feature documentation, changelogs, and validation reports. |
-| `smoke-tests/` | Local server integration tests. |
+| `docs/builds/` | Common Tessera/Sinopia release history for website import. |
+| `docs/`, `smoke-tests/` | Technical documentation, evidence and tests. |
 
-The `folia-*` module names are retained from the project's history. The server
-product built from this repository is Tessera. Generated source directories
-are build workspaces; their Minecraft changes are maintained as patches.
+Tessera builds on the work of Paper, Folia, Bukkit and Spigot. Their contributions,
+authorship and license notices remain part of the project. Generated Minecraft
+sources are build workspaces; their changes are maintained as patches.
 
-## Origins and licensing
-
-Tessera grew out of Folia and builds on the work of the Paper, Folia, Bukkit,
-and Spigot projects. Their contributions, authorship, and license notices
-remain part of the project.
-
-[PATCHES-LICENSE](PATCHES-LICENSE) describes the license for the API and server
-patches under `folia-api/` and `folia-server/`, except where noted otherwise.
-Sinopia retains the upstream [license overview](sinopia/LICENSE.md),
-[license texts](sinopia/licenses/), and per-file notices. Its provenance and
-local changes are recorded in [sinopia/BASELINE.md](sinopia/BASELINE.md).
+[PATCHES-LICENSE](PATCHES-LICENSE) covers the API/server patches under
+`folia-api/` and `folia-server/`, except where noted otherwise. Sinopia retains
+the upstream [license overview](sinopia/LICENSE.md), [license texts](sinopia/licenses/)
+and per-file notices. See [its baseline](sinopia/BASELINE.md) for provenance.

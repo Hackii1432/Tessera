@@ -1,0 +1,132 @@
+{
+  "date": "2026-09-27",
+  "sourceCommit": "713f60cf3400270efb2a1892be81f588ce68528e",
+  "repository": "https://github.com/Hackii1432/Tessera",
+  "branch": "ver/26.3.x",
+  "entries": [
+    {
+      "source": "docs/region-safe-vanilla-entity-selectors-release.md",
+      "target": "docs/builds/26.2/0.1.3.md",
+      "sha256": "82c5e955db81dc9fc324cc03530241f542799b94d03f3d00b5a7b2e8bb7b9f38",
+      "originalFrontmatter": "version: 0.1.3\ntitle: Regionssichere Vanilla-Entity-Selektoren\ndescription: Regionsrouting für Vanilla-Entity-Selektoren aus Serverkonsole und RCON\ndate: 2026-08-26\nminecraftVersion: \"26.2\"\nstatus: stable\nbreaking: false\ntags:\n  - Tessera\n  - Commands\n  - Entity-Selektoren\n  - Region-Threading\nreleaseUrl: https://github.com/Hackii1432/Tessera\ndownloadUrl: https://home.mosaikdev.com"
+    },
+    {
+      "source": "docs/vanilla-ender-dragon-selector-release.md",
+      "target": "docs/builds/26.2/0.1.4.md",
+      "sha256": "0c5c97d7586d14c311f2f74b6b8e5adc02930238caf20ccf6900d32c49034a67",
+      "originalFrontmatter": "version: 0.1.4\ntitle: Regionssichere Entity-, Redstone- und Game-Event-Verarbeitung\ndescription: Verbesserte Regionsprüfung für Vanilla-Befehle, Enderdrachen, Redstone und Vibrationen\ndate: 2026-08-26\nminecraftVersion: \"26.2\"\nstatus: stable\nbreaking: false\ntags:\n  - Tessera\n  - Commands\n  - Entity-Selektoren\n  - Region-Threading\n  - Enderdrache\n  - Redstone\n  - Game Events\n  - Sculk\nreleaseUrl: https://github.com/Hackii1432/Tessera\ndownloadUrl: https://home.mosaikdev.com"
+    },
+    {
+      "source": "docs/region-safe-vanilla-block-commands-release.md",
+      "target": "docs/builds/26.2/0.1.5.md",
+      "sha256": "c92497bf3ed87c6aa6080a4f7e35fbf79deee95c50168421a5244429159244c7",
+      "originalFrontmatter": "version: 0.1.5\ntitle: Region-Safe Vanilla Block Commands\ndescription: Region routing for block queries from the server console and RCON\ndate: 2026-08-28\nminecraftVersion: \"26.2\"\nstatus: stable\nbreaking: false\ntags:\n  - Tessera\n  - Commands\n  - Block Queries\n  - Region Threading\n  - RCON\nreleaseUrl: https://github.com/Hackii1432/Tessera\ndownloadUrl: https://home.mosaikdev.com"
+    },
+    {
+      "source": "docs/region-safe-runtime-structure-post-processing-release.md",
+      "target": "docs/builds/26.2/0.1.6.md",
+      "sha256": "a4cd2278782ec2aeb2a5a5af5c0ec51e814dcf6d1c010a9dcd01159c5b6768c4",
+      "originalFrontmatter": "version: 0.1.6\ntitle: Regionsichere Block-Nachbearbeitung für Laufzeit-Strukturen\ndescription: Vanilla-konforme Shape- und Connection-Nachbearbeitung für zur Laufzeit erzeugte Strukturen\ndate: 2026-09-03\nminecraftVersion: \"26.2\"\nstatus: stable\nbreaking: false\ntags:\n  - Tessera\n  - Strukturen\n  - Blockzustände\n  - Region-Threading\n  - Strongholds\n  - World Generation\nreleaseUrl: https://github.com/Hackii1432/Tessera\ndownloadUrl: https://home.mosaikdev.com"
+    },
+    {
+      "source": "docs/CHANGELOG-26.3-001.md",
+      "target": "docs/builds/26.3/0.0.1.md",
+      "sha256": "e583d0d99f094ef8ae842faa65451eb6bc9766373c641bced44be40b236de5a8",
+      "originalFrontmatter": "version: 0.0.1\ntitle: \"26.3-rc-2 – Sinopia, Paper-Backports und Fehlerkorrekturen\"\ndescription: \"Tessera Build 001 – 26.3-rc-2-Portierung, integrierte Sinopia-Basis, Paper-Backports und regionssichere Fehlerkorrekturen\"\ndate: 2026-09-14\nminecraftVersion: \"26.3\"\nstatus: alpha\nbreaking: false\ntags:\n  - Tessera\n  - First alpha build\n  - Sinopia\n  - Paper-Backports\n  - Bugfixes\nreleaseUrl: \"https://github.com/Hackii1432/Tessera/\"\ndownloadUrl: \"https://home.mosaikdev.com\""
+    },
+    {
+      "source": "docs/CHANGELOG-26.3-003-RC3.md",
+      "target": "docs/builds/26.3/0.0.3.md",
+      "sha256": "054296982aa9921c8470b5a634f15819b0496fc7a5724b8ab0e8d0ad6ed155f2",
+      "originalFrontmatter": "version: 0.0.3\ntitle: \"26.3-rc-3 – Entity- und Plugin-Korrekturen\"\ndescription: \"Tessera Build 003 – Cushion-Crash behoben, Erfahrungsorb-Events korrigiert und Paper-Kompatibilität für Spawning, Karten und Kick-Gründe verbessert\"\ndate: 2026-09-14\nminecraftVersion: \"26.3\"\nstatus: alpha\nbreaking: false\ntags:\n  - Tessera\n  - Sinopia\n  - Bugfix\n  - Paper-Backports\n  - RC3\nreleaseUrl: \"https://github.com/Hackii1432/Tessera/\"\ndownloadUrl: \"https://home.mosaikdev.com\""
+    },
+    {
+      "source": "docs/CHANGELOG-26.3-004-RC3.md",
+      "target": "docs/builds/26.3/0.0.4.md",
+      "sha256": "db464b6e5cdd6239bb95f8d50e968d6d0a876ee6620da2e9763cfb472b0364f5",
+      "originalFrontmatter": "version: 0.0.4\ntitle: \"26.3-rc-3 – Regionsichere Tab-Vervollständigung und Generator-Korrekturen\"\ndescription: \"Tessera Build 004 – Tab-Parser abgesichert, Plugin-Generatoren an die Terrain-Pipeline angepasst und Bettregeln in Plugin-Events korrigiert\"\ndate: 2026-09-15\nminecraftVersion: \"26.3\"\nstatus: alpha\nbreaking: false\ntags:\n  - Tessera\n  - Sinopia\n  - Bugfix\n  - Paper-Backports\n  - RC3\nreleaseUrl: \"https://github.com/Hackii1432/Tessera/\"\ndownloadUrl: \"https://home.mosaikdev.com\""
+    },
+    {
+      "source": "docs/CHANGELOG-26.3-005-RELEASE.md",
+      "target": "docs/builds/26.3/0.0.5.md",
+      "sha256": "ff0d98aacda89288f49f425484ae53a1aa7b8c727dae5c0dafc4b765c5ff9b7d",
+      "originalFrontmatter": "version: 0.0.5\ntitle: \"26.3 – Minecraft-Release\"\ndescription: \"Tessera Build 005 – Umstellung auf das offizielle Minecraft-26.3-Release mit Mache 26.3+build.1 und erhaltenen Folia-/Tessera-Anpassungen\"\ndate: 2026-09-15\nminecraftVersion: \"26.3\"\nstatus: alpha\nbreaking: false\ntags:\n  - Tessera\n  - Sinopia\n  - Minecraft-Update\n  - Release\nreleaseUrl: \"https://github.com/Hackii1432/Tessera/\"\ndownloadUrl: \"https://home.mosaikdev.com\""
+    },
+    {
+      "source": "docs/CHANGELOG-26.3-006.md",
+      "target": "docs/builds/26.3/0.0.6.md",
+      "sha256": "d3d974eb5f71ed89a9f25d3ac1f2ca8bed9ce436ef3ef3312bc89c325e0390c0",
+      "originalFrontmatter": "version: 0.0.6\ntitle: \"26.3 – Paper-Backports und Regionskorrekturen\"\ndescription: \"Tessera Build 006 – ausgewählte Paper-Korrekturen für Blockabbau, Plugin-Events, Schildtexte und API-Adapter mit eigenen Folia-/Tessera-Regionsanpassungen\"\ndate: 2026-09-21\nminecraftVersion: \"26.3\"\nstatus: alpha\nbreaking: false\ntags:\n  - Tessera\n  - Sinopia\n  - Paper-Backports\n  - Region-Threading\n  - Bugfixes\nreleaseUrl: \"https://github.com/Hackii1432/Tessera/\"\ndownloadUrl: \"https://home.mosaikdev.com\""
+    },
+    {
+      "source": "docs/CHANGELOG-26.3-007.md",
+      "target": "docs/builds/26.3/0.0.7.md",
+      "sha256": "36a94cbc4d6b1f6b791f786a927bb43cc9d3467c51b6e6d509c0045a79bb6720",
+      "originalFrontmatter": "version: 0.0.7\ntitle: \"26.3 – Regionale TPS-Übersicht und Spielerabfragen\"\ndescription: \"Tessera Build 007 – englische, klickbare TPS-Anzeige mit eigener Region, Spielervergleichen und ausführlichen Regionsdaten\"\ndate: 2026-09-22\nminecraftVersion: \"26.3\"\nstatus: alpha\nbreaking: false\ntags:\n  - Tessera\n  - TPS\n  - Region-Threading\n  - Commands\nreleaseUrl: \"https://github.com/Hackii1432/Tessera/\"\ndownloadUrl: \"https://home.mosaikdev.com\""
+    },
+    {
+      "source": "docs/CHANGELOG-26.3-008.md",
+      "target": "docs/builds/26.3/0.0.8.md",
+      "sha256": "1862529777bae9f5322afcfd13ea55d45c1762a792a0d25527333fa6cc286950",
+      "originalFrontmatter": "version: 0.0.8\ntitle: \"26.3 – Paper-main-Integration und regionsichere Moonrise-Optimierungen\"\ndescription: \"Tessera Build 008 & 007 – Paper-Korrekturen, PlayerPostEffects-API, Moonrise-Optimierungen und aktualisierte Build-Werkzeuge mit eigenen Folia-/Tessera-Anpassungen\"\ndate: 2026-09-25\nminecraftVersion: \"26.3\"\nstatus: alpha\nbreaking: false\ntags:\n  - Tessera\n  - Sinopia\n  - Paper-Backports\n  - Moonrise\n  - Region-Threading\n  - Bugfixes\nreleaseUrl: \"https://github.com/Hackii1432/Tessera/\"\ndownloadUrl: \"https://home.mosaikdev.com\""
+    },
+    {
+      "source": "docs/CHANGELOG-26.3-009.md",
+      "target": "docs/builds/26.3/0.0.9.md",
+      "sha256": "7192244f212a5f742b2f4f05c2f9a8a338c78ecd26e7303f528a820b400b06a1",
+      "originalFrontmatter": "version: 0.0.9\ntitle: \"26.3 – Regionsichere Wolfsverteidigung\"\ndescription: \"Tessera Build 009 – Besitzer-Kampf-KI gegen Regions- und Dimensionswechsel abgesichert\"\ndate: 2026-09-26\nminecraftVersion: \"26.3\"\nstatus: alpha\nbreaking: false\ntags:\n  - Tessera\n  - Region-Threading\n  - Entities\n  - Bugfixes\nreleaseUrl: \"https://github.com/Hackii1432/Tessera/\"\ndownloadUrl: \"https://home.mosaikdev.com\""
+    },
+    {
+      "source": "docs/CHANGELOG-26.3-010.md",
+      "target": "docs/builds/26.3/0.0.10.md",
+      "sha256": "f44389751323fafb681672bf61c46a4d0a02475435e6a43f66a3d659531be6e8",
+      "originalFrontmatter": "version: 0.0.10\ntitle: \"26.3 – Nativer Seamless-Spieler-Restore\"\ndescription: \"Tessera Build 010 – Restore-Transaktionen mit verbundenen Spielern, regionsicherem Welttransfer und frischem Rollback\"\ndate: 2026-09-27\nminecraftVersion: \"26.3\"\nstatus: alpha\nbreaking: false\ntags:\n  - Tessera\n  - Player-Restore\n  - Seamless-Load\n  - Region-Threading\n  - Bugfixes\nreleaseUrl: \"https://github.com/Hackii1432/Tessera/\"\ndownloadUrl: \"https://home.mosaikdev.com\""
+    },
+    {
+      "source": "docs/CHANGELOG-26.3-001-RC3.md",
+      "target": "docs/builds/26.3/0.0.1.md#minecraft-263-rc-3",
+      "sha256": "07a33f8236561880588aee84ac70b19cac66adc5e23845b9da5600f7ec7bc462",
+      "originalFrontmatter": "version: 0.0.1\ntitle: \"26.3-rc-3 – Minecraft-Update\"\ndescription: \"Tessera Build 001 – Update auf Minecraft 26.3-rc-3 mit offizieller Mache-Basis und erhaltenen Tessera-Korrekturen\"\ndate: 2026-09-14\nminecraftVersion: \"26.3\"\nstatus: alpha\nbreaking: false\ntags:\n  - Tessera\n  - Sinopia\n  - Minecraft-Update\n  - RC3\nreleaseUrl: \"https://github.com/Hackii1432/Tessera/\"\ndownloadUrl: \"https://home.mosaikdev.com\""
+    },
+    {
+      "source": "docs/CHANGELOG-26.3-001-BEDS.md",
+      "target": "docs/builds/26.3/0.0.1.md#historischer-bett-fix-vom-13092026",
+      "sha256": "0006f7426b671fe8196317dbee9d3b1fa0b1107fb57691b0dc9b7fce6423e3c2",
+      "originalFrontmatter": null
+    },
+    {
+      "source": "docs/CHANGELOG-26.3-001-GAMERULES.md",
+      "target": "docs/builds/26.3/0.0.1.md#historischer-gamerule-fix-vom-13092026",
+      "sha256": "7e1221df5a088a79a9db564f22dbd0bfef53d4fef264d044a86d942a94edada3",
+      "originalFrontmatter": null
+    },
+    {
+      "source": "docs/CHANGELOG-26.3-001-POPLAR.md",
+      "target": "docs/builds/26.3/0.0.1.md#historischer-poplar-fix-vom-13092026",
+      "sha256": "db33e5a35fed901bc93574e17f6b9a478b774fff6be6f229a91d4778099f58bd",
+      "originalFrontmatter": null
+    },
+    {
+      "source": "docs/CHANGELOG-SINOPIA-INTEGRATION.md",
+      "target": "docs/builds/26.3/0.0.1.md#historischer-infrastrukturstand-der-sinopia-integration",
+      "sha256": "da17636dea980b4ca86b4b29df49984d2bc23b1f6b7d37a41681f0e6e2355649",
+      "originalFrontmatter": null
+    }
+  ],
+  "unresolved": [
+    {
+      "source": "docs/CHANGELOG-26.2-017-LEVEL-ROOT.md",
+      "sha256": "4f272dfc27f1a26510bb070eca8c920176b2a33cff42afcd25202d0e3c47345d",
+      "known": {
+        "minecraftVersion": "26.2",
+        "build": "017",
+        "testDate": "2026-09-10"
+      },
+      "missing": [
+        "published Tessera changelog version",
+        "publication date"
+      ],
+      "reason": "No frontmatter. First Git addition on 2026-09-13 is not proof of publication date; test date is not automatically publication date."
+    }
+  ]
+}

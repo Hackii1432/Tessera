@@ -1,165 +1,194 @@
-# Tessera 26.3-010-alpha – tatsächlicher Build- und Prüfstand
+# Tessera 26.3-010-alpha – Build und native Abnahme
 
-Stand: 27.09.2026. **Unvollständiger Prüfbuild, kein freigegebener
-MCC-Seamless-Load-Fix.** Der öffentliche Restore-Vertrag bleibt `0`.
-Die native Zustandsersetzung ist integriert und mit verbundenen Clients
-geprüft; die öffentliche Prepare/Apply/Complete-Dateitransaktion fehlt noch.
+Stand: 27.09.2026. **Nativer Restore-Vertrag 1 implementiert und auf der finalen
+JAR mit verbundenen Protokollclients abgenommen.** Dieser Stand ersetzt den
+früheren unvollständigen Prüfbuild mit Vertrag 0. Die gemeinsame Abnahme mit dem
+konkreten MCC-/MVE-/TAB-/LuckPerms-Stack bleibt ausdrücklich offen.
 
-## Quellen und Artefakt
+## Quellen und ausführbare Datei
 
 - Branch: `ver/26.3.x`.
 - Ausgangsbasis: `6ededc28656e3adf1d2881d0e5e68854884353cf` (009).
-- Exakter Quellcommit der geprüften JAR:
-  `369e367b71deca62d2bef6018b669a3c22195f8d`.
-- Laufzeitkennung im Serverlog: `26.3-010-369e367`.
+- Exakter Quellcommit der gebauten JAR: `a767a0ab30a65ad7faa7f693a544506bd7c694c9`.
+- Laufzeitkennung: `26.3-010-a767a0a`.
 - Minecraft/API `26.3`, Java `25.0.3`, Kanal `alpha`.
-- Gradle `9.8.0`, Paperweight `2.0.0-beta.24`, Mache `26.3+build.1`
-  unverändert übernommen. Sinopia und die Wolfs-KI-Patches aus 009 unverändert.
-- Ausführbare JAR, 66.485.307 Bytes:
-  `C:\Users\hunte\IdeaProjects\Tessera\build\libs\tessera-server-26.3.build.010-alpha.jar`.
+- Gradle `9.8.0`, Paperweight `2.0.0-beta.24`, Mache `26.3+build.1` unverändert.
+- Sinopia und die Wolfs-KI-Korrekturen aus 009 unverändert; kein MCC-/MVE-Produktcode geändert.
+- JAR: `build/libs/tessera-server-26.3.build.010-alpha.jar`, 66.524.064 Bytes.
+- Auf diesem Rechner: `C:\Users\hunte\IdeaProjects\Tessera\build\libs\tessera-server-26.3.build.010-alpha.jar`.
 
-SHA-256 der gebauten und tatsächlich gestarteten Datei:
+SHA-256:
 
 ```text
-9f2229dc5c7760af9df5e4b5f162013434125309b6f8710a4dd72c1a7af0a4e6
+fb1f59a9b7875f3aba3773321032d29235be6ba67886c5a66811c0864429fe75
 ```
 
-Dieser Bericht und die archivierten Nachweise wurden nach dem Build ergänzt;
-sie ändern den oben genannten Quellcommit der JAR nicht.
+Der nachträgliche Dokumentations-/Nachweiscommit ändert nicht den oben genannten
+Quellcommit der JAR. Alle nachstehend finalen Live-Läufe protokollieren dieselbe Prüfsumme.
 
-## Vollständiger Build
+## Vollständiger Build und Tests
 
-Im Tessera-Checkout ausgeführt, nicht nur vorgeschlagen:
+Tatsächlich ausgeführt:
 
 ```powershell
 .\gradlew.bat buildTessera :test-plugin:jar --console=plain --no-daemon --max-workers=2 --no-parallel
 ```
 
-Ergebnis: **BUILD SUCCESSFUL in 8m 2s**, Exitcode `0`.
-Log: `build/native-restore-full-build.log`.
-Enthalten waren die erneute Patch-Anwendung, Server-Tests, Build-Artefakte,
-die vorhandenen Checkstyle-Aufgaben und `scanJarForBadCalls` für API und Server.
-Die unveränderten API-/Checkstyle-Testtasks nutzten im Gesamtbuild zunächst
-gültige Up-to-date-/Cache-Ergebnisse. Sie wurden anschließend ausdrücklich
-erneut ausgeführt:
+**BUILD SUCCESSFUL in 8m**, Exitcode `0`.
+Log: `build/native-restore-final-full-build.log`.
+Enthalten: erneute Patch-Anwendung, Server-Test-Suite, ausführbare Paperclip-JAR,
+Checkstyle und `scanJarForBadCalls` für API und Server.
+
+Unveränderte API-/Checkstyle-Testtasks nutzten im Gesamtbuild ihre gültigen
+Up-to-date-Ergebnisse. Anschließend wurden beide ausdrücklich erneut ausgeführt:
 
 ```powershell
 .\gradlew.bat :folia-api:test --rerun :paper-checkstyle:test --rerun --console=plain --no-daemon --max-workers=2 --no-parallel
 ```
 
-Auch dieser Lauf war erfolgreich, Exitcode `0`, Dauer 16 Sekunden.
-Log: `build/native-restore-additional-tests.log`.
+**BUILD SUCCESSFUL in 19s**, Exitcode `0`.
+Log: `build/native-restore-final-additional-tests.log`.
 
-| Bereich | Erfasste Tests | Fehler/Failures | Übersprungen |
+| Bereich | Erfasste Tests | Failures/Errors | Übersprungen |
 | --- | ---: | ---: | ---: |
-| Server | 10.150 | 0 | 87 |
+| Server | 10.153 | 0 | 87 |
 | API | 529 | 0 | 2 |
 | Checkstyle-Modul | 3 | 0 | 0 |
 
-Die zehn zusätzlichen Unit-Testfälle prüfen Store-Zulassungen und deren
-Scope-Reihenfolge, die Owner-Queue einschließlich Unteraufgaben/Retirement
-sowie die native Paketannahme bei geschlossener Schranke. Vorhandene
-Assertions wurden nicht abgeschwächt. Diese Unit-Tests ersetzen keine native
-Abnahme der öffentlichen Transaktion.
+Vorhandene Assertions wurden nicht abgeschwächt. Die isolierten Unit-Tests
+werden nicht als Ersatz für die folgenden nativen Server-/Clienttests ausgegeben.
 
 ## Dauerhafte Patches und Wiederanwendung
 
-- `folia-server/minecraft-patches/features/0046-Connect-native-player-restore-components-without-ena.patch`
-- `folia-server/paper-patches/features/0035-Add-owner-drained-native-restore-components-and-admi.patch`
+Die Komponenten aus `0046` (Minecraft) und `0035` (Paper-Server) werden durch
+diese abschließenden Feature-Patches angebunden:
 
-Export über die bestehenden `rebuildMinecraftFeaturePatches`- und
-`rebuildPaperServerFeaturePatches`-Tasks. `buildTessera` hat die Patches danach
-erneut angewendet. Die Git-Tree-IDs stimmen vor Export und nach Wiederanwendung
-exakt überein:
+- `folia-server/minecraft-patches/features/0047-Complete-native-restore-login-admission-client-trans.patch`
+- `folia-server/paper-patches/features/0036-Implement-native-player-restore-contract-one-with-du.patch`
 
-| Arbeitsquellen | Git-Tree-ID |
+Export über den vorhandenen Gradle-Patchworkflow, danach Wiederanwendung durch
+`buildTessera`. Die Quellbäume vor Export und nach Wiederanwendung sind identisch:
+
+| Quellbaum | Git-Tree-ID |
 | --- | --- |
-| Minecraft, vollständiger Quellbaum | `3cabe701f98f7da0a3b6a6b2d90a795696da8593` |
-| Paper-Server, `src` | `e6ee3616fe757557a0ccbfda5e9367a684c847e6` |
+| Minecraft, vollständig | `c681fed63bbea4e72b7a5d0d0a7edeb9f1a4ab23` |
+| Paper-Server, `src` | `fb6f679a76f2150b40febe1274f218a4a45d8832` |
 
-## Live-Test auf der finalen JAR
+Exportlog: `build/native-restore-final-export.log`. Der bestehende
+File-Patch-Exporter meldete die fehlende Datei `src/main/resources/logo.png`;
+der Feature-Export und Gesamtbuild waren erfolgreich. Beide Quellbaumvergleiche
+bestätigen, dass die Java-Änderungen vollständig reproduziert wurden.
 
-Ausgeführt mit Java 25:
+## Finale native Server-/Clientabnahme
 
-```powershell
-node smoke-tests/native-player-restore/run.mjs "C:/Program Files/Java/jdk-25.0.3/bin/java.exe"
-```
+Alle Runner starteten eigene markierte Testverzeichnisse unter `build` mit
+freien Loopback-Ports, Java 25, echten verbundenen Offline-Protokollclients und
+dem separaten Tessera-Testplugin. Keine produktiven Welten oder Saves wurden benutzt.
 
-Der Runner legte ausschließlich neue, eigene Testwelten unter
-`build/native-restore-smoke-1790504791743` an. Er verwendete den freien
-Loopback-Port `61912`, Offline-Protokollclients und nur das separate
-Tessera-Testplugin. Keine produktiven Welten, kein MCC-/MVE-Produktcode.
-Ergebnis: `NATIVE_RESTORE_EXIT 0 componentsPassed true publicTransactionAccepted false`.
+### Öffentliche Transaktion
 
-| Client | Logins | Kicks | Disconnects | Empfangene Teleports | Stats-Pakete mit Nullwerten | Advancement-Resets |
+Fixture: `build/native-restore-smoke-1790511055163`, Port `63670`.
+Log: `build/native-restore-final-transaction.log`.
+Ergebnis: Exitcode `0`, `publicTransactionAccepted: true`, Vertrag exakt `1`.
+
+| Client | Logins | Kicks | Disconnects | Teleports | Stats-Pakete mit Nullwerten | Advancement-Resets |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| RestoreOne | 1 | 0 | 0 | 8 | 3 | 6 |
-| RestoreTwo | 1 | 0 | 0 | 7 | 3 | 6 |
+| RestoreOne | 1 | 0 | 0 | 39 | 8 | 12 |
+| RestoreTwo | 1 | 0 | 0 | 35 | 8 | 12 |
 
-Messzeitraum: Login bis Abschluss aller Testassertions, vor dem beabsichtigten
-Stoppen des eigenen Testservers. Es gab keinen Reconnect im Testablauf.
-Die Clients verarbeiten echte Login-/Konfigurations-/Keepalive- und
-Transferbestätigungs-Pakete; sie rendern kein Vanilla-Fenster.
+Messzeitraum: Login bis Abschluss der Assertions, vor dem beabsichtigten
+Stoppen der eigenen Server. Kein Reconnect im erfolgreichen Hauptlauf.
 
-Tatsächlich erreicht und geprüft wurden:
+Tatsächlich erreichte native Pfade:
 
-- Zwei Spieler mit getrennten Ownern in unterschiedlichen Regionen/Dimensionen;
-  wiederholte native Transfers bei eingefrorenem Gameplay.
-- NBT-Datenfixierung und Zustandsersetzung mit unveränderter Quelle, stabiler
-  Spielerinstanz und erhaltenen Inventar-/Endertruhen-Wrappern.
-- Inventar, XP, Gesundheit/Hunger, Attribute, Effekte, Spielmodus/Fähigkeiten,
-  PDC und Rezepte; Entfernen zuvor vorhandener additiver Werte.
-- Statistik-Ersetzung einschließlich entfernter Nullwerte am echten Client
-  sowie tatsächlich empfangene Fortschritts-Reset-Pakete.
-- Frischer Zustand ohne gespeicherten Eintrag und anschließendes erneutes
-  Einspielen des ursprünglichen In-Memory-Zustands.
-- Ein auf Ereignis und Operation begrenzter Teleport-Scope und ein echtes Veto.
-- Eigene schwebende Enderperle: Ersetzung auf dem Ziel-Owner, genau eine
-  registrierte Perle nach Restore und keine Perle nach frischem Zustand.
-- Tatsächliche native Schreiber für alle drei Stores; normales `saveData`
-  konnte bei geschlossener Testschranke keine der zuvor gelesenen Dateien ändern.
-- Echte Runtime-Snapshots vor und nach dem Restore, einschließlich gelesener
-  komprimierter Spieler-NBT-Dateien, korrekter XP und beider JSON-Store-Dateien.
-  Ein zusätzlicher Snapshot wurde während der Schranke mit `SOURCE_BUSY` abgewiesen.
+- Zwei Spieler über getrennte Regionen/Dimensionen; öffentliche
+  Prepare/Apply/Complete-Transaktion bei eingefrorenem Gameplay.
+- Wiederholter Load und Resave, unveränderte Quelle, frischer vollständiger
+  Rollback-Store und echter Rückwärts-Apply publizierter Dateien.
+- Exakter Spielerzustand einschließlich Inventar/Endertruhe, XP, Gesundheit,
+  Hunger, Attribute/Modifikatoren, Effekte, Spielmodus, PDC, Rezepte, Statistiken
+  und Fortschritte; entfernte additive Einträge und Client-Caches zurückgesetzt.
+- Stabile Spielerinstanz, Verbindung, Inventar-/Endertruhen-Wrapper; echte
+  Teleportbestätigungen und auf Operation/Ereignis begrenzte Teleport-Scopes.
+- Gespeichertes Boot samt Inventar, Schulterentity und genau eine eigene Perle.
+- Fehlender Save-Eintrag: frischer Zustand in der expliziten Fallback-Welt.
+- Wiederherstellung eines aktuell toten beziehungsweise schlafenden Spielers.
+- Teleport-Veto, konkurrierende/späte Requests, idempotente Wiederholungen,
+  verzögerte Writer sowie Cancellation der Caller-Futures.
+- Native Save- und Publikationsfehler durch echte Windows-Dateisperren;
+  Schranke blieb geschlossen, unzulässiger Commit wurde abgelehnt,
+  anschließender Rollback und Complete funktionierten.
+- Online-/Offline-Statistikzugriffe und veraltete Cache-Generationen;
+  Runtime-Snapshot-Koordination einschließlich kontrolliertem `SOURCE_BUSY`.
+- Vorbereitete Wüsten-/Rotsand- und Nether-Weltbindung; ein nach den Restores
+  neu erzeugter Zielchunk behielt seine eigene Generierung statt globaler Defaults.
+- Abschließender echter Runtime-Snapshot nach Freigabe des Tick-Freeze.
 
-Der Live-Lauf meldete keine Regionszugriffs-Ausnahme. Er enthält einen
-Startfehler der OSHI-Abfrage beschädigter Windows-Performance-Counter und
-eine anfängliche `moved too quickly`-Warnung des Protokollclients. Diese wurden
-nicht ausgeblendet; die Windows-Registrierung wurde nicht verändert.
-Build/Javadoc sowie JOML/JLine geben außerdem die vorhandenen Warnungen aus.
+### Absichtliche Verbindungs-/Transferfehler
 
-Archivierte Nachweise:
+Fixture: `build/native-restore-smoke-1790511058499`, Port `63672`.
+Log: `build/native-restore-final-races.log`. Exitcode `0`.
 
-- [Native Client-Ergebnisse mit Paketereignissen](test-evidence/26.3-010/native-components.json)
-- [Build, Testzahlen, Hashes und Patch-Wiederanwendung](test-evidence/26.3-010/build.json)
-- Lokales vollständiges Live-Log: `build/native-restore-final-live.log`.
-- Testwelten, Snapshot-Dateien und weiteres Log im oben genannten Fixture-Verzeichnis.
+RestoreOne: 1 Login, 0 Kicks, 0 Disconnects.
+RestoreTwo: 2 Logins, genau 1 absichtlich ausgelöster Kick und 1 Disconnect.
+Dieser Fehlerlauf ist ausdrücklich **kein Seamless-Erfolgsnachweis**.
 
-## Nicht erfüllt / keine Freigabe für Vertrag 1
+Geprüft: Disconnect während des Restore-Ereignisses, kanonischer Offline-Zustand,
+bis Complete wartender Login, danach erfolgreiche Zulassung ohne Perlen-Duplikat,
+tatsächlich vorenthaltener Client-ACK mit Timeout, nativer Rollback und erneutes Save.
 
-Die öffentliche Schnittstelle verwendet weiterhin `UnavailableBackend`.
-Prepare und Vorwärts-Apply liefern `UNSUPPORTED`. Die Komponententests rufen
-den nativen Einzelspielerpfad auf, **nicht** eine implementierte öffentliche
-Dateitransaktion. Erneutes Laden eines In-Memory-Zustands ist kein Beleg für
-Commit/Rollback veröffentlichter Spieler-Stores.
+### Shutdown-/Neustartmatrix
 
-Es fehlen insbesondere die gemeinsame Store-Publikation mit frischem
-Rollback-Backup und generationssicherem Rebind, das Erfassen von Logout-Daten
-während der Schranke, durchgehende Legacy-Login-Zulassung, das nachweisliche
-Beenden laufender Transfers bei Shutdown sowie dauerhafte plattformübergreifende
-Recovery. Auch vollständige Attachment-Vorprüfung, Fahrzeuge/Schulterentities,
-tote Spieler/laufende Respawns und Generator-/Biombindungen sind nicht vollständig
-nativ abgenommen. Ein Timeout dürfte diese Arbeit nicht bloß als beendet melden.
+Log: `build/native-restore-final-recovery.log`. Exitcode `0`.
+Fünf Phasen jeweils mit anschließendem Prozessneustart bestanden:
 
-Das sind noch nicht gelöste Implementierungslücken in Tessera, keine
-fehlenden Nutzerpfade. Eine grundsätzlich unlösbare technische Schranke wurde
-nicht nachgewiesen. Der vollständige Implementierungsauftrag ist daher mit
-diesem Prüfstand ausdrücklich **nicht abgeschlossen**.
+1. Nach Prepare.
+2. Nach Apply, vor Commit.
+3. Während Apply mit ausstehender echter Client-Transferbestätigung.
+4. Nach bestätigtem Commit.
+5. Prepare wartet auf einen bereits zugelassenen, in der Konfiguration
+   angehaltenen dritten Client.
 
-Der konkrete MCC-0.7.5-/MVE-1.5.00-/TAB-/LuckPerms-Stack wurde nicht geprüft.
-MCC erkennt hier weiterhin Vertrag 0 und kann damit den nativen Seamless-Pfad
-nicht nutzen. Es wurde kein neuer API-Pfad eingeführt; eine MCC-Produktänderung
-ist für den unveränderten Zielvertrag 1 nicht vorgesehen. Erforderlich sind
-zuerst die vollständige Tessera-Transaktion und anschließend die gemeinsame
-Plugin-Abnahme. Deren genaue offene Prüfliste steht im
+In jedem Prozess hatten die beiden Spielclients bis zum kontrollierten Stop
+jeweils 1 Login, 0 Kicks und 0 Disconnects. Ein absichtlicher Serverneustart
+wird nicht als unterbrechungsfreier Seamless-Lauf gezählt.
+
+Vor Commit simuliert der Runner die **offline Recovery-Entscheidung des Callers**
+durch Auswahl des frischen Rollback-Stores. Tessera spielt nach dem Boot keine
+alte Transaktion darüber. Nach Commit bleibt der publizierte Stand bestehen.
+Im wartenden Login-Fall gab es noch keinen fertigen Rollback-Store:
+der native Shutdown publizierte die neuesten ungespeicherten Spielerwerte
+(XP 111 statt zuletzt gespeicherter 999), bevor Prepare `SERVER_STOPPING` meldete.
+
+Nach jedem Neustart: korrekter gewählter Store, keine verbliebene Loginsperre,
+kein verzögertes Replay, erfolgreicher neuer vollständiger Restore und Resave.
+
+## Nachweise und bekannte Prüfgrenzen
+
+- [Build, Testzahlen, Hashes, Patchvergleich](test-evidence/26.3-010/build.json)
+- [Öffentliche Transaktion und Client-Paketereignisse](test-evidence/26.3-010/native-transaction.json)
+- [Absichtliche Verbindungsfehler und ACK-Timeout](test-evidence/26.3-010/native-races.json)
+- [Fünf Recovery-Läufe mit Prozess-/Clientnachweisen](test-evidence/26.3-010/native-recovery.json)
+- [Historischer Komponentenlauf mit Vertrag 0, nicht die finale Abnahme](test-evidence/26.3-010/historical-native-components.json)
+
+Die Protokollclients verarbeiten echte Konfigurations-, Keepalive-, Transfer- und
+Reset-Pakete, rendern aber kein Vanilla-Fenster. Native Laufzeitabnahme auf
+Windows/Java 25; kein zusätzlicher Linux-Live-Lauf und kein simulierter
+Hardware-Stromausfall oder defekter Datenträger. Die plattformspezifische
+Publikation ist implementiert; diese Grenzen sind keine vorgetäuschten Tests.
+
+Logs enthalten die vorhandene OSHI-Meldung zu beschädigten Windows-
+Performance-Countern sowie vereinzelte anfängliche `moved too quickly`-
+Warnungen der Testclients. Keine Regionszugriffs-Ausnahme oder fehlgeschlagene
+native Assertion wurde in den finalen Läufen gefunden. Die Windows-Registrierung
+wurde nicht verändert.
+
+Der vollständige externe Stack MCC 0.7.5, MVE 26.3-1.5.00, TAB 6.2.0 und
+LuckPerms 5.5.85 wurde **nicht ausgeführt**. Verfügbare MVE-JARs allein ersetzen
+diesen Stack nicht; die gefundenen MCC-JARs hatten ältere Versionsstände.
+
+Bei Einhaltung des unveränderten Vertrags 1 benötigt MCC grundsätzlich keine
+neue Schnittstelle und soll den nativen Pfad selbst erkennen. Die offene
+gemeinsame Prüfliste – MCC Load/Resave/Rollback, MVE Lifetime-/Vanilla-Stats,
+Weltbindungen nach MCC-Reset und geöffnetes MCC-Backpack – steht im
 [Restore-Status](mcc-player-restore-status.md).

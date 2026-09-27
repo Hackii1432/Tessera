@@ -1,0 +1,1509 @@
+{
+  "sourceCommit": "a767a0ab30a65ad7faa7f693a544506bd7c694c9",
+  "jarSha256": "fb1f59a9b7875f3aba3773321032d29235be6ba67886c5a66811c0864429fe75",
+  "log": "build/native-restore-final-recovery.log",
+  "exitCode": 0,
+  "passed": true,
+  "note": "Controlled process stop/restart and offline caller recovery; not counted as an uninterrupted seamless-load run.",
+  "runs": [
+    {
+      "stage": "prepared",
+      "fixture": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\native-restore-smoke-1790511060476",
+      "checks": "Stage prepared: caller-selected store loaded; no native replay/fence; new full prepare/apply/complete and resave succeeded with connected clients.\n",
+      "shutdownResult": null,
+      "stop": {
+        "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.010-alpha.jar",
+        "jarSha256": "fb1f59a9b7875f3aba3773321032d29235be6ba67886c5a66811c0864429fe75",
+        "phase": "prepared",
+        "restart": false,
+        "passed": true,
+        "events": [
+          {
+            "type": "login",
+            "username": "RestoreOne"
+          },
+          {
+            "type": "login",
+            "username": "RestoreTwo"
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 1,
+            "position": [
+              -13.5,
+              -60,
+              -0.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 1,
+            "position": [
+              -8.5,
+              -60,
+              6.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": true
+          }
+        ],
+        "clients": [
+          {
+            "name": "RestoreOne",
+            "logins": 1,
+            "kicks": 0,
+            "disconnects": 0
+          },
+          {
+            "name": "RestoreTwo",
+            "logins": 1,
+            "kicks": 0,
+            "disconnects": 0
+          }
+        ]
+      },
+      "restart": {
+        "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.010-alpha.jar",
+        "jarSha256": "fb1f59a9b7875f3aba3773321032d29235be6ba67886c5a66811c0864429fe75",
+        "phase": "prepared",
+        "restart": true,
+        "passed": true,
+        "events": [
+          {
+            "type": "login",
+            "username": "RestoreOne"
+          },
+          {
+            "type": "login",
+            "username": "RestoreTwo"
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 1,
+            "position": [
+              -8.5,
+              -60,
+              6.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 1,
+            "position": [
+              -13.5,
+              -60,
+              -0.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 2,
+            "position": [
+              -8.5,
+              -60,
+              6.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 2,
+            "position": [
+              -13.5,
+              -60,
+              -0.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 3,
+            "position": [
+              -8.5,
+              -60,
+              6.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 3,
+            "position": [
+              -13.5,
+              -60,
+              -0.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "stats",
+            "username": "RestoreTwo",
+            "entries": 4,
+            "zeros": 0
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": false
+          },
+          {
+            "type": "stats",
+            "username": "RestoreOne",
+            "entries": 4,
+            "zeros": 0
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": false
+          }
+        ],
+        "clients": [
+          {
+            "name": "RestoreOne",
+            "logins": 1,
+            "kicks": 0,
+            "disconnects": 0
+          },
+          {
+            "name": "RestoreTwo",
+            "logins": 1,
+            "kicks": 0,
+            "disconnects": 0
+          }
+        ]
+      }
+    },
+    {
+      "stage": "applied",
+      "fixture": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\native-restore-smoke-1790511113622",
+      "checks": "Stage applied: caller-selected store loaded; no native replay/fence; new full prepare/apply/complete and resave succeeded with connected clients.\n",
+      "shutdownResult": null,
+      "stop": {
+        "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.010-alpha.jar",
+        "jarSha256": "fb1f59a9b7875f3aba3773321032d29235be6ba67886c5a66811c0864429fe75",
+        "phase": "applied",
+        "restart": false,
+        "passed": true,
+        "events": [
+          {
+            "type": "login",
+            "username": "RestoreOne"
+          },
+          {
+            "type": "login",
+            "username": "RestoreTwo"
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 1,
+            "position": [
+              -14.5,
+              -60,
+              5.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 1,
+            "position": [
+              3.5,
+              -60,
+              -11.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 2,
+            "position": [
+              -14.5,
+              -60,
+              5.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 2,
+            "position": [
+              3.5,
+              -60,
+              -11.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 3,
+            "position": [
+              -14.5,
+              -60,
+              5.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 3,
+            "position": [
+              3.5,
+              -60,
+              -11.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "stats",
+            "username": "RestoreOne",
+            "entries": 4,
+            "zeros": 0
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": false
+          },
+          {
+            "type": "stats",
+            "username": "RestoreTwo",
+            "entries": 4,
+            "zeros": 0
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": false
+          }
+        ],
+        "clients": [
+          {
+            "name": "RestoreOne",
+            "logins": 1,
+            "kicks": 0,
+            "disconnects": 0
+          },
+          {
+            "name": "RestoreTwo",
+            "logins": 1,
+            "kicks": 0,
+            "disconnects": 0
+          }
+        ]
+      },
+      "restart": {
+        "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.010-alpha.jar",
+        "jarSha256": "fb1f59a9b7875f3aba3773321032d29235be6ba67886c5a66811c0864429fe75",
+        "phase": "applied",
+        "restart": true,
+        "passed": true,
+        "events": [
+          {
+            "type": "login",
+            "username": "RestoreOne"
+          },
+          {
+            "type": "login",
+            "username": "RestoreTwo"
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 1,
+            "position": [
+              -14.5,
+              -60,
+              5.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 1,
+            "position": [
+              3.5,
+              -60,
+              -11.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 2,
+            "position": [
+              -14.5,
+              -60,
+              5.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 2,
+            "position": [
+              3.5,
+              -60,
+              -11.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 3,
+            "position": [
+              -14.5,
+              -60,
+              5.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 3,
+            "position": [
+              3.5,
+              -60,
+              -11.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "stats",
+            "username": "RestoreOne",
+            "entries": 4,
+            "zeros": 0
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": false
+          },
+          {
+            "type": "stats",
+            "username": "RestoreTwo",
+            "entries": 4,
+            "zeros": 0
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": false
+          }
+        ],
+        "clients": [
+          {
+            "name": "RestoreOne",
+            "logins": 1,
+            "kicks": 0,
+            "disconnects": 0
+          },
+          {
+            "name": "RestoreTwo",
+            "logins": 1,
+            "kicks": 0,
+            "disconnects": 0
+          }
+        ]
+      }
+    },
+    {
+      "stage": "inflight",
+      "fixture": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\native-restore-smoke-1790511154254",
+      "checks": "Stage inflight: caller-selected store loaded; no native replay/fence; new full prepare/apply/complete and resave succeeded with connected clients.\n",
+      "shutdownResult": "PlayerRestoreResult[operationId=c31d6b56-6ee0-4fc7-aa97-e54abaae6e0f, status=SERVER_STOPPING, message=org.bukkit.craftbukkit.world.PlayerRestoreCoordinator$RestoreFailure: Native work and shutdown publication drained: java.util.concurrent.CompletionException: java.lang.IllegalStateException: Native restore work drained by server shutdown]",
+      "stop": {
+        "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.010-alpha.jar",
+        "jarSha256": "fb1f59a9b7875f3aba3773321032d29235be6ba67886c5a66811c0864429fe75",
+        "phase": "inflight",
+        "restart": false,
+        "passed": true,
+        "events": [
+          {
+            "type": "login",
+            "username": "RestoreTwo"
+          },
+          {
+            "type": "login",
+            "username": "RestoreOne"
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 1,
+            "position": [
+              -14.5,
+              -60,
+              -10.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 1,
+            "position": [
+              -1.5,
+              -60,
+              5.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 2,
+            "position": [
+              -14.5,
+              -60,
+              -10.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 2,
+            "position": [
+              -1.5,
+              -60,
+              5.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 3,
+            "position": [
+              -14.5,
+              -60,
+              -10.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": false
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 3,
+            "position": [
+              -1.5,
+              -60,
+              5.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "stats",
+            "username": "RestoreOne",
+            "entries": 4,
+            "zeros": 0
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": false
+          },
+          {
+            "type": "stats",
+            "username": "RestoreTwo",
+            "entries": 4,
+            "zeros": 0
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": false
+          }
+        ],
+        "clients": [
+          {
+            "name": "RestoreOne",
+            "logins": 1,
+            "kicks": 0,
+            "disconnects": 0
+          },
+          {
+            "name": "RestoreTwo",
+            "logins": 1,
+            "kicks": 0,
+            "disconnects": 0
+          }
+        ]
+      },
+      "restart": {
+        "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.010-alpha.jar",
+        "jarSha256": "fb1f59a9b7875f3aba3773321032d29235be6ba67886c5a66811c0864429fe75",
+        "phase": "inflight",
+        "restart": true,
+        "passed": true,
+        "events": [
+          {
+            "type": "login",
+            "username": "RestoreOne"
+          },
+          {
+            "type": "login",
+            "username": "RestoreTwo"
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 1,
+            "position": [
+              -1.5,
+              -60,
+              5.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 1,
+            "position": [
+              -14.5,
+              -60,
+              -10.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 2,
+            "position": [
+              -1.5,
+              -60,
+              5.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 2,
+            "position": [
+              -14.5,
+              -60,
+              -10.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 3,
+            "position": [
+              -1.5,
+              -60,
+              5.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 3,
+            "position": [
+              -14.5,
+              -60,
+              -10.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "stats",
+            "username": "RestoreTwo",
+            "entries": 4,
+            "zeros": 0
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": false
+          },
+          {
+            "type": "stats",
+            "username": "RestoreOne",
+            "entries": 4,
+            "zeros": 0
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": false
+          }
+        ],
+        "clients": [
+          {
+            "name": "RestoreOne",
+            "logins": 1,
+            "kicks": 0,
+            "disconnects": 0
+          },
+          {
+            "name": "RestoreTwo",
+            "logins": 1,
+            "kicks": 0,
+            "disconnects": 0
+          }
+        ]
+      }
+    },
+    {
+      "stage": "committed",
+      "fixture": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\native-restore-smoke-1790511193501",
+      "checks": "Stage committed: caller-selected store loaded; no native replay/fence; new full prepare/apply/complete and resave succeeded with connected clients.\n",
+      "shutdownResult": null,
+      "stop": {
+        "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.010-alpha.jar",
+        "jarSha256": "fb1f59a9b7875f3aba3773321032d29235be6ba67886c5a66811c0864429fe75",
+        "phase": "committed",
+        "restart": false,
+        "passed": true,
+        "events": [
+          {
+            "type": "login",
+            "username": "RestoreTwo"
+          },
+          {
+            "type": "login",
+            "username": "RestoreOne"
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 1,
+            "position": [
+              5.5,
+              -60,
+              1.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 1,
+            "position": [
+              -6.5,
+              -60,
+              -9.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 2,
+            "position": [
+              5.5,
+              -60,
+              1.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 2,
+            "position": [
+              -6.5,
+              -60,
+              -9.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 3,
+            "position": [
+              5.5,
+              -60,
+              1.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 3,
+            "position": [
+              -6.5,
+              -60,
+              -9.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "stats",
+            "username": "RestoreTwo",
+            "entries": 4,
+            "zeros": 0
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": false
+          },
+          {
+            "type": "stats",
+            "username": "RestoreOne",
+            "entries": 4,
+            "zeros": 0
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": false
+          }
+        ],
+        "clients": [
+          {
+            "name": "RestoreOne",
+            "logins": 1,
+            "kicks": 0,
+            "disconnects": 0
+          },
+          {
+            "name": "RestoreTwo",
+            "logins": 1,
+            "kicks": 0,
+            "disconnects": 0
+          }
+        ]
+      },
+      "restart": {
+        "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.010-alpha.jar",
+        "jarSha256": "fb1f59a9b7875f3aba3773321032d29235be6ba67886c5a66811c0864429fe75",
+        "phase": "committed",
+        "restart": true,
+        "passed": true,
+        "events": [
+          {
+            "type": "login",
+            "username": "RestoreTwo"
+          },
+          {
+            "type": "login",
+            "username": "RestoreOne"
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 1,
+            "position": [
+              5.5,
+              -60,
+              1.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 1,
+            "position": [
+              -6.5,
+              -60,
+              -9.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 2,
+            "position": [
+              5.5,
+              -60,
+              1.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 2,
+            "position": [
+              -6.5,
+              -60,
+              -9.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 3,
+            "position": [
+              5.5,
+              -60,
+              1.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 3,
+            "position": [
+              -6.5,
+              -60,
+              -9.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "stats",
+            "username": "RestoreTwo",
+            "entries": 4,
+            "zeros": 0
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": false
+          },
+          {
+            "type": "stats",
+            "username": "RestoreOne",
+            "entries": 4,
+            "zeros": 0
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": false
+          }
+        ],
+        "clients": [
+          {
+            "name": "RestoreOne",
+            "logins": 1,
+            "kicks": 0,
+            "disconnects": 0
+          },
+          {
+            "name": "RestoreTwo",
+            "logins": 1,
+            "kicks": 0,
+            "disconnects": 0
+          }
+        ]
+      }
+    },
+    {
+      "stage": "login",
+      "fixture": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\native-restore-smoke-1790511232500",
+      "checks": "Stage login: caller-selected store loaded; no native replay/fence; new full prepare/apply/complete and resave succeeded with connected clients.\n",
+      "shutdownResult": "PlayerRestoreResult[operationId=527af92c-48eb-4481-86ac-9615eed189d7, status=SERVER_STOPPING, message=org.bukkit.craftbukkit.world.PlayerRestoreCoordinator$RestoreFailure: Native work and shutdown publication drained: java.util.concurrent.CompletionException: org.bukkit.craftbukkit.world.PlayerRestoreCoordinator$RestoreFailure: Server is stopping]",
+      "stop": {
+        "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.010-alpha.jar",
+        "jarSha256": "fb1f59a9b7875f3aba3773321032d29235be6ba67886c5a66811c0864429fe75",
+        "phase": "login",
+        "restart": false,
+        "passed": true,
+        "events": [
+          {
+            "type": "login",
+            "username": "RestoreTwo"
+          },
+          {
+            "type": "login",
+            "username": "RestoreOne"
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 1,
+            "position": [
+              -5.5,
+              -60,
+              -10.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 1,
+            "position": [
+              5.5,
+              -60,
+              -8.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 2,
+            "position": [
+              5.5,
+              -60,
+              -8.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": true
+          },
+          {
+            "type": "login",
+            "username": "WaitingLogin"
+          },
+          {
+            "type": "configuration_held",
+            "username": "WaitingLogin"
+          }
+        ],
+        "clients": [
+          {
+            "name": "RestoreOne",
+            "logins": 1,
+            "kicks": 0,
+            "disconnects": 0
+          },
+          {
+            "name": "RestoreTwo",
+            "logins": 1,
+            "kicks": 0,
+            "disconnects": 0
+          }
+        ]
+      },
+      "restart": {
+        "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.010-alpha.jar",
+        "jarSha256": "fb1f59a9b7875f3aba3773321032d29235be6ba67886c5a66811c0864429fe75",
+        "phase": "login",
+        "restart": true,
+        "passed": true,
+        "events": [
+          {
+            "type": "login",
+            "username": "RestoreOne"
+          },
+          {
+            "type": "login",
+            "username": "RestoreTwo"
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 1,
+            "position": [
+              -5.5,
+              -60,
+              -10.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 1,
+            "position": [
+              5.5,
+              -60,
+              -8.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 2,
+            "position": [
+              -5.5,
+              -60,
+              -10.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 2,
+            "position": [
+              5.5,
+              -60,
+              -8.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreOne",
+            "id": 3,
+            "position": [
+              -5.5,
+              -60,
+              -10.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "teleport",
+            "username": "RestoreTwo",
+            "id": 3,
+            "position": [
+              5.5,
+              -60,
+              -8.5
+            ],
+            "rotation": [
+              0,
+              0
+            ],
+            "acknowledged": true
+          },
+          {
+            "type": "stats",
+            "username": "RestoreOne",
+            "entries": 4,
+            "zeros": 0
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreOne",
+            "reset": false
+          },
+          {
+            "type": "stats",
+            "username": "RestoreTwo",
+            "entries": 4,
+            "zeros": 0
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": true
+          },
+          {
+            "type": "advancements",
+            "username": "RestoreTwo",
+            "reset": false
+          }
+        ],
+        "clients": [
+          {
+            "name": "RestoreOne",
+            "logins": 1,
+            "kicks": 0,
+            "disconnects": 0
+          },
+          {
+            "name": "RestoreTwo",
+            "logins": 1,
+            "kicks": 0,
+            "disconnects": 0
+          }
+        ]
+      }
+    }
+  ]
+}
