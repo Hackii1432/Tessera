@@ -368,16 +368,17 @@ index b80d8a254482ee606090495205de57273abb1955..a5703b48712630bc86c39676d56fc728
              final HeldLock lock = held.get(index);
 diff --git a/src/main/java/org/bukkit/craftbukkit/world/NativePlayerRestoreBackend.java b/src/main/java/org/bukkit/craftbukkit/world/NativePlayerRestoreBackend.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..5413a656ae5f43bdfd86c7a8368e8f20283cc605
+index 0000000000000000000000000000000000000000..f0d35cf51d0505c696bef82fa31e5ac0dcdcb07d
 --- /dev/null
 +++ b/src/main/java/org/bukkit/craftbukkit/world/NativePlayerRestoreBackend.java
-@@ -0,0 +1,455 @@
+@@ -0,0 +1,493 @@
 +package org.bukkit.craftbukkit.world;
 +
 +import com.google.gson.JsonElement;
 +import com.google.gson.JsonObject;
 +import com.mojang.authlib.GameProfile;
 +import io.papermc.paper.threadedregions.RegionizedServer;
++import io.papermc.paper.threadedregions.TickRegions;
 +import io.papermc.paper.world.PlayerRestoreStatus;
 +import java.nio.file.Files;
 +import java.nio.file.LinkOption;
@@ -424,6 +425,7 @@ index 0000000000000000000000000000000000000000..5413a656ae5f43bdfd86c7a8368e8f20
 +    private final Map<UUID, Transaction> transactions = new ConcurrentHashMap<>();
 +    private volatile Transaction active;
 +    private volatile boolean stopping;
++    private final CompletableFuture<Void> shutdownDrained = new CompletableFuture<>();
 +
 +    private record Identity(CraftPlayer wrapper, GameProfile profile, ClientInformation options) {}
 +    private record Worlds(Map<UUID, CraftWorld> ids, Map<String, CraftWorld> keys, Location fallback) {}
@@ -792,11 +794,19 @@ index 0000000000000000000000000000000000000000..5413a656ae5f43bdfd86c7a8368e8f20
 +    @FunctionalInterface private interface Work<T> { T run() throws Exception; }
 +
 +    private <T> CompletionStage<T> phase(Work<T> work) {
-+        return this.server.getRuntimeWorldManager().withPlayerRestoreWorlds(() -> CompletableFuture.supplyAsync(() -> {
++        CompletionStage<T> phase = this.server.getRuntimeWorldManager().withPlayerRestoreWorlds(() -> CompletableFuture.supplyAsync(() -> {
 +            try { return work.run(); }
 +            catch (RuntimeException failure) { throw failure; }
 +            catch (Exception failure) { throw new java.util.concurrent.CompletionException(failure); }
 +        }, this.io), this.io);
++        return phase.handle((value, error) -> {
++            if (error == null) return CompletableFuture.completedStage(value);
++            if (!this.stopping) return CompletableFuture.<T>failedStage(error);
++            // Do not report shutdown failure before its final captured logouts
++            // have reached durable storage. No I/O worker waits on this stage.
++            return this.shutdownDrained.thenCompose(ignored -> CompletableFuture.<T>failedStage(
++                failure(PlayerRestoreStatus.SERVER_STOPPING, "Native work and shutdown publication drained: " + error)));
++        }).thenCompose(Function.identity());
 +    }
 +
 +    private static Path staging(Path target) throws java.io.IOException {
@@ -816,11 +826,39 @@ index 0000000000000000000000000000000000000000..5413a656ae5f43bdfd86c7a8368e8f20
 +
 +    void finishShutdown() {
 +        this.beginShutdown();
++        // Folia can proceed after a scheduler shutdown timeout. Never turn
++        // that timeout into a false assertion that native mutation drained.
++        boolean halted = TickRegions.getScheduler().getTotalThreadCount() == 0;
++        for (var world : this.server.getServer().getAllLevels()) {
++            halted &= world.moonrise$getChunkTaskScheduler().halt(true, 0L);
++        }
++        if (!halted) {
++            this.server.getLogger().severe("Native restore shutdown is not drained: scheduler workers remain alive; retaining the fence and incomplete results for caller recovery");
++            return;
++        }
 +        NativeRestoreWork.finishShutdown();
 +        // Wakes owner waits only after native mutation has drained. A worker
 +        // already copying files must finish before the shutdown is reported.
 +        this.io.shutdownNow(); // Interrupt lock acquisition/private staging copies after all native mutation halted.
 +        this.io.close();
++        try {
++            Transaction tx = this.active;
++            if (tx != null && tx.fenced && !tx.backupComplete && tx.activeStore != null) {
++                synchronized (tx) { tx.captureOpen = false; }
++                PlayerStoreFence.INSTANCE.awaitIdle(tx.operation.id).toCompletableFuture().join();
++                if (tx.captureFailure != null) throw new IllegalStateException("Shutdown logout capture failed", tx.captureFailure);
++                if (!tx.disconnected.isEmpty()) {
++                    Path sealed = staging(tx.activeStore);
++                    RestoreStoragePlatform.files().copyNew(tx.activeStore, sealed);
++                    for (PlayerRestoreImage image : tx.disconnected.values()) image.write(sealed);
++                    RestoreStoragePlatform.files().publish(sealed, tx.activeStore, tx.operation.id, "shutdown-before-backup");
++                }
++            }
++            this.shutdownDrained.complete(null);
++        } catch (Throwable failure) {
++            this.shutdownDrained.completeExceptionally(failure);
++            this.server.getLogger().log(java.util.logging.Level.SEVERE, "Native restore could not persist pre-backup shutdown captures; retained trees require recovery", failure);
++        }
 +    }
 +
 +    private static PlayerRestoreCoordinator.RestoreFailure failure(PlayerRestoreStatus status, String message) {
@@ -1127,10 +1165,10 @@ index 0000000000000000000000000000000000000000..bc7a09b68bd5e6729f3593f65a5f3f48
 +}
 diff --git a/src/main/java/org/bukkit/craftbukkit/world/NativeRestoreWork.java b/src/main/java/org/bukkit/craftbukkit/world/NativeRestoreWork.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..cf787a51e66977861e3c9b89cfe0feb0aa753d17
+index 0000000000000000000000000000000000000000..691b753ea30934cef16bae808f7ebbe962670446
 --- /dev/null
 +++ b/src/main/java/org/bukkit/craftbukkit/world/NativeRestoreWork.java
-@@ -0,0 +1,55 @@
+@@ -0,0 +1,66 @@
 +package org.bukkit.craftbukkit.world;
 +
 +import java.util.HashSet;
@@ -1173,6 +1211,17 @@ index 0000000000000000000000000000000000000000..cf787a51e66977861e3c9b89cfe0feb0
 +    }
 +
 +    public static void beginShutdown() { stopping = true; }
++
++    /** Configuration can stop ticking before its normal disconnect callback. */
++    public static void watchLoginAdmission(PlayerStoreFence.Lease admission) {
++        CompletableFuture<Void> lifetime = future();
++        admission.closedStage().whenComplete((ignored, failure) -> lifetime.complete(null));
++        lifetime.whenComplete((ignored, failure) -> {
++            // This signal is failed only after region/chunk shutdown, never at
++            // cancellation/timeout of a caller while login can still run.
++            if (failure != null) admission.close();
++        });
++    }
 +
 +    /** Only after region threads and chunk workers have halted and pending teleports were reconciled. */
 +    public static void finishShutdown() {
@@ -1275,7 +1324,7 @@ index 0000000000000000000000000000000000000000..a0bae375bf85090202a7ca82341b6c46
 +    }
 +}
 diff --git a/src/main/java/org/bukkit/craftbukkit/world/PlayerStoreFence.java b/src/main/java/org/bukkit/craftbukkit/world/PlayerStoreFence.java
-index 58ae33e2612cf64a4c15c32bfbec84384c0b7600..441afe4169157cee918cb28e2cdd50b788e58858 100644
+index 58ae33e2612cf64a4c15c32bfbec84384c0b7600..0650e8ecd77a8f430bf1c7fbcf0a805dc64675c0 100644
 --- a/src/main/java/org/bukkit/craftbukkit/world/PlayerStoreFence.java
 +++ b/src/main/java/org/bukkit/craftbukkit/world/PlayerStoreFence.java
 @@ -64,10 +64,16 @@ public final class PlayerStoreFence {
@@ -1295,6 +1344,39 @@ index 58ae33e2612cf64a4c15c32bfbec84384c0b7600..441afe4169157cee918cb28e2cdd50b7
      /**
       * Transfers an already admitted access into synchronous native calls on its
       * current owner. The lease, not this thread-local scope, owns its lifetime.
+@@ -126,6 +132,7 @@ public final class PlayerStoreFence {
+     public static final class Lease implements AutoCloseable {
+         private volatile PlayerStoreFence fence;
+         private final long generation;
++        private CompletableFuture<Void> closure;
+ 
+         private Lease(PlayerStoreFence fence, long generation) {
+             this.fence = fence;
+@@ -136,15 +143,24 @@ public final class PlayerStoreFence {
+             return this.generation;
+         }
+ 
++        public synchronized CompletionStage<Void> closedStage() {
++            if (this.fence == null) return CompletableFuture.completedStage(null);
++            if (this.closure == null) this.closure = new CompletableFuture<>();
++            return this.closure.minimalCompletionStage();
++        }
++
+         @Override
+         public void close() {
+             PlayerStoreFence release;
++            CompletableFuture<Void> closed;
+             synchronized (this) {
+                 release = this.fence;
+                 this.fence = null;
++                closed = this.closure;
+             }
+             if (release != null) {
+                 release.release();
++                if (closed != null) closed.complete(null);
+             }
+         }
+     }
 diff --git a/src/main/java/org/bukkit/craftbukkit/world/RestoreStoragePlatform.java b/src/main/java/org/bukkit/craftbukkit/world/RestoreStoragePlatform.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..2e36e7ad0740d49399b35cc68a690d63398349e7
@@ -1385,13 +1467,29 @@ index 6f560f376976945e784384f3483ea2a5c1972b68..07ccf85a962cc2542e10d51025f07d5f
      void incompleteBackendCannotAdvertiseV1OrReportPrepared() {
          var service = new CraftPlayerRestoreService();
 diff --git a/src/test/java/org/bukkit/craftbukkit/world/PlayerStoreFenceTest.java b/src/test/java/org/bukkit/craftbukkit/world/PlayerStoreFenceTest.java
-index 7f18c1c11e63202eb35555f57a0b9b72957ddd09..a5d8980e2804ec49ce8fa2701f548fb07c597773 100644
+index 7f18c1c11e63202eb35555f57a0b9b72957ddd09..9bc919246699f343242cf5cab20b39b784270ea9 100644
 --- a/src/test/java/org/bukkit/craftbukkit/world/PlayerStoreFenceTest.java
 +++ b/src/test/java/org/bukkit/craftbukkit/world/PlayerStoreFenceTest.java
-@@ -12,6 +12,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
+@@ -12,6 +12,38 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  
  @Tag("Normal")
  class PlayerStoreFenceTest {
++    @Test
++    void loginLifetimeClosesOnlyAfterItsWriterLeaseIsReleased() {
++        PlayerStoreFence fence = new PlayerStoreFence();
++        var login = fence.requireRead();
++        UUID id = UUID.randomUUID();
++        var drain = fence.close(id).toCompletableFuture();
++        var lifetime = login.closedStage().toCompletableFuture();
++        assertFalse(lifetime.isDone());
++        var verified = lifetime.thenRun(() -> assertTrue(drain.isDone()));
++        login.close();
++        verified.join();
++        login.close();
++        assertTrue(login.closedStage().toCompletableFuture().isDone());
++        fence.open(id);
++    }
++
 +    @Test
 +    void laterOwnedWritersHaveTheirOwnDrainAfterInitialClosure() {
 +        PlayerStoreFence fence = new PlayerStoreFence();

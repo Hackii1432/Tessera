@@ -40,16 +40,16 @@ downloadUrl: "https://home.mosaikdev.com"
 - Regionsfremde Perlen beim Abmelden über die interne Owner-Queue entfernt. Restore-Abschlüsse berücksichtigen Unteraufgaben und Retirement auch bei Tick-Freeze.
 - Die drei Player-Stores über vorbereitete, synchronisierte Verzeichnisbäume publiziert. Ursprüngliche Bäume und Rollback-Daten für Recovery erhalten; kurzzeitige Windows-Dateisperren begrenzt erneut versucht und dauerhafte Fehler zurückgemeldet.
 - Apply und Complete mit eindeutiger Entscheidung und idempotenten Wiederholungen versehen. Abgebrochene Caller-Futures öffnen keine noch benötigte Schreibschranke.
-- Beim Shutdown verbleibende native Arbeit erst nach dem Anhalten von Regionen und Chunk-Arbeit abgeschlossen. Nach Neustart keine alte Tessera-Transaktion eigenmächtig über eine MCC-Recovery-Entscheidung abgespielt.
+- Beim Shutdown verbleibende native Arbeit erst nach dem Anhalten von Regionen und Chunk-Arbeit abgeschlossen. In der Login-Konfiguration wartende Zulassungen abgewickelt und noch ungesicherte Zustände vor dem Abschluss dauerhaft publiziert. Nach Neustart keine alte Tessera-Transaktion eigenmächtig über eine MCC-Recovery-Entscheidung abgespielt.
 
 ### Eigene Server-/Clientprüfung
 
 - Öffentliche Transaktion mit zwei tatsächlich verbundenen Protokollclients über getrennte Regionen und Dimensionen geprüft: wiederholter Load/Resave, exakter Zustand, frische Defaults, echter Rollback und Teleport-Veto.
 - Im erfolgreichen Seamless-Lauf jeweils einen Login, keinen Kick und keinen Disconnect gemessen; echte Transfers, Statistik-Nullwerte und Fortschritts-Resets erfasst.
-- Boot-Inventar, Schulterentity, Perlen, entfernte Attribute/Rezepte/Fortschritte/PDC, tote Spieler sowie konkurrierende Requests und verzögerte Writer geprüft.
+- Boot-Inventar, Schulterentity, Perlen, entfernte Attribute/Rezepte/Fortschritte/PDC, tote und schlafende Spieler sowie konkurrierende Requests und verzögerte Writer geprüft.
 - Echte Windows-Sperrfehler beim nativen Statistik-Save und bei der Store-Publikation ausgelöst und anschließend den nativen Rollback ausgeführt.
 - In separaten Fehlerläufen Disconnect während Restore, bis Complete gesperrten Login sowie fehlenden Client-ACK mit Timeout und Rollback geprüft. Den absichtlichen Kick/Rejoin nicht als Seamless-Erfolg gezählt.
-- Stop/Neustart nach Prepare, nach Apply, während Apply und nach Commit geprüft. Danach funktionierten neuer Restore und Save; keine alte Transaktion wurde nachgespielt.
+- Stop/Neustart nach Prepare, nach Apply, während Apply, nach Commit und während eines vor Prepare zugelassenen, noch unvollständigen Logins geprüft. Danach funktionierten neuer Restore und Save; keine alte Transaktion wurde nachgespielt.
 - Unterschiedliche Zielwelt-Bindungen erhalten. Ein nach mehreren Restores neu erzeugter Chunk behielt seine Wüsten-/Rotsand-Generierung statt der globalen Ebenen-Einstellungen.
 
 ### Buildstand und Prüfgrenzen

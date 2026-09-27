@@ -73,6 +73,11 @@ bei MCC-Tick-Freeze weiter. Neue Runtime-Snapshots werden kontrolliert als
 Verbleibende native Wartestufen werden erst nach dem Anhalten von Regions- und
 Chunk-Arbeit beendet. I/O-Arbeit und Lock-Akquisition werden ebenfalls abgewickelt.
 Es gibt keinen als beendet gemeldeten, später weiterlaufenden nativen Transfer.
+Auch noch in der Konfiguration wartende Login-Zulassungen werden nach dem
+nativen Stillstand freigegeben. Fehlt zu diesem Zeitpunkt noch ein vollständiger
+Rollback-Store, werden erfasste Logout-/Shutdown-Zustände vor dem Fehlerabschluss
+dauerhaft im aktiven Store gesichert. Tatsächlich noch laufende Scheduler-Worker
+führen dagegen nicht zu einer falschen Drain-Bestätigung oder Schrankenfreigabe.
 
 Nach Neustart werden alte Transaktionen **nicht automatisch nachgespielt**.
 Die offline getroffene Welt-/Store-Entscheidung gehört weiterhin zum MCC-Journal.
@@ -100,7 +105,8 @@ echte I/O-Fehler, Offline-Cache-Generationen und neue Zielwelt-Chunks.
 
 Der separate Race-Test erzeugt absichtlich genau einen Disconnect/Rejoin und
 einen fehlenden Transfer-ACK. Der Recovery-Runner stoppt und startet eigene Server
-vor/nach Commit sowie während Apply; seine offline Dateiauswahl simuliert die
+vor/nach Commit, während Apply und während eines vor Prepare zugelassenen,
+noch nicht abgeschlossenen Logins; seine offline Dateiauswahl simuliert die
 **Aufgabe des Callers**, nicht MCC-Produktcode.
 
 Die Clients verarbeiten echte Protokollantworten, rendern aber kein Vanilla-Fenster.

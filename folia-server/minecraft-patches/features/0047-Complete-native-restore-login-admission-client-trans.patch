@@ -6,17 +6,20 @@ Subject: [PATCH] Complete native restore login admission client transfer and
 
 
 diff --git a/net/minecraft/network/Connection.java b/net/minecraft/network/Connection.java
-index ef21f392c2a2e9c2d2a58c1c80cadae672a49811..e7bc07c1e6ec953827c68f60514adfd170fd3665 100644
+index ef21f392c2a2e9c2d2a58c1c80cadae672a49811..eee4192219f2e25b9c1dfde5ffb4f890d90582c6 100644
 --- a/net/minecraft/network/Connection.java
 +++ b/net/minecraft/network/Connection.java
-@@ -121,6 +121,29 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -121,6 +121,32 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      public java.util.@Nullable Optional<net.minecraft.network.chat.Component> legacySavedLoginEventResultOverride; // Paper - playerloginevent
      public boolean handledLegacyLoginEvent; // Paper - playerloginevent
      public net.minecraft.server.level.@Nullable ServerPlayer savedPlayerForLegacyEvents; // Paper - playerloginevent & PlayerSpawnLocationEvent
 +    private org.bukkit.craftbukkit.world.PlayerStoreFence.Lease tessera$loginAdmission;
 +
 +    public synchronized boolean tessera$admitLogin() {
-+        if (this.tessera$loginAdmission == null) this.tessera$loginAdmission = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.tryRead();
++        if (this.tessera$loginAdmission == null) {
++            this.tessera$loginAdmission = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.tryRead();
++            if (this.tessera$loginAdmission != null) org.bukkit.craftbukkit.world.NativeRestoreWork.watchLoginAdmission(this.tessera$loginAdmission);
++        }
 +        return this.tessera$loginAdmission != null;
 +    }
 +
@@ -39,7 +42,7 @@ index ef21f392c2a2e9c2d2a58c1c80cadae672a49811..e7bc07c1e6ec953827c68f60514adfd1
      public org.bukkit.event.player.PlayerResourcePackStatusEvent.@Nullable Status resourcePackStatus; // Paper
      // Paper start - Optimize network
      public boolean isPending = true;
-@@ -938,6 +961,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -938,6 +964,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
                  // LOGGER.warn("handleDisconnection() called twice"); // Paper - Don't log useless message
              } else {
                  //this.disconnectionHandled = true; // Folia - region threading - may be called concurrently during configuration stage - set above
@@ -362,7 +365,7 @@ index 7a8a41c9d82327cf8c2230bba215d9a8d986eb48..c2344b366bc2137145854dd70a0e3e53
          Component error = org.bukkit.craftbukkit.event.CraftEventFactory.handleLoginResult(playerList.canPlayerLogin(this.connection.getRemoteAddress(), new NameAndId(profile), this.connection), this.paperLoginConnection, this.connection, profile, this.server, true); // Paper // Folia - region threading - add connection parameter
          if (error != null) {
 diff --git a/net/minecraft/server/network/config/PrepareSpawnTask.java b/net/minecraft/server/network/config/PrepareSpawnTask.java
-index 62b4c7c73c789f362e0f7d53daac82b13d6e45c0..f238cb5e24dca111ad0ed32cb203f4e4a045eaae 100644
+index 62b4c7c73c789f362e0f7d53daac82b13d6e45c0..aa09e90ce99d4a2a682284eed359becf935688ad 100644
 --- a/net/minecraft/server/network/config/PrepareSpawnTask.java
 +++ b/net/minecraft/server/network/config/PrepareSpawnTask.java
 @@ -36,7 +36,9 @@ public class PrepareSpawnTask implements ConfigurationTask {
@@ -376,17 +379,20 @@ index 62b4c7c73c789f362e0f7d53daac82b13d6e45c0..f238cb5e24dca111ad0ed32cb203f4e4
      private java.util.concurrent.CompletionStage<Void> tessera$spawnChildren = CompletableFuture.completedStage(null);
  
      // Paper start - passthrough profile and packet listener
-@@ -57,7 +59,8 @@ public class PrepareSpawnTask implements ConfigurationTask {
+@@ -57,7 +59,11 @@ public class PrepareSpawnTask implements ConfigurationTask {
      public void start(final Consumer<Packet<?>> connection) {
          if (this.tessera$closed) return;
          if (this.tessera$storeAdmission == null) {
 -            this.tessera$storeAdmission = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.tryRead();
 +            this.tessera$storeAdmission = this.listener.connection.tessera$takeLoginAdmission();
-+            if (this.tessera$storeAdmission == null) this.tessera$storeAdmission = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.tryRead();
++            if (this.tessera$storeAdmission == null) {
++                this.tessera$storeAdmission = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.tryRead();
++                if (this.tessera$storeAdmission != null) org.bukkit.craftbukkit.world.NativeRestoreWork.watchLoginAdmission(this.tessera$storeAdmission);
++            }
              if (this.tessera$storeAdmission == null) return; // Retry from configuration ticks, never block a thread.
          }
          try (var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(this.tessera$storeAdmission)) {
-@@ -163,15 +166,17 @@ public class PrepareSpawnTask implements ConfigurationTask {
+@@ -163,15 +169,17 @@ public class PrepareSpawnTask implements ConfigurationTask {
  
      public ServerPlayer spawnPlayer(final Connection connection, final CommonListenerCookie cookie, final ServerPlayer player) { // Folia - add ServerPlayer param
          try (var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(this.tessera$storeAdmission)) {
@@ -407,7 +413,7 @@ index 62b4c7c73c789f362e0f7d53daac82b13d6e45c0..f238cb5e24dca111ad0ed32cb203f4e4
          }
      }
  
-@@ -210,8 +215,9 @@ public class PrepareSpawnTask implements ConfigurationTask {
+@@ -210,8 +218,9 @@ public class PrepareSpawnTask implements ConfigurationTask {
          }
      }
  
@@ -418,7 +424,7 @@ index 62b4c7c73c789f362e0f7d53daac82b13d6e45c0..f238cb5e24dca111ad0ed32cb203f4e4
          if (this.state instanceof PrepareSpawnTask.Preparing preparing) {
              preparing.cancel();
          }
-@@ -220,7 +226,21 @@ public class PrepareSpawnTask implements ConfigurationTask {
+@@ -220,7 +229,21 @@ public class PrepareSpawnTask implements ConfigurationTask {
          this.tessera$releaseAdmission();
      }
  

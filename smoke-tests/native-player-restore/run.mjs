@@ -85,6 +85,13 @@ function output(data) {
     }
   }
   if (mode === 'native-restore-recovery') {
+    if (!handledSignals.has('LOGIN_HOLD') && log.includes('NATIVE_RESTORE_RACE_LOGIN_HOLD')) {
+      handledSignals.add('LOGIN_HOLD');
+      connectPlayer(repo, port, 'WaitingLogin', event => {
+        events.push(event);
+        if (event.type === 'configuration_held') writeFileSync(path.join(work, 'native-restore-evidence/runner-LOGIN_HOLD'), 'configuration paused');
+      }, {shouldFinishConfiguration: () => false}).catch(error => { if (!stopping) fail(error); });
+    }
     if (!handledSignals.has('ACK_HOLD') && log.includes('NATIVE_RESTORE_RACE_ACK_HOLD')) {
       handledSignals.add('ACK_HOLD'); holdAck = true;
       writeFileSync(path.join(work, 'native-restore-evidence/runner-ACK_HOLD'), 'acknowledged');

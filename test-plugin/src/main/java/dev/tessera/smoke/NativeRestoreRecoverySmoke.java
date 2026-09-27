@@ -49,7 +49,7 @@ final class NativeRestoreRecoverySmoke {
         var world = await(global(() -> Bukkit.getWorlds().getFirst()));
         await(global(() -> { Bukkit.getServerTickManager().setFrozen(true); return null; }));
         if (restarted) {
-            int expected = phase.equals("committed") ? 137 : 999;
+            int expected = phase.equals("committed") ? 137 : phase.equals("login") ? 111 : 999;
             for (Player player : players) require(await(owner(player, player::getTotalExperience)) == expected, "boot follows caller recovery decision, not stale native transaction");
             Object fence = type("org.bukkit.craftbukkit.world.PlayerStoreFence").getField("INSTANCE").get(null);
             require(!(boolean)call(fence, "isClosed"), "restart has no stale native fence");
@@ -70,8 +70,23 @@ final class NativeRestoreRecoverySmoke {
         require(await(await(global(() -> Bukkit.getRuntimeWorldManager().snapshotWorldsAsync(List.copyOf(Bukkit.getWorlds()), source.getParent())))).successful(), "recovery source saved");
         for (Player player : players) await(owner(player, () -> { player.setTotalExperience(999); return null; }));
         UUID operation = UUID.randomUUID();
-        check(await(service.prepareAsync(operation, source, rollback, world)), PlayerRestoreStatus.PREPARED);
-        if (!phase.equals("prepared")) {
+        if (phase.equals("login")) {
+            for (Player player : players) await(owner(player, () -> { player.saveData(); player.setTotalExperience(111); return null; }));
+            this.plugin.getLogger().info("NATIVE_RESTORE_RACE_LOGIN_HOLD");
+            until = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+            while (!Files.exists(evidence.resolve("runner-LOGIN_HOLD")) && System.nanoTime() < until) Thread.sleep(10);
+            require(Files.exists(evidence.resolve("runner-LOGIN_HOLD")), "actual admitted configuration client paused");
+            CompletionStage<PlayerRestoreResult> preparing = service.prepareAsync(operation, source, rollback, world);
+            preparing.whenComplete((result, failure) -> {
+                try { Files.writeString(evidence.resolve("shutdown-prepare-result.txt"), result == null ? String.valueOf(failure) : result.toString()); }
+                catch (Exception error) { this.plugin.getLogger().log(java.util.logging.Level.SEVERE, "Cannot record prepare shutdown drain", error); }
+            });
+            Object fence = type("org.bukkit.craftbukkit.world.PlayerStoreFence").getField("INSTANCE").get(null);
+            until = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+            while (!(boolean)call(fence, "isClosed") && System.nanoTime() < until) Thread.sleep(10);
+            require((boolean)call(fence, "isClosed") && !preparing.toCompletableFuture().isDone() && !Files.exists(rollback), "prepare waits for the admitted login before making backup");
+        } else check(await(service.prepareAsync(operation, source, rollback, world)), PlayerRestoreStatus.PREPARED);
+        if (!phase.equals("prepared") && !phase.equals("login")) {
             if (phase.equals("inflight")) {
                 this.plugin.getLogger().info("NATIVE_RESTORE_RACE_ACK_HOLD");
                 until = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);

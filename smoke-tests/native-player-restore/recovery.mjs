@@ -22,7 +22,7 @@ async function run(stage, work, restart) {
   return path.resolve(match[1]);
 }
 const results = [];
-for (const stage of ['prepared', 'applied', 'inflight', 'committed']) {
+for (const stage of (process.env.NATIVE_RESTORE_RECOVERY_ONLY ? [process.env.NATIVE_RESTORE_RECOVERY_ONLY] : ['prepared', 'applied', 'inflight', 'committed', 'login'])) {
   const work = await run(stage, undefined, false);
   const evidence = path.join(work, 'native-restore-evidence');
   const active = path.resolve(readFileSync(path.join(evidence, 'recovery-active-path.txt'), 'utf8').trim());
@@ -32,7 +32,12 @@ for (const stage of ['prepared', 'applied', 'inflight', 'committed']) {
     const drained = readFileSync(path.join(evidence, 'shutdown-apply-result.txt'), 'utf8');
     if (!drained.includes('SERVER_STOPPING') && !drained.includes('TRANSFER_FAILED')) throw Error('In-flight apply was not explicitly drained as failure: ' + drained);
   }
-  if (stage !== 'committed') {
+  if (stage === 'login') {
+    const drained = readFileSync(path.join(evidence, 'shutdown-prepare-result.txt'), 'utf8');
+    if (!drained.includes('SERVER_STOPPING')) throw Error('Admitted-login prepare did not drain as a shutdown failure: ' + drained);
+    if (existsSync(rollback)) throw Error('Incomplete backup must not be advertised for waiting login');
+  }
+  if (stage !== 'committed' && stage !== 'login') {
     // Preserve the original tree and restore the fresh backup selected by the
     // caller. No native transaction is allowed to replay over this decision.
     renameSync(active, active + '.retained-before-caller-recovery');

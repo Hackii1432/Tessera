@@ -92,7 +92,10 @@ export async function connectPlayer(repo, port, username, observe = () => {}, co
             else if (id.value === loginIn.LOGIN_DISCONNECT) throw Error('Login rejected: ' + data.toString());
           } else if (state === 'config') {
             if (id.value === configIn.SELECT_KNOWN_PACKS) send(configOut.SELECT_KNOWN_PACKS, vi(0));
-            else if (id.value === configIn.FINISH_CONFIGURATION) { send(configOut.FINISH_CONFIGURATION); state = 'play'; console.log('CLIENT_PLAY', username); resolve(username); }
+            else if (id.value === configIn.FINISH_CONFIGURATION) {
+              if (controls.shouldFinishConfiguration?.() === false) { observe({type: 'configuration_held', username}); continue; }
+              send(configOut.FINISH_CONFIGURATION); state = 'play'; console.log('CLIENT_PLAY', username); resolve(username);
+            }
             else if (id.value === configIn.KEEP_ALIVE) send(configOut.KEEP_ALIVE, data);
             else if (id.value === configIn.PING) send(configOut.PONG, data);
             else if (id.value === configIn.DISCONNECT) throw Error('Configuration disconnected');
