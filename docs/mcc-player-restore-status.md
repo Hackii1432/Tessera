@@ -1,21 +1,15 @@
-# Nativer Spieler-Restore – Build 010, unvollständiger Prüfstand
+# Nativer Spieler-Restore – Tessera 26.3-010-alpha
 
-Stand: 27.09.2026. Ausgangspunkt: `ver/26.3.x`,
-`6ededc28656e3adf1d2881d0e5e68854884353cf` (Tessera 26.3-009-alpha).
-Minecraft/API 26.3, Java 25. Die Wolfs-KI-Korrekturen aus 009 bleiben erhalten.
-MCC, MVE und Sinopia wurden für diesen Auftrag nicht geändert.
+Stand: 27.09.2026. Die native Serveranbindung implementiert Vertrag **1**.
+Die öffentliche Transaktion wurde auf eigenen isolierten Servern mit verbundenen
+Protokollclients geprüft. Der komplette MCC-/MVE-Stack ist separat zu prüfen.
+Quellcommit, finale JAR und Prüfprotokoll: [Build 010](BUILD-26.3-010.md).
 
-**Der vollständige Auftrag ist noch nicht erfüllt. Build 010 ist ein
-unvollständiger Prüfbuild, kein funktionierender MCC-Seamless-Load.**
-`CraftPlayerRestoreService.contractVersion()` bleibt `0`; Prepare und
-Vorwärts-Apply sind weiterhin nicht verfügbar. Die neuen nativen Komponenten
-sind kein Ersatz für die noch fehlende öffentliche Dateitransaktion.
-
-## Unveränderte öffentliche Schnittstelle
+## Unveränderter API-Vertrag
 
 ```java
 PlayerRestoreService Bukkit.getPlayerRestoreService();
-int contractVersion();
+int contractVersion(); // 1 auf dem konfigurierten Tessera-Server
 CompletionStage<PlayerRestoreResult> prepareAsync(
     UUID operationId, Path sourcePlayers, Path rollbackPlayers, World fallbackWorld);
 CompletionStage<PlayerRestoreResult> applyAsync(UUID operationId, boolean forward);
@@ -23,142 +17,112 @@ CompletionStage<PlayerRestoreResult> completeAsync(UUID operationId, boolean com
 boolean isRestoreTeleport(PlayerTeleportEvent event, UUID operationId);
 ```
 
-Nur `PREPARED`, `APPLIED`, `ROLLED_BACK` und `COMPLETED` sind Erfolgsstatus.
-Die vorhandenen Fehlerstatus bleiben unverändert. Der öffentliche Dienst
-meldet bei Prepare `UNSUPPORTED`, verändert dabei keine Dateien und installiert
-keine native Schranke. Rollback/Complete false können diesen wirkungslosen
-Versuch abschließen. Das ist kein erfolgreicher Online-Restore.
+MCC 0.7.5 entdeckt den Vertrag über seinen bestehenden Pfad. Eine neue
+MCC-Schnittstelle ist nicht vorgesehen. Das ersetzt nicht den erneuten gemeinsamen
+Integrationslauf mit dem konkreten Plugin-Stack.
 
-Der Teleport-Scope ist jetzt mit dem nativen Komponentenpfad verbunden:
-Er gilt ausschließlich für die konkrete Ereignisinstanz, Operation und den
-Dispatch-Thread. Ein beliebiger Spieler-/Zeitfenster-Marker wird nicht verwendet.
+## Transaktion und Zuständigkeit
 
-## Tatsächlich angebundene native Komponenten
+- Prepare prüft getrennte Pfade, die Stores `data`, `stats`, `advancements`,
+  NBT/JSON, Datenversionen, Weltverweise und Entity-Identitäten. Die Rollback-Wurzel
+  darf nicht existieren; die Quelle bleibt unverändert.
+- Bereits zugelassene Logins und Writer werden abgewartet. Aktuelle Spielerzustände
+  werden auf ihren Besitzern aufgenommen und als synchronisierter frischer
+  Rollback-Store publiziert. Erst danach wird `PREPARED` gemeldet.
+- Vorwärts-Apply publiziert die vorbereiteten Stores und ersetzt die verbundenen
+  Spieler auf ihren tatsächlichen Besitzern. Spieler ohne Save-Eintrag erhalten
+  frische Vanilla-Zustände in der expliziten Fallback-Welt.
+- Fahrzeuge, Schulterentities, Perlen, Unteraufgaben und die konkrete
+  Client-Transferbestätigung gehören zum Abschluss. Spielerinstanz, Verbindung,
+  Entity-Scheduler und Inventar-Wrapper bleiben erhalten.
+- Rückwärts-Apply wartet vorausgehende Arbeit ab und stellt den frischen
+  Rollback-Store einschließlich verbundener Spieler wieder her. Ein vor Prepare
+  abgebrochener Bezeichner wird später nicht erneut gestartet.
+- Complete gibt die Schranke nur für die passende angewendete Entscheidung und
+  nach dem Writer-Drain frei. **Vor Complete(true) muss MCC seine Commit-Entscheidung
+  dauerhaft sichern.** Gegenläufige späte Requests werden zurückgewiesen;
+  Wiederholungen liefern die vorhandene Entscheidung.
 
-- Gezählt zugelassene Zugriffe in `PlayerDataStorage`, `PlayerList`,
-  `ServerStatsCounter` und `PlayerAdvancements`; Generationsprüfung vor dem
-  Schreiben verhindert Writes veralteter Cache-Instanzen nach einem Wechsel.
-- `PrepareSpawnTask` behält eine Speicherzulassung bis einschließlich seiner
-  eingereihten Enderperlenarbeit. Neue Vorbereitungen warten nicht blockierend
-  in der Konfigurationsphase auf eine geöffnete Schranke.
-- Bereits zugelassene Runtime-Snapshots übertragen ihre Zulassung in ihre
-  tatsächlichen Owner-Saves. Neue Snapshots werden bei geschlossener
-  Restore-Schranke mit `SOURCE_BUSY` abgewiesen.
-- Die interne Restore-Queue läuft auf dem aktuellen Entity-Owner, prüft ihn
-  nach jedem Auftrag erneut und wartet zurückgegebene Unteraufgaben ab.
-  Caller-Cancellation hebt die intern besessene Arbeit nicht auf. Die bereits
-  vorhandene Snapshot-Tick-Schranke wird nicht umgangen.
-- Eine geschlossene native Schranke unterbindet Spieler-Ticks und eingehende
-  Gameplay-Pakete. Vanilla-Tick-Freeze allein tut das für Spieler nicht.
-  Verbindungspflege, Transferbestätigungen und Client-Load laufen weiter.
-- `NativePlayerRestoreState` prüft kopierte NBT-/JSON-Daten mit Datenfixierung
-  und einer abgetrennten Vorschauinstanz vor dem Ersetzen eines Spielers.
-  Identität, Zielwelt und endliche Zielposition werden geprüft. Die Quelle
-  wird nicht als Arbeitskopie verwendet.
-- Inventare und Endertruhe werden unter Beibehaltung ihrer Wrapper geleert
-  und ersetzt. Rezepte, Attribute, Effekte, Fähigkeiten, Spielmodus und PDC
-  werden nicht bloß additiv eingelesen. Der native Spieler, die Verbindung
-  und der Entity-Scheduler bleiben dieselben Instanzen.
-- Statistik-Maps werden ersetzt und entfernte Werte explizit als Null an den
-  Client gesendet. Fortschritte ersetzen Triggerregistrierungen und senden
-  auch bei leerem Zielzustand einen echten Client-Reset ohne Reward-Replay.
-- Restore-Teleports dispatchen ein operationsgebundenes Bukkit-Ereignis;
-  Veto oder Umleitung führen zu einem Fehler. Die Stage berücksichtigt die
-  echte Client-Bestätigung, nicht nur das Einreihen des Transfers.
-- Der Perlen-Ladepfad liefert nun eine Stage über seine Region-Unteraufgaben.
-  Dekodierung/World-Add erfolgen auf der Zielregion. Ersetzte eigene Perlen
-  werden auf ihrem jeweiligen Owner entfernt. Der Komponentenpfad enthält
-  außerdem einen Fahrzeug-Ladepfad; dessen vollständige Abnahme steht aus.
+Kein Plugin darf diese Futures synchron auf Regions-, Global- oder Netzwerkthreads
+abwarten. Caller-Cancellation beendet nur die Sicht des Callers. Nach Fehler oder
+Timeout bleibt die Schranke bis zur ausdrücklichen Recovery/Completion erhalten;
+ein Plugin-Disable öffnet sie nicht pauschal.
 
-## Verbleibende native Freigabeblocker
+## Native Implementierung
 
-1. **Die öffentliche Backend-Transaktion fehlt weiterhin.** Es gibt noch
-   keine durchgängige Prepare/Apply/Complete-Verknüpfung aus validierter
-   Quelle, frischem Rollback-Store, dauerhafter Publikation und Rebind aller
-   Online-/Offline-Generationen. Minecraft 26.3 verwendet hier tatsächlich
-   `<level>/players/{data,stats,advancements}`.
-2. **Disconnect vor bzw. während des Rollback-Backups ist nicht abgesichert.**
-   Ein bei geschlossener Schranke abgewiesener Logout-Save muss transaktional
-   als unveränderlicher Endzustand übernommen oder anderweitig sicher
-   abgeschlossen werden. Bloßes Überspringen des Writers genügt nicht.
-   Auch der Legacy-Login-Event-Pfad vor `PrepareSpawnTask` braucht eine
-   durchgehende Zulassung. Deshalb wird die Schranke nicht öffentlich aktiviert.
-3. **Abbruch und Shutdown während eines nativen Cross-Region-Transfers:**
-   Der vorhandene Entity-Teleportpfad kann bei Shutdown die Platzierung
-   übernehmen, ohne den normalen Callback auszuführen. Ein Timeout auf der
-   äußeren Future würde dann keinen echten Drain beweisen. Der Komponentenpfad
-   löst dieses gesamte Lebenszyklusproblem noch nicht; Freigabe einer Schranke
-   allein aufgrund eines solchen Timeouts wäre unsicher.
-4. **Vollständige Vorprüfung und Recovery von Anhängen:** Fahrzeuge,
-   Schulterentities, Perlen, UUID-Kollisionen und Weltverweise müssen als eine
-   zusammengehörige, rollbackfähige Operation geprüft werden. Der derzeitige
-   Komponentenpfad kann nach Teilmutation fehlschlagen und verlangt dafür eine
-   übergeordnete Transaktion, die noch fehlt. Bereits tote Spieler werden
-   derzeit abgewiesen statt vollständig in den Restore integriert.
-5. **Dauerhafte Dateipublikation und Entscheidung:** Die bestehenden
-   Dateihilfen benötigen weiterhin eine verifizierte plattformspezifische
-   Dauerhaftigkeitsstrategie. Java-Verzeichnis-`force(true)` scheitert in
-   dieser Windows-Umgebung mit `AccessDeniedException`. Ein erfolgreicher
-   Datei-Rename allein ist kein geprüfter Crash-Recovery-Nachweis.
-   Welt-Lifecycle-Locks, MCC-Entscheidung und Wiederanlauf müssen gemeinsam
-   angebunden werden; eine alte Tessera-Operation darf nicht später eigenmächtig
-   nach einer MCC-Recovery fortgesetzt werden.
+- `NativePlayerRestoreBackend` besitzt Transaktion, I/O-Arbeit und Welt-/Snapshot-Koordination.
+- `PlayerStoreFence` zählt Login-/Writer-Zulassungen. Generationen verhindern
+  spätes Zurückschreiben alter Spieler-, Statistik- und Fortschrittsmanager.
+- Die interne Owner-Queue läuft unabhängig von Gameplay-Ticks innerhalb der
+  Regions-/Snapshot-Sicherungen. Threadschutzprüfungen bleiben aktiv.
+- `NativePlayerRestoreState` ersetzt NBT-Zustand, Rezepte, Statistiken,
+  Fortschritts-Trigger und Client-Caches. Entfernte Werte werden nicht additiv behalten.
+- `NativeRestoreAttachments` prüft und ersetzt gespeicherte Entity-Graphen.
+- `RestoreStoragePlatform` erzwingt Datei-Synchronisation und POSIX-Verzeichnis-
+  Synchronisation beziehungsweise nicht überschreibende Windows-Write-through-
+  Umbenennungen. Fehlgeschlagene Publikation erhält die betroffenen Bäume.
+- Vorbereitete Weltgeneratoren/Biombindungen werden nicht durch globale Einstellungen ersetzt.
 
-Diese Punkte sind Implementierungslücken in Tessera, **keine fehlenden
-Nutzerpfade oder externen Testartefakte**. Vertrag 1 ist daher nicht freigegeben.
+Neue gewöhnliche Logins und Player-Store-Zugriffe sind während der Transaktion
+gesperrt. Verbindungspflege, Restore-Arbeit und Transferbestätigungen laufen auch
+bei MCC-Tick-Freeze weiter. Neue Runtime-Snapshots werden kontrolliert als
+`SOURCE_BUSY` abgelehnt.
 
-## Eigene native Tests
+## Shutdown und Recovery
 
-`smoke-tests/native-player-restore/run.mjs` startet ausschließlich einen neuen
-disponiblen Server unter `build/native-restore-smoke-<timestamp>`, auf einem
-freien Loopback-Port, mit dem separaten Testplugin und zwei echten
-Offline-Protokollclients. Produktive Welten und vorhandene Saves werden nicht
-verwendet. Die Clients rendern kein Vanilla-Fenster, bedienen aber Login,
-Konfiguration, Keepalive, Chunk-Batches und die echten 26.3-Teleportbestätigungen.
+Verbleibende native Wartestufen werden erst nach dem Anhalten von Regions- und
+Chunk-Arbeit beendet. I/O-Arbeit und Lock-Akquisition werden ebenfalls abgewickelt.
+Es gibt keinen als beendet gemeldeten, später weiterlaufenden nativen Transfer.
 
-Der Test erreicht native Entity-Transfers, Statistik-/Fortschritts-Resets,
-Spieler-NBT und alle drei Snapshot-Schreiber. Er prüft getrennte Regionen und
-Dimensionen, wiederholte Ersetzung, Inventar-/Endertruhen-Wrapperidentität,
-XP, Gesundheit, Hunger, Attribute, Effekte, Spielmodus, PDC, Rezepte,
-entfernte Statistikwerte, frische Defaults, Teleport-Veto und erneute Saves.
-Die Snapshot-NBT-Dateien werden gelesen und ihre XP-Werte geprüft. Empfangene
-Client-Reset-Pakete und Login-/Kick-/Disconnect-Zähler stehen im Ergebnis-JSON.
-Auch eine eigene Enderperle wird wiederholt auf dem Ziel-Owner ersetzt und beim
-frischen Zustand entfernt. Der abschließende Lauf auf der gebauten 010-JAR
-bestand mit zwei Clients: jeweils ein Login, kein Kick und kein Disconnect.
+Nach Neustart werden alte Transaktionen **nicht automatisch nachgespielt**.
+Die offline getroffene Welt-/Store-Entscheidung gehört weiterhin zum MCC-Journal.
+Erhaltene ursprüngliche Player-Store-Bäume und Rollback-Daten unterstützen diese
+Recovery. Prozess-Neustarttests simulieren keine defekten Datenträger oder
+Hardware-Stromausfälle.
 
-Wichtig: Der Test ruft den nativen **Komponentenpfad** auf. Er gibt ausdrücklich
-`publicTransactionAccepted: false` und `contractVersion: 0` aus. Ein Test dieses
-Pfades ist **keine** Abnahme des öffentlichen Prepare/Apply/Complete-Vertrags.
-Auch erneutes Einspielen eines In-Memory-Zustands ist kein nachgewiesener
-Rollback einer veröffentlichten Dateitransaktion.
+## Eigene native Abnahme
 
-## Build und Wiederholung
+Die Runner verwenden neue, markierte Verzeichnisse unter `build`, freie
+Loopback-Ports und ein separates Testplugin. Kein produktiver Save ist eine Fixture.
 
 ```powershell
-.\gradlew.bat buildTessera :test-plugin:jar --console=plain --max-workers=2 --no-parallel
-node smoke-tests/native-player-restore/run.mjs "<Java-25-Verzeichnis>/bin/java.exe"
+node smoke-tests/native-player-restore/run.mjs "C:/Program Files/Java/jdk-25.0.3/bin/java.exe"
+$env:NATIVE_RESTORE_MODE = 'native-restore-races'
+node smoke-tests/native-player-restore/run.mjs "C:/Program Files/Java/jdk-25.0.3/bin/java.exe"
+Remove-Item Env:NATIVE_RESTORE_MODE
+node smoke-tests/native-player-restore/recovery.mjs "C:/Program Files/Java/jdk-25.0.3/bin/java.exe"
 ```
 
-Die native Serverarbeit wird über eigene Minecraft-/Server-Feature-Patches
-gesichert; der Build wendet sie erneut an. Die ausführbare Prüf-JAR ist
-`build/libs/tessera-server-26.3.build.010-alpha.jar`.
-Abschließende Build-/JAR- und Prüfnachweise stehen in
-[BUILD-26.3-010.md](BUILD-26.3-010.md).
-Der vollständige `buildTessera`-Lauf war erfolgreich; die geprüfte JAR stammt
-aus Quellcommit `369e367b71deca62d2bef6018b669a3c22195f8d`. SHA-256,
-Testzahlen und die Nachweise der Patch-Wiederanwendung stehen im Buildbericht.
+Die Hauptprüfung verlangt Vertrag exakt `1`, zwei verbundene Clients,
+exakten Zustand, Wiederholung/Resave, echten Rollback und keinen Reconnect.
+Sie umfasst leere Saves, entfernte Einträge, Fahrzeuge/Perlen, Writer-/Request-Rennen,
+echte I/O-Fehler, Offline-Cache-Generationen und neue Zielwelt-Chunks.
 
-## MCC-/MVE-Folgeabnahme – nicht durchgeführt
+Der separate Race-Test erzeugt absichtlich genau einen Disconnect/Rejoin und
+einen fehlenden Transfer-ACK. Der Recovery-Runner stoppt und startet eigene Server
+vor/nach Commit sowie während Apply; seine offline Dateiauswahl simuliert die
+**Aufgabe des Callers**, nicht MCC-Produktcode.
 
-MCC 0.7.5 erkennt hier weiterhin Vertrag 0. Es wurde kein neuer API-Pfad und
-kein erzwungener Reconnect als Seamless-Erfolg eingeführt. Bei künftig
-vollständig eingehaltenem Vertrag 1 sollte der vorhandene MCC-Adapter genügen;
-das ist mit diesem Prüfbuild noch nicht gemeinsam nachgewiesen.
+Die Clients verarbeiten echte Protokollantworten, rendern aber kein Vanilla-Fenster.
+Die native Laufzeitabnahme erfolgte auf Windows mit Java 25, nicht zusätzlich auf Linux.
 
-Offen bleiben die komplette MCC-/MVE-Integration einschließlich wiederholtem
-Load/Resave, echtem Rollback und freigegebenen Logins; MVE-Vanilla-/Lifetime-
-Statistiktrennung, Primary-World-/Baseline-Bindung; NORMAL/SINGLE_BIOME und
-Single Structure samt Nether/End nach Reset und neuer Chunk-Generierung;
-geöffnetes MCC-Backpack sowie TAB-/LuckPerms-Zusammenspiel. Native
-Komponententests ersetzen diese Plugin-Abnahme nicht.
+## Offene gemeinsame MCC-/MVE-Abnahme
+
+Der genaue Stack MCC 0.7.5, MVE 26.3-1.5.00, TAB 6.2.0 und LuckPerms 5.5.85
+war für diese eigenen Läufe nicht vollständig als ausführbarer Stack vorhanden.
+MVE-JARs waren verfügbar; die gefundenen MCC-JARs waren ältere Versionen.
+MCC-/MVE-Produktcode wurde nicht geändert oder ersetzt.
+
+Noch gemeinsam auszuführen, nicht als native Tests mitgezählt:
+
+- MCC-Save/Load über mehrere Regionen/Dimensionen, wiederholter Load/Resave,
+  Rollback und freigegebene Logins; erfolgreicher Load ohne Kick/Reconnect.
+- MVE: Vanilla-Stats zurücksetzen, Lifetime-Stats erhalten; Primary-World-Bindung
+  und Baseline nach wiederholtem Load prüfen.
+- Echte MCC-Resets `NORMAL ↔ SINGLE_BIOME` und Single Structure einschließlich
+  Nether/End; gespeicherte Generatoren müssen für neue Chunks erhalten bleiben.
+- Geöffneten MCC-Backpack vor dem Snapshot schließen und Inhalte nach Load
+  zusammen mit dem Spielerinventar prüfen.
+
+Die gebaute JAR und nativen Nachweise stehen für diese Folgeabnahme zur Verfügung.
+Ein erzwungener Reconnect ist kein erfolgreicher Seamless-Load.

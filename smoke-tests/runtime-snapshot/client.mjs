@@ -23,7 +23,7 @@ function packetMap(repo, protocol, direction) {
   return Object.fromEntries(names.map((n, i) => [n.replace(direction + '_', ''), i]));
 }
 
-export async function connectPlayer(repo, port, username, observe = () => {}) {
+export async function connectPlayer(repo, port, username, observe = () => {}, controls = {}) {
   const protocol = await new Promise((resolve, reject) => {
     const probe = net.connect({host: '127.0.0.1', port});
     let response = Buffer.alloc(0);
@@ -111,9 +111,12 @@ export async function connectPlayer(repo, port, username, observe = () => {}) {
               const coordinates = Buffer.alloc(32);
               position.forEach((v, i) => coordinates.writeDoubleBE(v, i * 8));
               rotation.forEach((v, i) => coordinates.writeFloatBE(v, 24 + i * 4));
-              send(gameOut.ACCEPT_TELEPORTATION, Buffer.concat([vi(teleport.value), ...(extendedAck ? [coordinates] : [])]));
-              if (gameOut.PLAYER_LOADED !== undefined) send(gameOut.PLAYER_LOADED);
-              observe({type: 'teleport', username, id: teleport.value, position, rotation});
+              const acknowledged = controls.shouldAck?.() !== false;
+              if (acknowledged) {
+                send(gameOut.ACCEPT_TELEPORTATION, Buffer.concat([vi(teleport.value), ...(extendedAck ? [coordinates] : [])]));
+                if (gameOut.PLAYER_LOADED !== undefined) send(gameOut.PLAYER_LOADED);
+              }
+              observe({type: 'teleport', username, id: teleport.value, position, rotation, acknowledged});
             } else if (id.value === gameIn.DISCONNECT) {
               observe({type: 'kicked', username});
             } else if (id.value === gameIn.AWARD_STATS) {

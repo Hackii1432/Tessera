@@ -1,7 +1,7 @@
 ---
 version: 0.0.10
-title: "26.3 – Nativer Spieler-Restore: Prüfbuild"
-description: "Tessera Build 010 – native Restore-Komponenten und verbundene Clienttests; vollständiger MCC-Seamless-Load noch nicht freigegeben"
+title: "26.3 – Nativer Seamless-Spieler-Restore"
+description: "Tessera Build 010 – Restore-Transaktionen mit verbundenen Spielern, regionsicherem Welttransfer und frischem Rollback"
 date: 2026-09-27
 minecraftVersion: "26.3"
 status: alpha
@@ -9,49 +9,56 @@ breaking: false
 tags:
   - Tessera
   - Player-Restore
+  - Seamless-Load
   - Region-Threading
-  - Prüfbuild
+  - Bugfixes
 releaseUrl: "https://github.com/Hackii1432/Tessera/"
 downloadUrl: "https://home.mosaikdev.com"
 ---
 
 ## Beschreibung
 
-### Native Speicher- und Regionsanbindung
+### Nativer Seamless-Load
 
-- Native Spielerdatei-, Statistik- und Fortschrittszugriffe an gezählte Speicherzulassungen und Cache-Generationen angebunden.
-- Laufende Login-Vorbereitung und Runtime-Snapshot-Saves in diese Zulassung aufgenommen. Neue Runtime-Snapshots bei geschlossener Restore-Schranke kontrolliert zurückgewiesen.
-- Interne Restore-Aufgaben auf dem tatsächlichen Entity-Owner ausgeführt und deren Unteraufgaben in den Stage-Abschluss aufgenommen. Caller-Cancellation gibt intern laufende Arbeit nicht vorzeitig frei.
-- Spieler-Gameplay bei geschlossener nativer Schranke zusätzlich angehalten. Vanilla-Tick-Freeze allein lässt Spieler weiter ticken. Verbindungspflege und Transferbestätigungen bleiben möglich.
+- Den bisher nicht aktivierten Spieler-Restore durch eine native Prepare-/Apply-/Complete-Transaktion ersetzt und Vertrag `1` über `Bukkit.getPlayerRestoreService()` aktiviert.
+- Gespeicherte Spielerzustände bei bestehender Verbindung in vorbereitete Zielwelten übertragen. Im Erfolgsfall weder Kick oder Reconnect noch künstliche Join-/Quit-Ereignisse erzeugt.
+- Wiederholtes Laden, erneutes Speichern, frische Spieler ohne Save-Eintrag und Wiederherstellung aus einem unmittelbar zuvor erstellten Rollback-Store ergänzt.
+- Native Spielerinstanz, Verbindung, Scheduler sowie Inventar- und Endertruhen-Wrapper beibehalten.
 
-### Spielerzustand und Client
+### Speicher, Regionen und Clientzustand
 
-- Einen nativen Komponentenpfad zum Vorprüfen und Ersetzen von Spielerzuständen ergänzt, einschließlich kopierter NBT-/JSON-Daten und Datenfixierung.
-- Inventar, Endertruhe, XP, Gesundheit, Hunger, Attribute, Effekte, Fähigkeiten, Spielmodus, Rezepte und PDC ersetzt; nicht mehr gespeicherte additive Einträge entfernt.
-- Native Spielerinstanz, Verbindung, Entity-Scheduler sowie Inventar- und Endertruhen-Wrapper beibehalten.
-- Statistik-Maps ersetzt und entfernte Client-Werte explizit auf Null gesetzt. Fortschritte und Trigger ersetzt und auch bei leerem Zustand einen Client-Reset gesendet.
-- Restore-Teleports mit einem auf das konkrete Ereignis und die Operation begrenzten Scope versehen. Veto und Umleitung werden als Fehler behandelt; der Abschluss wartet auf die Client-Bestätigung.
-- Enderperlen-Laden um nachvollziehbare Unteraufgaben erweitert und den Zielchunk vor dem World-Add asynchron vorbereitet. Perlenzustand wird auf der Zielregion dekodiert.
+- Laufende Login-Zulassungen, Logout, Autosave, `saveData`, Runtime-Snapshots sowie Online- und Offline-Statistikzugriffe in die native Schreibschranke einbezogen. Alte Cache-Generationen können wiederhergestellte Dateien nicht überschreiben.
+- NBT-/JSON-Daten, Weltverweise und Entity-Identitäten vor der Zustandsänderung geprüft und mit Vanilla-Datenfixierung verarbeitet. Die Quelle bleibt unverändert.
+- Inventar, Endertruhe, XP, Gesundheit/Hunger, Attribute und Modifikatoren, Effekte, Fähigkeiten, Spielmodus, Respawn, PDC, Rezepte, Statistiken und Fortschritte einschließlich Triggern ersetzt. Entfernte additive Einträge bleiben nicht erhalten.
+- Client-Resets einschließlich expliziter Statistik-Nullwerte und Fortschritts-Reset gesendet. Tote Spieler erhalten einen nativen Respawn-/Transfer-Reset bei unveränderter Verbindung.
+- Restore-Arbeit auf den tatsächlichen Besitzern auch bei eingefrorenen Spielticks ausgeführt. Verbindungspflege und Transferbestätigungen bleiben aktiv; Region- und Global-Thread warten nicht synchron auf Transaktions-Futures.
+- Teleport-Ereignisse an das konkrete Ereignis und die Operation gebunden. Veto, Umleitung und fehlende Client-Bestätigungen werden nicht als erfolgreicher Transfer ausgegeben.
 
-### Eigene native Tests
+### Fahrzeuge und Fehlerbehandlung
 
-- Einen separaten, wiederholbaren Testserver-Lauf mit freien Loopback-Ports, neuen Testwelten und zwei verbundenen Protokollclients ergänzt.
-- Wiederholte Zustandsersetzung über getrennte Regionen und Dimensionen, frische Defaults, entfernte additive Werte, Wrapperidentität und Teleport-Veto geprüft.
-- Eigene Enderperlen auf dem Ziel-Owner wiederhergestellt, wiederholt ohne zusätzliche registrierte Perlen ersetzt und beim frischen Spielerzustand entfernt.
-- Echte Runtime-Snapshots vor und nach der Ersetzung erstellt; gespeicherte komprimierte Spieler-NBT-Dateien und die drei Store-Pfade geprüft.
-- Login-/Kick-/Disconnect-Zähler sowie tatsächlich empfangene Statistik-Nullwerte und Fortschritts-Resets als JSON-Nachweis erfasst.
-- Auf der finalen 010-JAR mit zwei verbundenen Clients bestanden: jeweils ein Login, kein Kick, kein Disconnect. Dies prüft den nativen Komponentenpfad, nicht die noch fehlende öffentliche Restore-Transaktion.
-- Regressionstests für Speicherzulassungen, Scope-Reihenfolge, Owner-Queue, Unteraufgaben, Retirement und die Trennung von Gameplay-/Verbindungspaketen ergänzt.
+- Gespeicherte Fahrzeuggraphen samt Inventar, Schulterentities und Enderperlen wiederhergestellt. Vorhandene Kopien auf ihren Besitzern ersetzt statt mit veraltetem Zustand wiederverwendet.
+- Regionsfremde Perlen beim Abmelden über die interne Owner-Queue entfernt. Restore-Abschlüsse berücksichtigen Unteraufgaben und Retirement auch bei Tick-Freeze.
+- Die drei Player-Stores über vorbereitete, synchronisierte Verzeichnisbäume publiziert. Ursprüngliche Bäume und Rollback-Daten für Recovery erhalten; kurzzeitige Windows-Dateisperren begrenzt erneut versucht und dauerhafte Fehler zurückgemeldet.
+- Apply und Complete mit eindeutiger Entscheidung und idempotenten Wiederholungen versehen. Abgebrochene Caller-Futures öffnen keine noch benötigte Schreibschranke.
+- Beim Shutdown verbleibende native Arbeit erst nach dem Anhalten von Regionen und Chunk-Arbeit abgeschlossen. Nach Neustart keine alte Tessera-Transaktion eigenmächtig über eine MCC-Recovery-Entscheidung abgespielt.
+
+### Eigene Server-/Clientprüfung
+
+- Öffentliche Transaktion mit zwei tatsächlich verbundenen Protokollclients über getrennte Regionen und Dimensionen geprüft: wiederholter Load/Resave, exakter Zustand, frische Defaults, echter Rollback und Teleport-Veto.
+- Im erfolgreichen Seamless-Lauf jeweils einen Login, keinen Kick und keinen Disconnect gemessen; echte Transfers, Statistik-Nullwerte und Fortschritts-Resets erfasst.
+- Boot-Inventar, Schulterentity, Perlen, entfernte Attribute/Rezepte/Fortschritte/PDC, tote Spieler sowie konkurrierende Requests und verzögerte Writer geprüft.
+- Echte Windows-Sperrfehler beim nativen Statistik-Save und bei der Store-Publikation ausgelöst und anschließend den nativen Rollback ausgeführt.
+- In separaten Fehlerläufen Disconnect während Restore, bis Complete gesperrten Login sowie fehlenden Client-ACK mit Timeout und Rollback geprüft. Den absichtlichen Kick/Rejoin nicht als Seamless-Erfolg gezählt.
+- Stop/Neustart nach Prepare, nach Apply, während Apply und nach Commit geprüft. Danach funktionierten neuer Restore und Save; keine alte Transaktion wurde nachgespielt.
+- Unterschiedliche Zielwelt-Bindungen erhalten. Ein nach mehreren Restores neu erzeugter Chunk behielt seine Wüsten-/Rotsand-Generierung statt der globalen Ebenen-Einstellungen.
 
 ### Buildstand und Prüfgrenzen
 
-- Buildnummer auf `010-alpha` angehoben. Minecraft/API `26.3`, Java 25 und die bisherigen Buildwerkzeuge beibehalten.
-- Die Wolfs-KI-Korrekturen aus Build 009 erhalten. MCC, MVE und Sinopia nicht verändert.
-- Änderungen als eigene Minecraft-/Server-Feature-Patches gesichert; ihre erneute Anwendung anhand identischer Quellbaum-Hashes geprüft.
-- `buildTessera` einschließlich Tests und Qualitätsprüfungen erfolgreich ausgeführt und die ausführbare `tessera-server-26.3.build.010-alpha.jar` erzeugt. Server: 10.150 erfasste Tests, keine Fehler, 87 übersprungen. API: 529 Tests, keine Fehler, zwei übersprungen.
-- **Vertrag 0 beibehalten.** Die öffentliche Prepare/Apply/Complete-Dateitransaktion samt vollständigem Disconnect-/Shutdown- und Crash-Recovery ist noch nicht fertig. Dieser Build ist ausdrücklich kein freigegebener MCC-Seamless-Load-Fix.
-- Native Komponententests nicht als bestandene MCC-/MVE-Integration ausgewiesen. Vollständiger Store-Rollback, Fahrzeug-/Schulterentity-Abnahme und Generator-/Biombindungen nach Challenge-Reset sind nicht abgenommen.
+- Build `010-alpha`, Minecraft/API `26.3`, Java 25 und die vorhandenen Buildwerkzeuge beibehalten. Wolfs-KI-Korrekturen aus 009 und Sinopia erhalten.
+- Änderungen im bestehenden Tessera-Patchworkflow gesichert; MCC- und MVE-Produktcode nicht verändert.
+- MCC 0.7.5 kann den unveränderten Vertrag `1` automatisch erkennen; kein zusätzlicher API-Pfad oder erzwungener Reconnect gehört zum nativen Erfolgsablauf.
+- Die vollständige MCC-/MVE-/TAB-/LuckPerms-Integration bleibt eine gesonderte Folgeabnahme. Native Protokolltests ersetzen diesen Stack und eine visuelle Vanilla-Client-Prüfung nicht.
 
-Konkrete Build-, Patch- und JAR-Nachweise:
-[Build 010](BUILD-26.3-010.md). Der genaue Implementierungsstand ist im
-[Restore-Status](mcc-player-restore-status.md) dokumentiert.
+Exakter Quellcommit, JAR-Prüfsumme, vollständiger Build und finale Prüfungen:
+[Build 010](BUILD-26.3-010.md). API und gemeinsame Folgeabnahme:
+[Restore-Status](mcc-player-restore-status.md).

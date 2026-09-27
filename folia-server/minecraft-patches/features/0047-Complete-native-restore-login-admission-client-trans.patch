@@ -1,0 +1,557 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Sun, 27 Sep 2026 13:35:17 +0200
+Subject: [PATCH] Complete native restore login admission client transfer and
+ shutdown drain
+
+
+diff --git a/net/minecraft/network/Connection.java b/net/minecraft/network/Connection.java
+index ef21f392c2a2e9c2d2a58c1c80cadae672a49811..e7bc07c1e6ec953827c68f60514adfd170fd3665 100644
+--- a/net/minecraft/network/Connection.java
++++ b/net/minecraft/network/Connection.java
+@@ -121,6 +121,29 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+     public java.util.@Nullable Optional<net.minecraft.network.chat.Component> legacySavedLoginEventResultOverride; // Paper - playerloginevent
+     public boolean handledLegacyLoginEvent; // Paper - playerloginevent
+     public net.minecraft.server.level.@Nullable ServerPlayer savedPlayerForLegacyEvents; // Paper - playerloginevent & PlayerSpawnLocationEvent
++    private org.bukkit.craftbukkit.world.PlayerStoreFence.Lease tessera$loginAdmission;
++
++    public synchronized boolean tessera$admitLogin() {
++        if (this.tessera$loginAdmission == null) this.tessera$loginAdmission = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.tryRead();
++        return this.tessera$loginAdmission != null;
++    }
++
++    public synchronized org.bukkit.craftbukkit.world.PlayerStoreFence.Scope tessera$loginScope() {
++        return org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(this.tessera$loginAdmission);
++    }
++
++    public synchronized org.bukkit.craftbukkit.world.PlayerStoreFence.Lease tessera$takeLoginAdmission() {
++        var admission = this.tessera$loginAdmission;
++        this.tessera$loginAdmission = null;
++        return admission;
++    }
++
++    private synchronized void tessera$releaseLoginAdmission() {
++        if (this.tessera$loginAdmission != null) {
++            this.tessera$loginAdmission.close();
++            this.tessera$loginAdmission = null;
++        }
++    }
+     public org.bukkit.event.player.PlayerResourcePackStatusEvent.@Nullable Status resourcePackStatus; // Paper
+     // Paper start - Optimize network
+     public boolean isPending = true;
+@@ -938,6 +961,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+                 // LOGGER.warn("handleDisconnection() called twice"); // Paper - Don't log useless message
+             } else {
+                 //this.disconnectionHandled = true; // Folia - region threading - may be called concurrently during configuration stage - set above
++                this.tessera$releaseLoginAdmission();
+                 PacketListener packetListener = this.getPacketListener();
+                 PacketListener disconnectListener = packetListener != null ? packetListener : this.disconnectListener;
+                 if (disconnectListener != null) {
+diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
+index 75e05ebfa1b7920be29d2768852ac3fca6cdb245..c111922b651a8b886d82b6eddeb13ef46a71d816 100644
+--- a/net/minecraft/server/MinecraftServer.java
++++ b/net/minecraft/server/MinecraftServer.java
+@@ -1095,6 +1095,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+         // Close the admission gate before the region scheduler is halted. Any
+         // already-started operation is reconciled by RegionShutdownThread.
+         if (this.server != null) {
++            this.server.getPlayerRestoreService().beginServerShutdown();
+             this.server.tessera$beginRuntimeWorldManagerShutdown();
+         }
+         // Tessera end - runtime world lifecycle
+@@ -1209,6 +1210,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+         // Only now may stop-interrupted API futures report SERVER_STOPPING:
+         // every world and global storage worker has completed its final flush.
+         if (this.server != null) {
++            this.server.getPlayerRestoreService().completeServerShutdown();
+             this.server.tessera$completeRuntimeWorldManagerShutdown();
+         }
+         // Tessera end - runtime world lifecycle
+diff --git a/net/minecraft/server/PlayerAdvancements.java b/net/minecraft/server/PlayerAdvancements.java
+index 0d62b2230436d39c7554edcf33b3224aa04376e6..b6e4c0bdce695fab69889eec3a8ce3685a7c50c1 100644
+--- a/net/minecraft/server/PlayerAdvancements.java
++++ b/net/minecraft/server/PlayerAdvancements.java
+@@ -190,6 +190,10 @@ public class PlayerAdvancements {
+         return new PlayerAdvancements.Data(map);
+     }
+ 
++    public JsonElement tessera$restoreImage() {
++        return this.codec.encodeStart(JsonOps.INSTANCE, this.asData()).getOrThrow().deepCopy();
++    }
++
+     public static void tessera$validateRestore(final DataFixer fixer, final JsonElement json) {
+         DataFixTypes.ADVANCEMENTS.wrapCodec(PlayerAdvancements.Data.CODEC, fixer, 1343)
+             .parse(JsonOps.INSTANCE, json.deepCopy()).getOrThrow();
+diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+index c2a1d7daccb08f684eafc7add77ee8e2ad543edd..a8ccf1fef95db65d62a3f89fb182b58ed33c41c7 100644
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -261,7 +261,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+     private final ServerRecipeBook recipeBook;
+     private @Nullable Vec3 levitationStartPos;
+     private int levitationStartTime;
+-    private boolean disconnected;
++    private volatile boolean disconnected; // Native restore attachment children observe owner retirement across regions.
+     private int requestedViewDistance = 2;
+     public String language = null; // Paper - default to null
+     public java.util.Locale adventure$locale = java.util.Locale.US; // Paper
+@@ -519,6 +519,35 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+     // A native player loaded before a store replacement must not save over it.
+     public long tessera$playerStoreGeneration = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.generation();
+     private boolean tessera$restoring;
++    private boolean tessera$restoreTransfer;
++    public final java.util.concurrent.CompletableFuture<Void> tessera$logoutDrained = new java.util.concurrent.CompletableFuture<>();
++
++    @Override
++    protected boolean canTeleportAsync() {
++        return this.tessera$restoreTransfer ? !this.hasNullCallback() && !this.isRemoved() : super.canTeleportAsync();
++    }
++
++    /** The store fence and owner scheduler must already be held by the native transaction. */
++    public boolean tessera$teleportRestore(ServerLevel destination, Vec3 position, float yaw, float pitch, java.util.function.Consumer<Entity> complete) {
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this, "Cannot restore-transfer player off owner");
++        if (this.isSleeping()) this.stopSleepInBed(true, false);
++        if (this.isSleeping()) throw new IllegalStateException("Sleeping player refused native restore detach");
++        this.tessera$restoreTransfer = true;
++        try {
++            boolean accepted = this.teleportAsync(destination, position, yaw, pitch, Vec3.ZERO,
++                org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN,
++                TELEPORT_FLAG_LOAD_CHUNK | TELEPORT_FLAGS_PLAYER_RESPAWN,
++                entity -> {
++                    try { complete.accept(entity); }
++                    finally { ((ServerPlayer)entity).tessera$restoreTransfer = false; }
++                });
++            if (!accepted) this.tessera$restoreTransfer = false;
++            return accepted;
++        } catch (Throwable failure) {
++            this.tessera$restoreTransfer = false;
++            throw failure;
++        }
++    }
+ 
+     /** Called only with a preflighted detached state on the destination owner. */
+     public void tessera$replaceRestore(final ServerPlayer fresh, final CompoundTag tag) {
+@@ -546,6 +575,18 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         this.frictionState = fresh.frictionState;
+         this.persistentInvisibility = fresh.persistentInvisibility;
+         this.maxAirTicks = fresh.maxAirTicks;
++        this.deathTime = 0;
++        this.dead = false;
++        this.broadcastedDeath = false;
++        this.hurtTime = 0;
++        this.setInvulnerableTime(0);
++        this.lastHurtByPlayer = null;
++        this.lastHurtByMob = null;
++        this.combatTracker = new net.minecraft.world.damagesource.CombatTracker(this);
++        this.enteredNetherPosition = null;
++        this.portalProcess = null;
++        this.stopUsingItem();
++        this.foodData = new net.minecraft.world.food.FoodData();
+         this.tessera$restoring = true;
+         try {
+             this.load(net.minecraft.world.level.storage.TagValueInput.create(ProblemReporter.DISCARDING, this.registryAccess(), tag.copy()));
+@@ -563,6 +604,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         restoredAttributes.addAll(this.getAttributes().getAttributesToSync());
+         this.connection.send(new net.minecraft.network.protocol.game.ClientboundUpdateAttributesPacket(this.getId(), restoredAttributes));
+         this.connection.send(new ClientboundSetExperiencePacket(this.experienceProgress, this.totalExperience, this.experienceLevel));
++        this.connection.send(new ClientboundSetHealthPacket(this.getBukkitEntity().getScaledHealth(), this.foodData.getFoodLevel(), this.foodData.getSaturationLevel()));
+         this.connection.resetPosition();
+         this.lastSentExp = -1;
+         this.lastSentHealth = -1.0F;
+@@ -890,12 +932,16 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+     }
+ 
+     public java.util.concurrent.CompletionStage<Void> tessera$loadAndSpawnEnderPearls(final ValueInput playerInput) {
++        return this.tessera$loadAndSpawnEnderPearls(playerInput, false);
++    }
++
++    public java.util.concurrent.CompletionStage<Void> tessera$loadAndSpawnEnderPearls(final ValueInput playerInput, final boolean replace) {
+         final java.util.List<java.util.concurrent.CompletableFuture<Void>> children = new java.util.ArrayList<>();
+         playerInput.childrenListOrEmpty("ender_pearls").forEach(input -> {
+-            final java.util.concurrent.CompletableFuture<Void> child = new java.util.concurrent.CompletableFuture<>();
++            final java.util.concurrent.CompletableFuture<Void> child = org.bukkit.craftbukkit.world.NativeRestoreWork.future();
+             children.add(child);
+             try {
+-                this.tessera$loadAndSpawnEnderPearl(input, child);
++                this.tessera$loadAndSpawnEnderPearl(input, child, replace);
+             } catch (final Throwable failure) {
+                 child.completeExceptionally(failure);
+             }
+@@ -903,7 +949,8 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         return java.util.concurrent.CompletableFuture.allOf(children.toArray(java.util.concurrent.CompletableFuture[]::new)).minimalCompletionStage();
+     }
+ 
+-    private void tessera$loadAndSpawnEnderPearl(final ValueInput pearlInput, final java.util.concurrent.CompletableFuture<Void> completion) {
++    private void tessera$loadAndSpawnEnderPearl(final ValueInput pearlInput, final java.util.concurrent.CompletableFuture<Void> completion, final boolean replace) {
++        org.bukkit.craftbukkit.world.NativeRestoreWork.checkRunning();
+         Optional<ResourceKey<Level>> pearlLevelKey = pearlInput.read("ender_pearl_dimension", Level.RESOURCE_KEY_CODEC);
+         if (!pearlLevelKey.isEmpty()) {
+             ServerLevel pearlLevel = this.level().getServer().getLevel(pearlLevelKey.get());
+@@ -923,6 +970,26 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+                 final int chunkZ = net.minecraft.core.SectionPos.blockToSectionCoord(position.z);
+                 final Runnable decode = () -> {
+                     try (ProblemReporter.ScopedCollector reporter = new ProblemReporter.ScopedCollector(LOGGER)) {
++                        org.bukkit.craftbukkit.world.NativeRestoreWork.checkRunning();
++                        if (this.hasDisconnected()) throw new IllegalStateException("Pearl owner disconnected during load");
++                        if (replace) {
++                            Entity existing = pearlLevel.getEntity(saved.read("UUID", UUIDUtil.CODEC).orElseThrow());
++                            if (existing != null) {
++                                existing.getBukkitEntity().taskScheduler.scheduleRestore(current -> {
++                                    org.bukkit.craftbukkit.world.NativeRestoreWork.checkRunning();
++                                    if (!(current instanceof ThrownEnderpearl pearl) || (pearl.owner != null && !pearl.owner.getUUID().equals(this.getUUID()))) {
++                                        throw new IllegalStateException("Saved pearl UUID has an incompatible live owner/entity");
++                                    }
++                                    pearl.setOwner((Entity)null);
++                                    pearl.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.DISCARD);
++                                    return java.util.concurrent.CompletableFuture.completedStage(null);
++                                }).whenComplete((ignored, failure) -> {
++                                    if (failure != null) completion.completeExceptionally(failure);
++                                    else this.tessera$loadAndSpawnEnderPearl(pearlInput, completion, true);
++                                });
++                                return;
++                            }
++                        }
+                         Entity pearl = EntityType.loadEntityRecursive(
+                             net.minecraft.world.level.storage.TagValueInput.create(reporter, pearlLevel.registryAccess(), saved),
+                             pearlLevel, EntitySpawnReason.LOAD, net.minecraft.world.entity.EntityProcessor.NOP);
+@@ -938,6 +1005,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+                     chunkX, chunkZ, net.minecraft.server.level.FullChunkStatus.ENTITY_TICKING, true,
+                     ca.spottedleaf.concurrentutil.util.Priority.HIGHER, chunk -> {
+                         try {
++                            org.bukkit.craftbukkit.world.NativeRestoreWork.checkRunning();
+                             if (chunk == null) throw new IllegalStateException("Ender pearl chunk is unavailable");
+                             ServerPlayer.placeEnderPearlTicket(pearlLevel, new ChunkPos(chunkX, chunkZ));
+                             // Queuing (not inline execution) lets the chunk-load
+@@ -960,6 +1028,8 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+     private void tessera$scheduleLoadedEnderPearl(final ServerLevel pearlLevel, final ThrownEnderpearl enderPearl, final java.util.concurrent.CompletableFuture<Void> completion) {
+         Runnable queueSpawn = () -> {
+             try {
++                org.bukkit.craftbukkit.world.NativeRestoreWork.checkRunning();
++                if (completion.isDone()) return;
+                 io.papermc.paper.threadedregions.RegionizedServer.getInstance().taskQueue.queueOrExecuteTickTask(
+             pearlLevel,
+             enderPearl.chunkPosition().x(),
+@@ -982,8 +1052,14 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+     }
+ 
+     private void tessera$addLoadedEnderPearl(final ServerLevel pearlLevel, final ThrownEnderpearl enderPearl, final java.util.concurrent.CompletableFuture<Void> completion) {
++        org.bukkit.craftbukkit.world.NativeRestoreWork.checkRunning();
+         if (pearlLevel.tryAddFreshEntityWithPassengers(enderPearl) && enderPearl.valid) {
+             enderPearl.tessera$restoreOwnerRegistration();
++            if (this.hasDisconnected()) {
++                enderPearl.tessera$unloadWithOwnerAsync().whenComplete((ignored, failure) ->
++                    completion.completeExceptionally(new IllegalStateException("Pearl owner disconnected during registration", failure)));
++                return;
++            }
+             ServerPlayer.placeEnderPearlTicket(pearlLevel, enderPearl.chunkPosition());
+             completion.complete(null);
+             return;
+@@ -1002,6 +1078,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+             // The saved player copy raced an already-active world copy. Keep
+             // exactly one entity and reconnect that copy to the current player.
+             existingEnderPearl.getBukkitEntity().taskScheduler.scheduleRestore(entity -> {
++                org.bukkit.craftbukkit.world.NativeRestoreWork.checkRunning();
+                 final ThrownEnderpearl current = (ThrownEnderpearl)entity;
+                 if (current.owner != null && !current.owner.getUUID().equals(this.getUUID())) {
+                     throw new IllegalStateException("Saved ender pearl has another owner");
+@@ -2556,6 +2633,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+     }
+ 
+     public void triggerDimensionChangeTriggers(final ServerLevel oldLevel) {
++        if (this.tessera$restoreTransfer) return; // State replacement is not new advancement progress.
+         ResourceKey<Level> oldKey = oldLevel.dimension();
+         ResourceKey<Level> newKey = this.level().dimension();
+         // CraftBukkit start
+diff --git a/net/minecraft/server/network/ServerConfigurationPacketListenerImpl.java b/net/minecraft/server/network/ServerConfigurationPacketListenerImpl.java
+index 77c4670868a95dc7b13461dfa67af34b0a3c329a..747478882f1831f9b9c967c9f718039671ff2fe1 100644
+--- a/net/minecraft/server/network/ServerConfigurationPacketListenerImpl.java
++++ b/net/minecraft/server/network/ServerConfigurationPacketListenerImpl.java
+@@ -198,6 +198,7 @@ public class ServerConfigurationPacketListenerImpl extends ServerCommonPacketLis
+         PacketUtils.ensureRunningOnSameThread(packet, this, this.server.packetProcessor());
+         this.finishCurrentTask(JoinWorldTask.TYPE);
+         this.connection.setupOutboundProtocol(GameProtocols.CLIENTBOUND_TEMPLATE.bind(RegistryFriendlyByteBuf.decorator(this.server.registryAccess())));
++        final PrepareSpawnTask spawnTask = this.prepareSpawnTask;
+ 
+         try {
+             PlayerList playerList = this.server.getPlayerList();
+@@ -215,16 +216,22 @@ public class ServerConfigurationPacketListenerImpl extends ServerCommonPacketLis
+             // Folia start - region threading
+             final Connection connection = this.connection;
+             final CommonListenerCookie commonListenerCookie = this.createCookie(this.clientInformation);
+-            final net.minecraft.server.level.ServerPlayer serverPlayer = this.prepareSpawnTask.createPlayer(connection, commonListenerCookie);
++            spawnTask.tessera$beginHandoff();
++            final net.minecraft.server.level.ServerPlayer serverPlayer = spawnTask.createPlayer(connection, commonListenerCookie);
+ 
+             this.switchToMain = serverPlayer;
+             // now the connection responsibility is transferred to the region
+-            final net.minecraft.server.level.ServerLevel world = this.prepareSpawnTask.getSpawnWorld();
+-            final net.minecraft.world.level.ChunkPos chunkPos = net.minecraft.world.level.ChunkPos.containing(net.minecraft.core.BlockPos.containing(this.prepareSpawnTask.getSpawnPosition()));
++            final net.minecraft.server.level.ServerLevel world = spawnTask.getSpawnWorld();
++            final net.minecraft.world.level.ChunkPos chunkPos = net.minecraft.world.level.ChunkPos.containing(net.minecraft.core.BlockPos.containing(spawnTask.getSpawnPosition()));
+             world.moonrise$getChunkTaskScheduler().scheduleTickingState(
+                     chunkPos.x(), chunkPos.z(), net.minecraft.server.level.FullChunkStatus.ENTITY_TICKING, true,
+                     ca.spottedleaf.concurrentutil.util.Priority.HIGHER,
+                     (final net.minecraft.world.level.chunk.LevelChunk chunk) -> {
++                        if (chunk == null) {
++                            spawnTask.tessera$abortHandoff();
++                            this.disconnect(DISCONNECT_REASON_INVALID_DATA);
++                            return;
++                        }
+                         world.moonrise$getChunkTaskScheduler().chunkHolderManager.addTicketAtLevel(
+                                 net.minecraft.server.level.TicketType.PLAYER_SPAWN, chunkPos,
+                                 ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkHolderManager.ENTITY_TICKING_TICKET_LEVEL,
+@@ -232,7 +239,7 @@ public class ServerConfigurationPacketListenerImpl extends ServerCommonPacketLis
+                         );
+                         io.papermc.paper.threadedregions.RegionizedServer.getInstance().taskQueue.queueTickTaskQueue(
+                                 world, chunkPos.x(), chunkPos.z(), () -> {
+-                                    net.minecraft.server.network.ServerConfigurationPacketListenerImpl.this.prepareSpawnTask.spawnPlayer(
++                                    spawnTask.spawnPlayer(
+                                             this.connection, commonListenerCookie, serverPlayer
+                                     );
+                                 }
+@@ -241,6 +248,7 @@ public class ServerConfigurationPacketListenerImpl extends ServerCommonPacketLis
+             );
+             // Folia end - region threading - rewrite login process
+         } catch (Exception e) {
++            if (spawnTask != null) spawnTask.tessera$abortHandoff();
+             LOGGER.error("Couldn't place player in world", e);
+             this.disconnect(DISCONNECT_REASON_INVALID_DATA);
+         }
+diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 5c30d09c0d075e401e753714b134ddffa55683fa..f70c5594425c639a69bb52efefc2e602333ef39d 100644
+--- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -2418,11 +2418,13 @@ public class ServerGamePacketListenerImpl
+ 
+     @Override
+     public void onDisconnect(final DisconnectionDetails details) {
+-        this.tessera$finishRestoreAck(new IllegalStateException("Player disconnected during restore"));
++        final var restoreAck = this.tessera$restoreAck;
++        this.tessera$restoreAck = null;
+         LOGGER.info("{} lost connection: {}", this.player.getPlainTextName(), details.reason().getString());
+         // Paper start - Fix kick event leave message not being sent
+         final net.kyori.adventure.text.Component quitMessage = details.quitMessage().map(io.papermc.paper.adventure.PaperAdventure::asAdventure).orElse(null);
+         if (!this.waitingForSwitchToConfig) this.removePlayerFromWorld(quitMessage); // Folia - region threading - don't double remove
++        if (restoreAck != null) this.player.tessera$logoutDrained.whenComplete((ignored, failure) -> restoreAck.completeExceptionally(new IllegalStateException("Player disconnected during restore", failure)));
+         // Paper end - Fix kick event leave message not being sent
+         super.onDisconnect(details);
+     }
+diff --git a/net/minecraft/server/network/ServerLoginPacketListenerImpl.java b/net/minecraft/server/network/ServerLoginPacketListenerImpl.java
+index 7a8a41c9d82327cf8c2230bba215d9a8d986eb48..c2344b366bc2137145854dd70a0e3e53b34e3a9c 100644
+--- a/net/minecraft/server/network/ServerLoginPacketListenerImpl.java
++++ b/net/minecraft/server/network/ServerLoginPacketListenerImpl.java
+@@ -91,6 +91,7 @@ public class ServerLoginPacketListenerImpl implements ServerLoginPacketListener,
+         // Paper end - login cookie API
+ 
+         if (this.state == ServerLoginPacketListenerImpl.State.VERIFYING) {
++            if (!this.connection.tessera$admitLogin()) return; // Native restore admission; keep the connection, retry next global tick.
+             // Folia start - region threading - rewrite login process
+             String name = this.authenticatedProfile.name();
+             java.util.UUID uniqueId = this.authenticatedProfile.id();
+@@ -216,6 +217,12 @@ public class ServerLoginPacketListenerImpl implements ServerLoginPacketListener,
+     }
+ 
+     private void verifyLoginAndFinishConnectionSetup(final GameProfile profile) {
++        try (var scope = this.connection.tessera$loginScope()) {
++            this.tessera$verifyAdmitted(profile);
++        }
++    }
++
++    private void tessera$verifyAdmitted(final GameProfile profile) {
+         PlayerList playerList = this.server.getPlayerList();
+         Component error = org.bukkit.craftbukkit.event.CraftEventFactory.handleLoginResult(playerList.canPlayerLogin(this.connection.getRemoteAddress(), new NameAndId(profile), this.connection), this.paperLoginConnection, this.connection, profile, this.server, true); // Paper // Folia - region threading - add connection parameter
+         if (error != null) {
+diff --git a/net/minecraft/server/network/config/PrepareSpawnTask.java b/net/minecraft/server/network/config/PrepareSpawnTask.java
+index 62b4c7c73c789f362e0f7d53daac82b13d6e45c0..f238cb5e24dca111ad0ed32cb203f4e4a045eaae 100644
+--- a/net/minecraft/server/network/config/PrepareSpawnTask.java
++++ b/net/minecraft/server/network/config/PrepareSpawnTask.java
+@@ -36,7 +36,9 @@ public class PrepareSpawnTask implements ConfigurationTask {
+     private final LevelLoadListener loadListener;
+     private PrepareSpawnTask.@Nullable State state;
+     private org.bukkit.craftbukkit.world.PlayerStoreFence.Lease tessera$storeAdmission;
+-    private boolean tessera$closed;
++    private volatile boolean tessera$closed;
++    private volatile boolean tessera$handoffInFlight;
++    private CompletableFuture<Void> tessera$handoffCompletion;
+     private java.util.concurrent.CompletionStage<Void> tessera$spawnChildren = CompletableFuture.completedStage(null);
+ 
+     // Paper start - passthrough profile and packet listener
+@@ -57,7 +59,8 @@ public class PrepareSpawnTask implements ConfigurationTask {
+     public void start(final Consumer<Packet<?>> connection) {
+         if (this.tessera$closed) return;
+         if (this.tessera$storeAdmission == null) {
+-            this.tessera$storeAdmission = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.tryRead();
++            this.tessera$storeAdmission = this.listener.connection.tessera$takeLoginAdmission();
++            if (this.tessera$storeAdmission == null) this.tessera$storeAdmission = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.tryRead();
+             if (this.tessera$storeAdmission == null) return; // Retry from configuration ticks, never block a thread.
+         }
+         try (var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(this.tessera$storeAdmission)) {
+@@ -163,15 +166,17 @@ public class PrepareSpawnTask implements ConfigurationTask {
+ 
+     public ServerPlayer spawnPlayer(final Connection connection, final CommonListenerCookie cookie, final ServerPlayer player) { // Folia - add ServerPlayer param
+         try (var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(this.tessera$storeAdmission)) {
++        if (this.tessera$closed || !connection.isConnected()) return player;
+         if (this.state instanceof PrepareSpawnTask.Ready ready) {
+             return ready.spawn(connection, cookie, player); // Folia - add ServerPlayer param
+         } else {
+             throw new IllegalStateException("Player spawn was not ready");
+         }
+         } finally {
+-            final var admission = this.tessera$storeAdmission;
+-            this.tessera$storeAdmission = null;
+-            this.tessera$spawnChildren.whenComplete((ignored, failure) -> admission.close());
++            this.tessera$spawnChildren.whenComplete((ignored, failure) -> {
++                if (failure == null) this.tessera$handoffCompletion.complete(null);
++                else this.tessera$handoffCompletion.completeExceptionally(failure);
++            });
+         }
+     }
+ 
+@@ -210,8 +215,9 @@ public class PrepareSpawnTask implements ConfigurationTask {
+         }
+     }
+ 
+-    public void close() {
++    public synchronized void close() {
+         this.tessera$closed = true;
++        if (this.tessera$handoffInFlight) return; // The queued owner task owns the admission until it drains.
+         if (this.state instanceof PrepareSpawnTask.Preparing preparing) {
+             preparing.cancel();
+         }
+@@ -220,7 +226,21 @@ public class PrepareSpawnTask implements ConfigurationTask {
+         this.tessera$releaseAdmission();
+     }
+ 
+-    private void tessera$releaseAdmission() {
++    public synchronized void tessera$beginHandoff() {
++        org.bukkit.craftbukkit.world.NativeRestoreWork.checkRunning();
++        if (this.tessera$closed) throw new IllegalStateException("Login already closed");
++        this.tessera$handoffInFlight = true;
++        this.tessera$handoffCompletion = org.bukkit.craftbukkit.world.NativeRestoreWork.future();
++        this.tessera$handoffCompletion.whenComplete((ignored, failure) -> this.tessera$releaseAdmission());
++    }
++
++    public synchronized void tessera$abortHandoff() {
++        this.tessera$handoffInFlight = false;
++        if (this.tessera$handoffCompletion != null) this.tessera$handoffCompletion.completeExceptionally(new IllegalStateException("Login handoff aborted"));
++        this.close();
++    }
++
++    private synchronized void tessera$releaseAdmission() {
+         if (this.tessera$storeAdmission != null) {
+             this.tessera$storeAdmission.close();
+             this.tessera$storeAdmission = null;
+diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
+index d56af56703cad06220dc6438f0fd5df65199b18e..552921317eec7b5267d868c748f23fa3eb615b88 100644
+--- a/net/minecraft/server/players/PlayerList.java
++++ b/net/minecraft/server/players/PlayerList.java
+@@ -489,7 +489,10 @@ public abstract class PlayerList {
+ 
+     protected void save(final ServerPlayer player) {
+         try (var access = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.tryWrite(player.tessera$playerStoreGeneration)) {
+-            if (access == null) return;
++            if (access == null) {
++                this.cserver.getPlayerRestoreService().captureFencedSave(player);
++                return;
++            }
+             try (var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(access)) {
+                 this.tessera$saveAdmitted(player);
+             }
+@@ -597,11 +600,12 @@ public abstract class PlayerList {
+ 
+         player.unRide();
+ 
++        final java.util.List<java.util.concurrent.CompletableFuture<Void>> tessera$logoutChildren = new java.util.ArrayList<>();
+         for (ThrownEnderpearl enderpearl : player.getEnderPearls()) {
+             // Tessera start - restore vanilla ender pearl ownership
+             // The pearl can be in a different Folia region. Its own scheduler
+             // performs the configuration check and removal on the correct thread.
+-            enderpearl.tessera$unloadWithOwner();
++            tessera$logoutChildren.add(enderpearl.tessera$unloadWithOwnerAsync().toCompletableFuture());
+             // Tessera end - restore vanilla ender pearl ownership
+         }
+ 
+@@ -636,6 +640,11 @@ public abstract class PlayerList {
+         }
+         // This removes the scoreboard (and player reference) for the specific player in the manager
+         this.cserver.getScoreboardManager().removePlayer(player.getBukkitEntity());
++        java.util.concurrent.CompletableFuture.allOf(tessera$logoutChildren.toArray(java.util.concurrent.CompletableFuture[]::new))
++            .whenComplete((ignored, failure) -> {
++                if (failure == null) player.tessera$logoutDrained.complete(null);
++                else player.tessera$logoutDrained.completeExceptionally(failure);
++            });
+         // CraftBukkit end
+         return playerQuitEvent.quitMessage(); // Paper - Adventure
+     }
+diff --git a/net/minecraft/stats/ServerStatsCounter.java b/net/minecraft/stats/ServerStatsCounter.java
+index 4e353f89d05be262890f3944f160ccfacee234ab..f5d931db129e239d92e57de6c7ddd23ca4f5297a 100644
+--- a/net/minecraft/stats/ServerStatsCounter.java
++++ b/net/minecraft/stats/ServerStatsCounter.java
+@@ -154,6 +154,10 @@ public class ServerStatsCounter extends StatsCounter {
+         return result;
+     }
+ 
++    public JsonElement tessera$restoreImage() {
++        return this.toJson().deepCopy();
++    }
++
+     public void markAllDirty() {
+         this.dirty.addAll(this.stats.keySet());
+     }
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index 24253c32d8388a63ad608d067a01bdca7f79ac3c..c105e6b907e49e06c2c24f60fb09982fb5b077c1 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -4617,7 +4617,7 @@ public abstract class Entity
+         // TODO any events that can modify go HERE
+ 
+         // check for same region
+-        if (destination == this.level()
++        if ((teleportFlags & net.minecraft.server.level.ServerPlayer.TELEPORT_FLAGS_PLAYER_RESPAWN) == 0L && destination == this.level()
+                 && ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(destination, ca.spottedleaf.moonrise.common.util.CoordinateUtils.getChunkX(pos), ca.spottedleaf.moonrise.common.util.CoordinateUtils.getChunkZ(pos), 8)
+                 && (((teleportFlags & TELEPORT_FLAG_LOAD_CHUNK) == 0L) || destination.areChunksLoadedForMove(this.getBoundingBoxAt(pos.x, pos.y, pos.z)))) {
+             boolean hasPassengers = !this.passengers.isEmpty();
+diff --git a/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEnderpearl.java b/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEnderpearl.java
+index c9bb1d4d3303ae6dbf0b7a41be489762e18a7030..1d7f327a67c74d750a213a6f220696a4ee146ccb 100644
+--- a/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEnderpearl.java
++++ b/net/minecraft/world/entity/projectile/throwableitemprojectile/ThrownEnderpearl.java
+@@ -166,21 +166,21 @@ public class ThrownEnderpearl extends ThrowableItemProjectile {
+     }
+ 
+     public void tessera$unloadWithOwner() {
++        this.tessera$unloadWithOwnerAsync();
++    }
++
++    public java.util.concurrent.CompletionStage<Void> tessera$unloadWithOwnerAsync() {
+         CompletableFuture<Void> pendingUnload = TESSERA_PENDING_OWNER_UNLOADS.computeIfAbsent(
+             this.getUUID(),
+-            ignored -> new CompletableFuture<>()
++            ignored -> org.bukkit.craftbukkit.world.NativeRestoreWork.future()
+         );
+ 
+         if (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this)) {
+-            boolean scheduled = this.getBukkitEntity().taskScheduler.schedule(
+-                entity -> ((ThrownEnderpearl)entity).tessera$unloadWithOwner(),
+-                entity -> ((ThrownEnderpearl)entity).tessera$completeOwnerUnload(pendingUnload),
+-                1L
+-            );
+-            if (!scheduled) {
+-                this.tessera$completeOwnerUnload(pendingUnload);
+-            }
+-            return;
++            this.getBukkitEntity().taskScheduler.scheduleRestore(entity -> {
++                ((ThrownEnderpearl)entity).tessera$unloadWithOwnerAsync();
++                return CompletableFuture.completedStage(null);
++            }).whenComplete((ignored, failure) -> this.tessera$completeOwnerUnload(pendingUnload));
++            return pendingUnload.minimalCompletionStage();
+         }
+ 
+         try {
+@@ -193,6 +193,7 @@ public class ThrownEnderpearl extends ThrowableItemProjectile {
+         } finally {
+             this.tessera$completeOwnerUnload(pendingUnload);
+         }
++        return pendingUnload.minimalCompletionStage();
+     }
+ 
+     private void tessera$completeOwnerUnload(final CompletableFuture<Void> pendingUnload) {

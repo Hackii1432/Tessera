@@ -89,6 +89,18 @@ public final class RuntimeWorldLifecycleSmokePlugin extends JavaPlugin {
             return;
         }
         this.worlds = Bukkit.getRuntimeWorldManager();
+        if (this.mode.equals("native-restore-transaction")) {
+            new NativeRestoreTransactionSmoke(this).start();
+            return;
+        }
+        if (this.mode.equals("native-restore-races")) {
+            new NativeRestoreRaceSmoke(this).start();
+            return;
+        }
+        if (this.mode.equals("native-restore-recovery")) {
+            new NativeRestoreRecoverySmoke(this).start();
+            return;
+        }
         if (this.mode.equals("native-restore")) {
             new NativeRestoreSmoke(this).start();
             return;

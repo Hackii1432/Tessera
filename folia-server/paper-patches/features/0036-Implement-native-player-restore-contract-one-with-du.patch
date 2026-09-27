@@ -1,0 +1,1413 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Sun, 27 Sep 2026 13:35:17 +0200
+Subject: [PATCH] Implement native player restore contract one with durable
+ owner-drained transactions
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftOfflinePlayer.java b/src/main/java/org/bukkit/craftbukkit/CraftOfflinePlayer.java
+index 1aa8f1e0a3093a8b9e77213c56f987cd6ca7df86..9c84cd4528a68e8c1be1a35ac65e27aec5ca5a35 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftOfflinePlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftOfflinePlayer.java
+@@ -393,9 +393,12 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
+         if (this.isOnline()) {
+             this.getPlayer().incrementStatistic(statistic);
+         } else {
+-            ServerStatsCounter manager = this.getStatisticManager();
+-            CraftStatistic.incrementStatistic(manager, statistic, null);
+-            manager.save();
++            try (var admission = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.requireRead();
++                 var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(admission)) {
++                ServerStatsCounter manager = this.getStatisticManager();
++                CraftStatistic.incrementStatistic(manager, statistic, null);
++                manager.save();
++            }
+         }
+     }
+ 
+@@ -404,9 +407,12 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
+         if (this.isOnline()) {
+             this.getPlayer().decrementStatistic(statistic);
+         } else {
+-            ServerStatsCounter manager = this.getStatisticManager();
+-            CraftStatistic.decrementStatistic(manager, statistic, null);
+-            manager.save();
++            try (var admission = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.requireRead();
++                 var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(admission)) {
++                ServerStatsCounter manager = this.getStatisticManager();
++                CraftStatistic.decrementStatistic(manager, statistic, null);
++                manager.save();
++            }
+         }
+     }
+ 
+@@ -424,9 +430,12 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
+         if (this.isOnline()) {
+             this.getPlayer().incrementStatistic(statistic, amount);
+         } else {
+-            ServerStatsCounter manager = this.getStatisticManager();
+-            CraftStatistic.incrementStatistic(manager, statistic, amount, null);
+-            manager.save();
++            try (var admission = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.requireRead();
++                 var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(admission)) {
++                ServerStatsCounter manager = this.getStatisticManager();
++                CraftStatistic.incrementStatistic(manager, statistic, amount, null);
++                manager.save();
++            }
+         }
+     }
+ 
+@@ -435,9 +444,12 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
+         if (this.isOnline()) {
+             this.getPlayer().decrementStatistic(statistic, amount);
+         } else {
+-            ServerStatsCounter manager = this.getStatisticManager();
+-            CraftStatistic.decrementStatistic(manager, statistic, amount, null);
+-            manager.save();
++            try (var admission = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.requireRead();
++                 var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(admission)) {
++                ServerStatsCounter manager = this.getStatisticManager();
++                CraftStatistic.decrementStatistic(manager, statistic, amount, null);
++                manager.save();
++            }
+         }
+     }
+ 
+@@ -446,9 +458,12 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
+         if (this.isOnline()) {
+             this.getPlayer().setStatistic(statistic, newValue);
+         } else {
+-            ServerStatsCounter manager = this.getStatisticManager();
+-            CraftStatistic.setStatistic(manager, statistic, newValue, null);
+-            manager.save();
++            try (var admission = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.requireRead();
++                 var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(admission)) {
++                ServerStatsCounter manager = this.getStatisticManager();
++                CraftStatistic.setStatistic(manager, statistic, newValue, null);
++                manager.save();
++            }
+         }
+     }
+ 
+@@ -457,9 +472,12 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
+         if (this.isOnline()) {
+             this.getPlayer().incrementStatistic(statistic, material);
+         } else {
+-            ServerStatsCounter manager = this.getStatisticManager();
+-            CraftStatistic.incrementStatistic(manager, statistic, material, null);
+-            manager.save();
++            try (var admission = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.requireRead();
++                 var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(admission)) {
++                ServerStatsCounter manager = this.getStatisticManager();
++                CraftStatistic.incrementStatistic(manager, statistic, material, null);
++                manager.save();
++            }
+         }
+     }
+ 
+@@ -468,9 +486,12 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
+         if (this.isOnline()) {
+             this.getPlayer().decrementStatistic(statistic, material);
+         } else {
+-            ServerStatsCounter manager = this.getStatisticManager();
+-            CraftStatistic.decrementStatistic(manager, statistic, material, null);
+-            manager.save();
++            try (var admission = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.requireRead();
++                 var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(admission)) {
++                ServerStatsCounter manager = this.getStatisticManager();
++                CraftStatistic.decrementStatistic(manager, statistic, material, null);
++                manager.save();
++            }
+         }
+     }
+ 
+@@ -488,9 +509,12 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
+         if (this.isOnline()) {
+             this.getPlayer().incrementStatistic(statistic, material, amount);
+         } else {
+-            ServerStatsCounter manager = this.getStatisticManager();
+-            CraftStatistic.incrementStatistic(manager, statistic, material, amount, null);
+-            manager.save();
++            try (var admission = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.requireRead();
++                 var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(admission)) {
++                ServerStatsCounter manager = this.getStatisticManager();
++                CraftStatistic.incrementStatistic(manager, statistic, material, amount, null);
++                manager.save();
++            }
+         }
+     }
+ 
+@@ -499,9 +523,12 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
+         if (this.isOnline()) {
+             this.getPlayer().decrementStatistic(statistic, material, amount);
+         } else {
+-            ServerStatsCounter manager = this.getStatisticManager();
+-            CraftStatistic.decrementStatistic(manager, statistic, material, amount, null);
+-            manager.save();
++            try (var admission = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.requireRead();
++                 var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(admission)) {
++                ServerStatsCounter manager = this.getStatisticManager();
++                CraftStatistic.decrementStatistic(manager, statistic, material, amount, null);
++                manager.save();
++            }
+         }
+     }
+ 
+@@ -510,9 +537,12 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
+         if (this.isOnline()) {
+             this.getPlayer().setStatistic(statistic, material, newValue);
+         } else {
+-            ServerStatsCounter manager = this.getStatisticManager();
+-            CraftStatistic.setStatistic(manager, statistic, material, newValue, null);
+-            manager.save();
++            try (var admission = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.requireRead();
++                 var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(admission)) {
++                ServerStatsCounter manager = this.getStatisticManager();
++                CraftStatistic.setStatistic(manager, statistic, material, newValue, null);
++                manager.save();
++            }
+         }
+     }
+ 
+@@ -521,9 +551,12 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
+         if (this.isOnline()) {
+             this.getPlayer().incrementStatistic(statistic, entityType);
+         } else {
+-            ServerStatsCounter manager = this.getStatisticManager();
+-            CraftStatistic.incrementStatistic(manager, statistic, entityType, null);
+-            manager.save();
++            try (var admission = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.requireRead();
++                 var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(admission)) {
++                ServerStatsCounter manager = this.getStatisticManager();
++                CraftStatistic.incrementStatistic(manager, statistic, entityType, null);
++                manager.save();
++            }
+         }
+     }
+ 
+@@ -532,9 +565,12 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
+         if (this.isOnline()) {
+             this.getPlayer().decrementStatistic(statistic, entityType);
+         } else {
+-            ServerStatsCounter manager = this.getStatisticManager();
+-            CraftStatistic.decrementStatistic(manager, statistic, entityType, null);
+-            manager.save();
++            try (var admission = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.requireRead();
++                 var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(admission)) {
++                ServerStatsCounter manager = this.getStatisticManager();
++                CraftStatistic.decrementStatistic(manager, statistic, entityType, null);
++                manager.save();
++            }
+         }
+     }
+ 
+@@ -552,9 +588,12 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
+         if (this.isOnline()) {
+             this.getPlayer().incrementStatistic(statistic, entityType, amount);
+         } else {
+-            ServerStatsCounter manager = this.getStatisticManager();
+-            CraftStatistic.incrementStatistic(manager, statistic, entityType, amount, null);
+-            manager.save();
++            try (var admission = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.requireRead();
++                 var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(admission)) {
++                ServerStatsCounter manager = this.getStatisticManager();
++                CraftStatistic.incrementStatistic(manager, statistic, entityType, amount, null);
++                manager.save();
++            }
+         }
+     }
+ 
+@@ -563,9 +602,12 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
+         if (this.isOnline()) {
+             this.getPlayer().decrementStatistic(statistic, entityType, amount);
+         } else {
+-            ServerStatsCounter manager = this.getStatisticManager();
+-            CraftStatistic.decrementStatistic(manager, statistic, entityType, amount, null);
+-            manager.save();
++            try (var admission = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.requireRead();
++                 var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(admission)) {
++                ServerStatsCounter manager = this.getStatisticManager();
++                CraftStatistic.decrementStatistic(manager, statistic, entityType, amount, null);
++                manager.save();
++            }
+         }
+     }
+ 
+@@ -574,9 +616,12 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
+         if (this.isOnline()) {
+             this.getPlayer().setStatistic(statistic, entityType, newValue);
+         } else {
+-            ServerStatsCounter manager = this.getStatisticManager();
+-            CraftStatistic.setStatistic(manager, statistic, entityType, newValue, null);
+-            manager.save();
++            try (var admission = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.requireRead();
++                 var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(admission)) {
++                ServerStatsCounter manager = this.getStatisticManager();
++                CraftStatistic.setStatistic(manager, statistic, entityType, newValue, null);
++                manager.save();
++            }
+         }
+     }
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 05852c238e4f7c379dd2750877648d491d21ac5b..3252c1bac1ddc2f4d985ac8cd0825e8b46f860f9 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -283,7 +283,7 @@ public final class CraftServer implements Server {
+     // lock-free reads from independent region threads.
+     private volatile Map<String, World> worlds = Collections.unmodifiableMap(new LinkedHashMap<>());
+     private final org.bukkit.craftbukkit.world.CraftRuntimeWorldManager runtimeWorldManager;
+-    private final org.bukkit.craftbukkit.world.CraftPlayerRestoreService playerRestoreService = new org.bukkit.craftbukkit.world.CraftPlayerRestoreService();
++    private final org.bukkit.craftbukkit.world.CraftPlayerRestoreService playerRestoreService = new org.bukkit.craftbukkit.world.CraftPlayerRestoreService(this);
+     private static final io.papermc.paper.threadedregions.TesseraCapabilities TESSERA_CAPABILITIES =
+         new io.papermc.paper.threadedregions.TesseraCapabilities() {
+             @Override
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/CraftPlayerRestoreService.java b/src/main/java/org/bukkit/craftbukkit/world/CraftPlayerRestoreService.java
+index 65a7568a8c4625a282db1d82bbed8df61fb1c377..aae2c2c0c305dec7b0f40bc27b9ab44abeeae47a 100644
+--- a/src/main/java/org/bukkit/craftbukkit/world/CraftPlayerRestoreService.java
++++ b/src/main/java/org/bukkit/craftbukkit/world/CraftPlayerRestoreService.java
+@@ -12,17 +12,40 @@ import org.bukkit.World;
+ import org.bukkit.event.player.PlayerTeleportEvent;
+ 
+ /**
+- * Public reflection entry point. Deliberately fails closed until the native
+- * backend satisfies every v1 guarantee; the transaction primitives alone do
+- * not provide live restore and must never activate MCC's optional v1 adapter.
++ * Public entry point for the owner-drained native player-store transaction.
++ * The server-configured backend implements contract 1; an unconfigured test
++ * fixture remains unavailable and cannot accidentally advertise native support.
+  */
+ public final class CraftPlayerRestoreService implements PlayerRestoreService {
+-    private final PlayerRestoreCoordinator coordinator = new PlayerRestoreCoordinator(new UnavailableBackend(), Runnable::run);
++    private final PlayerRestoreCoordinator coordinator;
++    private final NativePlayerRestoreBackend nativeBackend;
+     private final RestoreTeleportScope teleports = new RestoreTeleportScope();
+ 
++    CraftPlayerRestoreService() {
++        this.nativeBackend = null;
++        this.coordinator = new PlayerRestoreCoordinator(new UnavailableBackend(), Runnable::run);
++    }
++
++    public CraftPlayerRestoreService(org.bukkit.craftbukkit.CraftServer server) {
++        this.nativeBackend = new NativePlayerRestoreBackend(server);
++        this.coordinator = new PlayerRestoreCoordinator(this.nativeBackend, Runnable::run);
++    }
++
++    public boolean captureFencedSave(net.minecraft.server.level.ServerPlayer player) {
++        return this.nativeBackend != null && this.nativeBackend.captureFencedSave(player);
++    }
++
++    public void beginServerShutdown() {
++        if (this.nativeBackend != null) this.nativeBackend.beginShutdown();
++    }
++
++    public void completeServerShutdown() {
++        if (this.nativeBackend != null) this.nativeBackend.finishShutdown();
++    }
++
+     @Override
+     public int contractVersion() {
+-        return 0;
++        return this.nativeBackend == null ? 0 : 1;
+     }
+ 
+     @Override
+@@ -58,7 +81,7 @@ public final class CraftPlayerRestoreService implements PlayerRestoreService {
+         @Override
+         public CompletionStage<Void> prepare(PlayerRestoreCoordinator.Operation operation) {
+             return CompletableFuture.failedStage(new PlayerRestoreCoordinator.RestoreFailure(PlayerRestoreStatus.UNSUPPORTED,
+-                "MCC live restore v1 is unavailable: transactional store publication, disconnect/shutdown recovery and complete attachment validation are not complete"));
++                "No native server backend is configured"));
+         }
+ 
+         @Override
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java b/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
+index b80d8a254482ee606090495205de57273abb1955..a5703b48712630bc86c39676d56fc72886178232 100644
+--- a/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
++++ b/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
+@@ -1551,6 +1551,14 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+     private <T> CompletableFuture<T> withLocks(
+         final List<LockRequest> requests,
+         final Supplier<? extends CompletionStage<T>> operation
++    ) {
++        return this.withLocks(requests, operation, this.lifecycleExecutor);
++    }
++
++    private <T> CompletableFuture<T> withLocks(
++        final List<LockRequest> requests,
++        final Supplier<? extends CompletionStage<T>> operation,
++        final java.util.concurrent.Executor executor
+     ) {
+         final List<LockRequest> ordered = requests.stream()
+             .sorted(Comparator.comparing(LockRequest::name))
+@@ -1572,7 +1580,7 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+                 releaseLocks(held);
+                 throw throwable;
+             }
+-        }, this.lifecycleExecutor).thenCompose(held -> {
++        }, executor).thenCompose(held -> {
+             final CompletionStage<T> stage;
+             try {
+                 stage = operation.get();
+@@ -1584,6 +1592,16 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+         });
+     }
+ 
++    /** A restore phase pins the current registrations; locks are released before its API stage completes. */
++    <T> CompletionStage<T> withPlayerRestoreWorlds(Supplier<? extends CompletionStage<T>> operation, java.util.concurrent.Executor executor) {
++        return NativeRestoreWork.track(this.onGlobal(() -> List.copyOf(this.server.getWorlds()))).thenCompose(worlds -> {
++            List<LockRequest> locks = new ArrayList<>();
++            locks.add(new LockRequest("/snapshot-player-storage", true));
++            worlds.forEach(world -> locks.add(new LockRequest(normalizeName(world.getName()), false)));
++            return this.withLocks(locks, operation, executor);
++        });
++    }
++
+     private static void releaseLocks(final List<HeldLock> held) {
+         for (int index = held.size() - 1; index >= 0; --index) {
+             final HeldLock lock = held.get(index);
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/NativePlayerRestoreBackend.java b/src/main/java/org/bukkit/craftbukkit/world/NativePlayerRestoreBackend.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..5413a656ae5f43bdfd86c7a8368e8f20283cc605
+--- /dev/null
++++ b/src/main/java/org/bukkit/craftbukkit/world/NativePlayerRestoreBackend.java
+@@ -0,0 +1,455 @@
++package org.bukkit.craftbukkit.world;
++
++import com.google.gson.JsonElement;
++import com.google.gson.JsonObject;
++import com.mojang.authlib.GameProfile;
++import io.papermc.paper.threadedregions.RegionizedServer;
++import io.papermc.paper.world.PlayerRestoreStatus;
++import java.nio.file.Files;
++import java.nio.file.LinkOption;
++import java.nio.file.Path;
++import java.util.ArrayList;
++import java.util.HashMap;
++import java.util.LinkedHashMap;
++import java.util.List;
++import java.util.Map;
++import java.util.UUID;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.CompletionStage;
++import java.util.concurrent.ConcurrentHashMap;
++import java.util.concurrent.ExecutorService;
++import java.util.concurrent.Executors;
++import java.util.function.Function;
++import net.minecraft.core.UUIDUtil;
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.nbt.NbtAccounter;
++import net.minecraft.nbt.NbtIo;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.PlayerAdvancements;
++import net.minecraft.server.level.ClientInformation;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.stats.ServerStatsCounter;
++import net.minecraft.util.StrictJsonParser;
++import net.minecraft.world.phys.Vec2;
++import net.minecraft.world.phys.Vec3;
++import org.bukkit.Location;
++import org.bukkit.craftbukkit.CraftServer;
++import org.bukkit.craftbukkit.CraftWorld;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.event.inventory.InventoryCloseEvent;
++
++/**
++ * Owns the native transaction. Only I/O workers wait for stages. All entity
++ * reads and mutations are dispatched to the current owner, including during
++ * tick freeze. Completion is the sole ordinary admission-release point.
++ * No operation is replayed after restart: the caller owns its recovery journal.
++ */
++final class NativePlayerRestoreBackend implements PlayerRestoreCoordinator.Backend {
++    private final CraftServer server;
++    private final ExecutorService io = Executors.newVirtualThreadPerTaskExecutor();
++    private final Map<UUID, Transaction> transactions = new ConcurrentHashMap<>();
++    private volatile Transaction active;
++    private volatile boolean stopping;
++
++    private record Identity(CraftPlayer wrapper, GameProfile profile, ClientInformation options) {}
++    private record Worlds(Map<UUID, CraftWorld> ids, Map<String, CraftWorld> keys, Location fallback) {}
++    private record Raw(CompoundTag data, JsonElement stats, JsonElement advancements) {}
++
++    private static final class Transaction {
++        final PlayerRestoreCoordinator.Operation operation;
++        final Map<UUID, Identity> participants = new LinkedHashMap<>();
++        final Map<UUID, PlayerRestoreImage> disconnected = new ConcurrentHashMap<>();
++        final Map<UUID, NativePlayerRestoreState> forward = new LinkedHashMap<>();
++        Path activeStore;
++        Path forwardStore;
++        volatile boolean fenced;
++        volatile boolean captureOpen;
++        boolean backupComplete;
++        Boolean applied;
++        Throwable captureFailure;
++
++        Transaction(PlayerRestoreCoordinator.Operation operation) { this.operation = operation; }
++    }
++
++    NativePlayerRestoreBackend(CraftServer server) { this.server = server; }
++
++    @Override
++    public CompletionStage<Void> prepare(PlayerRestoreCoordinator.Operation operation) {
++        Transaction tx = new Transaction(operation);
++        this.transactions.put(operation.id, tx);
++        this.active = tx;
++        return this.phase(() -> {
++            this.ensureRunning();
++            tx.activeStore = this.server.getServer().getPlayerList().playerIo.getPlayerDir().toPath().getParent();
++            PlayerRestoreFiles.validateDisjoint(operation.request.source(), operation.request.rollback(), tx.activeStore);
++            PlayerRestoreFiles.validateTree(operation.request.source());
++            if (Files.exists(operation.request.rollback(), LinkOption.NOFOLLOW_LINKS)) {
++                throw failure(PlayerRestoreStatus.INVALID_REQUEST, "Rollback root must not already exist");
++            }
++            if (org.spigotmc.SpigotConfig.disablePlayerDataSaving || org.spigotmc.SpigotConfig.disableStatSaving
++                || org.spigotmc.SpigotConfig.disableAdvancementSaving) {
++                throw failure(PlayerRestoreStatus.SAVE_FAILED, "All three player stores must have saving enabled");
++            }
++            Worlds worlds = this.worlds(operation.request.fallback());
++            Map<UUID, Raw> source = this.readStore(operation.request.source());
++            operation.checkForward();
++            tx.captureOpen = true;
++            tx.fenced = true;
++            PlayerStoreFence.INSTANCE.close(operation.id).toCompletableFuture().join();
++            operation.checkForward();
++
++            // Admission is drained, so no previously admitted login can appear
++            // after this participant snapshot. Retirements are covered below.
++            List<CraftPlayer> online = this.onGlobal(() -> this.server.getOnlinePlayers().stream()
++                .map(player -> (CraftPlayer)player).toList()).join();
++            for (CraftPlayer wrapper : online) {
++                try {
++                    Identity identity = owner(wrapper, player -> {
++                        if (!player.getBukkitEntity().isPersistent()) throw failure(PlayerRestoreStatus.SAVE_FAILED, "Non-persistent player: " + player.getUUID());
++                        player.closeContainer(InventoryCloseEvent.Reason.PLUGIN);
++                        try (var lease = PlayerStoreFence.INSTANCE.writeOwned(operation.id);
++                             var scope = PlayerStoreFence.INSTANCE.enter(lease)) {
++                            this.server.getServer().getPlayerList().tessera$savePlayerSnapshot(player);
++                        }
++                        return new Identity(wrapper, player.getGameProfile(), player.clientInformation());
++                    }).toCompletableFuture().join();
++                    tx.participants.put(identity.profile.id(), identity);
++                } catch (RuntimeException failed) {
++                    if (!tx.disconnected.containsKey(wrapper.getUniqueId())) throw failed;
++                }
++            }
++            synchronized (tx) { tx.captureOpen = false; }
++            PlayerStoreFence.INSTANCE.awaitIdle(operation.id).toCompletableFuture().join();
++            if (tx.captureFailure != null) throw new IllegalStateException("Could not capture logout before backup", tx.captureFailure);
++            operation.checkForward();
++
++            Path backupWork = staging(operation.request.rollback());
++            RestoreStoragePlatform.files().copyNew(tx.activeStore, backupWork);
++            for (PlayerRestoreImage image : tx.disconnected.values()) image.write(backupWork);
++            RestoreStoragePlatform.files().seal(backupWork);
++            RestoreStoragePlatform.move(backupWork, operation.request.rollback());
++            tx.backupComplete = true;
++            operation.checkForward();
++
++            // Preflight every saved player, not merely the currently connected
++            // subset. Each preview is created on its resolved destination owner.
++            for (var entry : source.entrySet()) {
++                operation.checkForward();
++                Identity identity = tx.participants.get(entry.getKey());
++                GameProfile profile = identity == null ? new GameProfile(entry.getKey(), "RestorePreview") : identity.profile;
++                ClientInformation options = identity == null ? ClientInformation.createDefault() : identity.options;
++                tx.forward.put(entry.getKey(), this.preflight(worlds, profile, options, entry.getValue()));
++            }
++            for (var entry : tx.participants.entrySet()) {
++                if (!tx.forward.containsKey(entry.getKey())) {
++                    Identity identity = entry.getValue();
++                    tx.forward.put(entry.getKey(), this.preflight(worlds, identity.profile, identity.options, new Raw(null, new JsonObject(), new JsonObject())));
++                }
++            }
++            java.util.Set<UUID> attachmentIds = new java.util.HashSet<>(tx.forward.keySet());
++            for (NativePlayerRestoreState state : tx.forward.values()) {
++                PlayerRestoreImage image = state.image();
++                for (UUID id : NativeRestoreAttachments.identities(image.data()).keySet()) {
++                    if (!attachmentIds.add(id)) throw failure(PlayerRestoreStatus.VALIDATION_FAILED, "Attachment identity occurs in multiple saved players: " + id);
++                }
++                this.preflightPearls(worlds, image);
++            }
++            tx.forwardStore = staging(tx.activeStore);
++            RestoreStoragePlatform.files().copyNew(operation.request.source(), tx.forwardStore);
++            for (var entry : tx.forward.entrySet()) entry.getValue().image().write(tx.forwardStore);
++            this.ensureRunning();
++            operation.checkForward();
++            return null;
++        });
++    }
++
++    @Override
++    public CompletionStage<Void> apply(PlayerRestoreCoordinator.Operation operation, boolean forward) {
++        Transaction tx = this.transactions.get(operation.id);
++        if (tx == null) return CompletableFuture.completedStage(null);
++        return this.phase(() -> {
++            this.ensureRunning();
++            if (!tx.fenced) {
++                if (forward) throw failure(PlayerRestoreStatus.CONFLICT, "Prepare did not acquire storage");
++                tx.applied = false;
++                return null;
++            }
++            if (forward) operation.checkForward();
++            synchronized (tx) { tx.captureOpen = false; }
++            PlayerStoreFence.INSTANCE.awaitIdle(operation.id).toCompletableFuture().join();
++            if (!tx.backupComplete) {
++                if (forward) throw failure(PlayerRestoreStatus.CONFLICT, "No completed rollback backup");
++                // Failed prepare did not publish or mutate live state. Captured
++                // logout images must still reach the original store before release.
++                if (!tx.disconnected.isEmpty()) {
++                    Path sealed = staging(tx.activeStore);
++                    RestoreStoragePlatform.files().copyNew(tx.activeStore, sealed);
++                    for (PlayerRestoreImage image : tx.disconnected.values()) image.write(sealed);
++                    RestoreStoragePlatform.files().publish(sealed, tx.activeStore, operation.id, "aborted-prepare");
++                }
++                tx.applied = false;
++                return null;
++            }
++            Map<UUID, NativePlayerRestoreState> states = tx.forward;
++            Path prepared = tx.forwardStore;
++            if (!forward) {
++                Worlds worlds = this.worlds(operation.request.fallback());
++                Map<UUID, Raw> raw = this.readStore(operation.request.rollback());
++                states = new LinkedHashMap<>();
++                for (Identity identity : tx.participants.values()) {
++                    Raw saved = raw.getOrDefault(identity.profile.id(), new Raw(null, new JsonObject(), new JsonObject()));
++                    NativePlayerRestoreState state = this.preflight(worlds, identity.profile, identity.options, saved);
++                    this.preflightPearls(worlds, state.image());
++                    states.put(identity.profile.id(), state);
++                }
++                prepared = staging(tx.activeStore);
++                RestoreStoragePlatform.files().copyNew(operation.request.rollback(), prepared);
++                for (NativePlayerRestoreState state : states.values()) state.image().write(prepared);
++            }
++            if (prepared == null) throw failure(PlayerRestoreStatus.CONFLICT, "Prepared player store is missing");
++            this.ensureRunning();
++            if (forward) operation.checkForward();
++            RestoreStoragePlatform.files().publish(prepared, tx.activeStore, operation.id, forward ? "forward" : "rollback");
++            PlayerStoreFence.INSTANCE.advance(operation.id);
++
++            List<CompletableFuture<Void>> transfers = new ArrayList<>();
++            for (var entry : tx.participants.entrySet()) {
++                NativePlayerRestoreState state = states.get(entry.getKey());
++                CraftPlayer wrapper = entry.getValue().wrapper;
++                if (!wrapper.isOnline()) continue; // Its canonical target file was published above.
++                ServerPlayer handle = wrapper.getHandle();
++                CompletionStage<Void> restore = state.restore(handle, operation.id);
++                transfers.add(restore.handle((ignored, failure) -> failure).thenCompose(failure -> {
++                    if (!wrapper.isOnline() || handle.hasDisconnected()) return handle.tessera$logoutDrained.minimalCompletionStage();
++                    return failure == null ? CompletableFuture.<Void>completedStage(null) : CompletableFuture.<Void>failedStage(failure);
++                }).toCompletableFuture());
++            }
++            CompletableFuture.allOf(transfers.toArray(CompletableFuture[]::new)).join();
++            this.ensureRunning();
++            // Seal live output in a new forced tree. Vanilla saves use replacement
++            // files but do not provide the transaction's directory durability.
++            List<PlayerRestoreImage> appliedImages = new ArrayList<>();
++            for (Identity identity : tx.participants.values()) {
++                if (!identity.wrapper.isOnline()) continue;
++                PlayerRestoreImage image = owner(identity.wrapper, player -> {
++                    if (player.tessera$playerStoreGeneration != PlayerStoreFence.INSTANCE.generation()) {
++                        throw failure(PlayerRestoreStatus.TRANSFER_FAILED, "Player did not reach applied generation");
++                    }
++                    return PlayerRestoreImage.capture(player);
++                }).toCompletableFuture().handle((captured, failure) -> {
++                    if (failure != null && identity.wrapper.isOnline()) throw new java.util.concurrent.CompletionException(failure);
++                    return captured;
++                }).join();
++                if (image != null) appliedImages.add(image);
++            }
++            Path sealed = staging(tx.activeStore);
++            RestoreStoragePlatform.files().copyNew(tx.activeStore, sealed);
++            for (PlayerRestoreImage image : appliedImages) image.write(sealed);
++            this.ensureRunning();
++            RestoreStoragePlatform.files().publish(sealed, tx.activeStore, operation.id, forward ? "applied" : "rolled-back");
++            tx.applied = forward;
++            return null;
++        });
++    }
++
++    @Override
++    public CompletionStage<Void> complete(PlayerRestoreCoordinator.Operation operation, boolean committed) {
++        Transaction tx = this.transactions.get(operation.id);
++        if (tx == null) return CompletableFuture.completedStage(null);
++        return CompletableFuture.runAsync(() -> {
++            this.ensureRunning();
++            if (!java.util.Objects.equals(tx.applied, committed)) throw failure(PlayerRestoreStatus.CONFLICT, "Applied decision does not match completion");
++            if (tx.fenced) {
++                PlayerStoreFence.INSTANCE.awaitIdle(operation.id).toCompletableFuture().join();
++                PlayerStoreFence.INSTANCE.open(operation.id);
++                tx.fenced = false;
++            }
++            if (this.active == tx) this.active = null;
++            this.transactions.remove(operation.id, tx); // The coordinator retains only the small idempotency record.
++            // Retained roots are deliberate recovery artifacts, not deleted by
++            // a plugin-disable hook or a speculative restart replay.
++        }, this.io);
++    }
++
++    /** Called synchronously on the retiring player's owner before its handle disappears. */
++    boolean captureFencedSave(ServerPlayer player) {
++        Transaction tx = this.active;
++        if (tx == null || !tx.fenced) return false;
++        final PlayerStoreFence.Lease admission;
++        synchronized (tx) {
++            if (!tx.captureOpen) return true;
++            admission = PlayerStoreFence.INSTANCE.writeOwned(tx.operation.id);
++        }
++        try (admission) {
++            PlayerRestoreImage image = PlayerRestoreImage.capture(player);
++            tx.disconnected.put(player.getUUID(), image);
++        } catch (Throwable failure) {
++            synchronized (tx) { tx.captureFailure = failure; }
++        }
++        return true;
++    }
++
++    private Map<UUID, Raw> readStore(Path path) throws Exception {
++        PlayerRestoreFiles.validateTree(path);
++        Map<UUID, JsonElement> stats = this.jsonStore(path.resolve("stats"), false);
++        Map<UUID, JsonElement> advancements = this.jsonStore(path.resolve("advancements"), true);
++        Map<UUID, Raw> result = new LinkedHashMap<>();
++        try (var files = Files.list(path.resolve("data"))) {
++            for (Path file : files.toList()) {
++                String name = file.getFileName().toString();
++                if (name.endsWith(".dat_old")) {
++                    NbtIo.readCompressed(file, NbtAccounter.create(16L * 1024 * 1024));
++                    continue;
++                }
++                if (!name.endsWith(".dat")) throw failure(PlayerRestoreStatus.VALIDATION_FAILED, "Unexpected player data file: " + name);
++                UUID id = UUID.fromString(name.substring(0, name.length() - 4));
++                CompoundTag data = NbtIo.readCompressed(file, NbtAccounter.create(16L * 1024 * 1024));
++                data = ca.spottedleaf.dataconverter.minecraft.MCDataConverter.convertTag(
++                    ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry.PLAYER, data,
++                    net.minecraft.nbt.NbtUtils.getDataVersion(data), ca.spottedleaf.dataconverter.minecraft.util.Version.getCurrentVersion());
++                data.read("UUID", UUIDUtil.CODEC).ifPresent(saved -> {
++                    if (!saved.equals(id)) throw failure(PlayerRestoreStatus.VALIDATION_FAILED, "Player UUID differs from file name");
++                });
++                result.put(id, new Raw(data, stats.getOrDefault(id, new JsonObject()), advancements.getOrDefault(id, new JsonObject())));
++            }
++        }
++        return result;
++    }
++
++    private Map<UUID, JsonElement> jsonStore(Path path, boolean advancements) throws Exception {
++        Map<UUID, JsonElement> result = new HashMap<>();
++        try (var files = Files.list(path)) {
++            for (Path file : files.toList()) {
++                String name = file.getFileName().toString();
++                if (!name.endsWith(".json") || Files.size(file) > 16L * 1024 * 1024) throw failure(PlayerRestoreStatus.VALIDATION_FAILED, "Invalid JSON store file: " + name);
++                UUID id = UUID.fromString(name.substring(0, name.length() - 5));
++                try (var reader = Files.newBufferedReader(file)) {
++                    JsonElement json = StrictJsonParser.parse(reader);
++                    if (!json.isJsonObject()) throw failure(PlayerRestoreStatus.VALIDATION_FAILED, "Player JSON must be an object");
++                    if (advancements) PlayerAdvancements.tessera$validateRestore(this.server.getServer().getFixerUpper(), json);
++                    else ServerStatsCounter.tessera$decodeRestore(this.server.getServer().getFixerUpper(), json);
++                    result.put(id, json);
++                }
++            }
++        }
++        return result;
++    }
++
++    private NativePlayerRestoreState preflight(Worlds worlds, GameProfile profile, ClientInformation options, Raw raw) {
++        Location target = worlds.fallback.clone();
++        if (raw.data != null) {
++            CraftWorld world;
++            if (raw.data.contains("WorldUUIDMost") || raw.data.contains("WorldUUIDLeast")) {
++                world = worlds.ids.get(new UUID(raw.data.getLong("WorldUUIDMost").orElseThrow(), raw.data.getLong("WorldUUIDLeast").orElseThrow()));
++            } else {
++                world = worlds.keys.get(raw.data.getString("Dimension").orElseThrow());
++            }
++            if (world == null) throw failure(PlayerRestoreStatus.VALIDATION_FAILED, "Saved player world is not loaded");
++            Vec3 position = raw.data.read("Pos", Vec3.CODEC).orElseThrow();
++            Vec2 rotation = raw.data.read("Rotation", Vec2.CODEC).orElse(Vec2.ZERO);
++            target = new Location(world, position.x, position.y, position.z, rotation.x, rotation.y);
++        }
++        target.checkFinite();
++        if (Math.abs(target.getX()) > 29_999_984 || Math.abs(target.getZ()) > 29_999_984
++            || !net.minecraft.server.level.ServerLevel.isInSpawnableBounds(net.minecraft.core.BlockPos.containing(target.getX(), target.getY(), target.getZ()))) {
++            throw failure(PlayerRestoreStatus.VALIDATION_FAILED, "Player position outside world limits");
++        }
++        Location destination = target;
++        CompletableFuture<NativePlayerRestoreState> result = NativeRestoreWork.future();
++        RegionizedServer.getInstance().taskQueue.queueTickTaskQueue(((CraftWorld)target.getWorld()).getHandle(), target.getBlockX() >> 4, target.getBlockZ() >> 4, () -> {
++            try {
++                this.ensureRunning();
++                result.complete(NativePlayerRestoreState.prepare(this.server.getServer(), profile, options, destination, raw.data, raw.stats, raw.advancements));
++            } catch (Throwable failure) { result.completeExceptionally(failure); }
++        });
++        return result.join();
++    }
++
++    private void preflightPearls(Worlds worlds, PlayerRestoreImage image) {
++        for (var tag : image.data().getListOrEmpty("ender_pearls")) {
++            CompoundTag pearl = (CompoundTag)tag;
++            CraftWorld world = worlds.keys.get(pearl.getString("ender_pearl_dimension").orElseThrow());
++            if (world == null) throw failure(PlayerRestoreStatus.VALIDATION_FAILED, "Saved pearl world is unavailable");
++            Vec3 pos = NativeRestoreAttachments.pearlPosition(pearl, image.id());
++            CompletableFuture<Void> decoded = NativeRestoreWork.future();
++            RegionizedServer.getInstance().taskQueue.queueTickTaskQueue(world.getHandle(), net.minecraft.core.SectionPos.blockToSectionCoord(pos.x), net.minecraft.core.SectionPos.blockToSectionCoord(pos.z), () -> {
++                try {
++                    this.ensureRunning();
++                    NativeRestoreAttachments.decode(pearl, world.getHandle());
++                    decoded.complete(null);
++                } catch (Throwable failure) { decoded.completeExceptionally(failure); }
++            });
++            decoded.join();
++        }
++    }
++
++    private Worlds worlds(UUID fallbackId) {
++        return this.onGlobal(() -> {
++            Map<UUID, CraftWorld> ids = new HashMap<>();
++            Map<String, CraftWorld> keys = new HashMap<>();
++            this.server.getWorlds().forEach(world -> {
++                ids.put(world.getUID(), (CraftWorld)world);
++                keys.put(world.getKey().toString(), (CraftWorld)world);
++            });
++            CraftWorld fallback = ids.get(fallbackId);
++            if (fallback == null) throw failure(PlayerRestoreStatus.INVALID_REQUEST, "Fallback world is unavailable");
++            return new Worlds(Map.copyOf(ids), Map.copyOf(keys), fallback.getSpawnLocation());
++        }).join();
++    }
++
++    private <T> CompletableFuture<T> onGlobal(java.util.function.Supplier<T> action) {
++        CompletableFuture<T> result = NativeRestoreWork.future();
++        this.ensureRunning();
++        RegionizedServer.getInstance().addTask(() -> {
++            try { this.ensureRunning(); result.complete(action.get()); }
++            catch (Throwable failure) { result.completeExceptionally(failure); }
++        });
++        return result;
++    }
++
++    private static <T> CompletionStage<T> owner(CraftPlayer player, Function<ServerPlayer, T> action) {
++        NativeRestoreWork.checkRunning();
++        return NativeRestoreWork.track(player.taskScheduler.scheduleRestore(current -> {
++            try { NativeRestoreWork.checkRunning(); return CompletableFuture.completedStage(action.apply((ServerPlayer)current)); }
++            catch (Throwable failure) { return CompletableFuture.failedStage(failure); }
++        }));
++    }
++
++    @FunctionalInterface private interface Work<T> { T run() throws Exception; }
++
++    private <T> CompletionStage<T> phase(Work<T> work) {
++        return this.server.getRuntimeWorldManager().withPlayerRestoreWorlds(() -> CompletableFuture.supplyAsync(() -> {
++            try { return work.run(); }
++            catch (RuntimeException failure) { throw failure; }
++            catch (Exception failure) { throw new java.util.concurrent.CompletionException(failure); }
++        }, this.io), this.io);
++    }
++
++    private static Path staging(Path target) throws java.io.IOException {
++        PlayerRestoreFiles.checkedPath(target);
++        Files.createDirectories(target.toAbsolutePath().getParent());
++        return target.resolveSibling(".tessera-restore-" + UUID.randomUUID());
++    }
++
++    private void ensureRunning() {
++        if (this.stopping || !this.server.getServer().isRunning()) throw failure(PlayerRestoreStatus.SERVER_STOPPING, "Server is stopping");
++    }
++
++    void beginShutdown() {
++        this.stopping = true;
++        NativeRestoreWork.beginShutdown();
++    }
++
++    void finishShutdown() {
++        this.beginShutdown();
++        NativeRestoreWork.finishShutdown();
++        // Wakes owner waits only after native mutation has drained. A worker
++        // already copying files must finish before the shutdown is reported.
++        this.io.shutdownNow(); // Interrupt lock acquisition/private staging copies after all native mutation halted.
++        this.io.close();
++    }
++
++    private static PlayerRestoreCoordinator.RestoreFailure failure(PlayerRestoreStatus status, String message) {
++        return new PlayerRestoreCoordinator.RestoreFailure(status, message);
++    }
++}
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/NativePlayerRestoreState.java b/src/main/java/org/bukkit/craftbukkit/world/NativePlayerRestoreState.java
+index 9c87186fbf61c6ff12dbe311889f2037fc20d654..c70700a18a4aadc8359ab9381cd111ccd35614b7 100644
+--- a/src/main/java/org/bukkit/craftbukkit/world/NativePlayerRestoreState.java
++++ b/src/main/java/org/bukkit/craftbukkit/world/NativePlayerRestoreState.java
+@@ -27,24 +27,25 @@ import org.bukkit.craftbukkit.CraftWorld;
+ import org.bukkit.event.player.PlayerTeleportEvent;
+ 
+ /**
+- * Native per-player restore work. This is NOT a player-store transaction: the
+- * caller must own admission, validate every participant and publish/recover the
+- * stores before invoking it. The public restore service remains unavailable
+- * until that transaction and its crash/recovery contract have been verified.
++ * Native per-player work owned by NativePlayerRestoreBackend. The transaction
++ * owns admission, validates every participant, and publishes/recovers the stores
++ * before invoking this region-dispatched state replacement.
+  */
+ public final class NativePlayerRestoreState {
+     private final ServerPlayer preview;
+     private final CompoundTag canonical;
+     private final Map<Stat<?>, Integer> statistics;
+     private final JsonElement advancements;
++    private final JsonElement storedStatistics;
+     private final Location target;
+ 
+     private NativePlayerRestoreState(ServerPlayer preview, CompoundTag canonical,
+-                                     Map<Stat<?>, Integer> statistics, JsonElement advancements, Location target) {
++                                     Map<Stat<?>, Integer> statistics, JsonElement storedStatistics, JsonElement advancements, Location target) {
+         this.preview = preview;
+         this.canonical = canonical;
+         this.statistics = statistics;
+         this.advancements = advancements.deepCopy();
++        this.storedStatistics = storedStatistics.deepCopy();
+         this.target = target.clone();
+     }
+ 
+@@ -83,26 +84,34 @@ public final class NativePlayerRestoreState {
+         if (fresh.getRespawnConfig() != null && server.getLevel(fresh.getRespawnConfig().respawnData().dimension()) == null) {
+             throw new IllegalArgumentException("Saved respawn world is unavailable");
+         }
+-        if (!Float.isFinite(fresh.getHealth()) || fresh.getHealth() <= 0) throw new IllegalArgumentException("Saved player must be alive");
++        if (!Float.isFinite(fresh.getHealth()) || fresh.getHealth() < 0) throw new IllegalArgumentException("Invalid saved health");
+         TagValueOutput output = TagValueOutput.createWithContext(problems, server.registryAccess());
+         fresh.saveWithoutId(output);
+         if (!problems.isEmpty()) throw new IllegalArgumentException("Invalid player state: " + problems.getReport());
+         CompoundTag canonical = output.buildResult();
++        NbtUtils.addCurrentDataVersion(canonical);
+         if (input != null) {
+             for (String field : List.of("RootVehicle", "ender_pearls", "abilities")) {
+                 if (input.contains(field)) canonical.put(field, input.get(field).copy());
+             }
+         }
+-        return new NativePlayerRestoreState(fresh, canonical, decodedStats, advancements, target);
++        NativeRestoreAttachments.validateLocal(canonical, world);
++        return new NativePlayerRestoreState(fresh, canonical, decodedStats, stats, advancements, target);
++    }
++
++    PlayerRestoreImage image() {
++        return new PlayerRestoreImage(this.preview.getUUID(), this.canonical.copy(), this.storedStatistics.deepCopy(), this.advancements.deepCopy());
+     }
+ 
+     /** Every dispatched child and the real client teleport acknowledgement belongs to this stage. */
+     public CompletionStage<Void> restore(ServerPlayer player, UUID operation) {
+-        return player.getBukkitEntity().taskScheduler.scheduleRestore(entity -> this.begin((ServerPlayer)entity, operation));
++        NativeRestoreWork.checkRunning();
++        return NativeRestoreWork.track(player.getBukkitEntity().taskScheduler.scheduleRestore(entity -> this.begin((ServerPlayer)entity, operation)));
+     }
+ 
+     private CompletionStage<Void> begin(ServerPlayer player, UUID operation) {
+-        if (!player.getUUID().equals(this.preview.getUUID()) || player.hasDisconnected() || !player.isAlive()) {
++        NativeRestoreWork.checkRunning();
++        if (!player.getUUID().equals(this.preview.getUUID()) || player.hasDisconnected()) {
+             return CompletableFuture.failedStage(new IllegalStateException("Restore player is unavailable"));
+         }
+         Location from = player.getBukkitEntity().getLocation();
+@@ -115,32 +124,23 @@ public final class NativePlayerRestoreState {
+             return CompletableFuture.failedStage(new IllegalStateException("Player moved during restore teleport event"));
+         }
+         player.closeContainer(org.bukkit.event.inventory.InventoryCloseEvent.Reason.PLUGIN);
+-        player.stopRiding();
+-        if (player.isPassenger() || player.isVehicle()) return CompletableFuture.failedStage(new IllegalStateException("Player mount refused restore detach"));
+-        CompletableFuture<?>[] detached = List.copyOf(player.getEnderPearls()).stream().map(pearl ->
+-            pearl.getBukkitEntity().taskScheduler.scheduleRestore(current -> {
+-                ((net.minecraft.world.entity.projectile.Projectile)current).setOwner((Entity)null);
+-                current.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.DISCARD);
+-                return CompletableFuture.completedStage(null);
+-            }).toCompletableFuture()
+-        ).toArray(CompletableFuture[]::new);
+-        return CompletableFuture.allOf(detached).thenCompose(ignored -> player.getBukkitEntity().taskScheduler.scheduleRestore(current -> this.transfer((ServerPlayer)current)));
++        return NativeRestoreAttachments.clear(player, this.canonical)
++            .thenCompose(ignored -> player.getBukkitEntity().taskScheduler.scheduleRestore(current -> this.transfer((ServerPlayer)current)));
+     }
+ 
+     private CompletionStage<Void> transfer(ServerPlayer player) {
+-        CompletableFuture<Void> transferred = new CompletableFuture<>();
++        NativeRestoreWork.checkRunning();
++        CompletableFuture<Void> transferred = NativeRestoreWork.future();
+         if (player.hasDisconnected()) return CompletableFuture.failedStage(new IllegalStateException("Player disconnected before restore transfer"));
+-        boolean accepted = player.teleportAsync(this.preview.level(),
+-            new Vec3(this.target.getX(), this.target.getY(), this.target.getZ()), this.target.getYaw(), this.target.getPitch(), Vec3.ZERO,
+-            PlayerTeleportEvent.TeleportCause.PLUGIN, Entity.TELEPORT_FLAG_LOAD_CHUNK, entity -> {
++        boolean accepted = player.tessera$teleportRestore(this.preview.level(),
++            new Vec3(this.target.getX(), this.target.getY(), this.target.getZ()), this.target.getYaw(), this.target.getPitch(), entity -> {
+                 try {
++                    NativeRestoreWork.checkRunning();
+                     ServerPlayer current = (ServerPlayer)entity;
+-                    current.tessera$replaceRestore(this.preview, this.canonical);
+-                    current.getStats().tessera$replaceRestore(this.statistics, current);
+-                    current.getAdvancements().tessera$replaceRestore(this.advancements, current.level().getServer().getAdvancements());
+-                    this.restoreVehicle(current);
+-                    CompletionStage<Void> pearls = current.tessera$loadAndSpawnEnderPearls(TagValueInput.create(ProblemReporter.DISCARDING, current.registryAccess(), this.canonical.copy()));
+-                    CompletableFuture.allOf(pearls.toCompletableFuture(), current.connection.tessera$awaitRestoreAck().toCompletableFuture())
++                    // Teleport chunk loading can materialize a saved world copy of
++                    // the vehicle. Retire it on its owner before adding the NBT copy.
++                    NativeRestoreAttachments.clear(current, this.canonical).thenCompose(ignored ->
++                        current.getBukkitEntity().taskScheduler.scheduleRestore(owner -> this.install((ServerPlayer)owner)))
+                         .whenComplete((ignored, failure) -> {
+                             if (failure == null) transferred.complete(null);
+                             else transferred.completeExceptionally(failure);
+@@ -153,14 +153,24 @@ public final class NativePlayerRestoreState {
+         return transferred.minimalCompletionStage();
+     }
+ 
++    private CompletionStage<Void> install(ServerPlayer current) {
++        NativeRestoreWork.checkRunning();
++        if (current.hasDisconnected()) return CompletableFuture.failedStage(new IllegalStateException("Player disconnected before state installation"));
++        current.tessera$replaceRestore(this.preview, this.canonical);
++        current.getStats().tessera$replaceRestore(this.statistics, current);
++        current.getAdvancements().tessera$replaceRestore(this.advancements, current.level().getServer().getAdvancements());
++        this.restoreVehicle(current);
++        CompletionStage<Void> pearls = current.tessera$loadAndSpawnEnderPearls(TagValueInput.create(ProblemReporter.DISCARDING, current.registryAccess(), this.canonical.copy()), true);
++        return CompletableFuture.allOf(pearls.toCompletableFuture(), current.connection.tessera$awaitRestoreAck().toCompletableFuture());
++    }
++
+     private void restoreVehicle(ServerPlayer player) {
+         var root = this.canonical.getCompound("RootVehicle");
+         if (root.isEmpty()) return;
+         UUID attachment = root.get().read("Attach", UUIDUtil.CODEC).orElseThrow();
+         Entity existing = player.level().getEntity(attachment);
+         if (existing != null) {
+-            ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(existing, "Saved vehicle belongs to another region");
+-            if (!player.startRiding(existing, true, false)) throw new IllegalStateException("Saved vehicle rejected restore attachment");
++            throw new IllegalStateException("Saved vehicle UUID reappeared after owner-drained replacement");
+         } else {
+             player.loadAndSpawnParentVehicle(TagValueInput.create(ProblemReporter.DISCARDING, player.registryAccess(), this.canonical.copy()));
+         }
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/NativeRestoreAttachments.java b/src/main/java/org/bukkit/craftbukkit/world/NativeRestoreAttachments.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..bc7a09b68bd5e6729f3593f65a5f3f4870f6d425
+--- /dev/null
++++ b/src/main/java/org/bukkit/craftbukkit/world/NativeRestoreAttachments.java
+@@ -0,0 +1,147 @@
++package org.bukkit.craftbukkit.world;
++
++import java.util.ArrayList;
++import java.util.LinkedHashMap;
++import java.util.List;
++import java.util.Map;
++import java.util.UUID;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.CompletionStage;
++import net.minecraft.core.UUIDUtil;
++import net.minecraft.core.registries.BuiltInRegistries;
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.util.ProblemReporter;
++import net.minecraft.world.entity.Entity;
++import net.minecraft.world.entity.EntityProcessor;
++import net.minecraft.world.entity.EntitySpawnReason;
++import net.minecraft.world.entity.EntityType;
++import net.minecraft.world.entity.projectile.Projectile;
++import net.minecraft.world.level.storage.TagValueInput;
++import net.minecraft.world.phys.Vec3;
++
++/** Detached validation and owner-dispatched replacement of a player's saved entity graph. */
++final class NativeRestoreAttachments {
++    private NativeRestoreAttachments() {}
++
++    static Map<UUID, String> identities(CompoundTag player) {
++        Map<UUID, String> result = new LinkedHashMap<>();
++        player.getCompound("RootVehicle").ifPresent(root -> {
++            UUID attach = root.read("Attach", UUIDUtil.CODEC).orElseThrow();
++            collect(root.getCompound("Entity").orElseThrow(), result);
++            if (!result.containsKey(attach)) throw new IllegalArgumentException("Vehicle attachment is absent from its entity graph");
++        });
++        for (String field : List.of("ShoulderEntityLeft", "ShoulderEntityRight")) {
++            player.getCompound(field).filter(tag -> !tag.isEmpty()).ifPresent(tag -> collect(tag, result));
++        }
++        for (var tag : player.getListOrEmpty("ender_pearls")) {
++            if (!(tag instanceof CompoundTag pearl) || !"minecraft:ender_pearl".equals(pearl.getString("id").orElseThrow())) {
++                throw new IllegalArgumentException("Invalid saved ender pearl entity");
++            }
++            collect(pearl, result);
++        }
++        return Map.copyOf(result);
++    }
++
++    private static void collect(CompoundTag entity, Map<UUID, String> ids) {
++        UUID id = entity.read("UUID", UUIDUtil.CODEC).orElseThrow();
++        String type = entity.getString("id").orElseThrow();
++        if ("minecraft:player".equals(type) || ids.putIfAbsent(id, type) != null) throw new IllegalArgumentException("Duplicate or player entity in attachment graph: " + id);
++        for (var child : entity.getListOrEmpty("Passengers")) {
++            if (!(child instanceof CompoundTag passenger)) throw new IllegalArgumentException("Invalid passenger NBT");
++            collect(passenger, ids);
++        }
++    }
++
++    static void validateLocal(CompoundTag player, ServerLevel world) {
++        player.getCompound("RootVehicle").ifPresent(root -> decode(root.getCompound("Entity").orElseThrow(), world));
++        for (String field : List.of("ShoulderEntityLeft", "ShoulderEntityRight")) {
++            player.getCompound(field).filter(tag -> !tag.isEmpty()).ifPresent(tag -> {
++                if (!(decode(tag, world) instanceof net.minecraft.world.entity.animal.parrot.Parrot)) {
++                    throw new IllegalArgumentException("Invalid shoulder entity");
++                }
++            });
++        }
++        identities(player);
++    }
++
++    /** Never register preview projectiles with a real owner. */
++    static Entity decode(CompoundTag saved, ServerLevel world) {
++        CompoundTag detached = saved.copy();
++        detachOwners(detached);
++        detached.remove("Passengers"); // Validate descendants without firing mount events on preview entities.
++        ProblemReporter.Collector problems = new ProblemReporter.Collector();
++        Entity entity = EntityType.loadEntityRecursive(TagValueInput.create(problems, world.registryAccess(), detached), world, EntitySpawnReason.LOAD, EntityProcessor.NOP);
++        if (entity == null || !problems.isEmpty()) throw new IllegalArgumentException("Invalid saved attachment: " + problems.getReport());
++        for (var child : saved.getListOrEmpty("Passengers")) decode((CompoundTag)child, world);
++        return entity;
++    }
++
++    private static void detachOwners(CompoundTag tag) {
++        // Other owner references must still be decoded/validated normally.
++        // Only pearls register themselves in a live player's owner set on load.
++        if ("minecraft:ender_pearl".equals(tag.getString("id").orElse(""))) tag.remove("Owner");
++        for (var child : tag.getListOrEmpty("Passengers")) if (child instanceof CompoundTag passenger) detachOwners(passenger);
++    }
++
++    static Vec3 pearlPosition(CompoundTag pearl, UUID owner) {
++        if (!pearl.read("Owner", UUIDUtil.CODEC).orElseThrow().equals(owner)) throw new IllegalArgumentException("Saved ender pearl has another owner");
++        Vec3 position = pearl.read("Pos", Vec3.CODEC).orElseThrow();
++        if (!Double.isFinite(position.x) || !Double.isFinite(position.y) || !Double.isFinite(position.z)
++            || !ServerLevel.isInSpawnableBounds(net.minecraft.core.BlockPos.containing(position))) {
++            throw new IllegalArgumentException("Invalid saved pearl position");
++        }
++        return position;
++    }
++
++    static CompletionStage<Void> clear(ServerPlayer player, CompoundTag saved) {
++        Map<UUID, String> ids = identities(saved);
++        List<Entity> remove = new ArrayList<>();
++        Entity root = player.getRootVehicle();
++        boolean ownedRoot = root != player && root.hasExactlyOnePlayerPassenger();
++        player.stopRiding();
++        if (player.isPassenger() || player.isVehicle()) return CompletableFuture.failedStage(new IllegalStateException("Player mount refused restore detach"));
++        if (ownedRoot) {
++            remove.add(root);
++            root.getIndirectPassengers().forEach(remove::add);
++        }
++        remove.addAll(List.copyOf(player.getEnderPearls()));
++        // Lookup is concurrent; no entity fields are inspected until its owner runs.
++        for (ServerLevel world : player.level().getServer().getAllLevels()) {
++            for (UUID id : ids.keySet()) {
++                Entity existing = world.getEntity(id);
++                if (existing != null) {
++                    // Use object identity as well: a duplicated UUID in two worlds
++                    // must not leave one world copy behind.
++                    remove.add(existing);
++                }
++            }
++        }
++        List<CompletableFuture<?>> children = new ArrayList<>();
++        java.util.Set<Entity> unique = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
++        for (Entity entity : remove) {
++            if (!unique.add(entity)) continue;
++            children.add(entity.getBukkitEntity().taskScheduler.scheduleRestore(current -> {
++                NativeRestoreWork.checkRunning();
++                String expected = ids.get(current.getUUID());
++                if (current instanceof ServerPlayer || hasPlayerPassenger(current)
++                    || (expected != null && !expected.equals(BuiltInRegistries.ENTITY_TYPE.getKey(current.getType()).toString()))) {
++                    throw new IllegalStateException("Saved attachment UUID is occupied by an incompatible live entity");
++                }
++                if (current instanceof Projectile projectile) {
++                    if (projectile.owner != null && !projectile.owner.getUUID().equals(player.getUUID())) throw new IllegalStateException("Saved projectile has another live owner");
++                    projectile.setOwner((Entity)null);
++                }
++                current.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.DISCARD);
++                return CompletableFuture.completedStage(null);
++            }).toCompletableFuture());
++        }
++        return CompletableFuture.allOf(children.toArray(CompletableFuture[]::new));
++    }
++
++    private static boolean hasPlayerPassenger(Entity entity) {
++        for (Entity passenger : entity.getIndirectPassengers()) if (passenger instanceof ServerPlayer) return true;
++        return false;
++    }
++}
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/NativeRestoreWork.java b/src/main/java/org/bukkit/craftbukkit/world/NativeRestoreWork.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..cf787a51e66977861e3c9b89cfe0feb0aa753d17
+--- /dev/null
++++ b/src/main/java/org/bukkit/craftbukkit/world/NativeRestoreWork.java
+@@ -0,0 +1,55 @@
++package org.bukkit.craftbukkit.world;
++
++import java.util.HashSet;
++import java.util.Set;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.CompletionStage;
++
++/** Tracks native control work across Folia's scheduler/chunk shutdown boundary. */
++public final class NativeRestoreWork {
++    private static final Set<CompletableFuture<?>> PENDING = new HashSet<>();
++    private static volatile boolean stopping;
++    private static boolean finished;
++
++    private NativeRestoreWork() {}
++
++    public static void checkRunning() {
++        if (stopping) throw new IllegalStateException("Server stopped during native restore work");
++    }
++
++    public static synchronized <T> CompletableFuture<T> future() {
++        CompletableFuture<T> future = new CompletableFuture<>();
++        // A stage can already have dispatched children before track() is called.
++        // Do not report those children drained merely because shutdown began.
++        if (finished) {
++            future.completeExceptionally(new IllegalStateException("Native restore admission is closed for shutdown"));
++            return future;
++        }
++        PENDING.add(future);
++        future.whenComplete((ignored, failure) -> { synchronized (NativeRestoreWork.class) { PENDING.remove(future); } });
++        return future;
++    }
++
++    public static <T> CompletionStage<T> track(CompletionStage<T> stage) {
++        CompletableFuture<T> owned = future();
++        stage.whenComplete((value, failure) -> {
++            if (failure == null) owned.complete(value);
++            else owned.completeExceptionally(failure);
++        });
++        return owned.minimalCompletionStage();
++    }
++
++    public static void beginShutdown() { stopping = true; }
++
++    /** Only after region threads and chunk workers have halted and pending teleports were reconciled. */
++    public static void finishShutdown() {
++        CompletableFuture<?>[] pending;
++        synchronized (NativeRestoreWork.class) {
++            finished = true;
++            pending = PENDING.toArray(CompletableFuture[]::new);
++        }
++        for (CompletableFuture<?> future : pending) {
++            future.completeExceptionally(new IllegalStateException("Native restore work drained by server shutdown"));
++        }
++    }
++}
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/PlayerRestoreFiles.java b/src/main/java/org/bukkit/craftbukkit/world/PlayerRestoreFiles.java
+index 74430ec0f2e78fd597b9df8c8a2b18dd94ca4bcf..efb77df8a3bb9e3f61db2013deb2f6ec6ef66543 100644
+--- a/src/main/java/org/bukkit/craftbukkit/world/PlayerRestoreFiles.java
++++ b/src/main/java/org/bukkit/craftbukkit/world/PlayerRestoreFiles.java
+@@ -160,7 +160,7 @@ final class PlayerRestoreFiles {
+     /** Returns the retained original root; failures retain all involved trees. */
+     Path publish(Path prepared, Path active, UUID operation, String phase) throws IOException {
+         validateDisjoint(prepared, active);
+-        validateTree(prepared);
++        this.seal(prepared);
+         checkedPath(active);
+         Path retained = active.resolveSibling(".tessera-players-" + operation + "-" + phase + "-" + UUID.randomUUID());
+         if (Files.exists(retained, LinkOption.NOFOLLOW_LINKS)) {
+@@ -186,4 +186,22 @@ final class PlayerRestoreFiles {
+         this.durability.directory(active.getParent());
+         return retained;
+     }
++
++    /** Call after overlays too: new file names need directory durability on POSIX. */
++    void seal(Path root) throws IOException {
++        validateTree(root);
++        for (String child : DIRECTORIES) {
++            Path directory = root.resolve(child);
++            try (var files = Files.list(directory)) {
++                for (Path file : files.toList()) {
++                    try (FileChannel channel = FileChannel.open(file, StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS)) {
++                        channel.force(true);
++                    }
++                }
++            }
++            this.durability.directory(directory);
++        }
++        this.durability.directory(root);
++        this.durability.directory(root.getParent());
++    }
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/PlayerRestoreImage.java b/src/main/java/org/bukkit/craftbukkit/world/PlayerRestoreImage.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a0bae375bf85090202a7ca82341b6c464b80ef14
+--- /dev/null
++++ b/src/main/java/org/bukkit/craftbukkit/world/PlayerRestoreImage.java
+@@ -0,0 +1,46 @@
++package org.bukkit.craftbukkit.world;
++
++import com.google.gson.JsonElement;
++import java.io.IOException;
++import java.nio.channels.FileChannel;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.nio.file.StandardOpenOption;
++import java.util.UUID;
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.nbt.NbtIo;
++import net.minecraft.nbt.NbtUtils;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.util.ProblemReporter;
++import net.minecraft.world.level.storage.TagValueOutput;
++
++/** An immutable owner-thread capture. No live entity is dereferenced by its file writer. */
++record PlayerRestoreImage(UUID id, CompoundTag data, JsonElement stats, JsonElement advancements) {
++    static PlayerRestoreImage capture(ServerPlayer player) {
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(player, "Cannot capture restore image off owner");
++        ProblemReporter.Collector problems = new ProblemReporter.Collector();
++        TagValueOutput output = TagValueOutput.createWithContext(problems, player.registryAccess());
++        player.saveWithoutId(output);
++        if (!problems.isEmpty()) throw new IllegalStateException("Invalid rollback player: " + problems.getReport());
++        CompoundTag tag = output.buildResult();
++        NbtUtils.addCurrentDataVersion(tag);
++        return new PlayerRestoreImage(player.getUUID(), tag, player.getStats().tessera$restoreImage(), player.getAdvancements().tessera$restoreImage());
++    }
++
++    void write(Path root) throws IOException {
++        Path dataFile = root.resolve("data").resolve(this.id + ".dat");
++        NbtIo.writeCompressed(this.data, dataFile);
++        force(dataFile);
++        writeJson(root.resolve("stats").resolve(this.id + ".json"), this.stats);
++        writeJson(root.resolve("advancements").resolve(this.id + ".json"), this.advancements);
++    }
++
++    private static void writeJson(Path path, JsonElement value) throws IOException {
++        Files.writeString(path, value.toString(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
++        force(path);
++    }
++
++    private static void force(Path path) throws IOException {
++        try (FileChannel channel = FileChannel.open(path, StandardOpenOption.WRITE)) { channel.force(true); }
++    }
++}
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/PlayerStoreFence.java b/src/main/java/org/bukkit/craftbukkit/world/PlayerStoreFence.java
+index 58ae33e2612cf64a4c15c32bfbec84384c0b7600..441afe4169157cee918cb28e2cdd50b788e58858 100644
+--- a/src/main/java/org/bukkit/craftbukkit/world/PlayerStoreFence.java
++++ b/src/main/java/org/bukkit/craftbukkit/world/PlayerStoreFence.java
+@@ -64,10 +64,16 @@ public final class PlayerStoreFence {
+     /** Privileged I/O remains counted; advancing/opening never bypasses its drain. */
+     public synchronized Lease writeOwned(UUID operation) {
+         this.requireOwner(operation);
++        if (this.writers == 0) this.drained = new CompletableFuture<>();
+         ++this.writers;
+         return new Lease(this, this.generation);
+     }
+ 
++    public synchronized CompletionStage<Void> awaitIdle(UUID operation) {
++        this.requireOwner(operation);
++        return this.writers == 0 ? CompletableFuture.completedStage(null) : this.drained.minimalCompletionStage();
++    }
++
+     /**
+      * Transfers an already admitted access into synchronous native calls on its
+      * current owner. The lease, not this thread-local scope, owns its lifetime.
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/RestoreStoragePlatform.java b/src/main/java/org/bukkit/craftbukkit/world/RestoreStoragePlatform.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..2e36e7ad0740d49399b35cc68a690d63398349e7
+--- /dev/null
++++ b/src/main/java/org/bukkit/craftbukkit/world/RestoreStoragePlatform.java
+@@ -0,0 +1,66 @@
++package org.bukkit.craftbukkit.world;
++
++import com.sun.jna.Platform;
++import com.sun.jna.platform.win32.Kernel32;
++import com.sun.jna.platform.win32.WinBase;
++import java.io.IOException;
++import java.nio.channels.FileChannel;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.nio.file.StandardCopyOption;
++import java.nio.file.StandardOpenOption;
++
++/** Synchronous durability is confined to the restore I/O worker, never a tick thread. */
++final class RestoreStoragePlatform {
++    private RestoreStoragePlatform() {}
++
++    static PlayerRestoreFiles files() {
++        return new PlayerRestoreFiles(RestoreStoragePlatform::directory, RestoreStoragePlatform::move);
++    }
++
++    static void directory(Path directory) throws IOException {
++        if (Platform.isWindows()) {
++            // Windows cannot FileChannel.force a directory. Each namespace publication
++            // below is a same-volume MoveFileExW WRITE_THROUGH, with no delayed reboot
++            // action and no copy/delete fallback. Contents have already been forced.
++            return;
++        }
++        try (FileChannel channel = FileChannel.open(directory, StandardOpenOption.READ)) {
++            channel.force(true);
++        }
++    }
++
++    static void move(Path source, Path target) throws IOException {
++        if (Files.exists(target, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
++            throw new IOException("Restore publication must not overwrite a destination: " + target);
++        }
++        if (Platform.isWindows()) {
++            for (int attempt = 0; ; ++attempt) {
++                if (Kernel32.INSTANCE.MoveFileEx(windowsPath(source), windowsPath(target), new com.sun.jna.platform.win32.WinDef.DWORD(WinBase.MOVEFILE_WRITE_THROUGH))) break;
++                int error = Kernel32.INSTANCE.GetLastError();
++                if (attempt >= 7 || (error != 5 && error != 32 && error != 33)
++                    || !Files.exists(source, java.nio.file.LinkOption.NOFOLLOW_LINKS)
++                    || Files.exists(target, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
++                    throw new IOException("MoveFileExW failed (" + error + "): " + source + " -> " + target);
++                }
++                // Antivirus/indexer handles can briefly deny directory renames.
++                // Retry only the same non-replacing move, only on the I/O worker.
++                try { Thread.sleep(Math.min(500L, 50L << attempt)); }
++                catch (InterruptedException interrupted) {
++                    Thread.currentThread().interrupt();
++                    throw new IOException("Restore publication interrupted", interrupted);
++                }
++            }
++        } else {
++            Files.move(source, target, StandardCopyOption.ATOMIC_MOVE);
++            directory(target.getParent());
++            if (!source.getParent().equals(target.getParent())) directory(source.getParent());
++        }
++    }
++
++    private static String windowsPath(Path path) {
++        String absolute = path.toAbsolutePath().normalize().toString();
++        if (absolute.startsWith("\\\\?\\")) return absolute;
++        return absolute.startsWith("\\\\") ? "\\\\?\\UNC\\" + absolute.substring(2) : "\\\\?\\" + absolute;
++    }
++}
+diff --git a/src/test/java/org/bukkit/craftbukkit/world/CraftPlayerRestoreServiceTest.java b/src/test/java/org/bukkit/craftbukkit/world/CraftPlayerRestoreServiceTest.java
+index 6f560f376976945e784384f3483ea2a5c1972b68..07ccf85a962cc2542e10d51025f07d5f6df30345 100644
+--- a/src/test/java/org/bukkit/craftbukkit/world/CraftPlayerRestoreServiceTest.java
++++ b/src/test/java/org/bukkit/craftbukkit/world/CraftPlayerRestoreServiceTest.java
+@@ -15,6 +15,12 @@ import static org.mockito.Mockito.when;
+ 
+ @Tag("Normal")
+ class CraftPlayerRestoreServiceTest {
++    @Test
++    void configuredNativeServiceAdvertisesAcceptedContract() {
++        var service = new CraftPlayerRestoreService(mock(org.bukkit.craftbukkit.CraftServer.class));
++        assertEquals(1, service.contractVersion());
++    }
++
+     @Test
+     void incompleteBackendCannotAdvertiseV1OrReportPrepared() {
+         var service = new CraftPlayerRestoreService();
+diff --git a/src/test/java/org/bukkit/craftbukkit/world/PlayerStoreFenceTest.java b/src/test/java/org/bukkit/craftbukkit/world/PlayerStoreFenceTest.java
+index 7f18c1c11e63202eb35555f57a0b9b72957ddd09..a5d8980e2804ec49ce8fa2701f548fb07c597773 100644
+--- a/src/test/java/org/bukkit/craftbukkit/world/PlayerStoreFenceTest.java
++++ b/src/test/java/org/bukkit/craftbukkit/world/PlayerStoreFenceTest.java
+@@ -12,6 +12,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
+ 
+ @Tag("Normal")
+ class PlayerStoreFenceTest {
++    @Test
++    void laterOwnedWritersHaveTheirOwnDrainAfterInitialClosure() {
++        PlayerStoreFence fence = new PlayerStoreFence();
++        UUID id = UUID.randomUUID();
++        assertTrue(fence.close(id).toCompletableFuture().isDone());
++        var owned = fence.writeOwned(id);
++        var secondDrain = fence.awaitIdle(id).toCompletableFuture();
++        assertFalse(secondDrain.isDone());
++        owned.close();
++        assertTrue(secondDrain.isDone());
++        var later = fence.writeOwned(id);
++        assertFalse(fence.awaitIdle(id).toCompletableFuture().isDone());
++        later.close();
++        fence.open(id);
++    }
++
+     @Test
+     void nestedScopesCannotRestoreAnOuterAdmissionOutOfOrder() {
+         PlayerStoreFence fence = new PlayerStoreFence();

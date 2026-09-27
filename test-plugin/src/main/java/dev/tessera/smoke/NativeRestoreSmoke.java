@@ -105,8 +105,8 @@ final class NativeRestoreSmoke implements Listener {
                 verify(player, player == first ? new Location(target, 8.5, 20, 8.5) : new Location(nether, 4128.5, 90, 32.5));
             }
             this.checks.add("Real connected players restored repeatedly across separate regions/dimensions while game ticks were frozen");
-            require(Bukkit.getPlayerRestoreService().contractVersion() == 0, "unfinished transaction must remain contract zero");
-            this.checks.add("Public native store transaction remains unavailable (contract 0), not reported as accepted");
+            require(Bukkit.getPlayerRestoreService().contractVersion() == 1, "server advertises the accepted native transaction contract");
+            this.checks.add("Component fixture only; public contract 1 is separately tested by the transaction/race/recovery fixtures");
         } finally {
             call(fence, "open", fenceOwner);
             await(global(() -> { Bukkit.getServerTickManager().setFrozen(false); return null; }));
@@ -280,8 +280,8 @@ final class NativeRestoreSmoke implements Listener {
     }
 
     private static Object json(String value) throws Exception { return call(type("com.google.gson.JsonParser"), "parseString", value); }
-    private static Class<?> type(String name) throws Exception { return Class.forName(name, true, Bukkit.class.getClassLoader()); }
-    private static Object call(Object owner, String name, Object... args) throws Exception {
+    static Class<?> type(String name) throws Exception { return Class.forName(name, true, Bukkit.class.getClassLoader()); }
+    static Object call(Object owner, String name, Object... args) throws Exception {
         Class<?> type = owner instanceof Class<?> clazz ? clazz : owner.getClass();
         for (Method method : type.getMethods()) {
             if (!method.getName().equals(name) || method.getParameterCount() != args.length || method.isBridge()) continue;

@@ -11,12 +11,14 @@ const java = process.argv[2];
 const jar = path.resolve(process.argv[3] ?? path.join(repo, 'build/libs/tessera-server-26.3.build.010-alpha.jar'));
 if (!java || !existsSync(jar)) throw Error('Usage: node run.mjs <Java 25 executable> <server.jar>');
 const jarSha256 = createHash('sha256').update(readFileSync(jar)).digest('hex');
+const mode = process.env.NATIVE_RESTORE_MODE ?? 'native-restore-transaction';
 // Reserve an OS-selected loopback port; never stop another server to obtain it.
 const listener = net.createServer();
 await new Promise((resolve, reject) => { listener.once('error', reject); listener.listen(0, '127.0.0.1', resolve); });
 const port = listener.address().port;
 await new Promise(resolve => listener.close(resolve));
-const work = path.join(repo, 'build', `native-restore-smoke-${Date.now()}`);
+const work = path.resolve(process.env.NATIVE_RESTORE_REUSE_WORK ?? path.join(repo, 'build', `native-restore-smoke-${Date.now()}`));
+if (process.env.NATIVE_RESTORE_REUSE_WORK && (!work.startsWith(path.join(repo, 'build') + path.sep) || !existsSync(path.join(work, '.tessera-disposable-fixture')))) throw Error('Recovery may reuse only an existing owned disposable build fixture');
 mkdirSync(path.join(work, 'plugins'), {recursive: true});
 writeFileSync(path.join(work, '.tessera-disposable-fixture'), 'Owned native restore fixture; no existing worlds copied.\n');
 writeFileSync(path.join(work, 'eula.txt'), 'eula=true\n');
@@ -35,10 +37,18 @@ for (const candidate of readdirSync(path.join(repo, 'build'), {withFileTypes: tr
 }
 console.log('NATIVE_RESTORE_WORK', work, 'PORT', port, 'JAR', jar);
 const child = spawn(java, ['-Xms512M', '-Xmx2G', '-jar', jar, '--nogui'], {
-  cwd: work, windowsHide: true, env: {...process.env, TESSERA_SMOKE_MODE: 'native-restore'}, stdio: ['pipe', 'pipe', 'pipe']
+  cwd: work, windowsHide: true, env: {...process.env, TESSERA_SMOKE_MODE: mode}, stdio: ['pipe', 'pipe', 'pipe']
 });
 let log = '', started = false, passed = false, failed = false, stopping = false;
 const events = [];
+const handledSignals = new Set();
+let expectedDisconnect = false, holdAck = false;
+function client(name) {
+  return connectPlayer(repo, port, name, event => {
+    events.push(event);
+    if (!stopping && ['kicked', 'end'].includes(event.type) && !(expectedDisconnect && name === 'RestoreTwo')) fail(Error('Unexpected client disconnect: ' + name));
+  }, {shouldAck: () => !(holdAck && name === 'RestoreOne')});
+}
 function stop() { if (!stopping) { stopping = true; child.stdin.write('stop\n'); } }
 function fail(error) { if (!failed) console.error(error); failed = true; stop(); }
 const deadline = setTimeout(() => fail(Error('Native restore fixture deadline exceeded')), 360000);
@@ -47,10 +57,48 @@ function output(data) {
   const text = data.toString(); log += text; process.stdout.write(text);
   if (!started && log.includes('NATIVE_RESTORE_READY') && log.includes('For help, type "help"')) {
     started = true;
-    Promise.all(['RestoreOne', 'RestoreTwo'].map(name => connectPlayer(repo, port, name, event => {
-      events.push(event);
-      if (!stopping && ['kicked', 'end'].includes(event.type)) fail(Error('Unexpected client disconnect: ' + name));
-    }))).catch(fail);
+    Promise.all(['RestoreOne', 'RestoreTwo'].map(client)).catch(fail);
+  }
+  if (mode === 'native-restore-races') {
+    for (const signal of ['DISCONNECT', 'LOGIN', 'ACK_HOLD', 'ACK_RELEASE']) {
+      if (!handledSignals.has(signal) && log.includes('NATIVE_RESTORE_RACE_' + signal)) {
+        handledSignals.add(signal);
+        if (signal === 'DISCONNECT') expectedDisconnect = true;
+        if (signal === 'LOGIN') client('RestoreTwo').catch(fail);
+        if (signal === 'ACK_HOLD') holdAck = true;
+        if (signal === 'ACK_RELEASE') holdAck = false;
+        writeFileSync(path.join(work, 'native-restore-evidence', 'runner-' + signal), 'acknowledged');
+      }
+    }
+    if (!passed && log.includes('NATIVE_RESTORE_RACES_PASS')) {
+      passed = true;
+      const counts = name => ({name,
+        logins: events.filter(e => e.username === name && e.type === 'login').length,
+        kicks: events.filter(e => e.username === name && e.type === 'kicked').length,
+        disconnects: events.filter(e => e.username === name && e.type === 'end').length});
+      const one = counts('RestoreOne'), two = counts('RestoreTwo');
+      if (one.logins !== 1 || one.kicks || one.disconnects || two.logins !== 2 || two.kicks !== 1 || two.disconnects !== 1) fail(Error('Race connection counters differ from exactly one intentionally injected disconnect'));
+      if (!events.some(e => e.type === 'teleport' && e.acknowledged === false)) fail(Error('No acknowledgement was withheld'));
+      writeFileSync(path.join(work, 'native-restore-races.json'), JSON.stringify({jar, jarSha256, passed: !failed, clients: [one, two], intentionalDisconnect: true, events,
+        scope: readFileSync(path.join(work, 'native-restore-evidence/race-checks.txt'), 'utf8')}, null, 2));
+      stop();
+    }
+  }
+  if (mode === 'native-restore-recovery') {
+    if (!handledSignals.has('ACK_HOLD') && log.includes('NATIVE_RESTORE_RACE_ACK_HOLD')) {
+      handledSignals.add('ACK_HOLD'); holdAck = true;
+      writeFileSync(path.join(work, 'native-restore-evidence/runner-ACK_HOLD'), 'acknowledged');
+    }
+    if (!passed && (log.includes('NATIVE_RESTORE_RECOVERY_STOP') || log.includes('NATIVE_RESTORE_RECOVERY_PASS'))) {
+      passed = true;
+      for (const name of ['RestoreOne', 'RestoreTwo']) {
+        if (events.filter(e => e.username === name && e.type === 'login').length !== 1 || events.some(e => e.username === name && ['kicked', 'end'].includes(e.type))) fail(Error('Recovery phase had an unexpected reconnect/disconnect before controlled stop'));
+      }
+      const phase = process.env.NATIVE_RESTORE_RECOVERY_STAGE;
+      const restart = process.env.NATIVE_RESTORE_RECOVERY_RESTART === '1';
+      writeFileSync(path.join(work, `recovery-${phase}-${restart ? 'restart' : 'stop'}.json`), JSON.stringify({jar, jarSha256, phase, restart, passed: !failed, events}, null, 2));
+      stop();
+    }
   }
   if (!passed && log.includes('NATIVE_RESTORE_COMPONENTS_PASS')) {
     passed = true;
@@ -64,7 +112,7 @@ function output(data) {
     }));
     if (clients.some(c => c.logins !== 1 || c.kicks !== 0 || c.disconnects !== 0 || c.teleports < 3 || c.statsResets < 2 || c.advancementResets < 2)) fail(Error('Connection/client reset counter assertion failed'));
     writeFileSync(path.join(work, 'native-restore-result.json'), JSON.stringify({jar, jarSha256, port, clients,
-      nativeComponentChecksPassed: !failed, publicTransactionAccepted: false, contractVersion: 0,
+      nativeComponentChecksPassed: !failed, publicTransactionExercised: mode === 'native-restore-transaction', publicTransactionAccepted: mode === 'native-restore-transaction' && !failed, contractVersion: 1,
       scope: readFileSync(path.join(work, 'native-restore-evidence/checks.txt'), 'utf8'), events}, null, 2));
     stop();
   }
@@ -74,7 +122,8 @@ child.stdout.on('data', output); child.stderr.on('data', output);
 child.on('error', fail);
 child.on('exit', code => {
   clearTimeout(deadline); clearTimeout(forceStop);
-  writeFileSync(path.join(work, 'runner.log'), log);
+  const suffix = mode === 'native-restore-recovery' ? `-${process.env.NATIVE_RESTORE_RECOVERY_STAGE}-${process.env.NATIVE_RESTORE_RECOVERY_RESTART === '1' ? 'restart' : 'stop'}` : '';
+  writeFileSync(path.join(work, `runner${suffix}.log`), log);
   if (code !== 0 || !passed || failed) process.exitCode = 1;
-  console.log('NATIVE_RESTORE_EXIT', code, 'componentsPassed', passed && !failed, 'publicTransactionAccepted', false);
+  console.log('NATIVE_RESTORE_EXIT', code, 'componentsPassed', passed && !failed, 'publicTransactionAccepted', mode === 'native-restore-transaction' && passed && !failed);
 });
