@@ -10,11 +10,16 @@ Tessera develops its own server features, gameplay fixes, and tools for running
 multiple worlds and independent game areas. Its integrated base, **Sinopia**, is
 maintained alongside Tessera in this repository.
 
-**Current version:** Minecraft **26.3** · Tessera **009-alpha** · Java **25**
+**Current version:** Minecraft **26.3** · Tessera **010-alpha** · Java **25**
 
 Tessera is in active alpha development. The
-[release changelog](docs/CHANGELOG-26.3-009.md) documents the current
+[release changelog](docs/CHANGELOG-26.3-010.md) documents the current
 baseline and validation status; test your worlds and plugins before deployment.
+
+Build 010 is an **incomplete native-restore test build**, not a released MCC
+seamless-load fix. The public restore contract remains **0**. See the
+[native restore status](docs/mcc-player-restore-status.md) for the implemented
+components, real-client tests, and remaining transactional safety gaps.
 
 ## What Tessera provides
 
@@ -115,6 +120,7 @@ matches your server build.
 - [Operator-only tick commands](docs/tick-operator-access.md)
 - [Redstone region-merge test and results](smoke-tests/redstone-region-merge/RESULTS.md)
 - [Build 009 changelog: region-safe pet owner combat](docs/CHANGELOG-26.3-009.md)
+- [Build 010 changelog: native restore test build](docs/CHANGELOG-26.3-010.md)
 - [Build 008 changelog: Paper integration and Moonrise optimisations](docs/CHANGELOG-26.3-008.md)
 - [Build 007 changelog: regional TPS overview and player queries](docs/CHANGELOG-26.3-007.md)
 - [TPS commands and region diagnostics](docs/TPS-REGION-OVERVIEW.md)

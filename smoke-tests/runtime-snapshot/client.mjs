@@ -18,16 +18,18 @@ function readVi(buf, offset = 0) {
 }
 function packetMap(repo, protocol, direction) {
   const source = readFileSync(path.join(repo, 'folia-server/src/minecraft/java/net/minecraft/network/protocol', protocol), 'utf8');
-  const names = [...source.matchAll(/\.(?:addPacket|withBundlePacket)\(\w+PacketTypes\.((?:CLIENTBOUND|SERVERBOUND)_\w+)/g)]
+  const names = [...source.matchAll(/\.(?:addPacket|withBundlePacket)\(\s*\w+PacketTypes\.((?:CLIENTBOUND|SERVERBOUND)_\w+)/g)]
     .map(m => m[1]).filter(n => n.startsWith(direction));
   return Object.fromEntries(names.map((n, i) => [n.replace(direction + '_', ''), i]));
 }
 
-export async function connectPlayer(repo, port, username) {
+export async function connectPlayer(repo, port, username, observe = () => {}) {
   const protocol = await new Promise((resolve, reject) => {
     const probe = net.connect({host: '127.0.0.1', port});
     let response = Buffer.alloc(0);
+    probe.setTimeout(10000, () => probe.destroy(Error('Server status probe timed out')));
     probe.on('error', reject);
+    probe.on('close', () => reject(Error('Server closed status probe before a complete response')));
     probe.once('connect', () => {
       const p = Buffer.alloc(2); p.writeUInt16BE(port);
       const handshake = Buffer.concat([vi(0), vi(-1), str('127.0.0.1'), p, vi(1)]);
@@ -50,6 +52,8 @@ export async function connectPlayer(repo, port, username) {
   const loginOut = packetMap(repo, 'login/LoginProtocols.java', 'SERVERBOUND');
   const socket = net.connect({host: '127.0.0.1', port});
   let buffered = Buffer.alloc(0), state = 'login', compressed = false;
+  let position = [0, 0, 0], rotation = [0, 0];
+  const extendedAck = readFileSync(path.join(repo, 'folia-server/src/minecraft/java/net/minecraft/network/protocol/game/ServerboundAcceptTeleportationPacket.java'), 'utf8').includes('double x, double y, double z');
   const send = (id, data = Buffer.alloc(0)) => {
     if (process.env.SNAPSHOT_PROTOCOL_DEBUG) console.log('SEND', username, state, id, data.length);
     let body = Buffer.concat([vi(id), data]);
@@ -68,6 +72,7 @@ export async function connectPlayer(repo, port, username) {
     socket.on('error', reject);
     socket.on('close', () => {
       console.log('CLIENT_CLOSED', username);
+      observe({type: 'end', username});
       if (state !== 'play') reject(Error('Client closed in ' + state));
     });
     socket.on('data', chunk => {
@@ -83,7 +88,7 @@ export async function connectPlayer(repo, port, username) {
           if (process.env.SNAPSHOT_PROTOCOL_DEBUG && state !== 'play') console.log('PACKET', username, state, id.value, data.length);
           if (state === 'login') {
             if (id.value === loginIn.LOGIN_COMPRESSION) compressed = true;
-            else if (id.value === loginIn.LOGIN_FINISHED) { send(loginOut.LOGIN_ACKNOWLEDGED); state = 'config'; }
+            else if (id.value === loginIn.LOGIN_FINISHED) { observe({type: 'login', username}); send(loginOut.LOGIN_ACKNOWLEDGED); state = 'config'; }
             else if (id.value === loginIn.LOGIN_DISCONNECT) throw Error('Login rejected: ' + data.toString());
           } else if (state === 'config') {
             if (id.value === configIn.SELECT_KNOWN_PACKS) send(configOut.SELECT_KNOWN_PACKS, vi(0));
@@ -94,7 +99,34 @@ export async function connectPlayer(repo, port, username) {
           } else if (state === 'play') {
             if (id.value === gameIn.KEEP_ALIVE) send(gameOut.KEEP_ALIVE, data);
             else if (id.value === gameIn.PING) send(gameOut.PONG, data);
-            else if (id.value === gameIn.PLAYER_POSITION) send(gameOut.ACCEPT_TELEPORTATION, vi(readVi(data).value));
+            else if (id.value === gameIn.CHUNK_BATCH_FINISHED) {
+              const batch = Buffer.alloc(4); batch.writeFloatBE(32);
+              send(gameOut.CHUNK_BATCH_RECEIVED, batch);
+            }
+            else if (id.value === gameIn.PLAYER_POSITION) {
+              const teleport = readVi(data), offset = teleport.end;
+              const flags = data.readInt32BE(offset + 56);
+              position = position.map((old, i) => data.readDoubleBE(offset + i * 8) + ((flags & (1 << i)) ? old : 0));
+              rotation = rotation.map((old, i) => data.readFloatBE(offset + 48 + i * 4) + ((flags & (1 << (3 + i))) ? old : 0));
+              const coordinates = Buffer.alloc(32);
+              position.forEach((v, i) => coordinates.writeDoubleBE(v, i * 8));
+              rotation.forEach((v, i) => coordinates.writeFloatBE(v, 24 + i * 4));
+              send(gameOut.ACCEPT_TELEPORTATION, Buffer.concat([vi(teleport.value), ...(extendedAck ? [coordinates] : [])]));
+              if (gameOut.PLAYER_LOADED !== undefined) send(gameOut.PLAYER_LOADED);
+              observe({type: 'teleport', username, id: teleport.value, position, rotation});
+            } else if (id.value === gameIn.DISCONNECT) {
+              observe({type: 'kicked', username});
+            } else if (id.value === gameIn.AWARD_STATS) {
+              const size = readVi(data); let cursor = size.end, zeros = 0;
+              for (let i = 0; i < size.value; i++) {
+                const type = readVi(data, cursor), key = readVi(data, type.end), value = readVi(data, key.end);
+                cursor = value.end;
+                if (value.value === 0) zeros++;
+              }
+              observe({type: 'stats', username, entries: size.value, zeros});
+            } else if (id.value === gameIn.UPDATE_ADVANCEMENTS) {
+              observe({type: 'advancements', username, reset: data[0] === 1});
+            }
           }
         }
       } catch (error) { reject(error); console.error(error); }

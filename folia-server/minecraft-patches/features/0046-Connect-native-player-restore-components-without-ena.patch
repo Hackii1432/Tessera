@@ -1,0 +1,784 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Sun, 27 Sep 2026 12:09:18 +0200
+Subject: [PATCH] Connect native player restore components without enabling v1
+
+
+diff --git a/io/papermc/paper/threadedregions/TickRegions.java b/io/papermc/paper/threadedregions/TickRegions.java
+index 96e526fca6fad84226ddbf4a7e2fd89fb6d8f009..135d900879acb8d0a23dffef54a9e3a2afb7e760 100644
+--- a/io/papermc/paper/threadedregions/TickRegions.java
++++ b/io/papermc/paper/threadedregions/TickRegions.java
+@@ -498,6 +498,13 @@ public final class TickRegions implements ThreadedRegionizer.RegionCallbacks<Tic
+ 
+         @Override
+         protected void tickRegion(final long tickCount, final long startTime, final long scheduledEnd) {
++            // Native restore control work is owner-bound, but not gameplay.
++            // Keep processing it while the tick command freezes normal ticks.
++            for (final EntityScheduler scheduler : this.region.world.getCurrentWorldData().entitySchedulerTickList.getAllSchedulers()) {
++                if (TickThread.isTickThreadFor(scheduler.entity.getHandleRaw())) {
++                    scheduler.executeRestoreTasks();
++                }
++            }
+             if (this.region.world.tessera$getRuntimeLifecycleState() == ServerLevel.RuntimeLifecycleState.SNAPSHOTTING) {
+                 this.runSnapshotPlayerSaves();
+                 // Intermediate execution is opportunistic in EDF. A frozen
+diff --git a/net/minecraft/server/PlayerAdvancements.java b/net/minecraft/server/PlayerAdvancements.java
+index 80208563fcf318869265924f31b77b9e5271bf99..0d62b2230436d39c7554edcf33b3224aa04376e6 100644
+--- a/net/minecraft/server/PlayerAdvancements.java
++++ b/net/minecraft/server/PlayerAdvancements.java
+@@ -51,6 +51,7 @@ public class PlayerAdvancements {
+     private static final Gson GSON = new GsonBuilder().create(); // Paper - Remove pretty printing from advancements
+     private final PlayerList playerList;
+     private final Path playerSavePath;
++    public long tessera$playerStoreGeneration;
+     private AdvancementTree tree;
+     private final Map<AdvancementHolder, AdvancementProgress> progress = new LinkedHashMap<>();
+     private final Set<AdvancementHolder> visible = new HashSet<>();
+@@ -71,7 +72,10 @@ public class PlayerAdvancements {
+         this.tree = manager.tree();
+         int defaultVersion = 1343;
+         this.codec = DataFixTypes.ADVANCEMENTS.wrapCodec(PlayerAdvancements.Data.CODEC, dataFixer, 1343);
+-        this.load(manager);
++        try (var access = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.requireRead()) {
++            this.tessera$playerStoreGeneration = access.generation();
++            this.load(manager);
++        }
+     }
+ 
+     public void setPlayer(final ServerPlayer player) {
+@@ -83,6 +87,8 @@ public class PlayerAdvancements {
+     }
+ 
+     public void reload(final ServerAdvancementManager manager) {
++        try (var access = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.requireRead()) {
++        this.tessera$playerStoreGeneration = access.generation();
+         this.clearTriggers();
+         this.progress.clear();
+         this.visible.clear();
+@@ -92,6 +98,7 @@ public class PlayerAdvancements {
+         this.lastSelectedTab = null;
+         this.tree = manager.tree();
+         this.load(manager);
++        }
+     }
+ 
+     private void registerListeners(final ServerAdvancementManager manager) {
+@@ -132,6 +139,16 @@ public class PlayerAdvancements {
+     }
+ 
+     public void tessera$save(final boolean snapshot) {
++        try (var access = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.tryWrite(this.tessera$playerStoreGeneration)) {
++            if (access == null) {
++                if (snapshot) throw new IllegalStateException("Advancement snapshot rejected by restore fence");
++                return;
++            }
++            this.tessera$saveAdmitted(snapshot);
++        }
++    }
++
++    private void tessera$saveAdmitted(final boolean snapshot) {
+         if (org.spigotmc.SpigotConfig.disableAdvancementSaving) return; // Spigot
+         JsonElement json = this.codec.encodeStart(JsonOps.INSTANCE, this.asData()).getOrThrow();
+ 
+@@ -173,6 +190,33 @@ public class PlayerAdvancements {
+         return new PlayerAdvancements.Data(map);
+     }
+ 
++    public static void tessera$validateRestore(final DataFixer fixer, final JsonElement json) {
++        DataFixTypes.ADVANCEMENTS.wrapCodec(PlayerAdvancements.Data.CODEC, fixer, 1343)
++            .parse(JsonOps.INSTANCE, json.deepCopy()).getOrThrow();
++    }
++
++    /** Replace progress and trigger registrations without replaying rewards. */
++    public void tessera$replaceRestore(final JsonElement json, final ServerAdvancementManager manager) {
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this.player, "Cannot replace advancements off the player owner");
++        final PlayerAdvancements.Data replacement = this.codec.parse(JsonOps.INSTANCE, json.deepCopy()).getOrThrow();
++        this.clearTriggers();
++        this.progress.clear();
++        this.visible.clear();
++        this.rootsToUpdate.clear();
++        this.progressChanged.clear();
++        this.tree = manager.tree();
++        this.lastSelectedTab = null;
++        this.isFirstPacket = false;
++        this.applyFrom(manager, replacement);
++        this.registerListeners(manager);
++        this.tessera$playerStoreGeneration = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.generation();
++        // flushDirty deliberately sends nothing for an empty ordinary update.
++        // Restore still needs a reset even when the new store has no progress.
++        this.player.connection.send(new ClientboundUpdateAdvancementsPacket(true, List.of(), Set.of(), Map.of(), false));
++        this.player.connection.send(new ClientboundSelectAdvancementsTabPacket(null));
++        this.flushDirty(this.player, false);
++    }
++
+     public boolean award(final AdvancementHolder holder, final String criterion) {
+         boolean result = false;
+         AdvancementProgress progress = this.getOrStartProgress(holder);
+diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+index 9e4c3a7553bf40955ac5bd7c9f5521d3bf5ff22c..c2a1d7daccb08f684eafc7add77ee8e2ad543edd 100644
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -492,14 +492,20 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+     // Paper end - rewrite chunk system
+ 
+     public ServerPlayer(final MinecraftServer server, final ServerLevel level, final GameProfile gameProfile, final ClientInformation clientInformation) {
++        this(server, level, gameProfile, clientInformation, false);
++    }
++
++    /** Detached preflight instance: no player stores, listeners or rewards are loaded. */
++    public ServerPlayer(final MinecraftServer server, final ServerLevel level, final GameProfile gameProfile, final ClientInformation clientInformation, final boolean restorePreview) {
+         super(level, gameProfile);
++        this.tessera$restoring = restorePreview;
+         this.server = server;
+         this.textFilter = server.createTextFilterForPlayer(this);
+         this.gameMode = server.createGameModeForPlayer(this);
+         this.gameMode.setGameModeForPlayer(this.calculateGameModeForNewPlayer(null), null);
+         this.recipeBook = new ServerRecipeBook((id, output) -> server.getRecipeManager().listDisplaysForRecipe(id, output));
+-        this.stats = server.getPlayerList().getPlayerStats(this);
+-        this.advancements = server.getPlayerList().getPlayerAdvancements(this);
++        this.stats = restorePreview ? null : server.getPlayerList().getPlayerStats(this);
++        this.advancements = restorePreview ? null : server.getPlayerList().getPlayerAdvancements(this);
+         this.updateOptionsNoEvents(clientInformation); // Paper - don't call options events on login
+         this.object = null;
+         // CraftBukkit start
+@@ -510,6 +516,59 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         // CraftBukkit end
+     }
+ 
++    // A native player loaded before a store replacement must not save over it.
++    public long tessera$playerStoreGeneration = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.generation();
++    private boolean tessera$restoring;
++
++    /** Called only with a preflighted detached state on the destination owner. */
++    public void tessera$replaceRestore(final ServerPlayer fresh, final CompoundTag tag) {
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this, "Cannot restore player off its owning region");
++        if (fresh.level() != this.level() || !fresh.getUUID().equals(this.getUUID())) {
++            throw new IllegalArgumentException("Restore player identity/world mismatch");
++        }
++        // Inventory callbacks must not unlock recipes or replay rewards from
++        // the previous generation while the replacement is being installed.
++        this.advancements.clearTriggers();
++        this.closeContainer(org.bukkit.event.inventory.InventoryCloseEvent.Reason.PLUGIN);
++        for (final var effect : this.getActiveEffects()) {
++            this.connection.send(new net.minecraft.network.protocol.game.ClientboundRemoveMobEffectPacket(this.getId(), effect.getEffect()));
++        }
++        this.getAttributes().tessera$replaceAll(fresh.getAttributes());
++        this.getBukkitEntity().getPersistentDataContainer().getKeys().forEach(this.getBukkitEntity().getPersistentDataContainer()::remove);
++        this.getEnderChestInventory().clearContent();
++        this.getInventory().clearContent();
++        this.recipeBook.copyOverData(fresh.recipeBook);
++        this.getAbilities().apply(fresh.getAbilities().pack());
++        this.postEffects.clear();
++        this.origin = fresh.origin;
++        this.originWorld = fresh.originWorld;
++        this.spawnReason = fresh.spawnReason;
++        this.frictionState = fresh.frictionState;
++        this.persistentInvisibility = fresh.persistentInvisibility;
++        this.maxAirTicks = fresh.maxAirTicks;
++        this.tessera$restoring = true;
++        try {
++            this.load(net.minecraft.world.level.storage.TagValueInput.create(ProblemReporter.DISCARDING, this.registryAccess(), tag.copy()));
++        } finally {
++            this.tessera$restoring = false;
++        }
++        this.tessera$playerStoreGeneration = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.generation();
++        this.recipeBook.sendInitialRecipeBook(this);
++        this.server.getPlayerList().sendAllPlayerInfo(this);
++        this.server.getPlayerList().sendActivePlayerEffects(this);
++        this.onUpdateAbilities();
++        this.sendPostEffects();
++        this.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.CHANGE_GAME_MODE, this.gameMode.getGameModeForPlayer().getId()));
++        final var restoredAttributes = new java.util.LinkedHashSet<>(this.getAttributes().getSyncableAttributes());
++        restoredAttributes.addAll(this.getAttributes().getAttributesToSync());
++        this.connection.send(new net.minecraft.network.protocol.game.ClientboundUpdateAttributesPacket(this.getId(), restoredAttributes));
++        this.connection.send(new ClientboundSetExperiencePacket(this.experienceProgress, this.totalExperience, this.experienceLevel));
++        this.connection.resetPosition();
++        this.lastSentExp = -1;
++        this.lastSentHealth = -1.0F;
++        this.lastSentFood = -1;
++    }
++
+     // Folia start - region threading
+     private static final int SPAWN_RADIUS_SELECTION_SEARCH = 5;
+ 
+@@ -687,6 +746,11 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+ 
+     // Paper start - Expand PlayerGameModeChangeEvent
+     private void loadGameTypes(ValueInput input) {
++        if (this.tessera$restoring) {
++            final GameType saved = readPlayerMode(input, "playerGameType");
++            this.gameMode.setGameModeForPlayer(saved == null ? this.server.getDefaultGameType() : saved, readPlayerMode(input, "previousPlayerGameType"));
++            return;
++        }
+         if (this.server.getForcedGameType() != null && this.server.getForcedGameType() != readPlayerMode(input, "playerGameType")) {
+             if (new org.bukkit.event.player.PlayerGameModeChangeEvent(this.getBukkitEntity(), org.bukkit.GameMode.getByValue(this.server.getDefaultGameType().getId()), org.bukkit.event.player.PlayerGameModeChangeEvent.Cause.DEFAULT_GAMEMODE, null).callEvent()) {
+                 this.gameMode.setGameModeForPlayer(this.server.getForcedGameType(), GameType.DEFAULT_MODE);
+@@ -820,55 +884,115 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+     }
+ 
+     public void loadAndSpawnEnderPearls(final ValueInput playerInput) {
+-        playerInput.childrenListOrEmpty("ender_pearls").forEach(this::loadAndSpawnEnderPearl);
++        this.tessera$loadAndSpawnEnderPearls(playerInput).whenComplete((ignored, failure) -> {
++            if (failure != null) LOGGER.warn("Could not finish loading player ender pearls for {}", this.getUUID(), failure);
++        });
++    }
++
++    public java.util.concurrent.CompletionStage<Void> tessera$loadAndSpawnEnderPearls(final ValueInput playerInput) {
++        final java.util.List<java.util.concurrent.CompletableFuture<Void>> children = new java.util.ArrayList<>();
++        playerInput.childrenListOrEmpty("ender_pearls").forEach(input -> {
++            final java.util.concurrent.CompletableFuture<Void> child = new java.util.concurrent.CompletableFuture<>();
++            children.add(child);
++            try {
++                this.tessera$loadAndSpawnEnderPearl(input, child);
++            } catch (final Throwable failure) {
++                child.completeExceptionally(failure);
++            }
++        });
++        return java.util.concurrent.CompletableFuture.allOf(children.toArray(java.util.concurrent.CompletableFuture[]::new)).minimalCompletionStage();
+     }
+ 
+-    private void loadAndSpawnEnderPearl(final ValueInput pearlInput) {
++    private void tessera$loadAndSpawnEnderPearl(final ValueInput pearlInput, final java.util.concurrent.CompletableFuture<Void> completion) {
+         Optional<ResourceKey<Level>> pearlLevelKey = pearlInput.read("ender_pearl_dimension", Level.RESOURCE_KEY_CODEC);
+         if (!pearlLevelKey.isEmpty()) {
+             ServerLevel pearlLevel = this.level().getServer().getLevel(pearlLevelKey.get());
+             if (pearlLevel != null) {
+-                Entity pearl = EntityType.loadEntityRecursive(
+-                    pearlInput, pearlLevel, EntitySpawnReason.LOAD, net.minecraft.world.entity.EntityProcessor.NOP); // Folia - region threading - delay world add
+-                if (pearl instanceof ThrownEnderpearl enderPearl) {
+-                    // Folia start - region threading
+-                    this.tessera$scheduleLoadedEnderPearl(pearlLevel, enderPearl);
+-                    // Folia end - region threading
+-                } else if (pearl != null) {
+-                    LOGGER.warn("Player ender pearl data contained non-pearl entity {}, skipping", pearl.getType());
+-                } else {
+-                    LOGGER.warn("Failed to spawn player ender pearl in level ({}), skipping", pearlLevelKey.get());
++                if (!(pearlInput instanceof net.minecraft.world.level.storage.TagValueInput tagInput)) {
++                    throw new IllegalArgumentException("Player ender pearl input must be detached NBT");
+                 }
++                final CompoundTag saved = tagInput.input.copy();
++                final Vec3 position = saved.read("Pos", Vec3.CODEC).orElseThrow();
++                if (!Double.isFinite(position.x) || !Double.isFinite(position.y) || !Double.isFinite(position.z)
++                    || !ServerLevel.isInSpawnableBounds(BlockPos.containing(position))) {
++                    throw new IllegalArgumentException("Invalid saved ender pearl position");
++                }
++                // Decoding can register the owner and mutate entity state. Do
++                // that on the pearl's destination owner, not the player's.
++                final int chunkX = net.minecraft.core.SectionPos.blockToSectionCoord(position.x);
++                final int chunkZ = net.minecraft.core.SectionPos.blockToSectionCoord(position.z);
++                final Runnable decode = () -> {
++                    try (ProblemReporter.ScopedCollector reporter = new ProblemReporter.ScopedCollector(LOGGER)) {
++                        Entity pearl = EntityType.loadEntityRecursive(
++                            net.minecraft.world.level.storage.TagValueInput.create(reporter, pearlLevel.registryAccess(), saved),
++                            pearlLevel, EntitySpawnReason.LOAD, net.minecraft.world.entity.EntityProcessor.NOP);
++                        if (!(pearl instanceof ThrownEnderpearl enderPearl)) {
++                            throw new IllegalArgumentException("Failed to decode player ender pearl");
++                        }
++                        this.tessera$scheduleLoadedEnderPearl(pearlLevel, enderPearl, completion);
++                    } catch (final Throwable failure) {
++                        completion.completeExceptionally(failure);
++                    }
++                };
++                pearlLevel.moonrise$getChunkTaskScheduler().scheduleTickingState(
++                    chunkX, chunkZ, net.minecraft.server.level.FullChunkStatus.ENTITY_TICKING, true,
++                    ca.spottedleaf.concurrentutil.util.Priority.HIGHER, chunk -> {
++                        try {
++                            if (chunk == null) throw new IllegalStateException("Ender pearl chunk is unavailable");
++                            ServerPlayer.placeEnderPearlTicket(pearlLevel, new ChunkPos(chunkX, chunkZ));
++                            // Queuing (not inline execution) lets the chunk-load
++                            // callback release its temporary ticket first.
++                            io.papermc.paper.threadedregions.RegionizedServer.getInstance().taskQueue.queueTickTaskQueue(
++                                pearlLevel, chunkX, chunkZ, decode);
++                        } catch (final Throwable failure) {
++                            completion.completeExceptionally(failure);
++                        }
++                    });
+             } else {
+-                LOGGER.warn("Trying to load ender pearl without level ({}) being loaded, skipping", pearlLevelKey.get());
++                completion.completeExceptionally(new IllegalArgumentException("Missing player ender pearl world: " + pearlLevelKey.get()));
+             }
++        } else {
++            completion.completeExceptionally(new IllegalArgumentException("Missing player ender pearl dimension"));
+         }
+     }
+ 
+     // Tessera start - restore vanilla ender pearl ownership
+-    private void tessera$scheduleLoadedEnderPearl(final ServerLevel pearlLevel, final ThrownEnderpearl enderPearl) {
+-        Runnable queueSpawn = () -> io.papermc.paper.threadedregions.RegionizedServer.getInstance().taskQueue.queueOrExecuteTickTask(
++    private void tessera$scheduleLoadedEnderPearl(final ServerLevel pearlLevel, final ThrownEnderpearl enderPearl, final java.util.concurrent.CompletableFuture<Void> completion) {
++        Runnable queueSpawn = () -> {
++            try {
++                io.papermc.paper.threadedregions.RegionizedServer.getInstance().taskQueue.queueOrExecuteTickTask(
+             pearlLevel,
+             enderPearl.chunkPosition().x(),
+             enderPearl.chunkPosition().z(),
+-            () -> this.tessera$addLoadedEnderPearl(pearlLevel, enderPearl)
+-        );
++            () -> {
++                try {
++                    this.tessera$addLoadedEnderPearl(pearlLevel, enderPearl, completion);
++                } catch (final Throwable failure) {
++                    completion.completeExceptionally(failure);
++                }
++            }
++                );
++            } catch (final Throwable failure) {
++                completion.completeExceptionally(failure);
++            }
++        };
+         if (!ThrownEnderpearl.tessera$afterPendingOwnerUnload(enderPearl.getUUID(), queueSpawn)) {
+             queueSpawn.run();
+         }
+     }
+ 
+-    private void tessera$addLoadedEnderPearl(final ServerLevel pearlLevel, final ThrownEnderpearl enderPearl) {
++    private void tessera$addLoadedEnderPearl(final ServerLevel pearlLevel, final ThrownEnderpearl enderPearl, final java.util.concurrent.CompletableFuture<Void> completion) {
+         if (pearlLevel.tryAddFreshEntityWithPassengers(enderPearl) && enderPearl.valid) {
+             enderPearl.tessera$restoreOwnerRegistration();
+             ServerPlayer.placeEnderPearlTicket(pearlLevel, enderPearl.chunkPosition());
++            completion.complete(null);
+             return;
+         }
+ 
+         enderPearl.tessera$detachFailedOwnerLoad();
+         if (ThrownEnderpearl.tessera$afterPendingOwnerUnload(
+             enderPearl.getUUID(),
+-            () -> this.tessera$scheduleLoadedEnderPearl(pearlLevel, enderPearl)
++            () -> this.tessera$scheduleLoadedEnderPearl(pearlLevel, enderPearl, completion)
+         )) {
+             return;
+         }
+@@ -877,10 +1001,23 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         if (existing instanceof ThrownEnderpearl existingEnderPearl) {
+             // The saved player copy raced an already-active world copy. Keep
+             // exactly one entity and reconnect that copy to the current player.
+-            existingEnderPearl.tessera$restoreOwnerRegistration();
+-            LOGGER.debug("Reused already-loaded player ender pearl {}", enderPearl.getUUID());
++            existingEnderPearl.getBukkitEntity().taskScheduler.scheduleRestore(entity -> {
++                final ThrownEnderpearl current = (ThrownEnderpearl)entity;
++                if (current.owner != null && !current.owner.getUUID().equals(this.getUUID())) {
++                    throw new IllegalStateException("Saved ender pearl has another owner");
++                }
++                current.setOwner(this);
++                current.tessera$restoreOwnerRegistration();
++                LOGGER.debug("Reused already-loaded player ender pearl {}", current.getUUID());
++                return java.util.concurrent.CompletableFuture.completedStage(null);
++            }).whenComplete((ignored, failure) -> {
++                if (failure == null) completion.complete(null);
++                else completion.completeExceptionally(failure);
++            });
+         } else {
+-            LOGGER.warn("Unable to restore player ender pearl {} because its entity UUID is already in use", enderPearl.getUUID());
++            completion.completeExceptionally(new IllegalStateException(existing == null
++                ? "Saved ender pearl was not admitted to the target world"
++                : "Saved ender pearl UUID is occupied by another entity type"));
+         }
+     }
+     // Tessera end - restore vanilla ender pearl ownership
+@@ -949,6 +1086,10 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+ 
+     @Override
+     public void tick() {
++        if (org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.isClosed()) {
++            this.connection.tickClientLoadTimeout();
++            return; // Vanilla tick freeze alone deliberately still ticks players.
++        }
+         // CraftBukkit start
+         if (this.joining) {
+             this.joining = false;
+@@ -1044,6 +1185,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+     }
+ 
+     public void doTick() {
++        if (org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.isClosed()) return;
+         try {
+             if (this.valid && (!this.isSpectator() || !this.touchingUnloadedChunk())) { // Paper - don't tick dead players that are not in the world currently (pending respawn)
+                 super.tick();
+diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index ec83bd835e22a08f4a9adfbcbe3ee365afa01616..5c30d09c0d075e401e753714b134ddffa55683fa 100644
+--- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -296,6 +296,27 @@ public class ServerGamePacketListenerImpl
+     private @Nullable Vec3 awaitingPositionFromClient;
+     private int awaitingTeleport;
+     private int awaitingTeleportTime;
++    private java.util.concurrent.CompletableFuture<Void> tessera$restoreAck;
++    private long tessera$restoreAckDeadline;
++
++    public java.util.concurrent.CompletionStage<Void> tessera$awaitRestoreAck() {
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this.player, "Cannot await restore acknowledgement off owner");
++        if (this.awaitingPositionFromClient == null) return java.util.concurrent.CompletableFuture.completedStage(null);
++        if (this.tessera$restoreAck == null) {
++            this.tessera$restoreAck = new java.util.concurrent.CompletableFuture<>();
++            this.tessera$restoreAckDeadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(30);
++        }
++        return this.tessera$restoreAck.minimalCompletionStage();
++    }
++
++    private void tessera$finishRestoreAck(final Throwable failure) {
++        final var pending = this.tessera$restoreAck;
++        this.tessera$restoreAck = null;
++        if (pending != null) {
++            if (failure == null) pending.complete(null);
++            else pending.completeExceptionally(failure);
++        }
++    }
+     private boolean clientIsFloating;
+     private int aboveGroundTickCount;
+     private boolean clientVehicleIsFloating;
+@@ -373,8 +394,16 @@ public class ServerGamePacketListenerImpl
+ 
+     @Override
+     public void tick() {
++        if (this.tessera$restoreAck != null && System.nanoTime() - this.tessera$restoreAckDeadline >= 0) {
++            this.tessera$finishRestoreAck(new java.util.concurrent.TimeoutException("Restore teleport acknowledgement timed out"));
++        }
+         // Folia start - region threading
+         this.keepConnectionAlive();
++        if (org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.isClosed()) {
++            this.resetFlyingTicks();
++            this.player.connection.tickClientLoadTimeout();
++            return; // No idle/flying kicks or gameplay while the native store is fenced.
++        }
+         if (this.player.wonGame) {
+             return;
+         }
+@@ -498,6 +527,15 @@ public class ServerGamePacketListenerImpl
+ 
+     @Override
+     public boolean shouldHandleMessage(final Packet<?> packet) {
++        if (org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.isClosed()
++            && !(packet instanceof net.minecraft.network.protocol.common.ServerboundKeepAlivePacket)
++            && !(packet instanceof net.minecraft.network.protocol.common.ServerboundPongPacket)
++            && !(packet instanceof net.minecraft.network.protocol.common.ServerboundResourcePackPacket)
++            && !(packet instanceof ServerboundAcceptTeleportationPacket)
++            && !(packet instanceof ServerboundPlayerLoadedPacket)
++            && !(packet instanceof ServerboundConfigurationAcknowledgedPacket)) {
++            return false; // Drop gameplay, never replay stale input after the transaction.
++        }
+         return super.shouldHandleMessage(packet)
+             || this.waitingForSwitchToConfig && this.connection.isConnected() && packet instanceof ServerboundConfigurationAcknowledgedPacket;
+     }
+@@ -844,6 +882,7 @@ public class ServerGamePacketListenerImpl
+             this.player.hasChangedDimension();
+             this.awaitingPositionFromClient = null;
+             this.handlePlayerPositionChange(packet.x(), packet.y(), packet.z(), packet.yRot(), packet.xRot(), false, false);
++            if (packet.id() == this.awaitingTeleport) this.tessera$finishRestoreAck(null);
+         }
+     }
+ 
+@@ -2024,6 +2063,8 @@ public class ServerGamePacketListenerImpl
+         this.justTeleported = true;
+         // CraftBukkit end
+         this.awaitingTeleportTime = this.tickCount;
++        final var supersededRestoreAck = this.tessera$restoreAck;
++        this.tessera$restoreAck = null;
+         if (++this.awaitingTeleport == Integer.MAX_VALUE) {
+             this.awaitingTeleport = 0;
+         }
+@@ -2038,6 +2079,7 @@ public class ServerGamePacketListenerImpl
+         this.lastXRot = this.player.getXRot();
+         // CraftBukkit end
+         this.send(ClientboundPlayerPositionPacket.of(this.awaitingTeleport, destination, relatives));
++        if (supersededRestoreAck != null) supersededRestoreAck.completeExceptionally(new IllegalStateException("Restore teleport was superseded"));
+     }
+ 
+     @Override
+@@ -2376,6 +2418,7 @@ public class ServerGamePacketListenerImpl
+ 
+     @Override
+     public void onDisconnect(final DisconnectionDetails details) {
++        this.tessera$finishRestoreAck(new IllegalStateException("Player disconnected during restore"));
+         LOGGER.info("{} lost connection: {}", this.player.getPlainTextName(), details.reason().getString());
+         // Paper start - Fix kick event leave message not being sent
+         final net.kyori.adventure.text.Component quitMessage = details.quitMessage().map(io.papermc.paper.adventure.PaperAdventure::asAdventure).orElse(null);
+diff --git a/net/minecraft/server/network/config/PrepareSpawnTask.java b/net/minecraft/server/network/config/PrepareSpawnTask.java
+index 9fad06eda81b4c2c1889a9cfa7a6948e7ee01862..62b4c7c73c789f362e0f7d53daac82b13d6e45c0 100644
+--- a/net/minecraft/server/network/config/PrepareSpawnTask.java
++++ b/net/minecraft/server/network/config/PrepareSpawnTask.java
+@@ -35,6 +35,9 @@ public class PrepareSpawnTask implements ConfigurationTask {
+     private final NameAndId nameAndId;
+     private final LevelLoadListener loadListener;
+     private PrepareSpawnTask.@Nullable State state;
++    private org.bukkit.craftbukkit.world.PlayerStoreFence.Lease tessera$storeAdmission;
++    private boolean tessera$closed;
++    private java.util.concurrent.CompletionStage<Void> tessera$spawnChildren = CompletableFuture.completedStage(null);
+ 
+     // Paper start - passthrough profile and packet listener
+     private final com.mojang.authlib.GameProfile profile;
+@@ -52,6 +55,17 @@ public class PrepareSpawnTask implements ConfigurationTask {
+ 
+     @Override
+     public void start(final Consumer<Packet<?>> connection) {
++        if (this.tessera$closed) return;
++        if (this.tessera$storeAdmission == null) {
++            this.tessera$storeAdmission = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.tryRead();
++            if (this.tessera$storeAdmission == null) return; // Retry from configuration ticks, never block a thread.
++        }
++        try (var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(this.tessera$storeAdmission)) {
++            this.tessera$startAdmitted();
++        }
++    }
++
++    private void tessera$startAdmitted() {
+         try (ProblemReporter.ScopedCollector reporter = new ProblemReporter.ScopedCollector(LOGGER)) {
+             Optional<ValueInput> loadedData = this.server
+                 .getPlayerList()
+@@ -130,6 +144,7 @@ public class PrepareSpawnTask implements ConfigurationTask {
+ 
+     @Override
+     public boolean tick() {
++        if (this.state == null && !this.tessera$closed) this.start(ignored -> {});
+         return switch (this.state) {
+             case null -> false;
+             case PrepareSpawnTask.Preparing preparing -> {
+@@ -147,11 +162,17 @@ public class PrepareSpawnTask implements ConfigurationTask {
+     }
+ 
+     public ServerPlayer spawnPlayer(final Connection connection, final CommonListenerCookie cookie, final ServerPlayer player) { // Folia - add ServerPlayer param
++        try (var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(this.tessera$storeAdmission)) {
+         if (this.state instanceof PrepareSpawnTask.Ready ready) {
+             return ready.spawn(connection, cookie, player); // Folia - add ServerPlayer param
+         } else {
+             throw new IllegalStateException("Player spawn was not ready");
+         }
++        } finally {
++            final var admission = this.tessera$storeAdmission;
++            this.tessera$storeAdmission = null;
++            this.tessera$spawnChildren.whenComplete((ignored, failure) -> admission.close());
++        }
+     }
+ 
+     // Folia start - region threading
+@@ -173,11 +194,13 @@ public class PrepareSpawnTask implements ConfigurationTask {
+ 
+     // copy of spawnPlayer but only invokes createPlayer
+     public ServerPlayer createPlayer(final Connection connection, final CommonListenerCookie cookie) {
++        try (var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(this.tessera$storeAdmission)) {
+         if (this.state instanceof PrepareSpawnTask.Ready ready) {
+             return ready.createPlayer(connection, cookie);
+         } else {
+             throw new IllegalStateException("Player spawn was not ready");
+         }
++        }
+     }
+     // Folia end - region threading
+ 
+@@ -188,11 +211,20 @@ public class PrepareSpawnTask implements ConfigurationTask {
+     }
+ 
+     public void close() {
++        this.tessera$closed = true;
+         if (this.state instanceof PrepareSpawnTask.Preparing preparing) {
+             preparing.cancel();
+         }
+ 
+         this.state = null;
++        this.tessera$releaseAdmission();
++    }
++
++    private void tessera$releaseAdmission() {
++        if (this.tessera$storeAdmission != null) {
++            this.tessera$storeAdmission.close();
++            this.tessera$storeAdmission = null;
++        }
+     }
+ 
+     @Override
+@@ -370,7 +402,10 @@ public class PrepareSpawnTask implements ConfigurationTask {
+                 player.snapTo(this.spawnPosition, this.spawnAngle.x, this.spawnAngle.y);
+                 PrepareSpawnTask.this.server.getPlayerList().placeNewPlayer(connection, player, cookie);
+                 input.ifPresent(tag -> {
+-                    player.loadAndSpawnEnderPearls(tag);
++                    PrepareSpawnTask.this.tessera$spawnChildren = player.tessera$loadAndSpawnEnderPearls(tag);
++                    PrepareSpawnTask.this.tessera$spawnChildren.whenComplete((ignored, failure) -> {
++                        if (failure != null) LOGGER.warn("Could not finish loading player ender pearls for {}", player.getUUID(), failure);
++                    });
+                     player.loadAndSpawnParentVehicle(tag);
+                 });
+                 return player;
+diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
+index af66fd0c9fe39063f6a02cab93efe327c56282b9..d56af56703cad06220dc6438f0fd5df65199b18e 100644
+--- a/net/minecraft/server/players/PlayerList.java
++++ b/net/minecraft/server/players/PlayerList.java
+@@ -488,6 +488,15 @@ public abstract class PlayerList {
+     }
+ 
+     protected void save(final ServerPlayer player) {
++        try (var access = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.tryWrite(player.tessera$playerStoreGeneration)) {
++            if (access == null) return;
++            try (var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(access)) {
++                this.tessera$saveAdmitted(player);
++            }
++        }
++    }
++
++    private void tessera$saveAdmitted(final ServerPlayer player) {
+         if (!player.getBukkitEntity().isPersistent()) return; // CraftBukkit
+         player.lastSave = System.nanoTime(); // Folia - region threading - changed to nanoTime tracking
+         this.playerIo.save(player);
+@@ -509,6 +518,15 @@ public abstract class PlayerList {
+      * transferred entity scheduler, which supplies the current live handle.
+      */
+     public void tessera$savePlayerSnapshot(final ServerPlayer player) {
++        try (var access = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.tryWrite(player.tessera$playerStoreGeneration)) {
++            if (access == null) throw new IllegalStateException("Player snapshot rejected by restore fence");
++            try (var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(access)) {
++                this.tessera$savePlayerSnapshotAdmitted(player);
++            }
++        }
++    }
++
++    private void tessera$savePlayerSnapshotAdmitted(final ServerPlayer player) {
+         ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(player, "Cannot snapshot player data off the owning region");
+         if (!player.getBukkitEntity().isPersistent()) return;
+         player.lastSave = System.nanoTime();
+@@ -1297,8 +1315,11 @@ public abstract class PlayerList {
+         }
+     }
+     public ServerStatsCounter getPlayerStats(final GameProfile gameProfile) {
++        try (var access = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.requireRead();
++             var scope = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(access)) {
+             Path targetFile = this.locateStatsFile(gameProfile);
+             return new ServerStatsCounter(this.server, targetFile);
++        }
+     }
+     // CraftBukkit end
+ 
+diff --git a/net/minecraft/stats/ServerStatsCounter.java b/net/minecraft/stats/ServerStatsCounter.java
+index d2348dd9372add094bbcf0f41d33006d33c86d33..4e353f89d05be262890f3944f160ccfacee234ab 100644
+--- a/net/minecraft/stats/ServerStatsCounter.java
++++ b/net/minecraft/stats/ServerStatsCounter.java
+@@ -50,6 +50,7 @@ public class ServerStatsCounter extends StatsCounter {
+             return stats;
+         }, map -> map.entrySet().stream().collect(Collectors.groupingBy(entry -> entry.getKey().getType(), Util.toMap())));
+     private final Path file;
++    public long tessera$playerStoreGeneration;
+     private final Set<Stat<?>> dirty = Sets.newHashSet();
+ 
+     private static <T> Codec<Map<Stat<?>, Integer>> createTypedStatsCodec(final StatType<T> type) {
+@@ -65,6 +66,8 @@ public class ServerStatsCounter extends StatsCounter {
+ 
+     public ServerStatsCounter(final MinecraftServer server, final Path file) {
+         this.file = file;
++        try (var access = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.requireRead()) {
++        this.tessera$playerStoreGeneration = access.generation();
+         if (Files.isRegularFile(file)) {
+             try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+                 JsonElement element = StrictJsonParser.parse(reader);
+@@ -86,6 +89,7 @@ public class ServerStatsCounter extends StatsCounter {
+         }
+         // Spigot end
+         // Paper end - Moved after stat fetching for player state file
++        }
+     }
+ 
+     public void save() {
+@@ -93,6 +97,16 @@ public class ServerStatsCounter extends StatsCounter {
+     }
+ 
+     public void tessera$save(final boolean snapshot) {
++        try (var access = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.tryWrite(this.tessera$playerStoreGeneration)) {
++            if (access == null) {
++                if (snapshot) throw new IllegalStateException("Statistics snapshot rejected by restore fence");
++                return;
++            }
++            this.tessera$saveAdmitted(snapshot);
++        }
++    }
++
++    private void tessera$saveAdmitted(final boolean snapshot) {
+         if (org.spigotmc.SpigotConfig.disableStatSaving) return; // Spigot
+         try {
+             FileUtil.createDirectoriesSafe(this.file.getParent());
+@@ -144,6 +158,23 @@ public class ServerStatsCounter extends StatsCounter {
+         this.dirty.addAll(this.stats.keySet());
+     }
+ 
++    /** Strict preflight: unlike the login parser, never accept partial statistics. */
++    public static Map<Stat<?>, Integer> tessera$decodeRestore(final DataFixer fixer, final JsonElement element) {
++        Dynamic<JsonElement> data = new Dynamic<>(JsonOps.INSTANCE, element.deepCopy());
++        data = DataFixTypes.STATS.updateToCurrentVersion(fixer, data, NbtUtils.getDataVersion(data, 1343));
++        return Map.copyOf(STATS_CODEC.parse(data.get("stats").orElseEmptyMap()).getOrThrow());
++    }
++
++    public void tessera$replaceRestore(final Map<Stat<?>, Integer> replacement, final ServerPlayer player) {
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(player, "Cannot replace statistics off the player owner");
++        this.dirty.addAll(this.stats.keySet()); // Removed client entries must receive explicit zero values.
++        this.stats.clear();
++        this.stats.putAll(replacement);
++        this.dirty.addAll(this.stats.keySet());
++        this.tessera$playerStoreGeneration = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.generation();
++        this.sendStats(player);
++    }
++
+     public void sendStats(final ServerPlayer player) {
+         Object2IntMap<Stat<?>> statsToSend = new Object2IntOpenHashMap<>();
+ 
+diff --git a/net/minecraft/world/entity/ai/attributes/AttributeMap.java b/net/minecraft/world/entity/ai/attributes/AttributeMap.java
+index 68bad6752bd313ca3ebde7fd4e3b2c46c5dee3ef..db4b38c6fbffa754fef983ca0321b557dcb6a983 100644
+--- a/net/minecraft/world/entity/ai/attributes/AttributeMap.java
++++ b/net/minecraft/world/entity/ai/attributes/AttributeMap.java
+@@ -98,6 +98,26 @@ public class AttributeMap {
+         });
+     }
+ 
++    /** Restore replacement, including entries absent from the saved player. */
++    public void tessera$replaceAll(final AttributeMap other) {
++        final var iterator = this.attributes.entrySet().iterator();
++        while (iterator.hasNext()) {
++            final var entry = iterator.next();
++            AttributeInstance replacement = other.getInstance(entry.getKey());
++            if (replacement == null) {
++                // Reset any formerly registered client attribute before removing
++                // it from the server map. Keep existing instance wrappers valid
++                // for attributes that remain part of this entity's schema.
++                entry.getValue().replaceFrom(new AttributeInstance(entry.getKey(), ignored -> {}));
++                this.onAttributeModified(entry.getValue());
++                iterator.remove();
++            } else {
++                entry.getValue().replaceFrom(replacement);
++            }
++        }
++        this.assignAllValues(other);
++    }
++
+     public void assignBaseValues(final AttributeMap other) {
+         other.attributes.values().forEach(otherInstance -> {
+             AttributeInstance selfInstance = this.getInstance(otherInstance.getAttribute());
+diff --git a/net/minecraft/world/level/storage/PlayerDataStorage.java b/net/minecraft/world/level/storage/PlayerDataStorage.java
+index 0b3ab028ca5d58026a6ae41f0602d73423305929..2d8f5adcf3792a526464edd39f2782e61bd12a6a 100644
+--- a/net/minecraft/world/level/storage/PlayerDataStorage.java
++++ b/net/minecraft/world/level/storage/PlayerDataStorage.java
+@@ -35,6 +35,18 @@ public class PlayerDataStorage {
+     }
+ 
+     public void tessera$save(final Player player, final boolean snapshot) {
++        final long generation = player instanceof net.minecraft.server.level.ServerPlayer serverPlayer
++            ? serverPlayer.tessera$playerStoreGeneration : org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.generation();
++        try (var access = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.tryWrite(generation)) {
++            if (access == null) {
++                if (snapshot) throw new IllegalStateException("Player-data snapshot rejected by restore fence");
++                return;
++            }
++            this.tessera$saveAdmitted(player, snapshot);
++        }
++    }
++
++    private void tessera$saveAdmitted(final Player player, final boolean snapshot) {
+         if (org.spigotmc.SpigotConfig.disablePlayerDataSaving) return; // Spigot
+         try (ProblemReporter.ScopedCollector reporter = new ProblemReporter.ScopedCollector(player.problemPath(), LOGGER)) {
+             TagValueOutput output = TagValueOutput.createWithContext(reporter, player.registryAccess());
+@@ -100,6 +112,12 @@ public class PlayerDataStorage {
+     }
+ 
+     public Optional<CompoundTag> load(final NameAndId nameAndId) {
++        try (var access = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.requireRead()) {
++            return this.tessera$loadAdmitted(nameAndId);
++        }
++    }
++
++    private Optional<CompoundTag> tessera$loadAdmitted(final NameAndId nameAndId) {
+         Optional<CompoundTag> optTag = this.load(nameAndId, ".dat");
+         if (optTag.isEmpty()) {
+             this.backup(nameAndId, ".dat");

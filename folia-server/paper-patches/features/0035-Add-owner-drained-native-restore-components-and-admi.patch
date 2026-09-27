@@ -1,0 +1,799 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Sun, 27 Sep 2026 12:09:19 +0200
+Subject: [PATCH] Add owner-drained native restore components and admission
+ tests
+
+
+diff --git a/src/main/java/io/papermc/paper/threadedregions/EntityScheduler.java b/src/main/java/io/papermc/paper/threadedregions/EntityScheduler.java
+index 2bc8a54d1fe0acbaa5883de973deea9923abf8ed..9a2518b71d5a99efc66879090f29eb8fce83ad87 100644
+--- a/src/main/java/io/papermc/paper/threadedregions/EntityScheduler.java
++++ b/src/main/java/io/papermc/paper/threadedregions/EntityScheduler.java
+@@ -51,20 +51,51 @@ public final class EntityScheduler {
+ 
+     private final ArrayDeque<ScheduledTask> currentlyExecuting = new ArrayDeque<>();
+     // Internal snapshot saves must run even while normal entity ticks are frozen.
+-    private final List<java.util.concurrent.CompletableFuture<Void>> snapshotSaves = new ArrayList<>();
++    private record SnapshotSave(java.util.concurrent.CompletableFuture<Void> future, org.bukkit.craftbukkit.world.PlayerStoreFence.Lease admission) {}
++    private final List<SnapshotSave> snapshotSaves = new ArrayList<>();
++    private final RestoreTaskQueue<Entity> restoreTasks = new RestoreTaskQueue<>();
++
++    public <T> java.util.concurrent.CompletionStage<T> scheduleRestore(
++        java.util.function.Function<Entity, java.util.concurrent.CompletionStage<T>> action
++    ) {
++        synchronized (this.stateLock) {
++            final var result = this.restoreTasks.submit(action);
++            if (!this.insideScheduledList && this.scheduledList != null && this.restoreTasks.hasTasks()) {
++                this.scheduledList.add(this);
++                this.insideScheduledList = true;
++            }
++            return result;
++        }
++    }
++
++    public void executeRestoreTasks() {
++        TickThread.ensureTickThread(this.entity.getHandleRaw(), "Cannot restore player off its owner");
++        this.restoreTasks.drain(this.entity::getHandleRaw, () -> TickThread.isTickThreadFor(this.entity.getHandleRaw()));
++        synchronized (this.stateLock) {
++            if (this.insideScheduledList && this.scheduledList != null && !this.hasTasks()) {
++                this.scheduledList.remove(this);
++                this.insideScheduledList = false;
++            }
++        }
++    }
+ 
+     public java.util.concurrent.CompletableFuture<Void> scheduleSnapshotSave() {
++        return this.scheduleSnapshotSave(null);
++    }
++
++    public java.util.concurrent.CompletableFuture<Void> scheduleSnapshotSave(org.bukkit.craftbukkit.world.PlayerStoreFence.Lease admission) {
+         final java.util.concurrent.CompletableFuture<Void> result = new java.util.concurrent.CompletableFuture<>();
++        final SnapshotSave save = new SnapshotSave(result, admission);
+         synchronized (this.stateLock) {
+             if (this.tickCount == RETIRED_TICK_COUNT) {
+                 result.complete(null); // PlayerList saves before retiring the scheduler.
+                 return result;
+             }
+-            this.snapshotSaves.add(result);
++            this.snapshotSaves.add(save);
+         }
+         result.whenComplete((ignored, failure) -> {
+             synchronized (this.stateLock) {
+-                this.snapshotSaves.remove(result);
++                this.snapshotSaves.remove(save);
+             }
+         });
+         return result;
+@@ -73,15 +104,16 @@ public final class EntityScheduler {
+     public void executeSnapshotSaves() {
+         final Entity handle = this.entity.getHandleRaw();
+         TickThread.ensureTickThread(handle, "Cannot execute snapshot player save off the owning region");
+-        final List<java.util.concurrent.CompletableFuture<Void>> saves;
++        final List<SnapshotSave> saves;
+         synchronized (this.stateLock) {
+             saves = List.copyOf(this.snapshotSaves);
+         }
+-        for (final java.util.concurrent.CompletableFuture<Void> save : saves) {
++        for (final SnapshotSave request : saves) {
++            final java.util.concurrent.CompletableFuture<Void> save = request.future();
+             if (save.isDone()) {
+                 continue;
+             }
+-            try {
++            try (var scope = request.admission() == null ? null : org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.enter(request.admission())) {
+                 final net.minecraft.server.level.ServerPlayer player = (net.minecraft.server.level.ServerPlayer)handle;
+                 player.level().getServer().getPlayerList().tessera$savePlayerSnapshot(player);
+                 save.complete(null);
+@@ -97,7 +129,7 @@ public final class EntityScheduler {
+ 
+     // must own state lock
+     private boolean hasTasks() {
+-        return !this.currentlyExecuting.isEmpty() || !this.oneTimeDelayed.isEmpty();
++        return !this.currentlyExecuting.isEmpty() || !this.oneTimeDelayed.isEmpty() || this.restoreTasks.hasTasks();
+     }
+ 
+     public void registerTo(final EntitySchedulerTickList newTickList) {
+@@ -159,7 +191,7 @@ public final class EntityScheduler {
+      * @throws IllegalStateException If the scheduler is already retired.
+      */
+     public void retire() {
+-        final List<java.util.concurrent.CompletableFuture<Void>> snapshotRetired;
++        final List<SnapshotSave> snapshotRetired;
+         synchronized (this.stateLock) {
+             if (this.tickCount == RETIRED_TICK_COUNT) {
+                 throw new IllegalStateException("Already retired");
+@@ -170,7 +202,8 @@ public final class EntityScheduler {
+             this.snapshotSaves.clear();
+         }
+ 
+-        snapshotRetired.forEach(future -> future.complete(null));
++        snapshotRetired.forEach(save -> save.future().complete(null));
++        this.restoreTasks.retire();
+ 
+         final Entity thisEntity = this.entity.getHandleRaw();
+ 
+diff --git a/src/main/java/io/papermc/paper/threadedregions/RestoreTaskQueue.java b/src/main/java/io/papermc/paper/threadedregions/RestoreTaskQueue.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d0a7efd5efa7e4a3bbf789d986dc3b9cdf4a8435
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/threadedregions/RestoreTaskQueue.java
+@@ -0,0 +1,88 @@
++package io.papermc.paper.threadedregions;
++
++import java.util.ArrayDeque;
++import java.util.Objects;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.CompletionStage;
++import java.util.function.BooleanSupplier;
++import java.util.function.Function;
++import java.util.function.Supplier;
++
++/**
++ * Internal owner work, independent of gameplay time. Completion includes the
++ * returned child stage. Cancelling a caller's future cannot retire owned work.
++ * No action is invoked from admission or retirement (both may be off-owner).
++ */
++public final class RestoreTaskQueue<T> {
++    private final ArrayDeque<Task<T, ?>> queued = new ArrayDeque<>();
++    private boolean retired;
++
++    public synchronized boolean hasTasks() {
++        return !this.queued.isEmpty();
++    }
++
++    public synchronized <R> CompletionStage<R> submit(Function<T, CompletionStage<R>> action) {
++        Objects.requireNonNull(action, "action");
++        if (this.retired) {
++            return CompletableFuture.failedStage(new IllegalStateException("Restore owner has retired"));
++        }
++        Task<T, R> task = new Task<>(action);
++        this.queued.addLast(task);
++        return task.result.minimalCompletionStage();
++    }
++
++    /** Owner must be checked afresh after every action: an action can transfer it. */
++    public void drain(Supplier<T> owner, BooleanSupplier owns) {
++        final int limit;
++        synchronized (this) {
++            limit = this.queued.size();
++        }
++        for (int i = 0; i < limit && owns.getAsBoolean(); ++i) {
++            Task<T, ?> task;
++            synchronized (this) {
++                task = this.queued.pollFirst();
++            }
++            if (task == null) {
++                return;
++            }
++            task.run(owner.get());
++        }
++    }
++
++    public void retire() {
++        ArrayDeque<Task<T, ?>> pending;
++        synchronized (this) {
++            this.retired = true;
++            pending = new ArrayDeque<>(this.queued);
++            this.queued.clear();
++        }
++        // Already dispatched child stages retain their own real completion.
++        for (Task<T, ?> task : pending) {
++            task.result.completeExceptionally(new IllegalStateException("Restore owner has retired"));
++        }
++    }
++
++    private static final class Task<T, R> {
++        private final Function<T, CompletionStage<R>> action;
++        private final CompletableFuture<R> result = new CompletableFuture<>();
++
++        private Task(Function<T, CompletionStage<R>> action) {
++            this.action = action;
++        }
++
++        private void run(T owner) {
++            try {
++                Objects.requireNonNull(this.action.apply(owner), "Restore action returned null stage")
++                    .whenComplete((value, failure) -> {
++                        if (failure == null) {
++                            this.result.complete(value);
++                        } else {
++                            this.result.completeExceptionally(failure);
++                        }
++                    });
++            } catch (Throwable failure) {
++                this.result.completeExceptionally(failure);
++            }
++        }
++    }
++}
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/CraftPlayerRestoreService.java b/src/main/java/org/bukkit/craftbukkit/world/CraftPlayerRestoreService.java
+index 1591e4bfee3543275a1f1aa602a518eb90471136..65a7568a8c4625a282db1d82bbed8df61fb1c377 100644
+--- a/src/main/java/org/bukkit/craftbukkit/world/CraftPlayerRestoreService.java
++++ b/src/main/java/org/bukkit/craftbukkit/world/CraftPlayerRestoreService.java
+@@ -18,6 +18,7 @@ import org.bukkit.event.player.PlayerTeleportEvent;
+  */
+ public final class CraftPlayerRestoreService implements PlayerRestoreService {
+     private final PlayerRestoreCoordinator coordinator = new PlayerRestoreCoordinator(new UnavailableBackend(), Runnable::run);
++    private final RestoreTeleportScope teleports = new RestoreTeleportScope();
+ 
+     @Override
+     public int contractVersion() {
+@@ -46,14 +47,18 @@ public final class CraftPlayerRestoreService implements PlayerRestoreService {
+ 
+     @Override
+     public boolean isRestoreTeleport(PlayerTeleportEvent event, UUID operationId) {
+-        return false; // No native restore transfer is enabled.
++        return this.teleports.matches(event, operationId);
++    }
++
++    void dispatchRestoreTeleport(PlayerTeleportEvent event, UUID operationId) {
++        this.teleports.dispatch(event, operationId, event::callEvent);
+     }
+ 
+     private static final class UnavailableBackend implements PlayerRestoreCoordinator.Backend {
+         @Override
+         public CompletionStage<Void> prepare(PlayerRestoreCoordinator.Operation operation) {
+             return CompletableFuture.failedStage(new PlayerRestoreCoordinator.RestoreFailure(PlayerRestoreStatus.UNSUPPORTED,
+-                "MCC live restore v1 is unavailable: native player replacement, owner-drained entity transfers and platform durability are not complete"));
++                "MCC live restore v1 is unavailable: transactional store publication, disconnect/shutdown recovery and complete attachment validation are not complete"));
+         }
+ 
+         @Override
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java b/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
+index 3ae11a971e4d71036160daa27758f91d01739b15..b80d8a254482ee606090495205de57273abb1955 100644
+--- a/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
++++ b/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
+@@ -390,7 +390,21 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+                 final List<LockRequest> locks = new ArrayList<>();
+                 locks.add(new LockRequest("/snapshot-player-storage", true));
+                 participants.forEach(world -> locks.add(new LockRequest(normalizeName(world.getName()), true)));
+-                return this.withLocks(locks, () -> this.snapshotWorldsLocked(sources, participants, snapshotPath));
++                return this.withLocks(locks, () -> {
++                    final PlayerStoreFence.Lease admission = PlayerStoreFence.INSTANCE.tryRead();
++                    if (admission == null) {
++                        return CompletableFuture.completedFuture(new WorldSnapshotResult(
++                            WorldSnapshotResult.Status.SOURCE_BUSY, snapshotPath, "Player storage is busy restoring", null
++                        ));
++                    }
++                    try {
++                        return this.snapshotWorldsLocked(sources, participants, snapshotPath, admission)
++                            .whenComplete((ignored, failure) -> admission.close());
++                    } catch (final Throwable failure) {
++                        admission.close();
++                        throw failure;
++                    }
++                });
+             });
+         return this.trackOperation(snapshot, () ->
+             new WorldSnapshotResult(
+@@ -405,7 +419,8 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+     private CompletionStage<WorldSnapshotResult> snapshotWorldsLocked(
+         final List<CraftWorld> sources,
+         final List<CraftWorld> participants,
+-        final Path snapshotPath
++        final Path snapshotPath,
++        final PlayerStoreFence.Lease admission
+     ) {
+         final SnapshotPlan plan;
+         try {
+@@ -455,7 +470,7 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+             // delay and use the internal snapshot drain on the player's owner.
+             for (final net.minecraft.server.level.ServerPlayer player : List.copyOf(this.server.getServer().getPlayerList().getPlayers())) {
+                 try {
+-                    playerSaves.add(player.getBukkitEntity().taskScheduler.scheduleSnapshotSave());
++                    playerSaves.add(player.getBukkitEntity().taskScheduler.scheduleSnapshotSave(admission));
+                 } catch (final Throwable failure) {
+                     throw new SnapshotPipeline.Failure(WorldSnapshotResult.Status.SAVE_FAILED,
+                         "PLAYER_SAVE_REJECTED: " + player.getUUID(), failure);
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/NativePlayerRestoreState.java b/src/main/java/org/bukkit/craftbukkit/world/NativePlayerRestoreState.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..9c87186fbf61c6ff12dbe311889f2037fc20d654
+--- /dev/null
++++ b/src/main/java/org/bukkit/craftbukkit/world/NativePlayerRestoreState.java
+@@ -0,0 +1,171 @@
++package org.bukkit.craftbukkit.world;
++
++import com.google.gson.JsonElement;
++import com.mojang.authlib.GameProfile;
++import java.util.List;
++import java.util.Map;
++import java.util.UUID;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.CompletionStage;
++import net.minecraft.core.UUIDUtil;
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.nbt.NbtUtils;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.PlayerAdvancements;
++import net.minecraft.server.level.ClientInformation;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.stats.ServerStatsCounter;
++import net.minecraft.stats.Stat;
++import net.minecraft.util.ProblemReporter;
++import net.minecraft.world.entity.Entity;
++import net.minecraft.world.level.storage.TagValueInput;
++import net.minecraft.world.level.storage.TagValueOutput;
++import net.minecraft.world.phys.Vec3;
++import org.bukkit.Location;
++import org.bukkit.craftbukkit.CraftWorld;
++import org.bukkit.event.player.PlayerTeleportEvent;
++
++/**
++ * Native per-player restore work. This is NOT a player-store transaction: the
++ * caller must own admission, validate every participant and publish/recover the
++ * stores before invoking it. The public restore service remains unavailable
++ * until that transaction and its crash/recovery contract have been verified.
++ */
++public final class NativePlayerRestoreState {
++    private final ServerPlayer preview;
++    private final CompoundTag canonical;
++    private final Map<Stat<?>, Integer> statistics;
++    private final JsonElement advancements;
++    private final Location target;
++
++    private NativePlayerRestoreState(ServerPlayer preview, CompoundTag canonical,
++                                     Map<Stat<?>, Integer> statistics, JsonElement advancements, Location target) {
++        this.preview = preview;
++        this.canonical = canonical;
++        this.statistics = statistics;
++        this.advancements = advancements.deepCopy();
++        this.target = target.clone();
++    }
++
++    /** Executed on the destination region, with immutable identity/options captured on the player owner. */
++    public static NativePlayerRestoreState prepare(MinecraftServer server, GameProfile profile, ClientInformation options,
++                                                  Location target, CompoundTag source, JsonElement stats, JsonElement advancements) {
++        target.checkFinite();
++        ServerLevel world = ((CraftWorld)target.getWorld()).getHandle();
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(world, target.getBlockX() >> 4, target.getBlockZ() >> 4,
++            "Cannot preflight player state off the destination region");
++        if (!world.tessera$isRuntimeWorldActive()) throw new IllegalStateException("Restore target world is unavailable");
++        var decodedStats = ServerStatsCounter.tessera$decodeRestore(server.getFixerUpper(), stats);
++        PlayerAdvancements.tessera$validateRestore(server.getFixerUpper(), advancements);
++        CompoundTag input = source == null ? null : ca.spottedleaf.dataconverter.minecraft.MCDataConverter.convertTag(
++            ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry.PLAYER, source.copy(), NbtUtils.getDataVersion(source),
++            ca.spottedleaf.dataconverter.minecraft.util.Version.getCurrentVersion());
++        ProblemReporter.Collector problems = new ProblemReporter.Collector();
++        ServerPlayer fresh = new ServerPlayer(server, world, profile, options, true);
++        if (input != null) {
++            // These identity hints must agree with the already resolved destination.
++            input.read("UUID", UUIDUtil.CODEC).ifPresent(id -> {
++                if (!id.equals(profile.id())) throw new IllegalArgumentException("Saved player UUID mismatch");
++            });
++            if (input.contains("WorldUUIDMost") || input.contains("WorldUUIDLeast")) {
++                UUID id = new UUID(input.getLong("WorldUUIDMost").orElseThrow(), input.getLong("WorldUUIDLeast").orElseThrow());
++                if (!id.equals(world.getWorld().getUID())) throw new IllegalArgumentException("Saved player world UUID mismatch");
++            }
++            input.getString("Dimension").ifPresent(key -> {
++                if (!key.equals(world.dimension().identifier().toString())) throw new IllegalArgumentException("Saved player dimension mismatch");
++            });
++            input.store("Pos", Vec3.CODEC, new Vec3(target.getX(), target.getY(), target.getZ()));
++            input.store("Rotation", net.minecraft.world.phys.Vec2.CODEC, new net.minecraft.world.phys.Vec2(target.getYaw(), target.getPitch()));
++            fresh.load(TagValueInput.create(problems, server.registryAccess(), input));
++        }
++        fresh.snapTo(target.getX(), target.getY(), target.getZ(), target.getYaw(), target.getPitch());
++        if (fresh.getRespawnConfig() != null && server.getLevel(fresh.getRespawnConfig().respawnData().dimension()) == null) {
++            throw new IllegalArgumentException("Saved respawn world is unavailable");
++        }
++        if (!Float.isFinite(fresh.getHealth()) || fresh.getHealth() <= 0) throw new IllegalArgumentException("Saved player must be alive");
++        TagValueOutput output = TagValueOutput.createWithContext(problems, server.registryAccess());
++        fresh.saveWithoutId(output);
++        if (!problems.isEmpty()) throw new IllegalArgumentException("Invalid player state: " + problems.getReport());
++        CompoundTag canonical = output.buildResult();
++        if (input != null) {
++            for (String field : List.of("RootVehicle", "ender_pearls", "abilities")) {
++                if (input.contains(field)) canonical.put(field, input.get(field).copy());
++            }
++        }
++        return new NativePlayerRestoreState(fresh, canonical, decodedStats, advancements, target);
++    }
++
++    /** Every dispatched child and the real client teleport acknowledgement belongs to this stage. */
++    public CompletionStage<Void> restore(ServerPlayer player, UUID operation) {
++        return player.getBukkitEntity().taskScheduler.scheduleRestore(entity -> this.begin((ServerPlayer)entity, operation));
++    }
++
++    private CompletionStage<Void> begin(ServerPlayer player, UUID operation) {
++        if (!player.getUUID().equals(this.preview.getUUID()) || player.hasDisconnected() || !player.isAlive()) {
++            return CompletableFuture.failedStage(new IllegalStateException("Restore player is unavailable"));
++        }
++        Location from = player.getBukkitEntity().getLocation();
++        PlayerTeleportEvent event = new PlayerTeleportEvent(player.getBukkitEntity(), from.clone(), this.target.clone(), PlayerTeleportEvent.TeleportCause.PLUGIN);
++        ((CraftPlayerRestoreService)org.bukkit.Bukkit.getPlayerRestoreService()).dispatchRestoreTeleport(event, operation);
++        if (event.isCancelled() || !this.target.equals(event.getTo())) {
++            return CompletableFuture.failedStage(new IllegalStateException("Restore teleport was vetoed or redirected"));
++        }
++        if (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(player) || !from.equals(player.getBukkitEntity().getLocation())) {
++            return CompletableFuture.failedStage(new IllegalStateException("Player moved during restore teleport event"));
++        }
++        player.closeContainer(org.bukkit.event.inventory.InventoryCloseEvent.Reason.PLUGIN);
++        player.stopRiding();
++        if (player.isPassenger() || player.isVehicle()) return CompletableFuture.failedStage(new IllegalStateException("Player mount refused restore detach"));
++        CompletableFuture<?>[] detached = List.copyOf(player.getEnderPearls()).stream().map(pearl ->
++            pearl.getBukkitEntity().taskScheduler.scheduleRestore(current -> {
++                ((net.minecraft.world.entity.projectile.Projectile)current).setOwner((Entity)null);
++                current.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.DISCARD);
++                return CompletableFuture.completedStage(null);
++            }).toCompletableFuture()
++        ).toArray(CompletableFuture[]::new);
++        return CompletableFuture.allOf(detached).thenCompose(ignored -> player.getBukkitEntity().taskScheduler.scheduleRestore(current -> this.transfer((ServerPlayer)current)));
++    }
++
++    private CompletionStage<Void> transfer(ServerPlayer player) {
++        CompletableFuture<Void> transferred = new CompletableFuture<>();
++        if (player.hasDisconnected()) return CompletableFuture.failedStage(new IllegalStateException("Player disconnected before restore transfer"));
++        boolean accepted = player.teleportAsync(this.preview.level(),
++            new Vec3(this.target.getX(), this.target.getY(), this.target.getZ()), this.target.getYaw(), this.target.getPitch(), Vec3.ZERO,
++            PlayerTeleportEvent.TeleportCause.PLUGIN, Entity.TELEPORT_FLAG_LOAD_CHUNK, entity -> {
++                try {
++                    ServerPlayer current = (ServerPlayer)entity;
++                    current.tessera$replaceRestore(this.preview, this.canonical);
++                    current.getStats().tessera$replaceRestore(this.statistics, current);
++                    current.getAdvancements().tessera$replaceRestore(this.advancements, current.level().getServer().getAdvancements());
++                    this.restoreVehicle(current);
++                    CompletionStage<Void> pearls = current.tessera$loadAndSpawnEnderPearls(TagValueInput.create(ProblemReporter.DISCARDING, current.registryAccess(), this.canonical.copy()));
++                    CompletableFuture.allOf(pearls.toCompletableFuture(), current.connection.tessera$awaitRestoreAck().toCompletableFuture())
++                        .whenComplete((ignored, failure) -> {
++                            if (failure == null) transferred.complete(null);
++                            else transferred.completeExceptionally(failure);
++                        });
++                } catch (Throwable failure) {
++                    transferred.completeExceptionally(failure);
++                }
++            });
++        if (!accepted) transferred.completeExceptionally(new IllegalStateException("Native restore transfer rejected"));
++        return transferred.minimalCompletionStage();
++    }
++
++    private void restoreVehicle(ServerPlayer player) {
++        var root = this.canonical.getCompound("RootVehicle");
++        if (root.isEmpty()) return;
++        UUID attachment = root.get().read("Attach", UUIDUtil.CODEC).orElseThrow();
++        Entity existing = player.level().getEntity(attachment);
++        if (existing != null) {
++            ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(existing, "Saved vehicle belongs to another region");
++            if (!player.startRiding(existing, true, false)) throw new IllegalStateException("Saved vehicle rejected restore attachment");
++        } else {
++            player.loadAndSpawnParentVehicle(TagValueInput.create(ProblemReporter.DISCARDING, player.registryAccess(), this.canonical.copy()));
++        }
++        if (player.getVehicle() == null || !player.getVehicle().getUUID().equals(attachment)) {
++            throw new IllegalStateException("Saved vehicle could not be restored");
++        }
++    }
++}
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/PlayerStoreFence.java b/src/main/java/org/bukkit/craftbukkit/world/PlayerStoreFence.java
+index be65e63c9284b8d18c40434158a4023e5fedfd80..58ae33e2612cf64a4c15c32bfbec84384c0b7600 100644
+--- a/src/main/java/org/bukkit/craftbukkit/world/PlayerStoreFence.java
++++ b/src/main/java/org/bukkit/craftbukkit/world/PlayerStoreFence.java
+@@ -12,6 +12,7 @@ public final class PlayerStoreFence {
+     private long generation;
+     private int writers;
+     private CompletableFuture<Void> drained;
++    private final ThreadLocal<Scope> context = new ThreadLocal<>();
+ 
+     public synchronized long generation() {
+         return this.generation;
+@@ -38,11 +39,51 @@ public final class PlayerStoreFence {
+ 
+     /** Null means the writer must not touch the store. No tick thread waits. */
+     public synchronized Lease tryWrite(long expectedGeneration) {
+-        if (this.owner != null || this.generation != expectedGeneration) {
++        Scope scope = this.context.get();
++        Lease inherited = scope == null ? null : scope.lease;
++        if ((this.owner != null && !this.isLive(inherited)) || this.generation != expectedGeneration) {
+             return null;
+         }
+         ++this.writers;
+-        return new Lease(this);
++        return new Lease(this, this.generation);
++    }
++
++    /** Admission for a load, including migrations performed by native loaders. */
++    public synchronized Lease tryRead() {
++        return this.tryWrite(this.generation);
++    }
++
++    public Lease requireRead() {
++        Lease lease = this.tryRead();
++        if (lease == null) {
++            throw new IllegalStateException("Player storage is unavailable during a native restore");
++        }
++        return lease;
++    }
++
++    /** Privileged I/O remains counted; advancing/opening never bypasses its drain. */
++    public synchronized Lease writeOwned(UUID operation) {
++        this.requireOwner(operation);
++        ++this.writers;
++        return new Lease(this, this.generation);
++    }
++
++    /**
++     * Transfers an already admitted access into synchronous native calls on its
++     * current owner. The lease, not this thread-local scope, owns its lifetime.
++     * A scope must never cross an asynchronous boundary.
++     */
++    public synchronized Scope enter(Lease lease) {
++        if (!this.isLive(lease)) {
++            throw new IllegalStateException("Expired player-store admission");
++        }
++        Scope scope = new Scope(this, lease, this.context.get(), Thread.currentThread());
++        this.context.set(scope);
++        return scope;
++    }
++
++    private boolean isLive(Lease lease) {
++        return lease != null && lease.fence == this && lease.generation == this.generation;
+     }
+ 
+     /** Only after the old writer set has drained, while the fence is closed. */
+@@ -83,10 +124,16 @@ public final class PlayerStoreFence {
+     }
+ 
+     public static final class Lease implements AutoCloseable {
+-        private PlayerStoreFence fence;
++        private volatile PlayerStoreFence fence;
++        private final long generation;
+ 
+-        private Lease(PlayerStoreFence fence) {
++        private Lease(PlayerStoreFence fence, long generation) {
+             this.fence = fence;
++            this.generation = generation;
++        }
++
++        public long generation() {
++            return this.generation;
+         }
+ 
+         @Override
+@@ -101,4 +148,38 @@ public final class PlayerStoreFence {
+             }
+         }
+     }
++
++    public static final class Scope implements AutoCloseable {
++        private final PlayerStoreFence fence;
++        private final Lease lease;
++        private final Scope previous;
++        private final Thread thread;
++        private boolean closed;
++
++        private Scope(PlayerStoreFence fence, Lease lease, Scope previous, Thread thread) {
++            this.fence = fence;
++            this.lease = lease;
++            this.previous = previous;
++            this.thread = thread;
++        }
++
++        @Override
++        public void close() {
++            if (Thread.currentThread() != this.thread) {
++                throw new IllegalStateException("Player-store scope left its owner thread");
++            }
++            if (this.closed) {
++                return;
++            }
++            if (this.fence.context.get() != this) {
++                throw new IllegalStateException("Player-store scopes must close in reverse admission order");
++            }
++            this.closed = true;
++            if (this.previous == null) {
++                this.fence.context.remove();
++            } else {
++                this.fence.context.set(this.previous);
++            }
++        }
++    }
+ }
+diff --git a/src/test/java/io/papermc/paper/porting/NativeRestoreAdmissionTest.java b/src/test/java/io/papermc/paper/porting/NativeRestoreAdmissionTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a05c90aca270db33c9b0e0e72f8b0b9b291db92d
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/porting/NativeRestoreAdmissionTest.java
+@@ -0,0 +1,43 @@
++package io.papermc.paper.porting;
++
++import java.util.List;
++import java.util.UUID;
++import net.minecraft.network.protocol.Packet;
++import net.minecraft.network.protocol.common.ServerboundKeepAlivePacket;
++import net.minecraft.network.protocol.common.ServerboundPongPacket;
++import net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket;
++import net.minecraft.network.protocol.game.ServerboundPlayerLoadedPacket;
++import net.minecraft.network.protocol.game.ServerboundChatCommandPacket;
++import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
++import net.minecraft.server.network.ServerGamePacketListenerImpl;
++import org.bukkit.craftbukkit.world.PlayerStoreFence;
++import org.bukkit.support.environment.Normal;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.Mockito.*;
++
++@Normal
++class NativeRestoreAdmissionTest {
++    @Test
++    void fencePreservesConnectionMaintenanceAndRejectsGameplayUntilOpened() {
++        var listener = mock(ServerGamePacketListenerImpl.class, CALLS_REAL_METHODS);
++        doReturn(true).when(listener).isAcceptingMessages();
++        var gameplay = List.<Packet<?>>of(mock(ServerboundChatCommandPacket.class), mock(ServerboundPlayerActionPacket.class));
++        var control = List.<Packet<?>>of(new ServerboundKeepAlivePacket(11L), new ServerboundPongPacket(2),
++            new ServerboundAcceptTeleportationPacket(9, 1, 2, 3, 0, 0), mock(ServerboundPlayerLoadedPacket.class));
++        gameplay.forEach(packet -> assertTrue(listener.shouldHandleMessage(packet)));
++        UUID operation = UUID.randomUUID();
++        PlayerStoreFence.INSTANCE.close(operation);
++        try {
++            gameplay.forEach(packet -> assertFalse(listener.shouldHandleMessage(packet)));
++            control.forEach(packet -> assertTrue(listener.shouldHandleMessage(packet)));
++            doReturn(false).when(listener).isAcceptingMessages();
++            control.forEach(packet -> assertFalse(listener.shouldHandleMessage(packet)));
++        } finally {
++            PlayerStoreFence.INSTANCE.open(operation);
++        }
++        doReturn(true).when(listener).isAcceptingMessages();
++        gameplay.forEach(packet -> assertTrue(listener.shouldHandleMessage(packet)));
++    }
++}
+diff --git a/src/test/java/io/papermc/paper/threadedregions/RestoreTaskQueueTest.java b/src/test/java/io/papermc/paper/threadedregions/RestoreTaskQueueTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..97a207ecf0983a7580172de88e9d99fa061b03f4
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/threadedregions/RestoreTaskQueueTest.java
+@@ -0,0 +1,82 @@
++package io.papermc.paper.threadedregions;
++
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.atomic.AtomicBoolean;
++import java.util.concurrent.atomic.AtomicInteger;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.*;
++
++@Tag("Normal")
++class RestoreTaskQueueTest {
++    @Test
++    void frozenControlWorkWaitsForAllChildren() {
++        RestoreTaskQueue<String> queue = new RestoreTaskQueue<>();
++        CompletableFuture<Integer> child = new CompletableFuture<>();
++        var result = queue.submit(owner -> {
++            assertEquals("current owner", owner);
++            return child;
++        }).toCompletableFuture();
++        assertFalse(result.isDone());
++        queue.drain(() -> "current owner", () -> false);
++        assertFalse(result.isDone());
++        queue.drain(() -> "current owner", () -> true);
++        assertFalse(result.isDone());
++        child.complete(7);
++        assertEquals(7, result.join());
++    }
++
++    @Test
++    void transferStopsTheOldOwnerAndUsesTheCurrentHandle() {
++        RestoreTaskQueue<String> queue = new RestoreTaskQueue<>();
++        AtomicBoolean owns = new AtomicBoolean(true);
++        queue.submit(owner -> {
++            owns.set(false);
++            return CompletableFuture.completedStage(null);
++        });
++        var next = queue.submit(CompletableFuture::completedStage).toCompletableFuture();
++        queue.drain(() -> "old", owns::get);
++        assertFalse(next.isDone());
++        queue.drain(() -> "new", () -> true);
++        assertEquals("new", next.join());
++    }
++
++    @Test
++    void cancellationOfCallerViewDoesNotCancelOwnedWork() {
++        RestoreTaskQueue<Object> queue = new RestoreTaskQueue<>();
++        AtomicInteger calls = new AtomicInteger();
++        var stage = queue.submit(owner -> CompletableFuture.completedStage(calls.incrementAndGet()));
++        stage.toCompletableFuture().cancel(false);
++        queue.drain(Object::new, () -> true);
++        assertEquals(1, calls.get());
++        assertEquals(1, stage.toCompletableFuture().join());
++    }
++
++    @Test
++    void retirementFailsQueuedWorkButDoesNotLieAboutDispatchedChildren() {
++        RestoreTaskQueue<Object> queue = new RestoreTaskQueue<>();
++        CompletableFuture<Void> child = new CompletableFuture<>();
++        var active = queue.submit(owner -> child).toCompletableFuture();
++        queue.drain(Object::new, () -> true);
++        var waiting = queue.submit(owner -> CompletableFuture.completedStage(null)).toCompletableFuture();
++        queue.retire();
++        assertTrue(waiting.isCompletedExceptionally());
++        assertFalse(active.isDone());
++        assertTrue(queue.submit(owner -> child).toCompletableFuture().isCompletedExceptionally());
++        child.complete(null);
++        assertNull(active.join());
++    }
++
++    @Test
++    void exceptionsAndNullStagesDoNotLoseLaterTasks() {
++        RestoreTaskQueue<Object> queue = new RestoreTaskQueue<>();
++        var throwing = queue.submit(owner -> { throw new IllegalArgumentException("injected"); }).toCompletableFuture();
++        var invalid = queue.submit(owner -> null).toCompletableFuture();
++        var later = queue.submit(owner -> CompletableFuture.completedStage(2)).toCompletableFuture();
++        queue.drain(Object::new, () -> true);
++        assertTrue(throwing.isCompletedExceptionally());
++        assertTrue(invalid.isCompletedExceptionally());
++        assertEquals(2, later.join());
++    }
++}
+diff --git a/src/test/java/org/bukkit/craftbukkit/world/PlayerStoreFenceTest.java b/src/test/java/org/bukkit/craftbukkit/world/PlayerStoreFenceTest.java
+index b3556d26bb28d5946716b6daabff1d077158f9df..7f18c1c11e63202eb35555f57a0b9b72957ddd09 100644
+--- a/src/test/java/org/bukkit/craftbukkit/world/PlayerStoreFenceTest.java
++++ b/src/test/java/org/bukkit/craftbukkit/world/PlayerStoreFenceTest.java
+@@ -12,6 +12,69 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
+ 
+ @Tag("Normal")
+ class PlayerStoreFenceTest {
++    @Test
++    void nestedScopesCannotRestoreAnOuterAdmissionOutOfOrder() {
++        PlayerStoreFence fence = new PlayerStoreFence();
++        try (var lease = fence.requireRead(); var outer = fence.enter(lease)) {
++            try (var inner = fence.enter(lease)) {
++                assertThrows(IllegalStateException.class, outer::close);
++            }
++        }
++        UUID operation = UUID.randomUUID();
++        fence.close(operation);
++        assertNull(fence.tryRead());
++        fence.open(operation);
++    }
++
++    @Test
++    void admittedLoginCanFinishNestedLoadsAfterClosure() {
++        PlayerStoreFence fence = new PlayerStoreFence();
++        UUID id = UUID.randomUUID();
++        var login = fence.requireRead();
++        var drain = fence.close(id).toCompletableFuture();
++        assertNull(fence.tryRead());
++        try (var scope = fence.enter(login); var nested = fence.requireRead()) {
++            assertNotNull(nested);
++            assertFalse(drain.isDone());
++        }
++        assertFalse(drain.isDone());
++        login.close();
++        assertTrue(drain.isDone());
++        assertThrows(IllegalStateException.class, () -> fence.enter(login));
++        fence.open(id);
++    }
++
++    @Test
++    void admittedScopeDoesNotAuthorizeAnotherThread() throws Exception {
++        PlayerStoreFence fence = new PlayerStoreFence();
++        UUID id = UUID.randomUUID();
++        try (var login = fence.requireRead(); var scope = fence.enter(login)) {
++            fence.close(id);
++            assertNull(java.util.concurrent.CompletableFuture.supplyAsync(fence::tryRead).get());
++            try (var nested = fence.requireRead()) {
++                assertNotNull(nested);
++            }
++        }
++        fence.open(id);
++    }
++
++    @Test
++    void privilegedRestoreWorkIsCountedAndCannotLeakItsScope() {
++        PlayerStoreFence fence = new PlayerStoreFence();
++        UUID id = UUID.randomUUID();
++        fence.close(id);
++        try (var owned = fence.writeOwned(id); var scope = fence.enter(owned)) {
++            assertThrows(IllegalStateException.class, () -> fence.advance(id));
++            assertThrows(IllegalStateException.class, () -> fence.open(id));
++            try (var nested = fence.requireRead()) {
++                assertNotNull(nested);
++            }
++        }
++        assertNull(fence.tryRead());
++        fence.advance(id);
++        fence.open(id);
++    }
++
+     @Test
+     void waitsForEveryRunningWriterWithoutBlockingNewCallers() {
+         PlayerStoreFence fence = new PlayerStoreFence();
