@@ -1,0 +1,389 @@
+{
+  "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.010-alpha.jar",
+  "jarSha256": "9f2229dc5c7760af9df5e4b5f162013434125309b6f8710a4dd72c1a7af0a4e6",
+  "port": 61912,
+  "clients": [
+    {
+      "username": "RestoreOne",
+      "logins": 1,
+      "kicks": 0,
+      "disconnects": 0,
+      "teleports": 8,
+      "statsResets": 3,
+      "advancementResets": 6
+    },
+    {
+      "username": "RestoreTwo",
+      "logins": 1,
+      "kicks": 0,
+      "disconnects": 0,
+      "teleports": 7,
+      "statsResets": 3,
+      "advancementResets": 6
+    }
+  ],
+  "nativeComponentChecksPassed": true,
+  "publicTransactionAccepted": false,
+  "contractVersion": 0,
+  "scope": "RestoreTwo: two replacements, exact inventory/ender chest/XP/health/hunger/attributes/PDC/recipes/stats, stable wrappers and teleport veto\nRestoreTwo: fresh defaults, original state restored again, actual three-store snapshot writer and fenced saveData verified\nRestoreTwo: owned no-gravity ender pearl restored on destination owner, replaced rather than duplicated and removed for fresh state\nRestoreOne: two replacements, exact inventory/ender chest/XP/health/hunger/attributes/PDC/recipes/stats, stable wrappers and teleport veto\nRestoreOne: fresh defaults, original state restored again, actual three-store snapshot writer and fenced saveData verified\nRestoreOne: owned no-gravity ender pearl restored on destination owner, replaced rather than duplicated and removed for fresh state\nReal connected players restored repeatedly across separate regions/dimensions while game ticks were frozen\nPublic native store transaction remains unavailable (contract 0), not reported as accepted\nActual runtime-world snapshots before and after native replacements, compressed NBT XP values and both JSON stores verified; clients stayed connected",
+  "events": [
+    {
+      "type": "login",
+      "username": "RestoreOne"
+    },
+    {
+      "type": "login",
+      "username": "RestoreTwo"
+    },
+    {
+      "type": "teleport",
+      "username": "RestoreTwo",
+      "id": 1,
+      "position": [
+        -12.5,
+        -60,
+        -11.5
+      ],
+      "rotation": [
+        0,
+        0
+      ]
+    },
+    {
+      "type": "advancements",
+      "username": "RestoreTwo",
+      "reset": true
+    },
+    {
+      "type": "teleport",
+      "username": "RestoreOne",
+      "id": 1,
+      "position": [
+        1.5,
+        -60,
+        -3.5
+      ],
+      "rotation": [
+        0,
+        0
+      ]
+    },
+    {
+      "type": "teleport",
+      "username": "RestoreOne",
+      "id": 2,
+      "position": [
+        1.5,
+        -60,
+        -3.5
+      ],
+      "rotation": [
+        0,
+        0
+      ]
+    },
+    {
+      "type": "advancements",
+      "username": "RestoreOne",
+      "reset": true
+    },
+    {
+      "type": "teleport",
+      "username": "RestoreTwo",
+      "id": 2,
+      "position": [
+        4096.5,
+        90,
+        4096.5
+      ],
+      "rotation": [
+        0,
+        0
+      ]
+    },
+    {
+      "type": "teleport",
+      "username": "RestoreOne",
+      "id": 3,
+      "position": [
+        32.5,
+        90,
+        32.5
+      ],
+      "rotation": [
+        0,
+        0
+      ]
+    },
+    {
+      "type": "advancements",
+      "username": "RestoreOne",
+      "reset": false
+    },
+    {
+      "type": "advancements",
+      "username": "RestoreOne",
+      "reset": false
+    },
+    {
+      "type": "teleport",
+      "username": "RestoreTwo",
+      "id": 3,
+      "position": [
+        8.5,
+        20,
+        8.5
+      ],
+      "rotation": [
+        0,
+        0
+      ]
+    },
+    {
+      "type": "stats",
+      "username": "RestoreTwo",
+      "entries": 6,
+      "zeros": 5
+    },
+    {
+      "type": "advancements",
+      "username": "RestoreTwo",
+      "reset": true
+    },
+    {
+      "type": "teleport",
+      "username": "RestoreTwo",
+      "id": 4,
+      "position": [
+        8.5,
+        20,
+        8.5
+      ],
+      "rotation": [
+        0,
+        0
+      ]
+    },
+    {
+      "type": "stats",
+      "username": "RestoreTwo",
+      "entries": 2,
+      "zeros": 1
+    },
+    {
+      "type": "advancements",
+      "username": "RestoreTwo",
+      "reset": true
+    },
+    {
+      "type": "teleport",
+      "username": "RestoreTwo",
+      "id": 5,
+      "position": [
+        8.5,
+        20,
+        8.5
+      ],
+      "rotation": [
+        0,
+        0
+      ]
+    },
+    {
+      "type": "stats",
+      "username": "RestoreTwo",
+      "entries": 1,
+      "zeros": 1
+    },
+    {
+      "type": "advancements",
+      "username": "RestoreTwo",
+      "reset": true
+    },
+    {
+      "type": "teleport",
+      "username": "RestoreTwo",
+      "id": 6,
+      "position": [
+        8.5,
+        20,
+        8.5
+      ],
+      "rotation": [
+        0,
+        0
+      ]
+    },
+    {
+      "type": "stats",
+      "username": "RestoreTwo",
+      "entries": 1,
+      "zeros": 0
+    },
+    {
+      "type": "advancements",
+      "username": "RestoreTwo",
+      "reset": true
+    },
+    {
+      "type": "teleport",
+      "username": "RestoreTwo",
+      "id": 7,
+      "position": [
+        8.5,
+        20,
+        8.5
+      ],
+      "rotation": [
+        0,
+        0
+      ]
+    },
+    {
+      "type": "stats",
+      "username": "RestoreTwo",
+      "entries": 1,
+      "zeros": 0
+    },
+    {
+      "type": "advancements",
+      "username": "RestoreTwo",
+      "reset": true
+    },
+    {
+      "type": "teleport",
+      "username": "RestoreOne",
+      "id": 4,
+      "position": [
+        4128.5,
+        90,
+        32.5
+      ],
+      "rotation": [
+        0,
+        0
+      ]
+    },
+    {
+      "type": "stats",
+      "username": "RestoreOne",
+      "entries": 6,
+      "zeros": 5
+    },
+    {
+      "type": "advancements",
+      "username": "RestoreOne",
+      "reset": true
+    },
+    {
+      "type": "teleport",
+      "username": "RestoreOne",
+      "id": 5,
+      "position": [
+        4128.5,
+        90,
+        32.5
+      ],
+      "rotation": [
+        0,
+        0
+      ]
+    },
+    {
+      "type": "stats",
+      "username": "RestoreOne",
+      "entries": 2,
+      "zeros": 1
+    },
+    {
+      "type": "advancements",
+      "username": "RestoreOne",
+      "reset": true
+    },
+    {
+      "type": "teleport",
+      "username": "RestoreOne",
+      "id": 6,
+      "position": [
+        4128.5,
+        90,
+        32.5
+      ],
+      "rotation": [
+        0,
+        0
+      ]
+    },
+    {
+      "type": "stats",
+      "username": "RestoreOne",
+      "entries": 1,
+      "zeros": 1
+    },
+    {
+      "type": "advancements",
+      "username": "RestoreOne",
+      "reset": true
+    },
+    {
+      "type": "teleport",
+      "username": "RestoreOne",
+      "id": 7,
+      "position": [
+        4128.5,
+        90,
+        32.5
+      ],
+      "rotation": [
+        0,
+        0
+      ]
+    },
+    {
+      "type": "stats",
+      "username": "RestoreOne",
+      "entries": 1,
+      "zeros": 0
+    },
+    {
+      "type": "advancements",
+      "username": "RestoreOne",
+      "reset": true
+    },
+    {
+      "type": "teleport",
+      "username": "RestoreOne",
+      "id": 8,
+      "position": [
+        4128.5,
+        90,
+        32.5
+      ],
+      "rotation": [
+        0,
+        0
+      ]
+    },
+    {
+      "type": "stats",
+      "username": "RestoreOne",
+      "entries": 1,
+      "zeros": 0
+    },
+    {
+      "type": "advancements",
+      "username": "RestoreOne",
+      "reset": true
+    },
+    {
+      "type": "advancements",
+      "username": "RestoreOne",
+      "reset": false
+    },
+    {
+      "type": "advancements",
+      "username": "RestoreTwo",
+      "reset": false
+    }
+  ]
+}

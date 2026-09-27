@@ -123,6 +123,9 @@ XP, Gesundheit, Hunger, Attribute, Effekte, Spielmodus, PDC, Rezepte,
 entfernte Statistikwerte, frische Defaults, Teleport-Veto und erneute Saves.
 Die Snapshot-NBT-Dateien werden gelesen und ihre XP-Werte geprüft. Empfangene
 Client-Reset-Pakete und Login-/Kick-/Disconnect-Zähler stehen im Ergebnis-JSON.
+Auch eine eigene Enderperle wird wiederholt auf dem Ziel-Owner ersetzt und beim
+frischen Zustand entfernt. Der abschließende Lauf auf der gebauten 010-JAR
+bestand mit zwei Clients: jeweils ein Login, kein Kick und kein Disconnect.
 
 Wichtig: Der Test ruft den nativen **Komponentenpfad** auf. Er gibt ausdrücklich
 `publicTransactionAccepted: false` und `contractVersion: 0` aus. Ein Test dieses
@@ -142,6 +145,9 @@ gesichert; der Build wendet sie erneut an. Die ausführbare Prüf-JAR ist
 `build/libs/tessera-server-26.3.build.010-alpha.jar`.
 Abschließende Build-/JAR- und Prüfnachweise stehen in
 [BUILD-26.3-010.md](BUILD-26.3-010.md).
+Der vollständige `buildTessera`-Lauf war erfolgreich; die geprüfte JAR stammt
+aus Quellcommit `369e367b71deca62d2bef6018b669a3c22195f8d`. SHA-256,
+Testzahlen und die Nachweise der Patch-Wiederanwendung stehen im Buildbericht.
 
 ## MCC-/MVE-Folgeabnahme – nicht durchgeführt
 

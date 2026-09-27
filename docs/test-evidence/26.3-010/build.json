@@ -1,0 +1,88 @@
+{
+  "date": "2026-09-27",
+  "branch": "ver/26.3.x",
+  "baselineCommit": "6ededc28656e3adf1d2881d0e5e68854884353cf",
+  "sourceCommit": "369e367b71deca62d2bef6018b669a3c22195f8d",
+  "version": "26.3-010-alpha",
+  "minecraft": "26.3",
+  "java": "25.0.3",
+  "result": "INCOMPLETE_NATIVE_RESTORE_TEST_BUILD",
+  "contractVersion": 0,
+  "fullBuild": {
+    "command": ".\\gradlew.bat buildTessera :test-plugin:jar --console=plain --no-daemon --max-workers=2 --no-parallel",
+    "exitCode": 0,
+    "duration": "8m 2s",
+    "log": "build/native-restore-full-build.log"
+  },
+  "additionalTests": {
+    "command": ".\\gradlew.bat :folia-api:test --rerun :paper-checkstyle:test --rerun --console=plain --no-daemon --max-workers=2 --no-parallel",
+    "exitCode": 0,
+    "duration": "16s",
+    "log": "build/native-restore-additional-tests.log"
+  },
+  "testReports": [
+    {
+      "project": "folia-server",
+      "tests": 10150,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 87
+    },
+    {
+      "project": "folia-api",
+      "tests": 529,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 2
+    },
+    {
+      "project": "paper-checkstyle",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "reapplication": {
+    "minecraftTree": "3cabe701f98f7da0a3b6a6b2d90a795696da8593",
+    "paperServerSrcTree": "e6ee3616fe757557a0ccbfda5e9367a684c847e6",
+    "matchesPreExport": true
+  },
+  "files": [
+    {
+      "Algorithm": "SHA256",
+      "Hash": "9F2229DC5C7760AF9DF5E4B5F162013434125309B6F8710A4DD72C1A7AF0A4E6",
+      "Path": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.010-alpha.jar"
+    },
+    {
+      "Algorithm": "SHA256",
+      "Hash": "C4FF9DEDD759BC45CCE6AB11D238CEC6DB66B87368F7BD2F9A674CBFDDC70BF8",
+      "Path": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\test-plugin\\build\\libs\\tessera-runtime-world-smoke.jar"
+    },
+    {
+      "Algorithm": "SHA256",
+      "Hash": "6CDC8A05355A57D7EFD95A24973FC47D18B41800B05343010D50BA45BC628844",
+      "Path": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\folia-server\\minecraft-patches\\features\\0046-Connect-native-player-restore-components-without-ena.patch"
+    },
+    {
+      "Algorithm": "SHA256",
+      "Hash": "42AAB043EA18D6E7529CDA0339D7241A5DC6AE6BE55AD0CB780F0FEECD595D70",
+      "Path": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\folia-server\\paper-patches\\features\\0035-Add-owner-drained-native-restore-components-and-admi.patch"
+    }
+  ],
+  "live": {
+    "fixture": "build/native-restore-smoke-1790504791743",
+    "port": 61912,
+    "log": "build/native-restore-final-live.log",
+    "exitCode": 0,
+    "componentChecksPassed": true,
+    "publicTransactionAccepted": false
+  },
+  "externalPluginIntegration": "NOT_RUN",
+  "limitations": [
+    "No public native prepare/apply/complete backend",
+    "Logout capture and legacy login admission incomplete",
+    "Shutdown/transfer drain and crash recovery incomplete",
+    "Attachment preflight/rollback, dead players and generator-binding acceptance incomplete"
+  ]
+}

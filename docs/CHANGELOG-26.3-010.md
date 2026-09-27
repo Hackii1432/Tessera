@@ -37,14 +37,18 @@ downloadUrl: "https://home.mosaikdev.com"
 
 - Einen separaten, wiederholbaren Testserver-Lauf mit freien Loopback-Ports, neuen Testwelten und zwei verbundenen Protokollclients ergänzt.
 - Wiederholte Zustandsersetzung über getrennte Regionen und Dimensionen, frische Defaults, entfernte additive Werte, Wrapperidentität und Teleport-Veto geprüft.
+- Eigene Enderperlen auf dem Ziel-Owner wiederhergestellt, wiederholt ohne zusätzliche registrierte Perlen ersetzt und beim frischen Spielerzustand entfernt.
 - Echte Runtime-Snapshots vor und nach der Ersetzung erstellt; gespeicherte komprimierte Spieler-NBT-Dateien und die drei Store-Pfade geprüft.
 - Login-/Kick-/Disconnect-Zähler sowie tatsächlich empfangene Statistik-Nullwerte und Fortschritts-Resets als JSON-Nachweis erfasst.
+- Auf der finalen 010-JAR mit zwei verbundenen Clients bestanden: jeweils ein Login, kein Kick, kein Disconnect. Dies prüft den nativen Komponentenpfad, nicht die noch fehlende öffentliche Restore-Transaktion.
 - Regressionstests für Speicherzulassungen, Scope-Reihenfolge, Owner-Queue, Unteraufgaben, Retirement und die Trennung von Gameplay-/Verbindungspaketen ergänzt.
 
 ### Buildstand und Prüfgrenzen
 
 - Buildnummer auf `010-alpha` angehoben. Minecraft/API `26.3`, Java 25 und die bisherigen Buildwerkzeuge beibehalten.
 - Die Wolfs-KI-Korrekturen aus Build 009 erhalten. MCC, MVE und Sinopia nicht verändert.
+- Änderungen als eigene Minecraft-/Server-Feature-Patches gesichert; ihre erneute Anwendung anhand identischer Quellbaum-Hashes geprüft.
+- `buildTessera` einschließlich Tests und Qualitätsprüfungen erfolgreich ausgeführt und die ausführbare `tessera-server-26.3.build.010-alpha.jar` erzeugt. Server: 10.150 erfasste Tests, keine Fehler, 87 übersprungen. API: 529 Tests, keine Fehler, zwei übersprungen.
 - **Vertrag 0 beibehalten.** Die öffentliche Prepare/Apply/Complete-Dateitransaktion samt vollständigem Disconnect-/Shutdown- und Crash-Recovery ist noch nicht fertig. Dieser Build ist ausdrücklich kein freigegebener MCC-Seamless-Load-Fix.
 - Native Komponententests nicht als bestandene MCC-/MVE-Integration ausgewiesen. Vollständiger Store-Rollback, Fahrzeug-/Schulterentity-Abnahme und Generator-/Biombindungen nach Challenge-Reset sind nicht abgenommen.
 
