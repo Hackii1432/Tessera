@@ -48,7 +48,7 @@ boolean scoreboards = Bukkit.getTesseraCapabilities()
 int restoreContract = Bukkit.getPlayerRestoreService().contractVersion();
 ```
 
-Der native 010-Server liefert Restore-Vertrag 1. Für einen Vertrag-1-Adapter
+Seit Build 010 liefert der native Server Restore-Vertrag 1. Für einen Vertrag-1-Adapter
 exakt `1` verlangen, nicht
 pauschal jede künftige größere Nummer akzeptieren.
 

@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Mon, 28 Sep 2026 19:08:40 +0200
+Subject: [PATCH] Revalidate sulfur cube ownership after swallow callbacks
+
+
+diff --git a/net/minecraft/world/entity/monster/cubemob/SulfurCube.java b/net/minecraft/world/entity/monster/cubemob/SulfurCube.java
+index 6ad561921bb42df098df1aaa441055ad5d0ee8fa..9af938be3e3cde5710717271731e930547f73036 100644
+--- a/net/minecraft/world/entity/monster/cubemob/SulfurCube.java
++++ b/net/minecraft/world/entity/monster/cubemob/SulfurCube.java
+@@ -544,6 +544,10 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
+     }
+ 
+     public boolean equipItem(final ItemStack heldItem) {
++        // Tessera - public swallow uses this native path; callbacks may retire or transfer the cube.
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this, "Cannot equip a sulfur cube off-region");
++        final Level originalLevel = this.level();
++        if (this.isRemoved()) return false;
+         if (this.isBaby()) {
+             return false;
+         }
+@@ -557,6 +561,7 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
+             Vec3 equipmentSpawnOffset = this.getAttachments().getAverage(EntityAttachment.PASSENGER);
+             if (this.level() instanceof ServerLevel serverLevel) {
+                 this.spawnAtLocation(serverLevel, this.getItemBySlot(EquipmentSlot.BODY), equipmentSpawnOffset);
++                if (!this.tessera$ownsSwallow(originalLevel)) return false; // Tessera - EntityAddToWorldEvent may transfer/remove this cube
+             }
+         }
+ 
+@@ -567,6 +572,7 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
+                 Map<EquipmentSlot, ItemStack> lastEquipmentItems = Util.makeEnumMap(EquipmentSlot.class, slot -> ItemStack.EMPTY);
+                 lastEquipmentItems.put(EquipmentSlot.BODY, swallowedItem);
+                 this.collectEquipmentChanges(lastEquipmentItems);
++                if (!this.tessera$ownsSwallow(originalLevel)) return true; // Tessera - equipment already changed; no sound on a stale owner
+             }
+         }
+ 
+@@ -574,6 +580,11 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
+         return true;
+     }
+ 
++    private boolean tessera$ownsSwallow(final Level originalLevel) {
++        return ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this)
++            && !this.isRemoved() && this.level() == originalLevel;
++    }
++
+     private void applyContactDamage(final Entity entity) {
+         if (this.level() instanceof ServerLevel serverLevel) {
+             for (SulfurCubeArchetype.ContactDamage damage : this.contactDamages) {

@@ -49,10 +49,10 @@ index 811b8efd155540beac19b70afa1885bff570cd3e..002610695eac30e2a6f662e209af56e8
          if (!plugin.isEnabled()) {
              throw new IllegalPluginAccessException("Plugin attempted to register task while disabled");
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 64ce090bd90db38204fe4901f7aef4a5fe8e05f0..b8dd102fecdcae5145ddc653a040190c98f6e79f 100644
+index e5fdc61a46d750d8279dade6efb36917e7af393f..4df589a4f7a7dcc735bb540fe94cf55bbb3432e2 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -278,7 +278,24 @@ public final class CraftServer implements Server {
+@@ -279,7 +279,24 @@ public final class CraftServer implements Server {
      private final StructureManager structureManager;
      final DedicatedServer console;
      private final DedicatedPlayerList playerList;
@@ -78,7 +78,7 @@ index 64ce090bd90db38204fe4901f7aef4a5fe8e05f0..b8dd102fecdcae5145ddc653a040190c
      private YamlConfiguration configuration;
      private YamlConfiguration commandsConfiguration;
      private final Yaml yaml = new Yaml(new SafeConstructor(new LoaderOptions()));
-@@ -327,6 +344,18 @@ public final class CraftServer implements Server {
+@@ -328,6 +345,18 @@ public final class CraftServer implements Server {
          return this.globalRegionScheduler;
      }
  
@@ -97,7 +97,7 @@ index 64ce090bd90db38204fe4901f7aef4a5fe8e05f0..b8dd102fecdcae5145ddc653a040190c
      @Override
      public final boolean isOwnedByCurrentRegion(World world, io.papermc.paper.math.Position position) {
          return ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(
-@@ -400,6 +429,7 @@ public final class CraftServer implements Server {
+@@ -401,6 +430,7 @@ public final class CraftServer implements Server {
      public CraftServer(DedicatedServer console, PlayerList playerList) {
          this.console = console;
          this.playerList = (DedicatedPlayerList) playerList;
@@ -105,7 +105,7 @@ index 64ce090bd90db38204fe4901f7aef4a5fe8e05f0..b8dd102fecdcae5145ddc653a040190c
          this.playerView = MCUtil.transformUnmodifiable(playerList.getPlayers(), ServerPlayer::getBukkitEntity);
          this.serverVersion = io.papermc.paper.ServerBuildInfo.buildInfo().asString(io.papermc.paper.ServerBuildInfo.StringRepresentation.VERSION_SIMPLE); // Paper - improve version
          this.structureManager = new CraftStructureManager(console.getStructureTemplateManager(), console.registryAccess());
-@@ -1199,7 +1229,27 @@ public final class CraftServer implements Server {
+@@ -1200,7 +1230,27 @@ public final class CraftServer implements Server {
  
      @Override
      public World createWorld(WorldCreator creator) {
@@ -134,7 +134,7 @@ index 64ce090bd90db38204fe4901f7aef4a5fe8e05f0..b8dd102fecdcae5145ddc653a040190c
          Preconditions.checkState(this.console.getAllLevels().iterator().hasNext(), "Cannot create additional worlds on STARTUP");
          //Preconditions.checkState(!this.console.isIteratingOverLevels, "Cannot create a world while worlds are being ticked"); // Paper - Cat - Temp disable. We'll see how this goes.
          Preconditions.checkArgument(creator != null, "WorldCreator cannot be null");
-@@ -1335,6 +1385,7 @@ public final class CraftServer implements Server {
+@@ -1336,6 +1386,7 @@ public final class CraftServer implements Server {
              savedDataStorage,
              loadedWorldData
          );
@@ -142,7 +142,7 @@ index 64ce090bd90db38204fe4901f7aef4a5fe8e05f0..b8dd102fecdcae5145ddc653a040190c
  
          if (!(this.worlds.containsKey(name.toLowerCase(Locale.ROOT)))) {
              return null;
-@@ -1357,45 +1408,22 @@ public final class CraftServer implements Server {
+@@ -1358,45 +1409,22 @@ public final class CraftServer implements Server {
  
      @Override
      public boolean unloadWorld(World world, boolean save) {
@@ -201,7 +201,7 @@ index 64ce090bd90db38204fe4901f7aef4a5fe8e05f0..b8dd102fecdcae5145ddc653a040190c
      }
  
      @Override
-@@ -1439,14 +1467,34 @@ public final class CraftServer implements Server {
+@@ -1440,14 +1468,34 @@ public final class CraftServer implements Server {
          return level.getWorld();
      }
  
@@ -239,7 +239,7 @@ index 64ce090bd90db38204fe4901f7aef4a5fe8e05f0..b8dd102fecdcae5145ddc653a040190c
      @Override
      public WorldBorder createWorldBorder() {
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index d6ec7c46d582de9a4228528337dcec3f97aa9c52..6acfeb31d148c5abfb7f17245f59836b3e2c48dc 100644
+index 0e7208cf3525cecb60b90b7d4d9cbb66239bbc41..57305b47438824ad4a11b3411e45f6e7e6f14265 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 @@ -564,6 +564,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {

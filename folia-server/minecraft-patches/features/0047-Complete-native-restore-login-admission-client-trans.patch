@@ -6,7 +6,7 @@ Subject: [PATCH] Complete native restore login admission client transfer and
 
 
 diff --git a/net/minecraft/network/Connection.java b/net/minecraft/network/Connection.java
-index ef21f392c2a2e9c2d2a58c1c80cadae672a49811..eee4192219f2e25b9c1dfde5ffb4f890d90582c6 100644
+index 386454a00893ce4ff249ada777559c164c0b8cba..af94eaa1b956a54c79b8f3fe5993515dfc604e99 100644
 --- a/net/minecraft/network/Connection.java
 +++ b/net/minecraft/network/Connection.java
 @@ -121,6 +121,32 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
@@ -42,7 +42,7 @@ index ef21f392c2a2e9c2d2a58c1c80cadae672a49811..eee4192219f2e25b9c1dfde5ffb4f890
      public org.bukkit.event.player.PlayerResourcePackStatusEvent.@Nullable Status resourcePackStatus; // Paper
      // Paper start - Optimize network
      public boolean isPending = true;
-@@ -938,6 +964,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -951,6 +977,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
                  // LOGGER.warn("handleDisconnection() called twice"); // Paper - Don't log useless message
              } else {
                  //this.disconnectionHandled = true; // Folia - region threading - may be called concurrently during configuration stage - set above

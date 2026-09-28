@@ -244,6 +244,7 @@ public abstract class CraftRegionAccessor implements RegionAccessor {
             case RED_POPLAR:
                 gen = TreeFeatures.RED_POPLAR;
                 break;
+            case POPLAR:
             case ORANGE_POPLAR:
                 gen = TreeFeatures.ORANGE_POPLAR;
                 break;

@@ -1,0 +1,270 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Mon, 28 Sep 2026 19:07:29 +0200
+Subject: [PATCH] Backport Paper beta packet mob lore and Moonrise corrections
+
+Paper 08ca088, a091961, f686260, d3ee2cf, f4eb9c2 and 8c95c89. Preserve the local Vanilla-DFU fallback and region-file cache implementation.
+
+diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
+index 1e05aab0a259bd0073c4761e419edf90fb175814..eb7c5ba7168ba4903e93938dd8671227194bec99 100644
+--- a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
++++ b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
+@@ -980,6 +980,29 @@ public final class ChunkHolderManager {
+         return current;
+     }
+ 
++    // note: only call from the ChunkFullTask
++    // this allows us to avoid checking if the entity NBT is loaded which avoids entering the ticket/scheduling lock
++    public ChunkEntitySlices fullTaskLoadEntityChunk(final int chunkX, final int chunkZ) {
++        TickThread.ensureTickThread(this.world, chunkX, chunkZ, "Cannot create entity chunk off-main");
++        ChunkEntitySlices ret;
++
++        NewChunkHolder current = this.getChunkHolder(chunkX, chunkZ);
++
++        if (current != null && (ret = current.getEntityChunk()) != null && !ret.isTransient()) {
++            LOGGER.error("Unexpected non-transient entity chunk at "  + new ChunkPos(chunkX, chunkZ));
++            return ret;
++        }
++
++        if (current == null || !current.isEntityChunkNBTLoaded()) {
++            LOGGER.error("NBT for entity chunk is unexpectedly not loaded at "  + new ChunkPos(chunkX, chunkZ));
++            return this.getOrCreateEntityChunk(chunkX, chunkZ, false);
++        }
++
++        ret = current.loadInEntityChunk(false);
++
++        return ret;
++    }
++
+     public ChunkEntitySlices getOrCreateEntityChunk(final int chunkX, final int chunkZ, final boolean transientChunk) {
+         TickThread.ensureTickThread(this.world, chunkX, chunkZ, "Cannot create entity chunk off-main");
+         ChunkEntitySlices ret;
+diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/task/ChunkFullTask.java b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/task/ChunkFullTask.java
+index 96ccb8f657d755b2e58a8dd0cda00ca0df4886b2..f41b3247df8c3e088f253d40a333fac73cfd54e3 100644
+--- a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/task/ChunkFullTask.java
++++ b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/task/ChunkFullTask.java
+@@ -77,11 +77,11 @@ public final class ChunkFullTask extends ChunkProgressionTask implements Runnabl
+             chunk.setFullStatus(chunkHolder::getChunkStatus);
+             try {
+                 platformHooks.setCurrentlyLoading(this.chunkHolder.vanillaChunkHolder, chunk);
+-                chunk.runPostLoad();
+                 // Unlike Vanilla, we load the entity chunk here, as we load the NBT in empty status (unlike Vanilla)
+                 // This brings entity addition back in line with older versions of the game
+                 // Since we load the NBT in the empty status, this will never block for I/O
+-                ((ChunkSystemServerLevel)this.world).moonrise$getChunkTaskScheduler().chunkHolderManager.getOrCreateEntityChunk(this.chunkX, this.chunkZ, false);
++                ((ChunkSystemServerLevel)this.world).moonrise$getChunkTaskScheduler().chunkHolderManager.fullTaskLoadEntityChunk(this.chunkX, this.chunkZ);
++                chunk.runPostLoad();
+                 chunk.setLoaded(true);
+                 chunk.registerAllBlockEntitiesAfterLevelLoad();
+                 chunk.registerTickContainerInLevel(this.world);
+diff --git a/net/minecraft/network/Connection.java b/net/minecraft/network/Connection.java
+index 8e80e2025fb3ab5e61bf84c1fbd0ec4ee8ab12de..229c0bde91a36d7f9d642d964096ac1f5643300c 100644
+--- a/net/minecraft/network/Connection.java
++++ b/net/minecraft/network/Connection.java
+@@ -165,6 +165,19 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+         }
+         // Paper end - Handle large packets disconnecting client
+         if (cause instanceof SkipPacketException) {
++            // Paper start - count skipped inbound packets for rate limiting
++            if (cause instanceof SkipPacketDecoderException && !this.stopReadingPackets) {
++                this.receivedPackets++;
++                if (this.allPacketCounts != null) {
++                    synchronized (this.PACKET_LIMIT_LOCK) {
++                        this.allPacketCounts.updateAndAdd(1, System.nanoTime());
++                        if (this.allPacketCounts.getRate() >= io.papermc.paper.configuration.GlobalConfiguration.get().packetLimiter.allPackets.maxPacketRate()) {
++                            this.killForPacketSpam();
++                        }
++                    }
++                }
++            }
++            // Paper end - count skipped inbound packets for rate limiting
+             LOGGER.debug("Skipping packet due to errors", cause.getCause());
+         } else {
+             boolean isFirstFault = !this.handlingFault;
+diff --git a/net/minecraft/server/level/ChunkMap.java b/net/minecraft/server/level/ChunkMap.java
+index f26021eaa3ff0e46a75ae7db31a525a9e1f3fa08..f129d60b9000a1d038e37687d305171fbe237280 100644
+--- a/net/minecraft/server/level/ChunkMap.java
++++ b/net/minecraft/server/level/ChunkMap.java
+@@ -1045,6 +1045,40 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
+         // Paper end - optimise entity tracker
+     }
+ 
++    // Paper start - rewrite chunk system
++    @Override
++    public net.minecraft.world.level.chunk.storage.ChunkScanAccess chunkScanner() {
++        return (chunkPos, streamTagVisitor) -> {
++            final CompletableFuture<Void> ret = new CompletableFuture<>();
++
++            ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.loadDataAsync(
++                ChunkMap.this.level, chunkPos.x(), chunkPos.z(), ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionFileType.CHUNK_DATA,
++                (java.util.function.BiConsumer<net.minecraft.nbt.CompoundTag, Throwable> & ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.NoCopyNBTData) (final CompoundTag data, final Throwable thr) -> {
++                    if (thr != null) {
++                        ret.completeExceptionally(thr);
++                        return;
++                    }
++
++                    if (data == null) {
++                        ret.complete(null);
++                        return;
++                    }
++
++                    try {
++                        data.acceptAsRoot(streamTagVisitor);
++
++                        ret.complete(null);
++                    } catch (final Throwable thr2) {
++                        ret.completeExceptionally(thr2);
++                        LOGGER.error("Error while scanning chunk " + chunkPos + " in world '" + ca.spottedleaf.moonrise.common.util.WorldUtil.getWorldName(ChunkMap.this.level) + "':", thr2);
++                    }
++                }, false
++            );
++
++            return ret;
++        };
++    }
++    // Paper end - rewrite chunk system
+     // Paper start - optimise entity tracker
+     private static final Entity[] EMPTY_ENTITY_ARRAY = new Entity[0];
+     private ca.spottedleaf.moonrise.common.list.ReferenceList<net.minecraft.world.entity.Entity> trackerEntities = new ca.spottedleaf.moonrise.common.list.ReferenceList<>(EMPTY_ENTITY_ARRAY);
+diff --git a/net/minecraft/server/level/ServerChunkCache.java b/net/minecraft/server/level/ServerChunkCache.java
+index 33dd4696b20dd6fcdac6492db99d4483f6c1d45a..ebac8d5ab55e564d87720e68d34cb5743ed20995 100644
+--- a/net/minecraft/server/level/ServerChunkCache.java
++++ b/net/minecraft/server/level/ServerChunkCache.java
+@@ -350,26 +350,39 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+         Arrays.fill(this.lastChunk, null);
+     }
+ 
+-    public CompletableFuture<ChunkResult<ChunkAccess>> getChunkFuture(final int x, final int z, final ChunkStatus targetStatus, final boolean loadOrGenerate) {
+-        boolean isMainThread = Thread.currentThread() == this.mainThread;
+-        CompletableFuture<ChunkResult<ChunkAccess>> serverFuture;
+-        if (isMainThread) {
+-            serverFuture = this.getChunkFutureMainThread(x, z, targetStatus, loadOrGenerate);
+-            this.mainThreadProcessor.managedBlock(serverFuture::isDone);
++    // Paper start - rewrite chunk system
++    public CompletableFuture<ChunkResult<ChunkAccess>> getChunkFuture(final int chunkX, final int chunkZ,
++                                                                      final ChunkStatus toStatus,
++                                                                      final boolean create) {
++        if (ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this.level, chunkX, chunkZ)) {
++            final CompletableFuture<ChunkResult<ChunkAccess>> ret = this.getChunkFutureInternal(chunkX, chunkZ, toStatus, create, true);
++            this.mainThreadProcessor.managedBlock(ret::isDone);
++            return ret;
+         } else {
+-            serverFuture = CompletableFuture.<CompletableFuture<ChunkResult<ChunkAccess>>>supplyAsync(
+-                    () -> this.getChunkFutureMainThread(x, z, targetStatus, loadOrGenerate), this.mainThreadProcessor
+-                )
+-                .thenCompose(chunk -> (CompletionStage<ChunkResult<ChunkAccess>>)chunk);
++            final CompletableFuture<ChunkResult<ChunkAccess>> ret = new CompletableFuture<>();
++            ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.level).moonrise$getChunkTaskScheduler().scheduleChunkTask(chunkX, chunkZ, () -> {
++                ServerChunkCache.this.getChunkFutureInternal(chunkX, chunkZ, toStatus, create, false).whenComplete((c, t) -> {
++                    if (t != null) {
++                        ret.completeExceptionally(t);
++                    } else {
++                        ret.complete(c);
++                    }
++                });
++            });
++            return ret;
+         }
++    }
+ 
+-        return serverFuture;
++    public CompletableFuture<ChunkResult<ChunkAccess>> getChunkFutureMainThread(final int chunkX, final int chunkZ,
++                                                                                final ChunkStatus toStatus,
++                                                                                final boolean create) {
++        return this.getChunkFutureInternal(chunkX, chunkZ, toStatus, create, false);
+     }
+ 
+-    private CompletableFuture<ChunkResult<ChunkAccess>> getChunkFutureMainThread(
+-        final int x, final int z, final ChunkStatus targetStatus, final boolean loadOrGenerate
++
++    private CompletableFuture<ChunkResult<ChunkAccess>> getChunkFutureInternal(
++        final int x, final int z, final ChunkStatus targetStatus, final boolean loadOrGenerate, final boolean intendingToBlock
+     ) {
+-        // Paper start - rewrite chunk system
+         ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this.level, x, z, "Scheduling chunk load off-main");
+ 
+         final int minLevel = ChunkLevel.byStatus(targetStatus);
+@@ -395,7 +408,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+ 
+             ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.level).moonrise$getChunkTaskScheduler().scheduleChunkLoad(
+                 x, z, targetStatus, true,
+-                ca.spottedleaf.concurrentutil.util.Priority.HIGHER,
++                intendingToBlock ? ca.spottedleaf.concurrentutil.util.Priority.BLOCKING : ca.spottedleaf.concurrentutil.util.Priority.NORMAL,
+                 complete
+             );
+ 
+@@ -404,8 +417,8 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+             // can return now
+             return CompletableFuture.completedFuture(ChunkResult.of(ifPresent));
+         }
+-        // Paper end - rewrite chunk system
+     }
++    // Paper end - rewrite chunk system
+ 
+     private boolean chunkAbsent(final @Nullable ChunkHolder chunkHolder, final int targetTicketLevel) {
+         throw new UnsupportedOperationException(); // Paper - rewrite chunk system
+diff --git a/net/minecraft/world/entity/Mob.java b/net/minecraft/world/entity/Mob.java
+index 98ae2e45e9967e1151241432990074447108ada7..c9b378cda8fc733f09e0bc392d6e2c09e4b99a7d 100644
+--- a/net/minecraft/world/entity/Mob.java
++++ b/net/minecraft/world/entity/Mob.java
+@@ -155,6 +155,7 @@ public abstract class Mob extends LivingEntity implements Targeting, EquipmentUs
+     private BlockPos homePosition = BlockPos.ZERO;
+     private int homeRadius = -1;
+     public boolean aware = true; // CraftBukkit
++    public net.kyori.adventure.util.TriState despawnInPeacefulOverride = net.kyori.adventure.util.TriState.NOT_SET; // Paper - allow changing despawnInPeaceful
+ 
+     protected Mob(final EntityType<? extends Mob> type, final Level level) {
+         super(type, level);
+@@ -451,6 +452,11 @@ public abstract class Mob extends LivingEntity implements Targeting, EquipmentUs
+             output.putBoolean("NoAI", this.isNoAi());
+         }
+         output.putBoolean("Bukkit.Aware", this.aware); // CraftBukkit
++        // Paper start - allow changing despawnInPeaceful
++        if (this.despawnInPeacefulOverride != net.kyori.adventure.util.TriState.NOT_SET) {
++            output.putString("Paper.DespawnInPeacefulOverride", this.despawnInPeacefulOverride.name());
++        }
++        // Paper end - allow changing despawnInPeaceful
+     }
+ 
+     @Override
+@@ -478,6 +484,7 @@ public abstract class Mob extends LivingEntity implements Targeting, EquipmentUs
+         this.lootTableSeed = input.getLongOr("DeathLootTableSeed", 0L);
+         this.setNoAi(input.getBooleanOr("NoAI", false));
+         this.aware = input.getBooleanOr("Bukkit.Aware", true); // CraftBukkit
++        this.despawnInPeacefulOverride = input.read("Paper.DespawnInPeacefulOverride", io.papermc.paper.util.PaperCodecs.TRI_STATE_CODEC).orElse(net.kyori.adventure.util.TriState.NOT_SET); // Paper - allow changing despawnInPeaceful
+     }
+ 
+     @Override
+@@ -770,7 +777,7 @@ public abstract class Mob extends LivingEntity implements Targeting, EquipmentUs
+ 
+     @Override
+     public void checkDespawn() {
+-        if (this.level().getDifficulty() == Difficulty.PEACEFUL && !this.getType().isAllowedInPeaceful()) {
++        if (this.level().getDifficulty() == Difficulty.PEACEFUL && this.despawnInPeacefulOverride.toBooleanOrElse(!this.getType().isAllowedInPeaceful())) { // Paper - allow changing despawnInPeaceful
+             this.discard(EntityRemoveEvent.Cause.DESPAWN); // CraftBukkit - add Bukkit remove cause
+         } else {
+             boolean isPersistent = this.isPersistenceRequired() || this.requiresCustomPersistence();
+diff --git a/net/minecraft/world/item/component/ItemLore.java b/net/minecraft/world/item/component/ItemLore.java
+index 406985f7b38cf5f78ee01b427a756af0ffdbc94c..408f86e55d64e00271bb7d9da711004c7bf59d94 100644
+--- a/net/minecraft/world/item/component/ItemLore.java
++++ b/net/minecraft/world/item/component/ItemLore.java
+@@ -40,6 +40,19 @@ public record ItemLore(List<Component> lines, List<Component> styledLines) imple
+         return new ItemLore(Util.copyAndAdd(this.lines, component));
+     }
+ 
++    // Paper start - perf: skip derived styledLines in equals and hashCode
++    @Override
++    public boolean equals(final Object obj) {
++        if (this == obj) return true;
++        return obj instanceof ItemLore other && this.lines.equals(other.lines);
++    }
++
++    @Override
++    public int hashCode() {
++        return this.lines.hashCode();
++    }
++    // Paper end - perf: skip derived styledLines in equals and hashCode
++
+     @Override
+     public void addToTooltip(
+         final Item.TooltipContext context, final Consumer<Component> consumer, final TooltipFlag flag, final DataComponentGetter components

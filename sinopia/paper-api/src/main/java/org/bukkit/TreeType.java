@@ -123,4 +123,8 @@ public enum TreeType {
      */
     YELLOW_POPLAR,
     // Sinopia end - poplar tree types
+    /**
+     * Poplar tree. Generates the orange variant, matching Paper.
+     */
+    POPLAR,
 }

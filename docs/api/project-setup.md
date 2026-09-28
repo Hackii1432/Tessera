@@ -15,7 +15,7 @@ Tesseras zusätzliche Methoden.
 ## API beziehen
 
 Der aktuelle Root-Build verwendet `group=dev.folia`, Modul `folia-api` und
-Version `26.3.build.010-alpha`. Diese Werte stammen aus `gradle.properties`,
+Version `26.3.build.011-beta`. Diese Werte stammen aus `gradle.properties`,
 `settings.gradle.kts` und dem API-Publishing. Eine Veröffentlichung dieses
 Tessera-Artefakts im PaperMC-Maven-Repository ist damit **nicht** belegt.
 
@@ -52,7 +52,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("dev.folia:folia-api:26.3.build.010-alpha")
+    compileOnly("dev.folia:folia-api:26.3.build.011-beta")
 }
 ```
 

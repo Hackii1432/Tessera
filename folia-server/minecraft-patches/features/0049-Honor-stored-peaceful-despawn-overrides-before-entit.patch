@@ -1,0 +1,47 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Mon, 28 Sep 2026 19:53:22 +0200
+Subject: [PATCH] Honor stored peaceful despawn overrides before entity loading
+
+
+diff --git a/net/minecraft/world/entity/EntityType.java b/net/minecraft/world/entity/EntityType.java
+index bd570bac12e48dd2ebfd7e71cb792f779a210137..82e71311ad8cf02f1783371d74951fc85ec4414b 100644
+--- a/net/minecraft/world/entity/EntityType.java
++++ b/net/minecraft/world/entity/EntityType.java
+@@ -397,6 +397,18 @@ public class EntityType<T extends Entity> implements EntityTypeTest<Entity, T>,
+         return !request.ignoreChecks() && !this.canSpawn(level) ? null : this.factory.create(this, level);
+     }
+ 
++    private @Nullable T tessera$createFromStoredData(final ValueInput input, final Level level, final EntitySpawnRequest request) {
++        // A stored Paper override must be considered before the new peaceful spawn gate drops the NBT.
++        // Only disk/restore LOAD may bypass the difficulty gate; retain feature checks and normal spawning.
++        if (!request.ignoreChecks() && request.reason() == EntitySpawnReason.LOAD
++            && level.getDifficulty() == Difficulty.PEACEFUL && !this.isAllowedInPeaceful()
++            && this.isEnabled(level.enabledFeatures())
++            && "FALSE".equals(input.getStringOr("Paper.DespawnInPeacefulOverride", ""))) {
++            return this.factory.create(this, level);
++        }
++        return this.create(level, request);
++    }
++
+     public static Optional<Entity> create(final ValueInput input, final Level level, final EntitySpawnRequest request) {
+         // Paper start - Don't fire sync event during generation
+         return create(input, level, request, false);
+@@ -405,7 +417,7 @@ public class EntityType<T extends Entity> implements EntityTypeTest<Entity, T>,
+     public static Optional<Entity> create(final ValueInput input, final Level level, final EntitySpawnRequest request, final boolean generation) {
+         // Paper end - Don't fire sync event during generation
+         return Util.ifElse(
+-            by(input).map(type -> type.create(level, request)),
++            by(input).map(type -> type.tessera$createFromStoredData(input, level, request)),
+             // Paper start - Don't fire sync event during generation
+             entity -> {
+                 if (generation) entity.generation = true; // Paper - Don't fire sync event during generation
+@@ -424,7 +436,7 @@ public class EntityType<T extends Entity> implements EntityTypeTest<Entity, T>,
+     }
+ 
+     public static Optional<Entity> create(final EntityType<?> type, final ValueInput input, final Level level, final EntitySpawnReason reason) {
+-        Optional<Entity> entity = Optional.ofNullable(type.create(level, reason));
++        Optional<Entity> entity = Optional.ofNullable(type.tessera$createFromStoredData(input, level, new EntitySpawnRequest(reason, false)));
+         entity.ifPresent(e -> e.load(input));
+         return entity;
+     }

@@ -36,6 +36,12 @@ macht fremde Block-/Entity-Operationen nicht threadsicher.
 
 ## Pluginbefehle und Berechtigungen
 
+Seit Build 011 sind die klassischen Bukkit-Command-Typen und zugehörige
+Registrierungszugänge wie in Paper mit `@ApiStatus.Obsolete(since = "26.3")`
+gekennzeichnet. Sie bleiben vorhanden und ausführbar. Die Markierung empfiehlt
+für neue Integrationen Papers Brigadier-/`BasicCommand`-API; sie entfernt keine
+Commands und verleiht auch neuen Command-Handlern keine fremde Regions-Ownership.
+
 `Bukkit.dispatchCommand(CommandSender, String): boolean` ist die geerbte
 Dispatch-Schnittstelle. Das Ergebnis ist **kein Future**, das sämtliche intern
 weitergeleiteten Regionsaufgaben bestätigt. Kein Transaktionsprotokoll aus

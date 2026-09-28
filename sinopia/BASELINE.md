@@ -122,3 +122,19 @@ Sinopia-Minecraft-Patches 0045 und 0046 enthalten die allgemeinen Änderungen;
 ergänzende Tessera-Patches sichern die Regionszuständigkeit.
 Umfang, Quellen und Prüfergebnisse:
 [Paper-main-Integration](../docs/PAPER-MAIN-INTEGRATION-2026-09-25.md).
+
+## Selektive Paper-Beta-Integration vom 28. September 2026
+
+Verglichen wurde `a15fed9c16a5cc93e4ff38d6e2135623e2dc9daa` mit
+`c27ca36bf1d9d705e260f1cfb866c97de1ac537d`. Die funktionalen Backports liegen in
+Sinopia-Minecraft-Patch 0047 und den direkt versionierten API-/Adapterquellen.
+Leafpile 1.2.4 verwendet einzelne Module; Tesseras Gradle-Patch ergänzt den
+Folia-Profiler. Dazu kommen zwei ältere API-Lücken: `TreeType.POPLAR` und
+SulfurCube-Ausrüstung. Farbige Poplar-Typen und die natürliche Eventzuordnung
+bleiben erhalten. Die lokale Vanilla-DFU-Migration und der bestehende
+Region-Dateicache werden nicht durch einen unvollständigen Upstream-Rebase ersetzt.
+
+Tessera Build `011-beta` setzt den Beta-Kanal in beiden Buildschichten. Paper-eigene
+CI-Infrastruktur und README-Sponsoren wurden nicht übernommen. `paperRef` bleibt
+Import-Provenienz. Original-Commits, Regionsanpassungen und tatsächliche Prüfungen:
+[Beta-Integration](../docs/PAPER-BETA-INTEGRATION-2026-09-28.md).

@@ -9,7 +9,7 @@ badge: "Referenz"
 ---
 
 Diese Referenz beschreibt den geprüften Quellstand von Tessera **26.3 Build
-010-alpha**, Java **25**, auf `ver/26.3.x`. Sie ergänzt die geerbte Bukkit-,
+011-beta**, Java **25**, auf `ver/26.3.x`. Sie ergänzt die geerbte Bukkit-,
 Paper-, Folia- und Adventure-API, ersetzt aber nicht deren gesamte Javadoc.
 
 ## Herkunft der Schnittstellen
@@ -43,6 +43,7 @@ explizite Transaktionsaufrufe gestartet, nicht automatisch für jeden SMP.
 - [Scoreboards und Entity-Tags](scoreboards.md)
 - [Events](events.md), [regionale TPS](region-tps.md), [Gamerules](gamerules.md)
 - [Spieler-Post-Effects](player-effects.md) und [Konsole/RCON](commands.md)
+- [Mob-, SulfurCube- und Poplar-Kompatibilität](entity-and-tree-compatibility.md)
 - [Plattformkompatibilität](compatibility.md) und [Fehlerbehandlung](error-handling.md)
 
 ## Grundregeln für Beispiele
@@ -60,7 +61,7 @@ bei der Übernahme einzelner Ausschnitte verbindlich.
 
 ## Stand und Prüfgrenzen
 
-Build 010 bietet den nativen Spieler-Restore-Vertrag **1**. Server-/Protokolltests
+Seit Build 010 besteht der native Spieler-Restore-Vertrag **1**. Server-/Protokolltests
 belegen dessen native Abläufe; die gemeinsame MCC-/MVE-/TAB-/LuckPerms-Abnahme
 bleibt separat. Die Dokumentationsprüfung startet keine neuen Spielserver und
 verspricht keine allgemeine Plugin- oder Vanilla-Kompatibilität.

@@ -1,0 +1,236 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <development@tessera.local>
+Date: Mon, 28 Sep 2026 19:08:40 +0200
+Subject: [PATCH] Test Paper beta backports and Folia ownership boundaries
+
+
+diff --git a/src/test/java/io/papermc/paper/porting/TesseraBetaBackportTest.java b/src/test/java/io/papermc/paper/porting/TesseraBetaBackportTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a1da07e8e5122ce53c9ff258923b2a1cd5d6f667
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/porting/TesseraBetaBackportTest.java
+@@ -0,0 +1,155 @@
++package io.papermc.paper.porting;
++
++import ca.spottedleaf.moonrise.common.util.TickThread;
++import ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO;
++import ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkHolderManager;
++import io.netty.channel.ChannelHandlerContext;
++import io.papermc.paper.configuration.GlobalConfiguration;
++import io.papermc.paper.util.IntervalledCounter;
++import java.lang.reflect.Field;
++import java.util.List;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.atomic.AtomicReference;
++import java.util.function.BiConsumer;
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.nbt.StreamTagVisitor;
++import net.minecraft.network.Connection;
++import net.minecraft.network.SkipPacketDecoderException;
++import net.minecraft.network.SkipPacketEncoderException;
++import net.minecraft.network.chat.Component;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.level.ChunkMap;
++import net.minecraft.server.level.ServerChunkCache;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.world.item.component.ItemLore;
++import net.minecraft.world.level.ChunkPos;
++import net.minecraft.world.level.Level;
++import net.minecraft.world.level.chunk.status.ChunkStatus;
++import org.bukkit.support.environment.Normal;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.ArgumentMatchers.*;
++import static org.mockito.Mockito.*;
++
++@Normal
++class TesseraBetaBackportTest {
++    @Test
++    void loreEqualityUsesOriginalLinesNotDerivedTooltipCache() {
++        List<Component> lines = List.of(Component.literal("original"));
++        ItemLore first = new ItemLore(lines, List.of(Component.literal("first style")));
++        ItemLore second = new ItemLore(lines, List.of(Component.literal("second style")));
++        assertEquals(first, second);
++        assertEquals(first.hashCode(), second.hashCode());
++        assertEquals(lines.hashCode(), first.hashCode());
++        assertNotEquals(first, new ItemLore(List.of(Component.literal("different"))));
++        assertNotEquals(first, null);
++    }
++
++    @Test
++    void skippedIncomingPacketsCountButOutgoingAndStoppedPacketsDoNot() throws Exception {
++        Connection connection = mock(Connection.class, CALLS_REAL_METHODS);
++        IntervalledCounter counter = mock(IntervalledCounter.class);
++        set(Connection.class, connection, "PACKET_LIMIT_LOCK", new Object());
++        set(Connection.class, connection, "allPacketCounts", counter);
++        GlobalConfiguration config = new GlobalConfiguration();
++        config.packetLimiter = config.new PacketLimiter();
++        MinecraftServer server = mock(MinecraftServer.class);
++        try (var configuration = mockStatic(GlobalConfiguration.class); var servers = mockStatic(MinecraftServer.class)) {
++            configuration.when(GlobalConfiguration::get).thenReturn(config);
++            servers.when(MinecraftServer::getServer).thenReturn(server);
++            connection.exceptionCaught(mock(ChannelHandlerContext.class), new SkipPacketDecoderException(new Exception("test input")));
++            verify(counter).updateAndAdd(eq(1L), anyLong());
++            assertEquals(1, get(Connection.class, connection, "receivedPackets"));
++            connection.exceptionCaught(mock(ChannelHandlerContext.class), new SkipPacketEncoderException(new Exception("test output")));
++            set(Connection.class, connection, "stopReadingPackets", true);
++            connection.exceptionCaught(mock(ChannelHandlerContext.class), new SkipPacketDecoderException(new Exception("already stopped")));
++        }
++        verifyNoMoreInteractionsExceptRate(counter);
++        assertEquals(1, get(Connection.class, connection, "receivedPackets"));
++    }
++
++    private static void verifyNoMoreInteractionsExceptRate(IntervalledCounter counter) {
++        verify(counter).getRate();
++        verifyNoMoreInteractions(counter);
++    }
++
++    @Test
++    void disabledPacketLimiterStillCountsReceivedPacketsWithoutACounter() throws Exception {
++        Connection connection = mock(Connection.class, CALLS_REAL_METHODS);
++        MinecraftServer server = mock(MinecraftServer.class);
++        try (var servers = mockStatic(MinecraftServer.class)) {
++            servers.when(MinecraftServer::getServer).thenReturn(server);
++            connection.exceptionCaught(mock(ChannelHandlerContext.class), new SkipPacketDecoderException(new Exception("test")));
++        }
++        assertEquals(1, get(Connection.class, connection, "receivedPackets"));
++    }
++
++    @Test
++    void chunkScannerCompletesAfterIoAndPropagatesReadAndVisitorFailures() throws Exception {
++        ServerLevel level = mock(ServerLevel.class);
++        when(level.dimension()).thenReturn(Level.OVERWORLD);
++        ChunkMap map = mock(ChunkMap.class, CALLS_REAL_METHODS);
++        set(ChunkMap.class, map, "level", level);
++        AtomicReference<BiConsumer<CompoundTag, Throwable>> callback = new AtomicReference<>();
++        try (var io = mockStatic(MoonriseRegionFileIO.class)) {
++            io.when(() -> MoonriseRegionFileIO.loadDataAsync(eq(level), eq(2), eq(3),
++                eq(MoonriseRegionFileIO.RegionFileType.CHUNK_DATA), any(), eq(false)))
++                .thenAnswer(call -> { callback.set(call.getArgument(4)); return null; });
++            StreamTagVisitor visitor = mock(StreamTagVisitor.class);
++            CompletableFuture<Void> result = map.chunkScanner().scanChunk(new ChunkPos(2, 3), visitor);
++            assertFalse(result.isDone());
++            assertInstanceOf(MoonriseRegionFileIO.NoCopyNBTData.class, callback.get());
++            CompoundTag data = mock(CompoundTag.class);
++            callback.get().accept(data, null);
++            assertNull(result.join());
++            verify(data).acceptAsRoot(visitor);
++
++            result = map.chunkScanner().scanChunk(new ChunkPos(2, 3), visitor);
++            callback.get().accept(null, null);
++            assertNull(result.join());
++
++            result = map.chunkScanner().scanChunk(new ChunkPos(2, 3), visitor);
++            Exception readFailure = new Exception("read failed");
++            callback.get().accept(null, readFailure);
++            assertSame(readFailure, assertThrows(java.util.concurrent.CompletionException.class, result::join).getCause());
++
++            result = map.chunkScanner().scanChunk(new ChunkPos(2, 3), visitor);
++            RuntimeException visitFailure = new RuntimeException("visitor failed");
++            doThrow(visitFailure).when(data).acceptAsRoot(visitor);
++            callback.get().accept(data, null);
++            assertSame(visitFailure, assertThrows(java.util.concurrent.CompletionException.class, result::join).getCause());
++        }
++    }
++
++    @Test
++    void fullEntityChunkShortcutRejectsForeignOwnerBeforeReadingHolder() throws Exception {
++        ChunkHolderManager manager = mock(ChunkHolderManager.class, CALLS_REAL_METHODS);
++        ServerLevel level = mock(ServerLevel.class);
++        set(ChunkHolderManager.class, manager, "world", level);
++        try (var threads = mockStatic(TickThread.class)) {
++            threads.when(() -> TickThread.ensureTickThread(level, 2, 3, "Cannot create entity chunk off-main"))
++                .thenThrow(new IllegalStateException("foreign owner"));
++            assertThrows(IllegalStateException.class, () -> manager.fullTaskLoadEntityChunk(2, 3));
++            verify(manager, never()).getChunkHolder(anyInt(), anyInt());
++        }
++    }
++
++    @Test
++    void genericChunkFutureRemainsDisabledOnFolia() {
++        ServerChunkCache cache = mock(ServerChunkCache.class, CALLS_REAL_METHODS);
++        assertThrows(UnsupportedOperationException.class, () -> cache.getChunkFuture(0, 0, ChunkStatus.FULL, true));
++    }
++
++    private static void set(Class<?> type, Object target, String name, Object value) throws Exception {
++        Field field = type.getDeclaredField(name);
++        field.setAccessible(true);
++        field.set(target, value);
++    }
++
++    private static Object get(Class<?> type, Object target, String name) throws Exception {
++        Field field = type.getDeclaredField(name);
++        field.setAccessible(true);
++        return field.get(target);
++    }
++}
+diff --git a/src/test/java/io/papermc/paper/porting/TesseraPeacefulLoadTest.java b/src/test/java/io/papermc/paper/porting/TesseraPeacefulLoadTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..e7d2a34577ca74f70be64bc69390bc497e10e14c
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/porting/TesseraPeacefulLoadTest.java
+@@ -0,0 +1,63 @@
++package io.papermc.paper.porting;
++
++import java.lang.reflect.Field;
++import java.util.Optional;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.world.Difficulty;
++import net.minecraft.world.entity.Entity;
++import net.minecraft.world.entity.EntitySpawnReason;
++import net.minecraft.world.entity.EntitySpawnRequest;
++import net.minecraft.world.entity.EntityType;
++import net.minecraft.world.flag.FeatureFlags;
++import net.minecraft.world.level.storage.ValueInput;
++import org.bukkit.support.environment.AllFeatures;
++import org.junit.jupiter.params.ParameterizedTest;
++import org.junit.jupiter.params.provider.CsvSource;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.ArgumentMatchers.*;
++import static org.mockito.Mockito.*;
++
++@AllFeatures
++class TesseraPeacefulLoadTest {
++    @ParameterizedTest
++    @CsvSource({
++        "true, FALSE, LOAD, true, true", "false, FALSE, LOAD, true, true",
++        "true, TRUE, LOAD, true, false", "false, TRUE, LOAD, true, false",
++        "true, NOT_SET, LOAD, true, false", "false, NOT_SET, LOAD, true, false",
++        "true, missing, LOAD, true, false", "false, invalid, LOAD, true, false",
++        "true, FALSE, COMMAND, true, false", "false, FALSE, NATURAL, true, false",
++        "true, FALSE, LOAD, false, false", "false, FALSE, LOAD, false, false"
++    })
++    @SuppressWarnings("unchecked")
++    void storedOverrideOnlyBypassesLoadDifficultyNotFeatureOrSpawnGates(
++        boolean typed, String stored, EntitySpawnReason reason, boolean enabled, boolean expected
++    ) throws Exception {
++        EntityType<Entity> type = mock(EntityType.class, CALLS_REAL_METHODS);
++        ServerLevel level = mock(ServerLevel.class, RETURNS_DEEP_STUBS); // rejected loads also query the debug logger's server
++        when(level.getDifficulty()).thenReturn(Difficulty.PEACEFUL);
++        when(level.enabledFeatures()).thenReturn(FeatureFlags.REGISTRY.allFlags());
++        doReturn(false).when(type).isAllowedInPeaceful();
++        doReturn(enabled).when(type).isEnabled(any());
++        Entity entity = mock(Entity.class);
++        EntityType.EntityFactory<Entity> factory = mock(EntityType.EntityFactory.class);
++        when(factory.create(type, level)).thenReturn(entity);
++        Field field = EntityType.class.getDeclaredField("factory");
++        field.setAccessible(true);
++        field.set(type, factory);
++        ValueInput input = mock(ValueInput.class);
++        when(input.getStringOr("Paper.DespawnInPeacefulOverride", "")).thenReturn(stored);
++        when(input.read("id", EntityType.CODEC)).thenReturn(Optional.of(type));
++
++        Optional<Entity> result = typed ? EntityType.create(type, input, level, reason)
++            : EntityType.create(input, level, new EntitySpawnRequest(reason, false));
++        if (expected) {
++            assertSame(entity, result.orElseThrow());
++            verify(entity).load(input);
++            verify(factory).create(type, level);
++        } else {
++            assertTrue(result.isEmpty());
++            verifyNoInteractions(entity, factory);
++        }
++    }
++}

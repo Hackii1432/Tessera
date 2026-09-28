@@ -5,7 +5,7 @@ Subject: [PATCH] Keep Paper main optimisations and callbacks region-owned
 
 
 diff --git a/net/minecraft/server/level/ServerChunkCache.java b/net/minecraft/server/level/ServerChunkCache.java
-index 6c975413b2f0a780ff9dc0dff01c5b51aeab21c5..2c1f9b1249c618dd2516878b86e6cb37bda7f277 100644
+index 93bf12f2abcd3ca90a4c78e34a9f65e19b2b7e53..c6d00f0652240a049ff0c13b77469112fbb56265 100644
 --- a/net/minecraft/server/level/ServerChunkCache.java
 +++ b/net/minecraft/server/level/ServerChunkCache.java
 @@ -97,7 +97,8 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon

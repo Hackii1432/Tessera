@@ -331,7 +331,7 @@ index 78659864651362de4fc104cbeb3e2e9a31b101d9..4e13aee3cd89204e1e8eb2b4bd276fec
          final List<SectionToUnload> ret = new ArrayList<>();
  
 diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
-index 1e05aab0a259bd0073c4761e419edf90fb175814..9146c313ed54759a0b9251f99ff502357a5378e4 100644
+index eb7c5ba7168ba4903e93938dd8671227194bec99..08d73b6d04d8e1decb79227dfa231c8875f64263 100644
 --- a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
 +++ b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
 @@ -62,6 +62,14 @@ import java.util.concurrent.atomic.AtomicReference;
@@ -361,7 +361,12 @@ index 1e05aab0a259bd0073c4761e419edf90fb175814..9146c313ed54759a0b9251f99ff50235
 +            if (c1 == c2) {
 +                return 0;
 +            }
-+
+ 
+-    private final ArrayDeque<NewChunkHolder> pendingFullLoadUpdate = new ArrayDeque<>();
+-    private final MultiThreadedQueue<NewChunkHolder> offThreadPendingFullLoadUpdate = new MultiThreadedQueue<>();
+-    private final ObjectRBTreeSet<NewChunkHolder> autoSaveQueue = new ObjectRBTreeSet<>((final NewChunkHolder c1, final NewChunkHolder c2) -> {
+-        if (c1 == c2) {
+-            return 0;
 +            final int saveTickCompare = Long.compare(c1.lastAutoSave, c2.lastAutoSave);
 +
 +            if (saveTickCompare != 0) {
@@ -377,12 +382,7 @@ index 1e05aab0a259bd0073c4761e419edf90fb175814..9146c313ed54759a0b9251f99ff50235
 +
 +            return Long.compare(coord1, coord2);
 +        });
- 
--    private final ArrayDeque<NewChunkHolder> pendingFullLoadUpdate = new ArrayDeque<>();
--    private final MultiThreadedQueue<NewChunkHolder> offThreadPendingFullLoadUpdate = new MultiThreadedQueue<>();
--    private final ObjectRBTreeSet<NewChunkHolder> autoSaveQueue = new ObjectRBTreeSet<>((final NewChunkHolder c1, final NewChunkHolder c2) -> {
--        if (c1 == c2) {
--            return 0;
++
 +        public void merge(final HolderManagerRegionData into, final long tickOffset) {
 +            // Order doesn't really matter for the pending full update...
 +            into.pendingFullLoadUpdate.addAll(this.pendingFullLoadUpdate);
@@ -611,7 +611,7 @@ index 1e05aab0a259bd0073c4761e419edf90fb175814..9146c313ed54759a0b9251f99ff50235
              final long sectionKey = iterator.nextLong();
  
              if (!this.sectionToChunkToExpireCount.containsKey(sectionKey)) {
-@@ -1130,21 +1243,55 @@ public final class ChunkHolderManager {
+@@ -1153,21 +1266,55 @@ public final class ChunkHolderManager {
          if (changedFullStatus.isEmpty()) {
              return;
          }
@@ -676,7 +676,7 @@ index 1e05aab0a259bd0073c4761e419edf90fb175814..9146c313ed54759a0b9251f99ff50235
          ((ChunkSystemServerChunkCache)this.world.getChunkSource()).moonrise$chunkHolderUnload(holder);
          PlatformHooks.get().onChunkHolderDelete(this.world, holder.vanillaChunkHolder);
          this.chunkHolders.remove(CoordinateUtils.getChunkKey(holder.chunkX, holder.chunkZ));
-@@ -1158,7 +1305,7 @@ public final class ChunkHolderManager {
+@@ -1181,7 +1328,7 @@ public final class ChunkHolderManager {
              throw new IllegalStateException("Cannot unload chunks recursively");
          }
          final int sectionShift = this.unloadQueue.coordinateShift; // sectionShift <= lock shift
@@ -685,7 +685,7 @@ index 1e05aab0a259bd0073c4761e419edf90fb175814..9146c313ed54759a0b9251f99ff50235
          int unloadCountTentative = 0;
          for (final ChunkUnloadQueue.SectionToUnload sectionRef : unloadSectionsForRegion) {
              final ChunkUnloadQueue.UnloadSection section
-@@ -1463,22 +1610,17 @@ public final class ChunkHolderManager {
+@@ -1486,22 +1633,17 @@ public final class ChunkHolderManager {
          return CURRENT_TICKET_UPDATE_SCHEDULING.get();
      }
  
@@ -716,7 +716,7 @@ index 1e05aab0a259bd0073c4761e419edf90fb175814..9146c313ed54759a0b9251f99ff50235
  
          boolean ret = false;
  
-@@ -1494,9 +1636,7 @@ public final class ChunkHolderManager {
+@@ -1517,9 +1659,7 @@ public final class ChunkHolderManager {
              ret |= holder.handleFullStatusChange(changedFullStatus);
  
              if (!changedFullStatus.isEmpty()) {
@@ -7627,7 +7627,7 @@ index e02d76293dfc5891ef4aa0c86a350fe476022fb4..3006fa9373fce5ff13d15055999b5914
          if (!this.haveTestsStarted()) {
              this.startTests(level);
 diff --git a/net/minecraft/network/Connection.java b/net/minecraft/network/Connection.java
-index 8e80e2025fb3ab5e61bf84c1fbd0ec4ee8ab12de..ef21f392c2a2e9c2d2a58c1c80cadae672a49811 100644
+index 229c0bde91a36d7f9d642d964096ac1f5643300c..386454a00893ce4ff249ada777559c164c0b8cba 100644
 --- a/net/minecraft/network/Connection.java
 +++ b/net/minecraft/network/Connection.java
 @@ -64,7 +64,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
@@ -7698,7 +7698,7 @@ index 8e80e2025fb3ab5e61bf84c1fbd0ec4ee8ab12de..ef21f392c2a2e9c2d2a58c1c80cadae6
      }
  
      @Override
-@@ -402,7 +438,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -415,7 +451,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
          }
  
          packet.onPacketDispatch(this.getPlayer());
@@ -7707,7 +7707,7 @@ index 8e80e2025fb3ab5e61bf84c1fbd0ec4ee8ab12de..ef21f392c2a2e9c2d2a58c1c80cadae6
              || (io.papermc.paper.util.MCUtil.isMainThread() && packet.isReady() && this.pendingActions.isEmpty()
              && (packet.getExtraPackets() == null || packet.getExtraPackets().isEmpty())))) {
              this.sendPacket(packet, listener, flush);
-@@ -431,11 +467,12 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -444,11 +480,12 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      }
  
      public void runOnceConnected(final Consumer<Connection> action) {
@@ -7721,7 +7721,7 @@ index 8e80e2025fb3ab5e61bf84c1fbd0ec4ee8ab12de..ef21f392c2a2e9c2d2a58c1c80cadae6
          }
      }
  
-@@ -522,10 +559,11 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -535,10 +572,11 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      }
  
      public void flushChannel() {
@@ -7734,7 +7734,7 @@ index 8e80e2025fb3ab5e61bf84c1fbd0ec4ee8ab12de..ef21f392c2a2e9c2d2a58c1c80cadae6
          }
      }
  
-@@ -539,53 +577,61 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -552,53 +590,61 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
  
      // Paper start - Optimize network: Rewrite this to be safer if ran off main thread
      private boolean flushQueue() {
@@ -7830,7 +7830,7 @@ index 8e80e2025fb3ab5e61bf84c1fbd0ec4ee8ab12de..ef21f392c2a2e9c2d2a58c1c80cadae6
      }
      // Paper end - Optimize network
  
-@@ -594,17 +640,43 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -607,17 +653,43 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      private static int currTick; // Paper - Buffer joins to world
      public void tick() {
          this.flushQueue();
@@ -7882,7 +7882,7 @@ index 8e80e2025fb3ab5e61bf84c1fbd0ec4ee8ab12de..ef21f392c2a2e9c2d2a58c1c80cadae6
              // Paper start - detailed watchdog information
              net.minecraft.network.PacketProcessor.packetProcessing.push(this.packetListener);
              try {
-@@ -615,7 +687,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -628,7 +700,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              } // Paper end - Buffer joins to world
          }
  
@@ -7891,7 +7891,7 @@ index 8e80e2025fb3ab5e61bf84c1fbd0ec4ee8ab12de..ef21f392c2a2e9c2d2a58c1c80cadae6
              this.handleDisconnection();
          }
  
-@@ -666,6 +738,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -679,6 +751,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              this.channel.close().awaitUninterruptibly();
              this.disconnectionDetails = details;
          }
@@ -7899,7 +7899,7 @@ index 8e80e2025fb3ab5e61bf84c1fbd0ec4ee8ab12de..ef21f392c2a2e9c2d2a58c1c80cadae6
      }
  
      public boolean isMemoryConnection() {
-@@ -861,10 +934,10 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -874,10 +947,10 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
  
      public void handleDisconnection() {
          if (this.channel != null && !this.channel.isOpen()) {
@@ -7912,7 +7912,7 @@ index 8e80e2025fb3ab5e61bf84c1fbd0ec4ee8ab12de..ef21f392c2a2e9c2d2a58c1c80cadae6
                  PacketListener packetListener = this.getPacketListener();
                  PacketListener disconnectListener = packetListener != null ? packetListener : this.disconnectListener;
                  if (disconnectListener != null) {
-@@ -893,6 +966,21 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -906,6 +979,21 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
                      }
                  }
                  // Paper end - Add PlayerConnectionCloseEvent
@@ -7934,7 +7934,7 @@ index 8e80e2025fb3ab5e61bf84c1fbd0ec4ee8ab12de..ef21f392c2a2e9c2d2a58c1c80cadae6
              }
          }
      }
-@@ -911,15 +999,25 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -924,15 +1012,25 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      // Paper start - Optimize network
      public void clearPacketQueue() {
          final net.minecraft.server.level.ServerPlayer player = getPlayer();
@@ -10757,7 +10757,7 @@ index b9606ee0c31788ab75f8aa828c50a9f6628740b3..f357200dd5e58d9059a0f2b17b721224
          super.stopServer();
          //Util.shutdownExecutors(); // Paper - Improved watchdog support; moved into super
 diff --git a/net/minecraft/server/level/ChunkMap.java b/net/minecraft/server/level/ChunkMap.java
-index f26021eaa3ff0e46a75ae7db31a525a9e1f3fa08..d08ca8f6f264ced724b07740c2a875d5254c15ca 100644
+index f129d60b9000a1d038e37687d305171fbe237280..c2ed3f930ae4799ae75059e616f0ac5fcbcd45c9 100644
 --- a/net/minecraft/server/level/ChunkMap.java
 +++ b/net/minecraft/server/level/ChunkMap.java
 @@ -137,8 +137,8 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
@@ -10917,7 +10917,7 @@ index f26021eaa3ff0e46a75ae7db31a525a9e1f3fa08..d08ca8f6f264ced724b07740c2a875d5
                          if (e.entity != player) {
                              e.updatePlayer(player);
                          }
-@@ -1029,40 +1021,39 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
+@@ -1029,19 +1021,27 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
          if (entity instanceof ServerPlayer player) {
              this.updatePlayerStatus(player, false);
  
@@ -10949,6 +10949,9 @@ index f26021eaa3ff0e46a75ae7db31a525a9e1f3fa08..d08ca8f6f264ced724b07740c2a875d5
          // Paper end - optimise entity tracker
      }
  
+@@ -1080,23 +1080,14 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
+     }
+     // Paper end - rewrite chunk system
      // Paper start - optimise entity tracker
 -    private static final Entity[] EMPTY_ENTITY_ARRAY = new Entity[0];
 -    private ca.spottedleaf.moonrise.common.list.ReferenceList<net.minecraft.world.entity.Entity> trackerEntities = new ca.spottedleaf.moonrise.common.list.ReferenceList<>(EMPTY_ENTITY_ARRAY);
@@ -10975,7 +10978,7 @@ index f26021eaa3ff0e46a75ae7db31a525a9e1f3fa08..d08ca8f6f264ced724b07740c2a875d5
              final Entity[] trackerEntitiesRaw = trackerEntities.getRawDataUnchecked();
              for (int i = 0, len = trackerEntities.size(); i < len; ++i) {
                  final Entity entity = trackerEntitiesRaw[i];
-@@ -1070,14 +1061,14 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
+@@ -1104,14 +1095,14 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
                  if (tracker == null) {
                      continue;
                  }
@@ -10992,7 +10995,7 @@ index f26021eaa3ff0e46a75ae7db31a525a9e1f3fa08..d08ca8f6f264ced724b07740c2a875d5
          }
      }
      // Paper end - optimise entity tracker
-@@ -1091,36 +1082,11 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
+@@ -1125,36 +1116,11 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
          // Paper end - optimise entity tracker
          // Paper - rewrite chunk system
  
@@ -11031,7 +11034,7 @@ index f26021eaa3ff0e46a75ae7db31a525a9e1f3fa08..d08ca8f6f264ced724b07740c2a875d5
          if (trackedEntity != null) {
              trackedEntity.sendToTrackingPlayers(packet);
          }
-@@ -1129,30 +1095,26 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
+@@ -1163,30 +1129,26 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
      public void sendToTrackingPlayersFiltered(
          final Entity entity, final Packet<? super ClientGamePacketListener> packet, final Predicate<ServerPlayer> targetPredicate
      ) {
@@ -11066,7 +11069,7 @@ index f26021eaa3ff0e46a75ae7db31a525a9e1f3fa08..d08ca8f6f264ced724b07740c2a875d5
      }
  
      public void resendBiomesForChunks(final List<ChunkAccess> chunks) {
-@@ -1396,8 +1358,13 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
+@@ -1430,8 +1392,13 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
                      && this.entity.broadcastToPlayer(player)
                      && ChunkMap.this.isChunkTracked(player, this.entity.chunkPosition().x(), this.entity.chunkPosition().z());
                  // Paper end - Configurable entity tracking range by Y
@@ -11207,7 +11210,7 @@ index 3509df9dd423b38d1ca3e4a420d1352ae95d3551..c473bc729c813592f0015aad570b8a9c
              }
          }
 diff --git a/net/minecraft/server/level/ServerChunkCache.java b/net/minecraft/server/level/ServerChunkCache.java
-index 33dd4696b20dd6fcdac6492db99d4483f6c1d45a..6ebf8c622a8d2170c28bee217ff551a47a399a98 100644
+index ebac8d5ab55e564d87720e68d34cb5743ed20995..c7716ccff3e487a66849b2e26973276e9acef688 100644
 --- a/net/minecraft/server/level/ServerChunkCache.java
 +++ b/net/minecraft/server/level/ServerChunkCache.java
 @@ -70,10 +70,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
@@ -11243,15 +11246,15 @@ index 33dd4696b20dd6fcdac6492db99d4483f6c1d45a..6ebf8c622a8d2170c28bee217ff551a4
  
          // note: we can use the backing array here because:
          // 1. we do not care about new additions
-@@ -351,6 +353,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
-     }
- 
-     public CompletableFuture<ChunkResult<ChunkAccess>> getChunkFuture(final int x, final int z, final ChunkStatus targetStatus, final boolean loadOrGenerate) {
+@@ -354,6 +356,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+     public CompletableFuture<ChunkResult<ChunkAccess>> getChunkFuture(final int chunkX, final int chunkZ,
+                                                                       final ChunkStatus toStatus,
+                                                                       final boolean create) {
 +        if (true) throw new UnsupportedOperationException(); // Folia - region threading
-         boolean isMainThread = Thread.currentThread() == this.mainThread;
-         CompletableFuture<ChunkResult<ChunkAccess>> serverFuture;
-         if (isMainThread) {
-@@ -518,26 +521,28 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+         if (ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this.level, chunkX, chunkZ)) {
+             final CompletableFuture<ChunkResult<ChunkAccess>> ret = this.getChunkFutureInternal(chunkX, chunkZ, toStatus, create, true);
+             this.mainThreadProcessor.managedBlock(ret::isDone);
+@@ -531,26 +534,28 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
      }
  
      private void broadcastChangedChunks(final ProfilerFiller profiler) {
@@ -11283,7 +11286,7 @@ index 33dd4696b20dd6fcdac6492db99d4483f6c1d45a..6ebf8c622a8d2170c28bee217ff551a4
                  // Paper start - per player mob spawning backoff
                  for (int j = 0; j < ServerPlayer.MOBCATEGORY_TOTAL_ENUMS; j++) {
                      player.mobCounts[j] = 0;
-@@ -550,26 +555,26 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+@@ -563,26 +568,26 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
              spawnCookie = NaturalSpawner.createState(chunkCount, this.level, this::getFullChunk, !this.level.paperConfig().entities.spawning.perPlayerMobSpawns ? new LocalMobCapCalculator(this.chunkMap) : null, false);
          }
          // Paper end - Optional per player mob spawns
@@ -11315,7 +11318,7 @@ index 33dd4696b20dd6fcdac6492db99d4483f6c1d45a..6ebf8c622a8d2170c28bee217ff551a4
  
          try {
              profiler.popPush("filteringSpawningChunks");
-@@ -654,18 +659,23 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+@@ -667,18 +672,23 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
          int zc = SectionPos.blockToSectionCoord(pos.getZ());
          ChunkHolder chunk = this.getVisibleChunkIfPresent(ChunkPos.pack(xc, zc));
          if (chunk != null && chunk.blockChanged(pos)) {
@@ -11343,7 +11346,7 @@ index 33dd4696b20dd6fcdac6492db99d4483f6c1d45a..6ebf8c622a8d2170c28bee217ff551a4
      }
  
      public boolean hasActiveTickets() {
-@@ -780,7 +790,8 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+@@ -793,7 +803,8 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
  
      @VisibleForDebug
      public NaturalSpawner.@Nullable SpawnState getLastSpawnState() {
@@ -11353,7 +11356,7 @@ index 33dd4696b20dd6fcdac6492db99d4483f6c1d45a..6ebf8c622a8d2170c28bee217ff551a4
      }
  
      public void deactivateTicketsOnClosing() {
-@@ -789,7 +800,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+@@ -802,7 +813,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
  
      public void onChunkReadyToSend(final ChunkHolder chunk) {
          if (chunk.hasChangesToBroadcast()) {
@@ -11362,7 +11365,7 @@ index 33dd4696b20dd6fcdac6492db99d4483f6c1d45a..6ebf8c622a8d2170c28bee217ff551a4
          }
      }
  
-@@ -818,20 +829,76 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+@@ -831,20 +842,76 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
              return ServerChunkCache.this.mainThread;
          }
  
@@ -16194,10 +16197,10 @@ index 8bcdafee9133137ee8c335ce62c9b799d743872e..713a3fe3461208ad9243b37990a42329
          this.setPose(Pose.STANDING);
          this.setPos(pos.x, pos.y, pos.z);
 diff --git a/net/minecraft/world/entity/Mob.java b/net/minecraft/world/entity/Mob.java
-index 98ae2e45e9967e1151241432990074447108ada7..6eeccea50f7b1fadbd7e07110daafaae95eb1589 100644
+index c9b378cda8fc733f09e0bc392d6e2c09e4b99a7d..bda4174f4a9cfea4d9317e15508003f5a5a90c1f 100644
 --- a/net/minecraft/world/entity/Mob.java
 +++ b/net/minecraft/world/entity/Mob.java
-@@ -252,8 +252,20 @@ public abstract class Mob extends LivingEntity implements Targeting, EquipmentUs
+@@ -253,8 +253,20 @@ public abstract class Mob extends LivingEntity implements Targeting, EquipmentUs
          return this.sensing;
      }
  
@@ -16218,7 +16221,7 @@ index 98ae2e45e9967e1151241432990074447108ada7..6eeccea50f7b1fadbd7e07110daafaae
          return this.asValidTarget(this.target);
      }
  
-@@ -262,6 +274,11 @@ public abstract class Mob extends LivingEntity implements Targeting, EquipmentUs
+@@ -263,6 +275,11 @@ public abstract class Mob extends LivingEntity implements Targeting, EquipmentUs
      }
  
      protected @Nullable LivingEntity asValidTarget(final @Nullable LivingEntity target) {
@@ -16230,7 +16233,7 @@ index 98ae2e45e9967e1151241432990074447108ada7..6eeccea50f7b1fadbd7e07110daafaae
          if (target instanceof Player player && (player.isCreative() || player.isSpectator())) {
              return null;
          } else {
-@@ -1636,6 +1653,20 @@ public abstract class Mob extends LivingEntity implements Targeting, EquipmentUs
+@@ -1643,6 +1660,20 @@ public abstract class Mob extends LivingEntity implements Targeting, EquipmentUs
          }
      }
  
@@ -16251,7 +16254,7 @@ index 98ae2e45e9967e1151241432990074447108ada7..6eeccea50f7b1fadbd7e07110daafaae
      @VisibleForTesting
      public void removeFreeWill() {
          this.removeAllGoals(goal -> true);
-@@ -1656,12 +1687,7 @@ public abstract class Mob extends LivingEntity implements Targeting, EquipmentUs
+@@ -1663,12 +1694,7 @@ public abstract class Mob extends LivingEntity implements Targeting, EquipmentUs
      protected void removeAfterChangingDimensions() {
          super.removeAfterChangingDimensions();
  

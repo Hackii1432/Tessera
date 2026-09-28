@@ -6,10 +6,10 @@ Subject: [PATCH] Add tested restore transaction primitives without enabling
 
 
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index bb27bece6e0a60ea3fc9acee0d4817479dbec6f1..05852c238e4f7c379dd2750877648d491d21ac5b 100644
+index d4b46f4da15f6937b71facee0122b5d384b976f6..52a7b6c637c5ef51fce4da5fe1801f900024b43d 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -283,6 +283,7 @@ public final class CraftServer implements Server {
+@@ -284,6 +284,7 @@ public final class CraftServer implements Server {
      // lock-free reads from independent region threads.
      private volatile Map<String, World> worlds = Collections.unmodifiableMap(new LinkedHashMap<>());
      private final org.bukkit.craftbukkit.world.CraftRuntimeWorldManager runtimeWorldManager;
@@ -17,7 +17,7 @@ index bb27bece6e0a60ea3fc9acee0d4817479dbec6f1..05852c238e4f7c379dd2750877648d49
      private static final io.papermc.paper.threadedregions.TesseraCapabilities TESSERA_CAPABILITIES =
          new io.papermc.paper.threadedregions.TesseraCapabilities() {
              @Override
-@@ -354,6 +355,11 @@ public final class CraftServer implements Server {
+@@ -355,6 +356,11 @@ public final class CraftServer implements Server {
      public org.bukkit.craftbukkit.world.CraftRuntimeWorldManager getRuntimeWorldManager() {
          return this.runtimeWorldManager;
      }

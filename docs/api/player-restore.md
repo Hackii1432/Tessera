@@ -10,7 +10,7 @@ badge: "Referenz"
 
 `Bukkit.getPlayerRestoreService()` beziehungsweise der entsprechende `Server`-
 Getter liefert Tesseras öffentlichen `io.papermc.paper.world.PlayerRestoreService`.
-Der konfigurierte native Server aus Build 010 implementiert **Vertrag 1**.
+Der konfigurierte native Server implementiert seit Build 010 **Vertrag 1**.
 Vorherige reservierte Implementierungen mit Vertrag 0 sind nicht der aktuelle Stand.
 
 ## Umfang und Voraussetzungen
