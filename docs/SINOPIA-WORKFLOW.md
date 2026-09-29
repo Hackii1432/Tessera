@@ -186,14 +186,16 @@ Das ist ausdrücklich KEINE Erklärung, dass die Minecraft-Portierung fertig ist
 ## 26.3-Status
 
 Die aktuelle Minecraft-Basis ist das Release `26.3` mit Mache
-`26.3+build.1` und Tessera Build `011-beta`. Java 25 und die
+`26.3+build.1` und Tessera Build `012-beta`. Java 25 und die
 Plugin-API-Version `26.3` bleiben erhalten. Seit der Paper-main-Integration
 vom 25. September werden Gradle `9.8.0` und Paperweight `2.0.0-beta.24`
 gemeinsam verwendet. Der Build erzeugt die ausführbare JAR unter
-`build/libs/tessera-server-26.3.build.011-beta.jar`.
+`build/libs/tessera-server-26.3.build.012-beta.jar`.
 Der Beta-Kanal ersetzt keine Abnahme mit dem eigenen Plugin-Stack. Änderungen und
-Prüfstand: [Build 011](builds/26.3/0.0.11.md) und
-[Paper-Beta-Integration](PAPER-BETA-INTEGRATION-2026-09-28.md).
+Prüfstand: [Build 012](builds/26.3/0.0.12.md) und
+[Restore-Metadaten-Prüfung](BUILD-26.3-012.md).
+Die [Paper-Beta-Integration](PAPER-BETA-INTEGRATION-2026-09-28.md) bleibt der
+historische Nachweis der unveränderten Basis aus Build 011.
 **Build 010 implementiert den nativen Restore-Vertrag 1**
 und wurde mit verbundenen Protokollclients auf eigenen Testservern geprüft.
 Die gemeinsame MCC-/MVE-/TAB-/LuckPerms-Integration bleibt eine separate Folgeabnahme;

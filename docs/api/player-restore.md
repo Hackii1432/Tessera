@@ -3,7 +3,7 @@ title: "Nativer Spieler-Restore mit bestehender Verbindung"
 description: "Vertrag 1 für Prepare, Apply, Rollback und Complete einschließlich Schreibschranke, Transfers und Recovery."
 navTitle: "Spieler-Restore"
 order: 80
-updated: 2026-09-28
+updated: 2026-09-29
 minecraftVersion: "26.3"
 badge: "Referenz"
 ---
@@ -82,6 +82,31 @@ Der Future-Abschluss umfasst die native Unterarbeit, konkrete Client-Transfer-AC
 und Cleanup. `APPLIED` ist kein bloßes „Transfer eingeplant“. Erfolg benötigt keinen
 Kick/Reconnect. Generator-/Biombindungen vorbereiteter Welten werden nicht durch
 globale aktuelle Generatoreinstellungen ersetzt.
+
+## Offline-Identität und gespeicherte Metadaten
+
+Seit Build 012 verwendet der Preflight für bestehende Offline-Spieler den
+geprüften, gegebenenfalls datenversionskonvertierten Quelldatensatz. Er erzeugt
+keinen Login und schreibt keine Vorschau-Identität in den Player-Store.
+Vorhandene Namen, Login-/Seen-/Played-Zeiten, unbekannte zusätzliche NBT-Tags
+und PDC bleiben erhalten. Fehlende Identitätsfelder bleiben fehlend. Erlaubte
+Welt-/Positionsanpassungen und die Datenversionskonvertierung bleiben bestehen.
+
+Fehlende Statistik-/Fortschrittsdateien für Offline-Spieler werden nicht durch
+leere Vorschau-Dateien ersetzt; reine JSON-Einträge erzeugen keine neuen
+Spieler-NBT-Dateien. Dateikopien und vorbereitete NBT-Overlays erhalten das
+ursprüngliche Änderungsdatum, das Bukkit bei fehlenden Zeitfeldern teilweise
+als Rückfallwert verwendet. Ein Restore ist damit keine Offline-Spieleraktivität.
+Für tatsächlich verbundene Teilnehmer gelten weiterhin native Zustandsaufnahme
+und reguläre Speicherung; ihre laufende Verbindung und Login-Identität bleiben
+erhalten. Spieler ohne Quell-Save erhalten weiterhin frische Gameplay-Defaults.
+
+Bereits durch frühere Builds beschädigte Quellen werden nicht automatisch
+repariert. Insbesondere ist `RestorePreview` kein verbotener Benutzername.
+Belegte Korrekturen anhand derselben UUID, Backup und feldweiser Vorschau sind
+im [Reparaturleitfaden](https://github.com/Hackii1432/Tessera/blob/ver/26.3.x/docs/restore-player-metadata-repair.md)
+beschrieben. Der öffentliche Vertrag bleibt `1`; es ist kein zusätzlicher
+MCC-/MVE-API-Aufruf erforderlich.
 
 ## Ergebnis und Fehlerstatus
 

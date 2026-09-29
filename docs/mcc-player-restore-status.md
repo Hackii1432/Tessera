@@ -5,6 +5,12 @@ Dieser datierte Build-/Prüfbericht bleibt als Nachweis erhalten. Die gepflegte
 einschließlich [Teleport-Scope](api/player-restore.md#teleport-scope) und
 [Fehlerbehandlung](api/error-handling.md).
 
+Nachtrag 29.09.2026: Die historische Abnahme unten erfasste die inzwischen
+nachgewiesene Beschädigung von Offline-Identitätsmetadaten nicht. Build 012
+korrigiert diesen separaten Fehler; neue Nachweise und Grenzen stehen im
+[Build-012-Bericht](BUILD-26.3-012.md). Bereits betroffene Dateien benötigen
+eine [belegte feldweise Reparatur](restore-player-metadata-repair.md).
+
 Stand: 27.09.2026. Die native Serveranbindung implementiert Vertrag **1**.
 Die öffentliche Transaktion wurde auf eigenen isolierten Servern mit verbundenen
 Protokollclients geprüft. Der komplette MCC-/MVE-Stack ist separat zu prüfen.

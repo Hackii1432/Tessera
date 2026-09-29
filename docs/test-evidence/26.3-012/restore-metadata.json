@@ -1,0 +1,145 @@
+{
+  "recordedOn": "2026-09-29",
+  "version": "26.3-012-beta",
+  "contractVersion": 1,
+  "source": {
+    "branch": "ver/26.3.x",
+    "baseCommit": "47b63d6bb1dc5db99ddd1cab5000c49baaf682e0",
+    "newRootCommitCreated": false,
+    "localPatchSha256": {
+      "folia-server/paper-patches/features/0038-Preserve-offline-player-identity-and-metadata-throug.patch": "1d759c724af9e758846b101715acc53192bfb79ad479ac704a0988492c1477e7",
+      "folia-server/minecraft-patches/features/0050-Queue-snapshot-barriers-after-releasing-region-enume.patch": "258bbd2685be2c792819d1249dea406687761254f9a89848db82ce07bf2f38e7",
+      "folia-server/paper-patches/features/0039-Test-snapshot-region-barrier-ticket-lock-ordering.patch": "7da1b4ad52eea24490b0ea7ecf24a0dc193242efda1b7c038750f106ec87ab56"
+    },
+    "gradlePropertiesSha256": "12162183984a1f99a1fafd3fd5df11c1eba745eeecb817fb833303755d2f6e24"
+  },
+  "artifact": {
+    "path": "build/libs/tessera-server-26.3.build.012-beta.jar",
+    "bytes": 55381119,
+    "sha256": "c6443ecc2684b343f478e85ed18be927e577f1dff63e95a00a9c25238f5cd814"
+  },
+  "environment": {
+    "os": "Windows",
+    "java": "25.0.3",
+    "gradle": "9.8.0",
+    "clients": "Connected Minecraft 26.3 protocol clients on isolated loopback test servers",
+    "productionDataUsed": false,
+    "testPluginSha256": "d00d54ea37270cc73f9d3b03a78423de2c481d861ca5b1482eb6a7c6a142df07"
+  },
+  "build": {
+    "task": "buildTessera",
+    "passed": true,
+    "patchesReapplied": true,
+    "log": "build/build-012-beta-final.log",
+    "serverTests": {"tests": 10177, "skipped": 87, "failures": 0, "errors": 0},
+    "apiTests": {"tests": 529, "skipped": 2, "failures": 0, "errors": 0, "finalBuildUpToDate": true},
+    "newTargetedTestsPassed": 6,
+    "buildSupportChecksPassed": 22,
+    "documentationValidatorTestsPassed": 57,
+    "apiExamplesCompiled": 9
+  },
+  "negativeControl": {
+    "version": "26.3-011-beta",
+    "sha256": "95fd761ab974ae9e0fe7dee8311b61048eaa890e138c5ef9bd78d2c08dff4d45",
+    "failedAsExpected": true,
+    "assertion": "complete offline NBT unchanged: be5b9780-3036-4bbd-b70c-8d20bed00002",
+    "log": "build/restore-metadata-before-fix.log"
+  },
+  "metadata": {
+    "passed": true,
+    "fixture": "build/native-restore-smoke-1790643656847",
+    "log": "build/restore-metadata-012-final-accepted.log",
+    "nativeEvidence": "build/native-restore-smoke-1790643656847/native-restore-metadata.json",
+    "restartEvidence": "build/native-restore-smoke-1790643656847/native-restore-metadata-restart.json",
+    "processesCleanlyExited": 4,
+    "noLoginRestartProcesses": 3,
+    "checks": [
+      "Entire offline NBT equality including unknown nested tags, identity, timestamps and PDC",
+      "Missing names, compounds and store files remain absent; historical mtime preserved",
+      "Stats and advancement JSON byte equality, unchanged source, exact UUID sets",
+      "Two commit/resave cycles, disconnect during pending Prepare with fresh rollback backup, further rollback and commit",
+      "Real player named RestorePreview preserved; no synthetic profile-cache or online registration",
+      "Online handle, identity, login time, inventory, ender chest, XP and target world retained/restored",
+      "Only real join/quit events; no remaining writer/admission fence"
+    ],
+    "clientsBeforeControlledServerShutdown": [
+      {"name": "RestoreOne", "logins": 1, "kicks": 0, "disconnects": 0},
+      {"name": "RestoreTwo", "logins": 2, "kicks": 2, "disconnects": 2, "intentionalOfflineAndPrepareRace": true},
+      {"name": "RestorePreview", "logins": 1, "kicks": 1, "disconnects": 1, "intentionalOfflineFixture": true}
+    ],
+    "actualJoinEvents": 4,
+    "actualQuitEvents": 3,
+    "bukkitDataFileParticipants": 5,
+    "unknownAdditionalParticipants": 0
+  },
+  "additionalMetadataRepeats": [
+    {
+      "passed": true,
+      "cleanExitCode": 0,
+      "log": "build/restore-metadata-012-repeat-1.log",
+      "evidence": "build/native-restore-smoke-1790643785109/native-restore-metadata.json"
+    },
+    {
+      "passed": true,
+      "cleanExitCode": 0,
+      "log": "build/restore-metadata-012-repeat-2.log",
+      "evidence": "build/native-restore-smoke-1790643826483/native-restore-metadata.json"
+    }
+  ],
+  "mve": {
+    "passed": true,
+    "version": "26.3-1.5.0.1-stable",
+    "sha256": "45273ed379f31c8f76f839b432898c31c0de275fc953a4432c2387aa28be3462",
+    "luckPermsVersion": "5.5.85",
+    "luckPermsSha256": "dc637ce18f48d3b75a7ffd1784b85be16a627359090dfe5adf15dab6d145dc7d",
+    "productCodeModified": false,
+    "evidence": "build/native-restore-smoke-1790643656847/native-restore-metadata-mve.json",
+    "firstLedger": "build/native-restore-smoke-1790643656847/native-restore-evidence/metadata-mve-first-ledger.json",
+    "secondLedger": "build/native-restore-smoke-1790643656847/native-restore-evidence/metadata-mve-ledger.json",
+    "processStarts": 2,
+    "additionalRefreshesPerProcess": 2,
+    "logins": 0,
+    "accumulationMode": "LIFETIME",
+    "persistedFormat": 9,
+    "knownSourceParticipants": 7,
+    "alreadyExistingJsonOnlyParticipantsIncluded": 2,
+    "nonzeroDeathsCounterPerRealTestPlayer": 7,
+    "offlineNamesAndLastSeenMatchNativeData": true,
+    "entireLifetimeLedgerUnchangedAcrossRestart": true,
+    "fullMccChallengeTransactionExercised": false
+  },
+  "transactionRegression": {
+    "passed": true,
+    "publicApiExercised": true,
+    "log": "build/restore-transaction-012-final.log",
+    "evidence": "build/native-restore-smoke-1790643363326/native-restore-result.json",
+    "clientsBeforeControlledServerShutdown": [
+      {"name": "RestoreOne", "logins": 1, "kicks": 0, "disconnects": 0, "teleports": 38, "statsResets": 8, "advancementResets": 12},
+      {"name": "RestoreTwo", "logins": 1, "kicks": 0, "disconnects": 0, "teleports": 35, "statsResets": 8, "advancementResets": 12}
+    ],
+    "checks": [
+      "Exact native player state and fresh defaults, repeated commit/resave and real published-store rollback",
+      "RootVehicle, shoulder entity and ender pearl; client resets; sleeping/dead connected participants",
+      "Transfer veto, cancellation, counted writer drain and idempotent completion",
+      "Actual statistic flush and Windows file-sharing publication failures with explicit rollback",
+      "Prepared world generator/biome bindings retained for new chunks; no remaining fence"
+    ]
+  },
+  "raceRegression": {
+    "passed": true,
+    "log": "build/restore-races-012-final.log",
+    "evidence": "build/native-restore-smoke-1790643430949/native-restore-races.json",
+    "clientsBeforeControlledServerShutdown": [
+      {"name": "RestoreOne", "logins": 1, "kicks": 0, "disconnects": 0},
+      {"name": "RestoreTwo", "logins": 2, "kicks": 1, "disconnects": 1, "intentionalFailureFixture": true}
+    ],
+    "checks": ["Disconnect during transfer", "Queued login admitted only after completion", "No duplicate pearl", "Actual missing-client-ACK timeout", "Rollback and resave", "No remaining fence"]
+  },
+  "openChecks": [
+    "MCC 0.7.5.5 full challenge transaction with the concrete MVE/TAB/LuckPerms stack, backpack and baselines",
+    "Graphical Vanilla client validation",
+    "Linux execution and hardware power-loss recovery",
+    "Global historical changelog validation: unchanged docs/builds/26.2/0.0.1.md has an unquoted YAML string"
+  ],
+  "repair": "docs/restore-player-metadata-repair.md"
+}

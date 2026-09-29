@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Tue, 29 Sep 2026 02:42:56 +0200
+Subject: [PATCH] Queue snapshot barriers after releasing region enumeration
+ lock
+
+
+diff --git a/io/papermc/paper/threadedregions/RegionizedServer.java b/io/papermc/paper/threadedregions/RegionizedServer.java
+index 01977bfaaa6456e07e1437699f3fc96cab334e4d..57fa8e4946b2c7b93b86b71ee2ec447f08d32876 100644
+--- a/io/papermc/paper/threadedregions/RegionizedServer.java
++++ b/io/papermc/paper/threadedregions/RegionizedServer.java
+@@ -100,12 +100,16 @@ public final class RegionizedServer {
+      * for one world. It never waits on the calling thread.
+      */
+     public java.util.concurrent.CompletableFuture<Void> awaitWorldRegionTasks(final ServerLevel world) {
+-        final java.util.List<java.util.concurrent.CompletableFuture<Void>> barriers = new java.util.ArrayList<>();
++        // Enumeration holds the regionizer's non-reentrant read lock. Queueing
++        // can create a chunk ticket/holder and needs its write lock, especially
++        // after a player leaves. Capture coordinates only while enumerating.
++        final java.util.List<net.minecraft.world.level.ChunkPos> centers = new java.util.ArrayList<>();
+         world.regioniser.computeForAllRegions(region -> {
+             final net.minecraft.world.level.ChunkPos center = region.getCenterChunk();
+-            if (center == null) {
+-                return;
+-            }
++            if (center != null) centers.add(center);
++        });
++        final java.util.List<java.util.concurrent.CompletableFuture<Void>> barriers = new java.util.ArrayList<>();
++        for (final net.minecraft.world.level.ChunkPos center : centers) {
+             final java.util.concurrent.CompletableFuture<Void> barrier = new java.util.concurrent.CompletableFuture<>();
+             barriers.add(barrier);
+             try {
+@@ -125,7 +129,7 @@ public final class RegionizedServer {
+             } catch (final Throwable throwable) {
+                 barrier.completeExceptionally(throwable);
+             }
+-        });
++        }
+         return java.util.concurrent.CompletableFuture.allOf(
+             barriers.toArray(java.util.concurrent.CompletableFuture[]::new)
+         );

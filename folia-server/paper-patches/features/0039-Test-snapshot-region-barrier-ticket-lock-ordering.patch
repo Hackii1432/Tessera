@@ -1,0 +1,100 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Tue, 29 Sep 2026 02:42:57 +0200
+Subject: [PATCH] Test snapshot region barrier ticket lock ordering
+
+
+diff --git a/src/test/java/io/papermc/paper/threadedregions/WorldRegionBarrierTest.java b/src/test/java/io/papermc/paper/threadedregions/WorldRegionBarrierTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..fb021fa2944904b10cd2de37b24ef7c84b854971
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/threadedregions/WorldRegionBarrierTest.java
+@@ -0,0 +1,88 @@
++package io.papermc.paper.threadedregions;
++
++import ca.spottedleaf.concurrentutil.executor.PrioritisedExecutor;
++import java.util.ArrayList;
++import java.util.List;
++import java.util.concurrent.locks.StampedLock;
++import java.util.function.Consumer;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.world.level.ChunkPos;
++import org.bukkit.support.environment.Normal;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.Mockito.*;
++
++@Normal
++class WorldRegionBarrierTest {
++    private static void field(Object target, String name, Object value) throws Exception {
++        var field = target.getClass().getField(name);
++        field.setAccessible(true);
++        field.set(target, value);
++    }
++
++    @Test
++    @SuppressWarnings("unchecked")
++    void ticketAdmissionRunsOutsideRegionReadLockAndWaitsForEveryOwner() throws Exception {
++        ServerLevel world = mock(ServerLevel.class);
++        ThreadedRegionizer<TickRegions.TickRegionData, TickRegions.TickRegionSectionData> regionizer = mock(ThreadedRegionizer.class);
++        field(world, "regioniser", regionizer);
++        StampedLock lock = new StampedLock();
++        doAnswer(invocation -> {
++            long stamp = lock.readLock();
++            try {
++                Consumer<ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData>> visitor = invocation.getArgument(0);
++                for (ChunkPos center : new ChunkPos[]{new ChunkPos(0, 0), null, new ChunkPos(1024, 1024)}) {
++                    ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData> region = mock(ThreadedRegionizer.ThreadedRegion.class);
++                    when(region.getCenterChunk()).thenReturn(center);
++                    visitor.accept(region);
++                }
++            } finally { lock.unlockRead(stamp); }
++            return null;
++        }).when(regionizer).computeForAllRegions(any());
++        RegionizedServer server = mock(RegionizedServer.class, CALLS_REAL_METHODS);
++        RegionizedTaskQueue queue = mock(RegionizedTaskQueue.class);
++        field(server, "taskQueue", queue);
++        List<Runnable> callbacks = new ArrayList<>();
++        when(queue.createTickTaskQueue(eq(world), anyInt(), anyInt(), any())).thenAnswer(invocation -> {
++            callbacks.add(invocation.getArgument(3));
++            var task = mock(PrioritisedExecutor.PrioritisedTask.class);
++            when(task.queue()).thenAnswer(ignored -> {
++                // Same lock upgrade as chunk-ticket admission, but fail promptly
++                // instead of hanging the test worker on the old implementation.
++                long stamp = lock.tryWriteLock();
++                assertNotEquals(0L, stamp, "queue insertion must not upgrade its own enumeration read lock");
++                lock.unlockWrite(stamp);
++                return true;
++            });
++            return task;
++        });
++        var result = server.awaitWorldRegionTasks(world);
++        assertEquals(2, callbacks.size());
++        assertFalse(result.isDone());
++        callbacks.getFirst().run();
++        assertFalse(result.isDone());
++        callbacks.getLast().run();
++        assertNull(result.join());
++    }
++
++    @Test
++    @SuppressWarnings("unchecked")
++    void failedQueueAdmissionIsReportedRatherThanSuccessfulDrain() throws Exception {
++        ServerLevel world = mock(ServerLevel.class);
++        ThreadedRegionizer<TickRegions.TickRegionData, TickRegions.TickRegionSectionData> regionizer = mock(ThreadedRegionizer.class);
++        field(world, "regioniser", regionizer);
++        doAnswer(invocation -> {
++            Consumer<ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData>> visitor = invocation.getArgument(0);
++            var region = mock(ThreadedRegionizer.ThreadedRegion.class);
++            when(region.getCenterChunk()).thenReturn(new ChunkPos(1, -1));
++            visitor.accept(region);
++            return null;
++        }).when(regionizer).computeForAllRegions(any());
++        RegionizedServer server = mock(RegionizedServer.class, CALLS_REAL_METHODS);
++        RegionizedTaskQueue queue = mock(RegionizedTaskQueue.class);
++        field(server, "taskQueue", queue);
++        when(queue.createTickTaskQueue(eq(world), anyInt(), anyInt(), any())).thenThrow(new IllegalStateException("ticket failure"));
++        assertTrue(server.awaitWorldRegionTasks(world).isCompletedExceptionally());
++    }
++}

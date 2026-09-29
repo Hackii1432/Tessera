@@ -97,6 +97,10 @@ public final class RuntimeWorldLifecycleSmokePlugin extends JavaPlugin {
             new NativeRestoreTransactionSmoke(this).start();
             return;
         }
+        if (this.mode.equals("native-restore-metadata")) {
+            new NativeRestoreMetadataSmoke(this).start();
+            return;
+        }
         if (this.mode.equals("native-restore-races")) {
             new NativeRestoreRaceSmoke(this).start();
             return;

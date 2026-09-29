@@ -1,0 +1,308 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Tue, 29 Sep 2026 02:15:47 +0200
+Subject: [PATCH] Preserve offline player identity and metadata through native
+ restore
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/NativePlayerRestoreBackend.java b/src/main/java/org/bukkit/craftbukkit/world/NativePlayerRestoreBackend.java
+index f0d35cf51d0505c696bef82fa31e5ac0dcdcb07d..b41b68f3e724deda34fc9bfbe776b1358908e5c7 100644
+--- a/src/main/java/org/bukkit/craftbukkit/world/NativePlayerRestoreBackend.java
++++ b/src/main/java/org/bukkit/craftbukkit/world/NativePlayerRestoreBackend.java
+@@ -138,7 +138,10 @@ final class NativePlayerRestoreBackend implements PlayerRestoreCoordinator.Backe
+             for (var entry : source.entrySet()) {
+                 operation.checkForward();
+                 Identity identity = tx.participants.get(entry.getKey());
+-                GameProfile profile = identity == null ? new GameProfile(entry.getKey(), "RestorePreview") : identity.profile;
++                // No profile lookup/cache insertion or synthetic persisted name.
++                // An absent name remains absent in the independently retained NBT.
++                GameProfile profile = identity == null ? new GameProfile(entry.getKey(), entry.getValue().data
++                    .getCompound("bukkit").flatMap(tag -> tag.getString("lastKnownName")).orElse("")) : identity.profile;
+                 ClientInformation options = identity == null ? ClientInformation.createDefault() : identity.options;
+                 tx.forward.put(entry.getKey(), this.preflight(worlds, profile, options, entry.getValue()));
+             }
+@@ -158,7 +161,7 @@ final class NativePlayerRestoreBackend implements PlayerRestoreCoordinator.Backe
+             }
+             tx.forwardStore = staging(tx.activeStore);
+             RestoreStoragePlatform.files().copyNew(operation.request.source(), tx.forwardStore);
+-            for (var entry : tx.forward.entrySet()) entry.getValue().image().write(tx.forwardStore);
++            for (var entry : tx.forward.entrySet()) entry.getValue().image().writePrepared(tx.forwardStore);
+             this.ensureRunning();
+             operation.checkForward();
+             return null;
+@@ -206,7 +209,7 @@ final class NativePlayerRestoreBackend implements PlayerRestoreCoordinator.Backe
+                 }
+                 prepared = staging(tx.activeStore);
+                 RestoreStoragePlatform.files().copyNew(operation.request.rollback(), prepared);
+-                for (NativePlayerRestoreState state : states.values()) state.image().write(prepared);
++                for (NativePlayerRestoreState state : states.values()) state.image().writePrepared(prepared);
+             }
+             if (prepared == null) throw failure(PlayerRestoreStatus.CONFLICT, "Prepared player store is missing");
+             this.ensureRunning();
+@@ -312,7 +315,8 @@ final class NativePlayerRestoreBackend implements PlayerRestoreCoordinator.Backe
+                 data.read("UUID", UUIDUtil.CODEC).ifPresent(saved -> {
+                     if (!saved.equals(id)) throw failure(PlayerRestoreStatus.VALIDATION_FAILED, "Player UUID differs from file name");
+                 });
+-                result.put(id, new Raw(data, stats.getOrDefault(id, new JsonObject()), advancements.getOrDefault(id, new JsonObject())));
++                // Null means no file, not a request to create an empty one.
++                result.put(id, new Raw(data, stats.get(id), advancements.get(id)));
+             }
+         }
+         return result;
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/NativePlayerRestoreState.java b/src/main/java/org/bukkit/craftbukkit/world/NativePlayerRestoreState.java
+index c70700a18a4aadc8359ab9381cd111ccd35614b7..bd70d01e0ba54d9e0b42b9a9898d8e7ad60e55e1 100644
+--- a/src/main/java/org/bukkit/craftbukkit/world/NativePlayerRestoreState.java
++++ b/src/main/java/org/bukkit/craftbukkit/world/NativePlayerRestoreState.java
+@@ -1,8 +1,8 @@
+ package org.bukkit.craftbukkit.world;
+ 
+ import com.google.gson.JsonElement;
++import com.google.gson.JsonObject;
+ import com.mojang.authlib.GameProfile;
+-import java.util.List;
+ import java.util.Map;
+ import java.util.UUID;
+ import java.util.concurrent.CompletableFuture;
+@@ -37,6 +37,7 @@ public final class NativePlayerRestoreState {
+     private final Map<Stat<?>, Integer> statistics;
+     private final JsonElement advancements;
+     private final JsonElement storedStatistics;
++    private final JsonElement storedAdvancements;
+     private final Location target;
+ 
+     private NativePlayerRestoreState(ServerPlayer preview, CompoundTag canonical,
+@@ -44,8 +45,9 @@ public final class NativePlayerRestoreState {
+         this.preview = preview;
+         this.canonical = canonical;
+         this.statistics = statistics;
+-        this.advancements = advancements.deepCopy();
+-        this.storedStatistics = storedStatistics.deepCopy();
++        this.advancements = advancements == null ? new JsonObject() : advancements.deepCopy();
++        this.storedAdvancements = advancements == null ? null : advancements.deepCopy();
++        this.storedStatistics = storedStatistics == null ? null : storedStatistics.deepCopy();
+         this.target = target.clone();
+     }
+ 
+@@ -57,8 +59,8 @@ public final class NativePlayerRestoreState {
+         ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(world, target.getBlockX() >> 4, target.getBlockZ() >> 4,
+             "Cannot preflight player state off the destination region");
+         if (!world.tessera$isRuntimeWorldActive()) throw new IllegalStateException("Restore target world is unavailable");
+-        var decodedStats = ServerStatsCounter.tessera$decodeRestore(server.getFixerUpper(), stats);
+-        PlayerAdvancements.tessera$validateRestore(server.getFixerUpper(), advancements);
++        var decodedStats = ServerStatsCounter.tessera$decodeRestore(server.getFixerUpper(), stats == null ? new JsonObject() : stats);
++        PlayerAdvancements.tessera$validateRestore(server.getFixerUpper(), advancements == null ? new JsonObject() : advancements);
+         CompoundTag input = source == null ? null : ca.spottedleaf.dataconverter.minecraft.MCDataConverter.convertTag(
+             ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry.PLAYER, source.copy(), NbtUtils.getDataVersion(source),
+             ca.spottedleaf.dataconverter.minecraft.util.Version.getCurrentVersion());
+@@ -85,22 +87,26 @@ public final class NativePlayerRestoreState {
+             throw new IllegalArgumentException("Saved respawn world is unavailable");
+         }
+         if (!Float.isFinite(fresh.getHealth()) || fresh.getHealth() < 0) throw new IllegalArgumentException("Invalid saved health");
+-        TagValueOutput output = TagValueOutput.createWithContext(problems, server.registryAccess());
+-        fresh.saveWithoutId(output);
++        // A detached player is a validator, never the author of an existing
++        // player's file. Saving it invents login/name/time metadata and drops
++        // unknown tags, absent fields and attachments not materialized by load.
++        // Only a genuinely missing online participant needs serialized defaults.
++        CompoundTag canonical = input;
++        if (canonical == null) {
++            TagValueOutput output = TagValueOutput.createWithContext(problems, server.registryAccess());
++            fresh.saveWithoutId(output);
++            canonical = output.buildResult();
++        }
+         if (!problems.isEmpty()) throw new IllegalArgumentException("Invalid player state: " + problems.getReport());
+-        CompoundTag canonical = output.buildResult();
+         NbtUtils.addCurrentDataVersion(canonical);
+-        if (input != null) {
+-            for (String field : List.of("RootVehicle", "ender_pearls", "abilities")) {
+-                if (input.contains(field)) canonical.put(field, input.get(field).copy());
+-            }
+-        }
+         NativeRestoreAttachments.validateLocal(canonical, world);
+         return new NativePlayerRestoreState(fresh, canonical, decodedStats, stats, advancements, target);
+     }
+ 
+     PlayerRestoreImage image() {
+-        return new PlayerRestoreImage(this.preview.getUUID(), this.canonical.copy(), this.storedStatistics.deepCopy(), this.advancements.deepCopy());
++        return new PlayerRestoreImage(this.preview.getUUID(), this.canonical.copy(),
++            this.storedStatistics == null ? null : this.storedStatistics.deepCopy(),
++            this.storedAdvancements == null ? null : this.storedAdvancements.deepCopy());
+     }
+ 
+     /** Every dispatched child and the real client teleport acknowledgement belongs to this stage. */
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/PlayerRestoreFiles.java b/src/main/java/org/bukkit/craftbukkit/world/PlayerRestoreFiles.java
+index efb77df8a3bb9e3f61db2013deb2f6ec6ef66543..330c7d3375334c06ae7f426b9b61db26370b34ab 100644
+--- a/src/main/java/org/bukkit/craftbukkit/world/PlayerRestoreFiles.java
++++ b/src/main/java/org/bukkit/craftbukkit/world/PlayerRestoreFiles.java
+@@ -131,6 +131,7 @@ final class PlayerRestoreFiles {
+             try (var files = Files.list(source.resolve(name))) {
+                 for (Path file : files.toList()) {
+                     Path copy = destination.resolve(file.getFileName());
++                    var modified = Files.getLastModifiedTime(file, LinkOption.NOFOLLOW_LINKS);
+                     // Never overwrite an existing file, follow a link, or accept
+                     // an incomplete stream copy as a successfully sealed backup.
+                     try (FileChannel input = FileChannel.open(file, StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS);
+@@ -147,6 +148,9 @@ final class PlayerRestoreFiles {
+                         if (input.size() != size) {
+                             throw new IOException("Source changed while copying: " + file);
+                         }
++                        // Missing Paper/Bukkit activity timestamps fall back to
++                        // file mtime. Backup/publication is not player activity.
++                        Files.setLastModifiedTime(copy, modified);
+                         output.force(true);
+                     }
+                 }
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/PlayerRestoreImage.java b/src/main/java/org/bukkit/craftbukkit/world/PlayerRestoreImage.java
+index a0bae375bf85090202a7ca82341b6c464b80ef14..03b99f599c5b0563cd394b15e73f47d7da3d4ae6 100644
+--- a/src/main/java/org/bukkit/craftbukkit/world/PlayerRestoreImage.java
++++ b/src/main/java/org/bukkit/craftbukkit/world/PlayerRestoreImage.java
+@@ -14,7 +14,7 @@ import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.util.ProblemReporter;
+ import net.minecraft.world.level.storage.TagValueOutput;
+ 
+-/** An immutable owner-thread capture. No live entity is dereferenced by its file writer. */
++/** An owner-thread image. Null JSON means an absent store file, not an empty store. */
+ record PlayerRestoreImage(UUID id, CompoundTag data, JsonElement stats, JsonElement advancements) {
+     static PlayerRestoreImage capture(ServerPlayer player) {
+         ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(player, "Cannot capture restore image off owner");
+@@ -28,14 +28,27 @@ record PlayerRestoreImage(UUID id, CompoundTag data, JsonElement stats, JsonElem
+     }
+ 
+     void write(Path root) throws IOException {
++        this.write(root, false);
++    }
++
++    /** Overlay converted NBT onto a source copy, retaining offline activity and JSON bytes. */
++    void writePrepared(Path root) throws IOException {
++        this.write(root, true);
++    }
++
++    private void write(Path root, boolean prepared) throws IOException {
+         Path dataFile = root.resolve("data").resolve(this.id + ".dat");
++        var modified = prepared && Files.exists(dataFile) ? Files.getLastModifiedTime(dataFile) : null;
+         NbtIo.writeCompressed(this.data, dataFile);
++        // CraftOfflinePlayer falls back to mtime for missing historical fields.
++        if (modified != null) Files.setLastModifiedTime(dataFile, modified);
+         force(dataFile);
+-        writeJson(root.resolve("stats").resolve(this.id + ".json"), this.stats);
+-        writeJson(root.resolve("advancements").resolve(this.id + ".json"), this.advancements);
++        writeJson(root.resolve("stats").resolve(this.id + ".json"), this.stats, prepared);
++        writeJson(root.resolve("advancements").resolve(this.id + ".json"), this.advancements, prepared);
+     }
+ 
+-    private static void writeJson(Path path, JsonElement value) throws IOException {
++    private static void writeJson(Path path, JsonElement value, boolean prepared) throws IOException {
++        if (value == null || prepared && Files.exists(path)) return;
+         Files.writeString(path, value.toString(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+         force(path);
+     }
+diff --git a/src/test/java/org/bukkit/craftbukkit/world/PlayerRestoreFilesTest.java b/src/test/java/org/bukkit/craftbukkit/world/PlayerRestoreFilesTest.java
+index 3fe6c660da52a825fdcf0a87bc2995584bf27e90..4d059cf63cf9a95fb1c50dac094e900371764ea6 100644
+--- a/src/test/java/org/bukkit/craftbukkit/world/PlayerRestoreFilesTest.java
++++ b/src/test/java/org/bukkit/craftbukkit/world/PlayerRestoreFilesTest.java
+@@ -35,6 +35,23 @@ class PlayerRestoreFilesTest {
+         assertThrows(IOException.class, () -> new PlayerRestoreFiles(forced::add).copyNew(source, target));
+     }
+ 
++    @Test
++    void copiesAndPublishesOriginalActivityFallbackTimes() throws Exception {
++        Path source = this.store("source", "saved");
++        var time = java.nio.file.attribute.FileTime.fromMillis(1_600_000_000_000L);
++        for (String directory : PlayerRestoreFiles.DIRECTORIES) {
++            Files.setLastModifiedTime(source.resolve(directory).resolve("offline.dat"), time);
++        }
++        var files = new PlayerRestoreFiles(ignored -> {});
++        Path prepared = this.root.resolve("prepared");
++        files.copyNew(source, prepared);
++        Path active = this.store("active", "previous");
++        files.publish(prepared, active, UUID.randomUUID(), "forward");
++        for (String directory : PlayerRestoreFiles.DIRECTORIES) {
++            assertEquals(time, Files.getLastModifiedTime(active.resolve(directory).resolve("offline.dat")));
++        }
++    }
++
+     @Test
+     void incompleteSourceAndOverlappingPathsAreRejectedBeforeCreatingOutput() throws Exception {
+         Path source = Files.createDirectory(this.root.resolve("incomplete"));
+diff --git a/src/test/java/org/bukkit/craftbukkit/world/PlayerRestoreImageTest.java b/src/test/java/org/bukkit/craftbukkit/world/PlayerRestoreImageTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..dd89a58a4f19285a4aa37abfd0813d9062358a43
+--- /dev/null
++++ b/src/test/java/org/bukkit/craftbukkit/world/PlayerRestoreImageTest.java
+@@ -0,0 +1,76 @@
++package org.bukkit.craftbukkit.world;
++
++import com.google.gson.JsonObject;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.nio.file.attribute.FileTime;
++import java.util.UUID;
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.nbt.NbtAccounter;
++import net.minecraft.nbt.NbtIo;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.api.io.TempDir;
++
++import static org.junit.jupiter.api.Assertions.*;
++
++@Tag("Normal")
++class PlayerRestoreImageTest {
++    @TempDir Path root;
++
++    private void directories() throws Exception {
++        for (String directory : PlayerRestoreFiles.DIRECTORIES) Files.createDirectory(this.root.resolve(directory));
++    }
++
++    @Test
++    void preparedOverlayPreservesUnknownTagsAbsentStoresAndFileTime() throws Exception {
++        this.directories();
++        UUID id = UUID.randomUUID();
++        Path file = this.root.resolve("data/" + id + ".dat");
++        CompoundTag data = new CompoundTag();
++        CompoundTag extra = new CompoundTag();
++        extra.putString("opaque", "not understood by ServerPlayer");
++        data.put("third-party", extra);
++        data.put("bukkit", new CompoundTag());
++        NbtIo.writeCompressed(data, file);
++        FileTime time = FileTime.fromMillis(1_600_000_000_000L);
++        Files.setLastModifiedTime(file, time);
++        new PlayerRestoreImage(id, data.copy(), null, null).writePrepared(this.root);
++        assertEquals(data, NbtIo.readCompressed(file, NbtAccounter.unlimitedHeap()));
++        assertEquals(time, Files.getLastModifiedTime(file));
++        assertFalse(Files.exists(this.root.resolve("stats/" + id + ".json")));
++        assertFalse(Files.exists(this.root.resolve("advancements/" + id + ".json")));
++        assertFalse(data.getCompound("bukkit").orElseThrow().contains("lastKnownName"));
++    }
++
++    @Test
++    void preparedJsonIsNotReformattedOrMarkedActive() throws Exception {
++        this.directories();
++        UUID id = UUID.randomUUID();
++        FileTime time = FileTime.fromMillis(1_600_000_000_000L);
++        for (String directory : new String[]{"stats", "advancements"}) {
++            Path file = this.root.resolve(directory).resolve(id + ".json");
++            Files.writeString(file, "{\n  \"opaque\": 42\n}\n");
++            Files.setLastModifiedTime(file, time);
++        }
++        new PlayerRestoreImage(id, new CompoundTag(), new JsonObject(), new JsonObject()).writePrepared(this.root);
++        for (String directory : new String[]{"stats", "advancements"}) {
++            Path file = this.root.resolve(directory).resolve(id + ".json");
++            assertEquals("{\n  \"opaque\": 42\n}\n", Files.readString(file));
++            assertEquals(time, Files.getLastModifiedTime(file));
++        }
++    }
++
++    @Test
++    void liveCaptureStillReplacesExistingJsonAndFreshParticipantsGetStores() throws Exception {
++        this.directories();
++        UUID id = UUID.randomUUID();
++        var image = new PlayerRestoreImage(id, new CompoundTag(), new JsonObject(), new JsonObject());
++        image.writePrepared(this.root);
++        Path stats = this.root.resolve("stats/" + id + ".json");
++        Files.writeString(stats, "{\"obsolete\": 42}");
++        image.write(this.root);
++        assertEquals("{}", Files.readString(stats));
++        assertEquals("{}", Files.readString(this.root.resolve("advancements/" + id + ".json")));
++    }
++}
