@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Tue, 29 Sep 2026 22:55:00 +0200
+Subject: [PATCH] Keep Ender eye locating independent of portal gamerule
+
+
+diff --git a/net/minecraft/world/item/EnderEyeItem.java b/net/minecraft/world/item/EnderEyeItem.java
+index 78631d0f69dbaa106ce80fbb47cd6b6f8b93e0ba..f69f02df62869eb493d63e52fde7e288fee59e67 100644
+--- a/net/minecraft/world/item/EnderEyeItem.java
++++ b/net/minecraft/world/item/EnderEyeItem.java
+@@ -40,14 +40,17 @@ public class EnderEyeItem extends Item {
+         BlockPos pos = context.getClickedPos();
+         BlockState targetState = level.getBlockState(pos);
+ 
++        if (!targetState.is(Blocks.END_PORTAL_FRAME) || targetState.getValue(EndPortalFrameBlock.HAS_EYE)) {
++            return InteractionResult.PASS;
++        }
++
+         // Tessera start - eyes of ender gamerule
++        // Only gate inserting an eye. Other blocks must PASS so the ordinary
++        // item-use fallback can still launch an eye and locate strongholds.
+         if (level instanceof ServerLevel serverLevel && !serverLevel.getGameRules().get(GameRules.ALLOW_EYES_OF_ENDER_USE)) {
+             return InteractionResult.FAIL;
+         }
+         // Tessera end - eyes of ender gamerule
+-        if (!targetState.is(Blocks.END_PORTAL_FRAME) || targetState.getValue(EndPortalFrameBlock.HAS_EYE)) {
+-            return InteractionResult.PASS;
+-        }
+ 
+         if (level.isClientSide()) {
+             return InteractionResult.SUCCESS;
+@@ -109,11 +112,7 @@ public class EnderEyeItem extends Item {
+ 
+     @Override
+     public InteractionResult use(final Level level, final Player player, final InteractionHand hand) {
+-        // Tessera start - eyes of ender gamerule
+-        if (level instanceof ServerLevel serverLevel && !serverLevel.getGameRules().get(GameRules.ALLOW_EYES_OF_ENDER_USE)) {
+-            return InteractionResult.FAIL;
+-        }
+-        // Tessera end - eyes of ender gamerule
++        // Tessera - the portal gamerule does not restrict Vanilla eye launches or stronghold lookup.
+         ItemStack itemStack = player.getItemInHand(hand);
+         BlockHitResult hitResult = getPlayerPOVHitResult(level, player, ClipContext.Fluid.NONE);
+         if (hitResult.getType() == HitResult.Type.BLOCK && level.getBlockState(hitResult.getBlockPos()).is(Blocks.END_PORTAL_FRAME)) {

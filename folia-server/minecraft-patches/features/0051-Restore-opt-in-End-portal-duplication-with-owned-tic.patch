@@ -1,0 +1,264 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Tue, 29 Sep 2026 21:29:36 +0200
+Subject: [PATCH] Restore opt-in End portal duplication with owned tick
+ continuations
+
+Resume the vanilla landing tail on a separately registered source entity instead of ticking the removed original. Preserve Tessera asynchronous portal preflight, plugin vetoes and wrapper ownership. Continuation approach informed by CraftCanvasMC/Canvas PR 307; implemented against Tessera's deferred transfer lifecycle.
+
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index c105e6b907e49e06c2c24f60fb09982fb5b077c1..9ba374ee88e539d2e58594cc433d095c41d80566 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -5052,6 +5052,15 @@ public abstract class Entity
+ 
+     }
+ 
++    // Tessera start - owned End portal falling-block tick continuation
++    protected void tessera$portalTransferQueued(ServerLevel origin, ServerLevel destination, PortalType type) {
++    }
++
++    protected @Nullable Runnable tessera$finishPortalPreparation(boolean transferring) {
++        return null;
++    }
++    // Tessera end - owned End portal falling-block tick continuation
++
+     protected boolean portalToAsync(ServerLevel destination, BlockPos portalPos, boolean takePassengers,
+                                     PortalType type, AsyncPortalTarget target,
+                                     java.util.function.Consumer<Entity> teleportComplete) {
+@@ -5076,6 +5085,7 @@ public abstract class Entity
+                     if (throwable != null || info == null || current.level() != originWorld
+                         || !isUsablePortalTarget(destination)
+                         || !current.canPortalAsync(destination, takePassengers)) {
++                        current.tessera$finishPortalPreparation(false); // Tessera - resume a suspended falling-block tick on failure
+                         if (teleportComplete != null) {
+                             teleportComplete.accept(null);
+                         }
+@@ -5097,7 +5107,16 @@ public abstract class Entity
+             }
+         });
+ 
+-        this.findOrCreatePortalAsync(originWorld, portalPos, destination, type, target, portalInfoCompletable);
++        // Tessera start - capture only after portal events/admission, on the source owner
++        try {
++            this.tessera$portalTransferQueued(originWorld, destination, type);
++            this.findOrCreatePortalAsync(originWorld, portalPos, destination, type, target, portalInfoCompletable);
++        } catch (RuntimeException | Error failure) {
++            this.tessera$portalTransferPending = false;
++            this.tessera$finishPortalPreparation(false);
++            throw failure;
++        }
++        // Tessera end - capture only after portal events/admission, on the source owner
+ 
+         return true;
+     }
+@@ -5111,6 +5130,7 @@ public abstract class Entity
+         final java.util.function.Consumer<Entity> teleportComplete
+     ) {
+         ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this, "Cannot complete portal transfer off the owning region");
++        final Runnable sourceContinuation = this.tessera$finishPortalPreparation(true); // Tessera - before wrapper forwarding/removal
+         final EntityTreeNode passengerTree = this.detachPassengers();
+         final List<EntityTreeNode> fullPassengerTree = passengerTree.getFullTree();
+         for (final EntityTreeNode node : fullPassengerTree) {
+@@ -5136,6 +5156,11 @@ public abstract class Entity
+                 }
+             }
+         );
++        // Tessera start - never tick the removed original or touch the destination here
++        if (sourceContinuation != null) {
++            sourceContinuation.run();
++        }
++        // Tessera end - owned End portal falling-block tick continuation
+     }
+     // Folia end - region threading
+ 
+diff --git a/net/minecraft/world/entity/item/FallingBlockEntity.java b/net/minecraft/world/entity/item/FallingBlockEntity.java
+index 0ee702caeedd29c7f4cde07e88608e837f93dd28..dfe9bdc4d912f57f7b9f6af4a3e6880abc970a82 100644
+--- a/net/minecraft/world/entity/item/FallingBlockEntity.java
++++ b/net/minecraft/world/entity/item/FallingBlockEntity.java
+@@ -75,6 +75,13 @@ public class FallingBlockEntity extends Entity {
+     public boolean forceTickAfterTeleportToDuplicate;
+     protected static final EntityDataAccessor<BlockPos> DATA_START_POS = SynchedEntityData.defineId(FallingBlockEntity.class, EntityDataSerializers.BLOCK_POS);
+     public boolean autoExpire = true; // Paper - Expand FallingBlock API
++    // Tessera start - owned End portal falling-block tick continuation
++    private @Nullable FallingBlockEntity tessera$portalContinuation;
++    private boolean tessera$insidePortalTick;
++    private boolean tessera$skipPostTickPortal;
++    private boolean tessera$continuationOnly;
++    private boolean tessera$continuationTicked;
++    // Tessera end - owned End portal falling-block tick continuation
+ 
+     public FallingBlockEntity(final EntityType<? extends FallingBlockEntity> type, final Level level) {
+         super(type, level);
+@@ -150,23 +157,21 @@ public class FallingBlockEntity extends Entity {
+ 
+     @Override
+     public void tick() {
++        // Tessera start - retain the mid-tick state while the destination is prepared
++        if (this.tessera$portalContinuation != null || this.tessera$continuationTicked) {
++            return;
++        }
++        if (this.tessera$continuationOnly) {
++            this.tessera$continuationTicked = true;
++        }
++        // Tessera end - owned End portal falling-block tick continuation
+         if (this.blockState.isAir()) {
+             this.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.DESPAWN); // CraftBukkit - add Bukkit remove cause
+         } else {
+             Block block = this.blockState.getBlock();
+-            this.time++;
+-            this.applyGravity();
+-            this.move(MoverType.SELF, this.getDeltaMovement());
+-            this.applyEffectsFromBlocks();
+-            // Paper start - Configurable falling blocks height nerf
+-            if (this.level().paperConfig().fixes.fallingBlockHeightNerf.test(v -> this.getY() > v)) {
+-                if (this.dropItem && this.level() instanceof final ServerLevel serverLevel && serverLevel.getGameRules().get(GameRules.ENTITY_DROPS)) {
+-                    this.spawnAtLocation(serverLevel, block);
+-                }
+-                this.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.OUT_OF_WORLD);
++            if (this.tessera$runTickPrefix(block)) { // Tessera - resume only the unchanged landing/placement tail
+                 return;
+             }
+-            // Paper end - Configurable falling blocks height nerf
+             //this.handlePortal(); // Folia - region threading
+             if (this.level() instanceof ServerLevel serverLevel && (this.isAlive() || this.forceTickAfterTeleportToDuplicate)) {
+                 BlockPos pos = this.blockPosition();
+@@ -215,6 +220,10 @@ public class FallingBlockEntity extends Entity {
+                                     return;
+                                 }
+                                 // CraftBukkit end
++                                // Tessera - a listener may retire the one-shot source continuation.
++                                if (this.tessera$continuationOnly && this.isRemoved()) {
++                                    return;
++                                }
+                                 if (this.level().setBlockAndUpdate(pos, this.blockState)) {
+                                     serverLevel.getChunkSource()
+                                         .chunkMap
+@@ -277,6 +286,127 @@ public class FallingBlockEntity extends Entity {
+         }
+     }
+ 
++    // Tessera start - owned End portal falling-block tick continuation
++    private boolean tessera$runTickPrefix(final Block block) {
++        if (this.tessera$continuationOnly) {
++            return false;
++        }
++        this.time++;
++        this.applyGravity();
++        this.move(MoverType.SELF, this.getDeltaMovement());
++        this.applyEffectsFromBlocks();
++        // Paper - Configurable falling blocks height nerf (unchanged)
++        if (this.level().paperConfig().fixes.fallingBlockHeightNerf.test(v -> this.getY() > v)) {
++            if (this.dropItem && this.level() instanceof final ServerLevel serverLevel && serverLevel.getGameRules().get(GameRules.ENTITY_DROPS)) {
++                this.spawnAtLocation(serverLevel, block);
++            }
++            this.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.OUT_OF_WORLD);
++            return true;
++        }
++        if (this.isAlive()
++            && io.papermc.paper.configuration.GlobalConfiguration.get().unsupportedSettings.allowUnsafeEndPortalTeleportation
++            && this.portalProcess != null
++            && this.portalProcess.isSamePortal((net.minecraft.world.level.block.Portal) Blocks.END_PORTAL)) {
++            this.tessera$insidePortalTick = true;
++            this.tessera$skipPostTickPortal = true;
++            try {
++                super.handlePortal();
++            } finally {
++                this.tessera$insidePortalTick = false;
++            }
++            return this.tessera$portalContinuation != null || this.isRemoved();
++        }
++        return false;
++    }
++
++    @Override
++    public boolean handlePortal() {
++        if (this.tessera$skipPostTickPortal || this.tessera$portalContinuation != null || this.tessera$continuationOnly) {
++            this.tessera$skipPostTickPortal = false;
++            return false;
++        }
++        return super.handlePortal();
++    }
++
++    @Override
++    protected boolean canTeleportAsync() {
++        // The one-shot source tail is not another transferable falling block.
++        return !this.tessera$continuationOnly && super.canTeleportAsync();
++    }
++
++    @Override
++    protected void tessera$portalTransferQueued(final ServerLevel origin, final ServerLevel destination, final Entity.PortalType type) {
++        // No passenger trees, unrelated teleports, Nether portals or plugin redirection
++        // to a non-End dimension. The disabled setting follows Folia's existing path.
++        if (!this.tessera$insidePortalTick || type != Entity.PortalType.END || origin == destination
++            || (origin.dimension() != Level.END && destination.dimension() != Level.END)
++            || this.isPassenger() || this.isVehicle()
++            || !io.papermc.paper.configuration.GlobalConfiguration.get().unsupportedSettings.allowUnsafeEndPortalTeleportation) {
++            return;
++        }
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this, "Cannot capture falling-block portal continuation off owner");
++        final FallingBlockEntity continuation = new FallingBlockEntity(EntityTypes.FALLING_BLOCK, origin);
++        // Entity.restoreFrom also forwards the Bukkit handle. A continuation MUST
++        // NOT steal that handle, its scheduler, UUID or passenger tree.
++        try (ProblemReporter.ScopedCollector reporter = new ProblemReporter.ScopedCollector(this.problemPath(), LOGGER)) {
++            TagValueOutput output = TagValueOutput.createWithContext(reporter, this.registryAccess());
++            this.saveWithoutId(output);
++            continuation.load(TagValueInput.create(reporter, origin.registryAccess(), output.buildResult()));
++        }
++        continuation.setUUID(java.util.UUID.randomUUID());
++        continuation.portalProcess = null;
++        continuation.forceTickAfterTeleportToDuplicate = false;
++        continuation.tessera$continuationOnly = true;
++        continuation.setStartPos(this.getStartPos());
++        continuation.setDeltaMovement(this.getDeltaMovement());
++        continuation.xo = this.xo;
++        continuation.yo = this.yo;
++        continuation.zo = this.zo;
++        continuation.xOld = this.xOld;
++        continuation.yOld = this.yOld;
++        continuation.zOld = this.zOld;
++        continuation.onGround = this.onGround;
++        continuation.horizontalCollision = this.horizontalCollision;
++        continuation.verticalCollision = this.verticalCollision;
++        continuation.verticalCollisionBelow = this.verticalCollisionBelow;
++        continuation.minorHorizontalCollision = this.minorHorizontalCollision;
++        this.tessera$portalContinuation = continuation;
++    }
++
++    @Override
++    protected @Nullable Runnable tessera$finishPortalPreparation(final boolean transferring) {
++        final FallingBlockEntity continuation = this.tessera$portalContinuation;
++        this.tessera$portalContinuation = null;
++        if (continuation == null || !transferring
++            || !io.papermc.paper.configuration.GlobalConfiguration.get().unsupportedSettings.allowUnsafeEndPortalTeleportation
++            || this.level() != continuation.level() || !this.position().equals(continuation.position())) {
++            return null;
++        }
++        final ServerLevel origin = (ServerLevel) continuation.level();
++        // A plugin/piston can move the original during preparation. Never route a
++        // stale frame across owners, or revive it in an unloading/replaced world.
++        if (!origin.tessera$isRuntimeWorldActive()
++            || origin.getServer().getLevel(origin.dimension()) != origin
++            || !ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(origin,
++                continuation.getBoundingBox().minmax(new net.minecraft.world.phys.AABB(
++                    continuation.xo, continuation.yo, continuation.zo, continuation.xo, continuation.yo, continuation.zo)).inflate(1.0))) {
++            return null;
++        }
++        return () -> {
++            try {
++                origin.addDuringTeleport(continuation);
++                if (!continuation.hasNullCallback() && !continuation.isRemoved()) {
++                    continuation.tick();
++                }
++            } finally {
++                if (!continuation.isRemoved()) {
++                    continuation.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.DESPAWN);
++                }
++            }
++        };
++    }
++    // Tessera end - owned End portal falling-block tick continuation
++
+     @Override
+     public boolean causeFallDamage(final double fallDistance, final float damageModifier, final DamageSource damageSource) {
+         if (!this.hurtEntities) {

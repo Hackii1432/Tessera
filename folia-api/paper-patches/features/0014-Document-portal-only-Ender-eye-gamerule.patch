@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Tue, 29 Sep 2026 22:55:00 +0200
+Subject: [PATCH] Document portal-only Ender eye gamerule
+
+
+diff --git a/src/main/java/org/bukkit/GameRule.java b/src/main/java/org/bukkit/GameRule.java
+index d94cfded6d16f1b337e666e8dc9c219bb0f27d73..72dfbe3dfa311c82afaafef3dfde0b6edc2580f6 100644
+--- a/src/main/java/org/bukkit/GameRule.java
++++ b/src/main/java/org/bukkit/GameRule.java
+@@ -23,8 +23,8 @@ public abstract class GameRule<T> implements net.kyori.adventure.translation.Tra
+ 
+     // Tessera start - eyes of ender gamerule
+     /**
+-     * Toggles using eyes of ender in portal frames and as projectiles.
+-     * This also controls travelling through end portals.
++     * Controls inserting eyes of ender into portal frames and travelling through
++     * end portals. Throwing eyes to locate strongholds remains allowed.
+      *
+      * @deprecated renamed to {@link GameRules#ALLOW_EYES_OF_ENDER_USE}
+      */
+diff --git a/src/main/java/org/bukkit/GameRules.java b/src/main/java/org/bukkit/GameRules.java
+index 8d400b50f41aad400a96f928454a05fb70546021..59f35eb1eaa460a351caf64f534089002f99b601 100644
+--- a/src/main/java/org/bukkit/GameRules.java
++++ b/src/main/java/org/bukkit/GameRules.java
+@@ -13,7 +13,8 @@ public final class GameRules {
+ 
+     // Tessera start - eyes of ender gamerule
+     /**
+-     * Controls using eyes of ender and travelling through end portals.
++     * Controls inserting eyes of ender into portal frames and travelling through
++     * end portals. Throwing eyes to locate strongholds remains allowed.
+      */
+     public static final GameRule<Boolean> ALLOW_EYES_OF_ENDER_USE = getRule("allow_eyes_of_ender_use");
+     // Tessera end - eyes of ender gamerule

@@ -1,0 +1,151 @@
+{
+  "date": "2026-09-29",
+  "sourceBaseCommit": "b8c29f2e89e806ed8f6eb7fa42285d857395ad86",
+  "sourceChanges": "Local Minecraft patch 0051 and server test patch 0040; no Tessera root commit or push",
+  "artifact": "tessera-server-26.3.build.013-beta.jar",
+  "artifactBytes": 55382588,
+  "sha256": "8a549633f6089143422f4ce4a6def7fda0145187e77b5c1a5b3b6843a06a3a1a",
+  "java": 25,
+  "build": {
+    "task": "buildTessera",
+    "passed": true,
+    "duration": "11m 15s",
+    "log": "build/build-013-beta-final.log",
+    "patchesReapplied": true
+  },
+  "regressionTests": {
+    "server": {
+      "tests": 10183,
+      "skipped": 87,
+      "failures": 0,
+      "errors": 0
+    },
+    "api": {
+      "tests": 529,
+      "skipped": 2,
+      "failures": 0,
+      "errors": 0,
+      "execution": "UP-TO-DATE; unchanged API"
+    },
+    "newContinuationGuards": {
+      "tests": 6,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    }
+  },
+  "nativePortalRuns": [
+    {
+      "fixture": "end-portal-dupe-false-1790711117752",
+      "enabled": false,
+      "passed": true,
+      "exitCode": 0,
+      "timedOut": false,
+      "cases": [
+        "landing-0: SAND, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "landing-9: ANVIL, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "landing-8: WHITE_CONCRETE_POWDER, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "landing-7: GRAVEL, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "landing-6: RED_SAND, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "landing-5: SAND, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "landing-1: RED_SAND, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "landing-2: GRAVEL, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "landing-3: WHITE_CONCRETE_POWDER, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "landing-4: ANVIL, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "landing-15: SAND, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "landing-10: SAND, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "landing-18: WHITE_CONCRETE_POWDER, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "landing-16: RED_SAND, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "landing-17: GRAVEL, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "landing-11: RED_SAND, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "landing-19: ANVIL, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "landing-12: GRAVEL, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "landing-13: WHITE_CONCRETE_POWDER, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "landing-14: ANVIL, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "airborne: SAND, source=0, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "veto: SAND, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "placement-veto: SAND, source=0, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "redirect: SAND, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "retire: SAND, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "enter-veto: SAND, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "continuation-retire: SAND, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "drop: SAND, source=0, target=0, portalEvents=0, dropEvents=1, no leaked entities/items",
+        "drop-veto: SAND, source=0, target=0, portalEvents=0, dropEvents=1, no leaked entities/items",
+        "return-0: SAND, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "return-4: ANVIL, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "return-3: WHITE_CONCRETE_POWDER, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "return-1: RED_SAND, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "return-2: GRAVEL, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items"
+      ]
+    },
+    {
+      "fixture": "end-portal-dupe-true-1790711203384",
+      "enabled": true,
+      "passed": true,
+      "exitCode": 0,
+      "timedOut": false,
+      "cases": [
+        "landing-9: ANVIL, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "landing-8: WHITE_CONCRETE_POWDER, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "landing-0: SAND, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "landing-7: GRAVEL, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "landing-6: RED_SAND, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "landing-5: SAND, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "landing-1: RED_SAND, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "landing-2: GRAVEL, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "landing-3: WHITE_CONCRETE_POWDER, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "landing-4: ANVIL, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "landing-15: SAND, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "landing-10: SAND, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "landing-18: WHITE_CONCRETE_POWDER, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "landing-19: ANVIL, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "landing-16: RED_SAND, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "landing-17: GRAVEL, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "landing-11: RED_SAND, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "landing-12: GRAVEL, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "landing-14: ANVIL, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "landing-13: WHITE_CONCRETE_POWDER, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "airborne: SAND, source=0, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "veto: SAND, source=1, target=0, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "placement-veto: SAND, source=0, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "redirect: SAND, source=1, target=0, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "retire: SAND, source=0, target=0, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "enter-veto: SAND, source=1, target=0, portalEvents=0, dropEvents=0, no leaked entities/items",
+        "continuation-retire: SAND, source=0, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "drop: SAND, source=0, target=1, portalEvents=1, dropEvents=1, no leaked entities/items",
+        "drop-veto: SAND, source=0, target=1, portalEvents=1, dropEvents=1, no leaked entities/items",
+        "return-4: ANVIL, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "return-3: WHITE_CONCRETE_POWDER, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "return-2: GRAVEL, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "return-1: RED_SAND, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items",
+        "return-0: SAND, source=1, target=1, portalEvents=1, dropEvents=0, no leaked entities/items"
+      ]
+    }
+  ],
+  "runtimeLifecycle": {
+    "fixture": "paper-beta-smoke-full-1790711120070",
+    "passed": true,
+    "exitCode": 0,
+    "timedOut": false,
+    "status": "PASS",
+    "mode": "full",
+    "checks": 298,
+    "regionThreads": "[Folia Region Scheduler Thread #0, Folia Region Scheduler Thread #1]",
+    "failure": "",
+    "interactivePlayerLifecycle": "SKIPPED; no connected player"
+  },
+  "otherChecks": {
+    "buildSupportSelfTests": 22,
+    "documentationValidatorTests": 57,
+    "apiArticles": 19,
+    "apiArticleLinks": 49,
+    "compiledApiExamples": 9,
+    "newChangelogMetadataAndLinks": "PASS",
+    "allHistoricalChangelogs": "FAIL: pre-existing unquoted frontmatter in docs/builds/26.2/0.0.1.md; unchanged"
+  },
+  "scopeLimits": [
+    "No complete player-built piston/slime/honey duper or visual client test",
+    "No MCC/MVE or external gameplay plugin integration rerun",
+    "No large-farm throughput benchmark or crash-atomic two-world persistence test"
+  ]
+}

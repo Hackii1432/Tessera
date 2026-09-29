@@ -3,7 +3,7 @@ title: "Events bei Welt-Lifecycle, Portalen und Respawn"
 description: "Geerbte Events im tatsächlichen Tessera-Threadkontext und der operationsgebundene Restore-Teleport-Scope."
 navTitle: "Events"
 order: 100
-updated: 2026-09-28
+updated: 2026-09-29
 minecraftVersion: "26.3"
 badge: "Referenz"
 ---
@@ -55,6 +55,47 @@ verbotener Erzeugung, Logout oder entladene/ersetzte Zielwelten sind kein Erfolg
 Nach tatsächlicher Platzierung läuft der ChangedWorld-Handler auf der Zielregion.
 Vanilla-Skalierung, Weltgrenze, Portalrelativposition, Cooldown und Plattformregeln
 bleiben Teil des nativen Pfads.
+
+### Optionale Endportal-Nachbearbeitung fallender Blöcke
+
+Ab Tessera `013-beta` aktiviert die geerbte, standardmäßig ausgeschaltete Option
+`unsupported-settings.allow-unsafe-end-portal-teleportation` auch im Regionsmodell
+die quellseitige Landungs-/Drop-Nachbearbeitung für geeignete fallende Blöcke an
+Endportalen. Das ist ausdrücklich eine Duplizierungsoption, keine neue API und
+keine allgemeine Lockerung der Threadprüfungen.
+
+Ein zulässiger Transfer behält die UUID, den Bukkit-Wrapper und den Scheduler
+der ursprünglichen Entity. Die zusätzliche einmalige Quell-Nachbearbeitung
+verwendet eine andere, kurzzeitig registrierte FallingBlock-Entity mit eigener
+UUID und eigenem Wrapper auf dem Ursprungsbesitzer. Plugins dürfen diese beiden
+Identitäten nicht als denselben weiterlebenden FallingBlock behandeln. Die
+Quell-Entity wird nach der Nachbearbeitung entfernt und kann nicht selbst noch
+einmal asynchron teleportiert werden.
+
+`EntityPortalEvent`-Vetos verhindern diesen Transfer und damit die zusätzliche
+Nachbearbeitung. Ein `EntityChangeBlockEvent` der Quell-Nachbearbeitung lässt sich
+regulär abbrechen; das nimmt den bereits eingereihten Zieltransfer **nicht**
+zurück. Ziel- und Quell-Handler können auf unterschiedlichen Regions-Threads
+laufen. Die Quell-Nachbearbeitung beweist nicht, dass das Ziel bereits angekommen
+ist. Keine fremde Entity bzw. Welt synchron aus dem jeweiligen Handler abfragen.
+Nach Plugin-Disable besteht keine Zusage auf weitere Plugin-Callbacks.
+
+Bei umgeleiteten, ungültigen oder zwischenzeitlich verschobenen Quellzuständen
+verzichtet der Server auf eine unsichere zusätzliche Quell-Nachbearbeitung.
+Asynchrone Zielvorbereitung kann Redstone-Timing verändern; identisches Timing
+beliebiger Vanilla-Duper ist kein API-Vertrag. Bei deaktivierter Option bleibt
+die zusätzliche Quell-Nachbearbeitung ausgeschaltet.
+
+Ab `014-beta` liegt das unveränderte Standardziel fallender Blöcke beim Eintritt
+ins End wie in Vanilla bei `(100.5, 50, 0.5)`, die Obsidianoberfläche weiterhin
+bei Y=49. Diese Höhenkorrektur gilt auch ohne Duplizierungsoption. Sie verhindert
+die vorzeitige Landung direkt bei Ankunft; vorhandene Geschwindigkeit und native
+Portalrotation bestimmen den anschließenden Flug, nicht ein künstlicher Schub.
+Das `EntityPortalEvent` erhält dieses korrigierte Standardziel. Abweichende
+Zielkoordinaten eines Listeners werden nicht um einen Block verschoben und
+behalten ihre bisherige Plattformgeometrie. Spieler und andere Entity-Typen
+behalten ihre bisherige Ankunftshöhe. Platzierung, Buttons, Drops und Hopper
+folgen danach der normalen Block-/Entity-Physik auf dem Zielbesitzer.
 
 ## Respawn
 

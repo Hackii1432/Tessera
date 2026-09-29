@@ -89,6 +89,14 @@ public final class RuntimeWorldLifecycleSmokePlugin extends JavaPlugin {
             return;
         }
         this.worlds = Bukkit.getRuntimeWorldManager();
+        if (this.mode.equals("end-portal-flight")) {
+            new EndPortalFlightSmoke(this).start();
+            return;
+        }
+        if (this.mode.equals("end-portal-duplication")) {
+            new EndPortalDuplicationSmoke(this).start();
+            return;
+        }
         if (this.mode.equals("paper-beta")) {
             new PaperBetaSmoke(this).start();
             return;

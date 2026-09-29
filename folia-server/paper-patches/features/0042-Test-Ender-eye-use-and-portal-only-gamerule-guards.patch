@@ -1,0 +1,177 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Tue, 29 Sep 2026 22:55:00 +0200
+Subject: [PATCH] Test Ender eye use and portal-only gamerule guards
+
+
+diff --git a/src/test/java/io/papermc/paper/porting/EnderEyePortalRuleTest.java b/src/test/java/io/papermc/paper/porting/EnderEyePortalRuleTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..e52e55f824aafb0807908109f28fc7df4b38fbad
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/porting/EnderEyePortalRuleTest.java
+@@ -0,0 +1,165 @@
++package io.papermc.paper.porting;
++
++import ca.spottedleaf.moonrise.common.util.TickThread;
++import net.minecraft.core.BlockPos;
++import net.minecraft.core.Direction;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.tags.StructureTags;
++import net.minecraft.util.RandomSource;
++import net.minecraft.world.InteractionHand;
++import net.minecraft.world.InteractionResult;
++import net.minecraft.world.entity.Entity;
++import net.minecraft.world.entity.player.Player;
++import net.minecraft.world.entity.projectile.EyeOfEnder;
++import net.minecraft.world.flag.FeatureFlags;
++import net.minecraft.world.item.ItemStack;
++import net.minecraft.world.item.Items;
++import net.minecraft.world.item.context.UseOnContext;
++import net.minecraft.world.level.ClipContext;
++import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.block.EndPortalBlock;
++import net.minecraft.world.level.block.EndPortalFrameBlock;
++import net.minecraft.world.level.block.state.pattern.BlockPattern;
++import net.minecraft.world.level.gamerules.GameRules;
++import net.minecraft.world.phys.BlockHitResult;
++import net.minecraft.world.phys.Vec3;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.support.environment.VanillaFeature;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.params.ParameterizedTest;
++import org.junit.jupiter.params.provider.CsvSource;
++import org.junit.jupiter.params.provider.ValueSource;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.ArgumentMatchers.*;
++import static org.mockito.Mockito.*;
++
++/** Real item/portal entry methods; world lookup, entity registration and plugin decisions are isolated. */
++@VanillaFeature
++class EnderEyePortalRuleTest {
++    private static final BlockPos POS = new BlockPos(8, 80, 8);
++    private static final BlockPos STRONGHOLD = new BlockPos(1200, 30, -400);
++
++    private static ServerLevel level(boolean allowed) {
++        ServerLevel level = mock(ServerLevel.class);
++        GameRules rules = new GameRules(FeatureFlags.VANILLA_SET);
++        rules.set(GameRules.ALLOW_EYES_OF_ENDER_USE, allowed, null);
++        when(level.getGameRules()).thenReturn(rules);
++        when(level.getRandom()).thenReturn(RandomSource.create(42));
++        return level;
++    }
++
++    private static Player user(ServerLevel level, ItemStack stack) {
++        Player player = mock(Player.class);
++        when(player.getItemInHand(InteractionHand.MAIN_HAND)).thenReturn(stack);
++        when(player.getEyePosition()).thenReturn(Vec3.atCenterOf(POS));
++        when(player.blockPosition()).thenReturn(POS);
++        when(player.blockInteractionRange()).thenReturn(4.5);
++        when(level.clip(any(ClipContext.class))).thenReturn(BlockHitResult.miss(Vec3.atCenterOf(POS), Direction.UP, POS));
++        return player;
++    }
++
++    @ParameterizedTest @ValueSource(booleans = {false, true})
++    void noStrongholdKeepsVanillaResultAndDoesNotConsume(boolean allowed) {
++        ServerLevel level = level(allowed);
++        ItemStack stack = mock(ItemStack.class);
++        Player player = user(level, stack);
++        assertSame(InteractionResult.CONSUME, Items.ENDER_EYE.use(level, player, InteractionHand.MAIN_HAND));
++        verify(level).findNearestMapStructure(StructureTags.EYE_OF_ENDER_LOCATED, POS, 100, false);
++        verify(player).startUsingItem(InteractionHand.MAIN_HAND);
++        verify(level, never()).addFreshEntity(any());
++        verifyNoInteractions(stack);
++    }
++
++    @ParameterizedTest @CsvSource({"false,true", "true,true", "false,false", "true,false"})
++    void launchAndSpawnVetoKeepVanillaConsumption(boolean allowed, boolean admitted) {
++        ServerLevel level = level(allowed);
++        ItemStack stack = mock(ItemStack.class);
++        Player player = user(level, stack);
++        when(level.findNearestMapStructure(StructureTags.EYE_OF_ENDER_LOCATED, POS, 100, false)).thenReturn(STRONGHOLD);
++        when(level.addFreshEntity(any())).thenReturn(admitted);
++        try (var eyes = mockConstruction(EyeOfEnder.class, (eye, ignored) -> when(eye.position()).thenReturn(Vec3.atCenterOf(POS)))) {
++            assertSame(admitted ? InteractionResult.SUCCESS_SERVER : InteractionResult.FAIL, Items.ENDER_EYE.use(level, player, InteractionHand.MAIN_HAND));
++            assertEquals(1, eyes.constructed().size());
++            EyeOfEnder eye = eyes.constructed().getFirst();
++            verify(eye).setItem(stack);
++            verify(eye).signalTo(Vec3.atLowerCornerOf(STRONGHOLD));
++            verify(level).addFreshEntity(eye);
++            verify(stack, times(admitted ? 1 : 0)).consume(1, player);
++        }
++    }
++
++    private static UseOnContext context(ServerLevel level, ItemStack stack) {
++        UseOnContext context = mock(UseOnContext.class);
++        when(context.getLevel()).thenReturn(level);
++        when(context.getClickedPos()).thenReturn(POS);
++        when(context.getItemInHand()).thenReturn(stack);
++        return context;
++    }
++
++    @ParameterizedTest @ValueSource(booleans = {false, true})
++    void nonFrameAllowsOrdinaryItemUseFallback(boolean allowed) {
++        ServerLevel level = level(allowed);
++        ItemStack stack = mock(ItemStack.class);
++        when(level.getBlockState(POS)).thenReturn(Blocks.STONE.defaultBlockState());
++        assertSame(InteractionResult.PASS, Items.ENDER_EYE.useOn(context(level, stack)));
++        verifyNoInteractions(stack);
++    }
++
++    @ParameterizedTest @ValueSource(booleans = {false, true})
++    void filledFrameIsNotMutated(boolean allowed) {
++        ServerLevel level = level(allowed);
++        ItemStack stack = mock(ItemStack.class);
++        when(level.getBlockState(POS)).thenReturn(Blocks.END_PORTAL_FRAME.defaultBlockState().setValue(EndPortalFrameBlock.HAS_EYE, true));
++        assertSame(InteractionResult.PASS, Items.ENDER_EYE.useOn(context(level, stack)));
++        verifyNoInteractions(stack);
++        verify(level, never()).setBlock(any(), any(), anyInt());
++    }
++
++    @ParameterizedTest @CsvSource({"false,true", "true,true", "true,false"})
++    void emptyFrameRespectsRuleAndPluginVeto(boolean allowed, boolean eventAllowed) {
++        ServerLevel level = level(allowed);
++        ItemStack stack = mock(ItemStack.class);
++        var empty = Blocks.END_PORTAL_FRAME.defaultBlockState();
++        var filled = empty.setValue(EndPortalFrameBlock.HAS_EYE, true);
++        when(level.getBlockState(POS)).thenReturn(empty);
++        BlockPattern shape = mock(BlockPattern.class);
++        try (var events = mockStatic(CraftEventFactory.class);
++             var blocks = mockStatic(Block.class);
++             var frames = mockStatic(EndPortalFrameBlock.class)) {
++            events.when(() -> CraftEventFactory.callEntityChangeBlockEvent(null, POS, filled)).thenReturn(eventAllowed);
++            frames.when(EndPortalFrameBlock::getOrCreatePortalShape).thenReturn(shape);
++            var expected = !allowed ? InteractionResult.FAIL : eventAllowed ? InteractionResult.SUCCESS : InteractionResult.PASS;
++            assertSame(expected, Items.ENDER_EYE.useOn(context(level, stack)));
++            verify(level, times(allowed && eventAllowed ? 1 : 0)).setBlock(POS, filled, Block.UPDATE_CLIENTS);
++            verify(stack, times(allowed && eventAllowed ? 1 : 0)).shrink(1);
++            if (!allowed) events.verifyNoInteractions();
++        }
++    }
++
++    @ParameterizedTest @ValueSource(booleans = {false, true})
++    void portalTravelStillRespectsRuleOnOwner(boolean allowed) {
++        ServerLevel level = level(allowed);
++        Entity entity = mock(Entity.class);
++        when(entity.endPortalLogicAsync(POS)).thenReturn(true);
++        try (var threads = mockStatic(TickThread.class)) {
++            threads.when(() -> TickThread.isTickThreadFor(entity)).thenReturn(true);
++            threads.when(() -> TickThread.isTickThreadFor(level, POS)).thenReturn(true);
++            assertEquals(allowed, ((EndPortalBlock) Blocks.END_PORTAL).portalAsync(level, entity, POS));
++            verify(entity, times(allowed ? 1 : 0)).endPortalLogicAsync(POS);
++        }
++    }
++
++    @Test void portalRejectsForeignOwnerBeforeReadingRule() {
++        ServerLevel level = mock(ServerLevel.class);
++        Entity entity = mock(Entity.class);
++        try (var threads = mockStatic(TickThread.class)) {
++            threads.when(() -> TickThread.isTickThreadFor(entity)).thenReturn(true);
++            threads.when(() -> TickThread.isTickThreadFor(level, POS)).thenReturn(false);
++            assertFalse(((EndPortalBlock) Blocks.END_PORTAL).portalAsync(level, entity, POS));
++            verifyNoInteractions(level);
++            verify(entity, never()).endPortalLogicAsync(any());
++        }
++    }
++}

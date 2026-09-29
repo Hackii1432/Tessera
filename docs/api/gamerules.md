@@ -3,7 +3,7 @@ title: "Gamerules im richtigen Thread ändern"
 description: "Tesseras Enderaugen-Regel und globale Zuständigkeit für weltbezogene Einstellungen."
 navTitle: "Gamerules"
 order: 120
-updated: 2026-09-28
+updated: 2026-09-29
 minecraftVersion: "26.3"
 badge: "Referenz"
 ---
@@ -19,8 +19,13 @@ GameRule<Boolean> rule = GameRules.ALLOW_EYES_OF_ENDER_USE;
 ```
 
 Die Tessera-Regel `allow_eyes_of_ender_use` hat standardmäßig den Wert `true`.
-`false` sperrt Enderaugen-Projektile, das Einsetzen in Endportalrahmen und die
-von diesem Pfad kontrollierten Endportal-Reisen. Sie ersetzt keine allgemeine
+Ab Build `014-beta` sperrt `false` nur das Einsetzen von Enderaugen in leere
+Endportalrahmen und die von diesem Pfad kontrollierten Endportal-Reisen.
+Enderaugen lassen sich weiterhin normal werfen und können Strongholds finden;
+Verbrauch, Flug, Drop-/Bruchchance und das Verhalten ohne gefundenes Ziel folgen
+dem bestehenden Vanilla-Pfad. Enderperlen sind davon nicht betroffen. Der Name,
+Standardwert und gespeicherte Wert der Regel bleiben unverändert.
+Sie ersetzt keine allgemeine
 Teleport-Permission. Der alte Alias `GameRule.ALLOW_EYES_OF_ENDER_USE` ist seit
 26.2 veraltet; für neuen Code `org.bukkit.GameRules` verwenden.
 
@@ -57,7 +62,7 @@ import org.bukkit.World;
 import org.bukkit.plugin.Plugin;
 
 public final class RuleExample {
-    public static void setEyesAllowed(Plugin plugin, World world, boolean allowed) {
+    public static void setEndPortalAccess(Plugin plugin, World world, boolean allowed) {
         Bukkit.getGlobalRegionScheduler().execute(plugin, () -> {
             if (Bukkit.getWorld(world.getUID()) != world) return;
             boolean accepted = world.setGameRule(GameRules.ALLOW_EYES_OF_ENDER_USE, allowed);

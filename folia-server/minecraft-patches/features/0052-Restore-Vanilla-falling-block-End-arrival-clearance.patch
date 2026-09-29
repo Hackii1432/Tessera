@@ -1,0 +1,86 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Tue, 29 Sep 2026 22:28:52 +0200
+Subject: [PATCH] Restore Vanilla falling-block End arrival clearance
+
+
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index 9ba374ee88e539d2e58594cc433d095c41d80566..c9c18da8818082e034e016091cdbcd81df0a39d6 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -4698,6 +4698,16 @@ public abstract class Entity
+ 
+     private boolean tessera$portalTransferPending;
+ 
++    // Tessera start - falling blocks use Vanilla's elevated End arrival
++    protected BlockPos tessera$getEndPortalSpawnPoint() {
++        return ServerLevel.END_SPAWN_POINT.below();
++    }
++
++    protected BlockPos tessera$getEndPortalPlatformOrigin(final ServerLevel origin, final Vec3 targetPosition) {
++        return BlockPos.containing(targetPosition);
++    }
++    // Tessera end - falling blocks use Vanilla's elevated End arrival
++
+     public boolean endPortalLogicAsync(BlockPos portalPos) {
+         ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this, "Cannot portal entity async");
+ 
+@@ -4710,7 +4720,7 @@ public abstract class Entity
+ 
+         final Vec3 defaultPosition = fromEnd
+             ? Vec3.atBottomCenterOf(respawnData.pos())
+-            : Vec3.atBottomCenterOf(ServerLevel.END_SPAWN_POINT.below());
++            : Vec3.atBottomCenterOf(this.tessera$getEndPortalSpawnPoint()); // Tessera - falling blocks retain Vanilla flight clearance
+         final float defaultYaw = fromEnd ? this.getYRot() + respawnData.yaw() : Direction.WEST.toYRot();
+         final float defaultPitch = fromEnd ? this.getXRot() + respawnData.pitch() : 0.0F;
+         final org.bukkit.craftbukkit.event.PortalEventResult eventResult =
+@@ -4845,14 +4855,17 @@ public abstract class Entity
+             case END: {
+                 if (destination.getTypeKey() == net.minecraft.world.level.dimension.LevelStem.END) {
+                     BlockPos targetPos = BlockPos.containing(target.position());
++                    // Capture on the source owner. Do not inspect the entity in
++                    // the destination callback or move a plugin's explicit target.
++                    final BlockPos platformOrigin = this.tessera$getEndPortalPlatformOrigin(origin, target.position());
+                     // need to load chunks so we can create the platform
+                     destination.moonrise$loadChunksAsync(
+                         targetPos, 16, // load 16 blocks to be safe from block physics
+                         ca.spottedleaf.concurrentutil.util.Priority.HIGH,
+                         (chunks) -> {
+-                            net.minecraft.world.level.levelgen.feature.EndPlatformFeature.createEndPlatform(destination, targetPos, true, null);
++                            net.minecraft.world.level.levelgen.feature.EndPlatformFeature.createEndPlatform(destination, platformOrigin, true, null);
+ 
+-                            // EndPlatformFeature places obsidian one block below the requested spawn position.
++                            // EndPlatformFeature puts the floor below its origin, not necessarily below the entity's arrival.
+                             portalInfoCompletable.complete(
+                                 new net.minecraft.world.level.portal.TeleportTransition(
+                                     destination, target.position(), Vec3.ZERO, target.yaw(), target.pitch(),
+diff --git a/net/minecraft/world/entity/item/FallingBlockEntity.java b/net/minecraft/world/entity/item/FallingBlockEntity.java
+index dfe9bdc4d912f57f7b9f6af4a3e6880abc970a82..fc5c0a98cd5b2c618d6ac920a0f1fad6c4ef682a 100644
+--- a/net/minecraft/world/entity/item/FallingBlockEntity.java
++++ b/net/minecraft/world/entity/item/FallingBlockEntity.java
+@@ -287,6 +287,25 @@ public class FallingBlockEntity extends Entity {
+     }
+ 
+     // Tessera start - owned End portal falling-block tick continuation
++    @Override
++    protected BlockPos tessera$getEndPortalSpawnPoint() {
++        // Vanilla non-player entry is at y=50; the platform surface is y=49.
++        // Entering at player height lands immediately, before a duper's existing
++        // horizontal motion can carry the falling block clear of the platform.
++        return ServerLevel.END_SPAWN_POINT;
++    }
++
++    @Override
++    protected BlockPos tessera$getEndPortalPlatformOrigin(final ServerLevel origin, final Vec3 targetPosition) {
++        if (origin.getTypeKey() != net.minecraft.world.level.dimension.LevelStem.END
++            && targetPosition.equals(Vec3.atBottomCenterOf(ServerLevel.END_SPAWN_POINT))) {
++            return ServerLevel.END_SPAWN_POINT.below();
++        }
++        // Preserve existing platform handling for explicit plugin destinations
++        // and End-to-world redirections. Never inject velocity or force a drop.
++        return super.tessera$getEndPortalPlatformOrigin(origin, targetPosition);
++    }
++
+     private boolean tessera$runTickPrefix(final Block block) {
+         if (this.tessera$continuationOnly) {
+             return false;

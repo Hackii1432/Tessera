@@ -1,0 +1,122 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Tue, 29 Sep 2026 21:29:37 +0200
+Subject: [PATCH] Test owned End portal falling-block continuation guards
+
+
+diff --git a/src/test/java/io/papermc/paper/porting/EndPortalContinuationTest.java b/src/test/java/io/papermc/paper/porting/EndPortalContinuationTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..08f98aef6ac3a3db32bf2eb53fa9baa221598ced
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/porting/EndPortalContinuationTest.java
+@@ -0,0 +1,110 @@
++package io.papermc.paper.porting;
++
++import io.papermc.paper.configuration.GlobalConfiguration;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.world.entity.MoverType;
++import net.minecraft.world.entity.item.FallingBlockEntity;
++import net.minecraft.world.phys.Vec3;
++import org.bukkit.support.environment.VanillaFeature;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.Mockito.*;
++
++@VanillaFeature
++class EndPortalContinuationTest {
++    private static Object finish(FallingBlockEntity entity, boolean transferring) throws Exception {
++        var method = FallingBlockEntity.class.getDeclaredMethod("tessera$finishPortalPreparation", boolean.class);
++        method.setAccessible(true);
++        return method.invoke(entity, transferring);
++    }
++    private static void field(FallingBlockEntity entity, String name, Object value) throws Exception {
++        var field = FallingBlockEntity.class.getDeclaredField(name);
++        field.setAccessible(true);
++        field.set(entity, value);
++    }
++
++    private static Object field(FallingBlockEntity entity, String name) throws Exception {
++        var field = FallingBlockEntity.class.getDeclaredField(name);
++        field.setAccessible(true);
++        return field.get(entity);
++    }
++
++    @Test
++    void preparationSuspendsMovementAndPreventsAnotherPortalAttempt() throws Exception {
++        var entity = mock(FallingBlockEntity.class, CALLS_REAL_METHODS);
++        var continuation = mock(FallingBlockEntity.class);
++        field(entity, "tessera$portalContinuation", continuation);
++        entity.tick();
++        assertFalse(entity.handlePortal());
++        assertSame(continuation, field(entity, "tessera$portalContinuation"));
++        verify(entity, never()).move(any(MoverType.class), any(Vec3.class));
++        verify(entity, never()).getDeltaMovement();
++    }
++
++    @Test
++    void cancelledPreparationDropsSnapshotWithoutRunningOrRegisteringIt() throws Exception {
++        var entity = mock(FallingBlockEntity.class, CALLS_REAL_METHODS);
++        var continuation = mock(FallingBlockEntity.class);
++        field(entity, "tessera$portalContinuation", continuation);
++        assertNull(finish(entity, false));
++        assertNull(field(entity, "tessera$portalContinuation"));
++        verifyNoInteractions(continuation);
++        assertNull(finish(entity, true));
++    }
++
++    @Test
++    void disablingOptionWhilePreparingCannotProduceSourceCopy() throws Exception {
++        var entity = mock(FallingBlockEntity.class, CALLS_REAL_METHODS);
++        var continuation = mock(FallingBlockEntity.class);
++        field(entity, "tessera$portalContinuation", continuation);
++        GlobalConfiguration config = new GlobalConfiguration();
++        config.unsupportedSettings = config.new UnsupportedSettings();
++        config.unsupportedSettings.allowUnsafeEndPortalTeleportation = false;
++        try (var settings = mockStatic(GlobalConfiguration.class)) {
++            settings.when(GlobalConfiguration::get).thenReturn(config);
++            assertNull(finish(entity, true));
++        }
++        assertNull(field(entity, "tessera$portalContinuation"));
++        verifyNoInteractions(continuation);
++    }
++
++    @Test
++    void pluginOrPistonMovementInvalidatesStaleSourceFrame() throws Exception {
++        var entity = mock(FallingBlockEntity.class, CALLS_REAL_METHODS);
++        var continuation = mock(FallingBlockEntity.class);
++        var world = mock(ServerLevel.class);
++        doReturn(world).when(entity).level();
++        when(continuation.level()).thenReturn(world);
++        doReturn(new Vec3(17, 80, 8)).when(entity).position();
++        when(continuation.position()).thenReturn(new Vec3(16, 80, 8));
++        field(entity, "tessera$portalContinuation", continuation);
++        GlobalConfiguration config = new GlobalConfiguration();
++        config.unsupportedSettings = config.new UnsupportedSettings();
++        config.unsupportedSettings.allowUnsafeEndPortalTeleportation = true;
++        try (var settings = mockStatic(GlobalConfiguration.class)) {
++            settings.when(GlobalConfiguration::get).thenReturn(config);
++            assertNull(finish(entity, true));
++        }
++        assertNull(field(entity, "tessera$portalContinuation"));
++        verifyNoInteractions(world);
++    }
++
++    @Test
++    void oneShotContinuationCannotEscapeThroughGenericAsyncTeleport() throws Exception {
++        var entity = mock(FallingBlockEntity.class, CALLS_REAL_METHODS);
++        field(entity, "tessera$continuationOnly", true);
++        var method = FallingBlockEntity.class.getDeclaredMethod("canTeleportAsync");
++        method.setAccessible(true);
++        assertEquals(false, method.invoke(entity));
++    }
++
++    @Test
++    void consumedContinuationCannotRunTwice() throws Exception {
++        var entity = mock(FallingBlockEntity.class, CALLS_REAL_METHODS);
++        field(entity, "tessera$continuationTicked", true);
++        entity.tick();
++        verify(entity, never()).move(any(MoverType.class), any(Vec3.class));
++        verify(entity, never()).getDeltaMovement();
++    }
++}
