@@ -1,0 +1,864 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Mon, 5 Oct 2026 20:45:39 +0200
+Subject: [PATCH] Add pregeneration command checkpoints and lifecycle
+ coordination
+
+
+diff --git a/src/main/java/io/papermc/paper/command/PaperCommands.java b/src/main/java/io/papermc/paper/command/PaperCommands.java
+index b9b24575d7c12e7859fdf49a2c71d2b2d9f0b439..dd534b107ba02b20008f690cd88a759350e1b41a 100644
+--- a/src/main/java/io/papermc/paper/command/PaperCommands.java
++++ b/src/main/java/io/papermc/paper/command/PaperCommands.java
+@@ -20,8 +20,13 @@ public final class PaperCommands {
+     }
+ 
+     private static final Map<String, Command> COMMANDS = new HashMap<>();
++    private static io.papermc.paper.pregeneration.PregenerationCommand pregenerationCommand;
+ 
+     public static void registerCommands(final MinecraftServer server) {
++        if (pregenerationCommand == null) {
++            pregenerationCommand = new io.papermc.paper.pregeneration.PregenerationCommand(server);
++        }
++        server.server.getCommandMap().register("pregen", "tessera", pregenerationCommand);
+         COMMANDS.put("paper", new PaperCommand("paper"));
+         COMMANDS.put("tps", new io.papermc.paper.threadedregions.commands.CommandServerHealth()); // Folia - region threading
+         COMMANDS.put("profiler", new io.papermc.paper.threadedregions.commands.CommandProfiler()); // Folia - region threading - profiler
+diff --git a/src/main/java/io/papermc/paper/pregeneration/PregenerationArea.java b/src/main/java/io/papermc/paper/pregeneration/PregenerationArea.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6959d0201e16456138be887b15e64153b55c4a6
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/pregeneration/PregenerationArea.java
+@@ -0,0 +1,132 @@
++package io.papermc.paper.pregeneration;
++
++/** Internal, immutable selection. Coordinates are inclusive block coordinates. */
++public record PregenerationArea(Shape shape, int centerX, int centerZ, int radius,
++                               int minX, int maxX, int minZ, int maxZ) {
++    public static final int MAX_COORDINATE = 29_999_983;
++
++    public enum Shape { CIRCLE, SQUARE, RECTANGLE }
++
++    public PregenerationArea {
++        if (shape == null || radius < 0 || minX > maxX || minZ > maxZ
++            || minX < -MAX_COORDINATE || maxX > MAX_COORDINATE
++            || minZ < -MAX_COORDINATE || maxZ > MAX_COORDINATE) {
++            throw new IllegalArgumentException("Selection exceeds Minecraft coordinates or has invalid bounds");
++        }
++        if (shape != Shape.RECTANGLE && ((long) centerX - radius != minX
++            || (long) centerX + radius != maxX || (long) centerZ - radius != minZ
++            || (long) centerZ + radius != maxZ)) {
++            throw new IllegalArgumentException("Selection bounds do not match its center and radius");
++        }
++    }
++
++    public static PregenerationArea centered(Shape shape, int x, int z, int radius) {
++        if (shape == Shape.RECTANGLE || radius < 1) {
++            throw new IllegalArgumentException("Choose circle or square and a positive radius in blocks");
++        }
++        return new PregenerationArea(shape, x, z, radius, coordinate((long) x - radius),
++            coordinate((long) x + radius), coordinate((long) z - radius), coordinate((long) z + radius));
++    }
++
++    public static PregenerationArea rectangle(int x1, int z1, int x2, int z2) {
++        return new PregenerationArea(Shape.RECTANGLE, 0, 0, 0,
++            Math.min(x1, x2), Math.max(x1, x2), Math.min(z1, z2), Math.max(z1, z2));
++    }
++
++    private static int coordinate(long coordinate) {
++        if (coordinate < -MAX_COORDINATE || coordinate > MAX_COORDINATE) {
++            throw new IllegalArgumentException("Selection exceeds Minecraft coordinate limits");
++        }
++        return (int) coordinate;
++    }
++
++    public boolean contains(int chunkX, int chunkZ) {
++        if (chunkX < (minX >> 4) || chunkX > (maxX >> 4)
++            || chunkZ < (minZ >> 4) || chunkZ > (maxZ >> 4)) {
++            return false;
++        }
++        if (shape != Shape.CIRCLE) {
++            return true;
++        }
++        long dx = centerX - Math.clamp((long) centerX, (long) chunkX * 16, (long) chunkX * 16 + 15);
++        long dz = centerZ - Math.clamp((long) centerZ, (long) chunkZ * 16, (long) chunkZ * 16 + 15);
++        return dx * dx + dz * dz <= (long) radius * radius;
++    }
++
++    /** O(rows), never materialises all chunks. Run large plans off tick threads. */
++    public long chunkCount() {
++        if (shape != Shape.CIRCLE) {
++            return ((long) (maxX >> 4) - (minX >> 4) + 1)
++                * ((long) (maxZ >> 4) - (minZ >> 4) + 1);
++        }
++        long total = 0;
++        for (int z = minZ >> 4; z <= maxZ >> 4; z++) {
++            long dz = centerZ - Math.clamp((long) centerZ, (long) z * 16, (long) z * 16 + 15);
++            long span = (long) Math.sqrt((long) radius * radius - dz * dz);
++            // Correct floating point rounding at an exact integer boundary.
++            while ((span + 1) * (span + 1) + dz * dz <= (long) radius * radius) {
++                span++;
++            }
++            while (span * span + dz * dz > (long) radius * radius) {
++                span--;
++            }
++            total += ((centerX + span) >> 4) - ((centerX - span) >> 4) + 1;
++        }
++        return total;
++    }
++
++    public long scanLimit() {
++        return ((long) (maxX >> 9) - (minX >> 9) + 1)
++            * ((long) (maxZ >> 9) - (minZ >> 9) + 1) * 1024L;
++    }
++
++    public Cursor cursor(long position) {
++        if (position < 0 || position > scanLimit()) {
++            throw new IllegalArgumentException("Invalid cursor");
++        }
++        return new Cursor(position);
++    }
++
++    public record Point(int x, int z, long nextCursor) {}
++
++    /** MCA-local order, bounded memory even for multi-trillion-chunk selections. */
++    public final class Cursor {
++        private long position;
++
++        private Cursor(long position) {
++            this.position = position;
++        }
++
++        public Point next() {
++            long columns = (long) (maxX >> 9) - (minX >> 9) + 1;
++            while (position < scanLimit()) {
++                long cell = position++;
++                long tile = cell >>> 10;
++                if (shape == Shape.CIRCLE && (cell & 1023) == 0) {
++                    long tileZ = (minZ >> 9) + tile / columns;
++                    long dz = centerZ - Math.clamp((long) centerZ, tileZ * 512, tileZ * 512 + 511);
++                    long span = (long) Math.sqrt((long) radius * radius - dz * dz);
++                    while ((span + 1) * (span + 1) + dz * dz <= (long) radius * radius) span++;
++                    while (span * span + dz * dz > (long) radius * radius) span--;
++                    long first = ((centerX - span) >> 9) - (minX >> 9);
++                    long last = ((centerX + span) >> 9) - (minX >> 9);
++                    long column = tile % columns;
++                    if (column < first) {
++                        position = (tile + first - column) * 1024;
++                        continue;
++                    }
++                    if (column > last) {
++                        position = (tile + columns - column) * 1024;
++                        continue;
++                    }
++                }
++                int x = (int) (((minX >> 9) + tile % columns) * 32 + (cell & 31));
++                int z = (int) (((minZ >> 9) + tile / columns) * 32 + ((cell >>> 5) & 31));
++                if (contains(x, z)) {
++                    return new Point(x, z, position);
++                }
++            }
++            return null;
++        }
++    }
++}
+diff --git a/src/main/java/io/papermc/paper/pregeneration/PregenerationCheckpoint.java b/src/main/java/io/papermc/paper/pregeneration/PregenerationCheckpoint.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..f7d360a765e6528355e97cc53df27b2db9ebf3de
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/pregeneration/PregenerationCheckpoint.java
+@@ -0,0 +1,44 @@
++package io.papermc.paper.pregeneration;
++
++import java.io.IOException;
++import java.nio.ByteBuffer;
++import java.nio.channels.FileChannel;
++import java.nio.charset.StandardCharsets;
++import java.nio.file.AtomicMoveNotSupportedException;
++import java.nio.file.Files;
++import java.nio.file.LinkOption;
++import java.nio.file.Path;
++import java.nio.file.StandardCopyOption;
++import java.nio.file.StandardOpenOption;
++
++/** Internal job metadata only. Does not replace Minecraft's region-file storage. */
++public final class PregenerationCheckpoint {
++    private PregenerationCheckpoint() {
++    }
++
++    public static void write(Path target, String content) throws IOException {
++        Path directory = target.toAbsolutePath().normalize().getParent();
++        Files.createDirectories(directory);
++        if (Files.isSymbolicLink(directory) || Files.isSymbolicLink(target)
++            || (Files.exists(target, LinkOption.NOFOLLOW_LINKS) && !Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS))) {
++            throw new IOException("Unsafe pregeneration checkpoint path: " + target);
++        }
++        Path temporary = Files.createTempFile(directory, ".pregen-", ".tmp");
++        try {
++            try (FileChannel channel = FileChannel.open(temporary, StandardOpenOption.WRITE)) {
++                ByteBuffer buffer = StandardCharsets.UTF_8.encode(content);
++                while (buffer.hasRemaining()) {
++                    channel.write(buffer);
++                }
++                channel.force(true);
++            }
++            try {
++                Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
++            } catch (AtomicMoveNotSupportedException ignored) {
++                Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
++            }
++        } finally {
++            Files.deleteIfExists(temporary);
++        }
++    }
++}
+diff --git a/src/main/java/io/papermc/paper/pregeneration/PregenerationCommand.java b/src/main/java/io/papermc/paper/pregeneration/PregenerationCommand.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a01df62d59ef399075ca190023ff41a08916e507
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/pregeneration/PregenerationCommand.java
+@@ -0,0 +1,295 @@
++package io.papermc.paper.pregeneration;
++
++import io.papermc.paper.threadedregions.RegionizedServer;
++import java.util.List;
++import java.util.Locale;
++import java.util.Map;
++import java.util.UUID;
++import java.util.WeakHashMap;
++import java.util.concurrent.ConcurrentHashMap;
++import java.util.concurrent.TimeUnit;
++import net.kyori.adventure.text.Component;
++import net.kyori.adventure.text.event.ClickEvent;
++import net.kyori.adventure.text.format.NamedTextColor;
++import net.minecraft.server.MinecraftServer;
++import org.bukkit.Bukkit;
++import org.bukkit.World;
++import org.bukkit.command.Command;
++import org.bukkit.command.CommandSender;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.entity.Player;
++import org.bukkit.permissions.Permission;
++import org.bukkit.permissions.PermissionDefault;
++
++/** Internal administrative command; all asynchronous replies return to the sender's owner. */
++public final class PregenerationCommand extends Command {
++    public static final String PERMISSION = "tessera.command.pregen";
++    private final WorldPregenerator service;
++    private final Map<UUID, Selection> players = new ConcurrentHashMap<>();
++    private final Map<CommandSender, Selection> others = new WeakHashMap<>();
++    private static final List<String> SUBCOMMANDS = List.of("dimension", "shape", "center", "radius", "corners", "border",
++        "plan", "start", "status", "pause", "resume", "cancel", "mode", "help");
++
++    private static final class Selection {
++        UUID world;
++        PregenerationArea.Shape shape = PregenerationArea.Shape.CIRCLE;
++        int x;
++        int z;
++        int radius = 1000;
++        PregenerationArea rectangle;
++        WorldPregenerator.Mode mode = WorldPregenerator.Mode.BALANCED;
++        WorldPregenerator.Plan confirmation;
++        long confirmationUntil;
++        synchronized PregenerationArea area() {
++            return shape == PregenerationArea.Shape.RECTANGLE
++                ? java.util.Objects.requireNonNull(rectangle, "Use /pregen corners or /pregen border first")
++                : PregenerationArea.centered(shape, x, z, radius);
++        }
++    }
++
++    public PregenerationCommand(MinecraftServer server) {
++        super("pregen");
++        setDescription("Native, region-safe dimension pregeneration");
++        setUsage("/pregen help");
++        setPermission(PERMISSION);
++        if (server.server.getPluginManager().getPermission(PERMISSION) == null) {
++            server.server.getPluginManager().addPermission(new Permission(PERMISSION, "Manage native Tessera pregeneration", PermissionDefault.OP));
++        }
++        service = WorldPregenerator.get(server);
++    }
++
++    private Selection selection(CommandSender sender) {
++        if (sender instanceof Player player) {
++            return players.computeIfAbsent(player.getUniqueId(), ignored -> new Selection());
++        }
++        synchronized (others) {
++            return others.computeIfAbsent(sender, ignored -> new Selection());
++        }
++    }
++
++    @Override
++    public boolean execute(CommandSender sender, String label, String[] args) {
++        if (!testPermission(sender)) {
++            return true;
++        }
++        if (args.length == 0 || args[0].equalsIgnoreCase("help")) {
++            help(sender);
++            return true;
++        }
++        Selection selection = selection(sender);
++        String action = args[0].toLowerCase(Locale.ROOT);
++        try {
++            synchronized (selection) {
++                switch (action) {
++                    case "dimension" -> {
++                        if (args.length == 1) {
++                            World selected = selection.world == null ? null : Bukkit.getWorld(selection.world);
++                            reply(sender, "Selected dimension: " + (selected == null ? "none" : selected.getKey()));
++                            reply(sender, "Loaded dimensions: " + String.join(", ", PregenerationDimensions.keys(Bukkit.getWorlds())));
++                        } else {
++                            exact(args, 2, "dimension <overworld|nether|end|namespace:key>");
++                            World world = PregenerationDimensions.resolve(Bukkit.getWorlds(), args[1]);
++                            selection.world = world.getUID();
++                            selection.confirmation = null;
++                            reply(sender, "Selected dimension: " + world.getKey() + ". Running jobs are unchanged.");
++                        }
++                    }
++                    case "shape" -> {
++                        exact(args, 2, "shape <circle|square>");
++                        PregenerationArea.Shape shape = PregenerationArea.Shape.valueOf(args[1].toUpperCase(Locale.ROOT));
++                        if (shape == PregenerationArea.Shape.RECTANGLE) {
++                            throw new IllegalArgumentException("Use /pregen corners for a rectangle");
++                        }
++                        selection.shape = shape;
++                        selection.confirmation = null;
++                        reply(sender, "Shape: " + shape);
++                    }
++                    case "center" -> {
++                        if (args.length == 2 && args[1].equalsIgnoreCase("here") && sender instanceof Player player) {
++                            if (!Bukkit.isOwnedByCurrentRegion(player)) {
++                                throw new IllegalStateException("Use center here on your entity's owning region");
++                            }
++                            selection.x = player.getLocation().getBlockX();
++                            selection.z = player.getLocation().getBlockZ();
++                        } else {
++                            exact(args, 3, "center <x> <z> | center here");
++                            selection.x = Integer.parseInt(args[1]);
++                            selection.z = Integer.parseInt(args[2]);
++                        }
++                        selection.confirmation = null;
++                        reply(sender, "Center: " + selection.x + ", " + selection.z + " blocks");
++                    }
++                    case "radius" -> {
++                        exact(args, 2, "radius <blocks>");
++                        int radius = Integer.parseInt(args[1]);
++                        if (radius < 1) throw new IllegalArgumentException("Radius must be positive, in blocks");
++                        selection.radius = radius;
++                        selection.confirmation = null;
++                        reply(sender, "Radius: " + radius + " blocks");
++                    }
++                    case "corners" -> {
++                        exact(args, 5, "corners <x1> <z1> <x2> <z2>");
++                        selection.rectangle = PregenerationArea.rectangle(Integer.parseInt(args[1]), Integer.parseInt(args[2]),
++                            Integer.parseInt(args[3]), Integer.parseInt(args[4]));
++                        selection.shape = PregenerationArea.Shape.RECTANGLE;
++                        selection.confirmation = null;
++                        reply(sender, "Rectangle selected (inclusive block coordinates)");
++                    }
++                    case "border" -> {
++                        exact(args, 1, "border");
++                        World world = requiredWorld(selection);
++                        double half = world.getWorldBorder().getSize() / 2.0;
++                        org.bukkit.Location center = world.getWorldBorder().getCenter();
++                        selection.rectangle = PregenerationArea.rectangle(borderCoordinate(center.getX() - half),
++                            borderCoordinate(center.getZ() - half), borderCoordinate(center.getX() + half), borderCoordinate(center.getZ() + half));
++                        selection.shape = PregenerationArea.Shape.RECTANGLE;
++                        selection.confirmation = null;
++                        reply(sender, "Current worldborder captured for " + world.getKey() + " (Minecraft coordinate limits respected)");
++                    }
++                    case "plan", "start" -> {
++                        if (action.equals("start") && args.length == 2 && args[1].equalsIgnoreCase("confirm")) {
++                            WorldPregenerator.Plan plan = selection.confirmation;
++                            if (plan == null || System.nanoTime() - selection.confirmationUntil >= 0) {
++                                throw new IllegalStateException("No current confirmation; run /pregen start again");
++                            }
++                            selection.confirmation = null;
++                            service.start(plan).whenComplete((view, failure) -> complete(sender, failure, () -> show(sender, view)));
++                            break;
++                        }
++                        exact(args, 1, action);
++                        UUID world = requiredWorld(selection).getUID();
++                        PregenerationArea area = selection.area();
++                        WorldPregenerator.Mode mode = selection.mode;
++                        service.plan(world, area, mode).whenComplete((plan, failure) -> {
++                            if (failure != null) {
++                                error(sender, failure);
++                            } else if (action.equals("plan")) {
++                                reply(sender, "Plan: " + plan.worldKey() + " | " + area.shape() + " | " + plan.total() + " target chunks | " + mode);
++                            } else if (plan.total() > 10_000_000L) {
++                                synchronized (selection) {
++                                    if (!world.equals(selection.world) || !area.equals(selection.area()) || mode != selection.mode) {
++                                        error(sender, new IllegalStateException("Selection changed during planning; start again"));
++                                        return;
++                                    }
++                                    selection.confirmation = plan;
++                                    selection.confirmationUntil = System.nanoTime() + TimeUnit.MINUTES.toNanos(1);
++                                }
++                                reply(sender, "Large job: " + plan.total() + " chunks in " + plan.worldKey() + ". Confirm within 60s: /pregen start confirm");
++                            } else {
++                                service.start(plan).whenComplete((view, startFailure) -> complete(sender, startFailure, () -> show(sender, view)));
++                            }
++                        });
++                    }
++                    case "status" -> {
++                        if (args.length > 2) throw new IllegalArgumentException("Usage: /pregen status [job-id|all]");
++                        Long id = args.length == 2 && !args[1].equalsIgnoreCase("all") ? Long.valueOf(args[1]) : null;
++                        service.views().whenComplete((views, failure) -> complete(sender, failure, () -> {
++                            List<WorldPregenerator.View> selected = views.stream().filter(view -> id == null || view.id() == id).toList();
++                            if (selected.isEmpty()) reply(sender, "No matching pregeneration jobs");
++                            else selected.forEach(view -> show(sender, view));
++                        }));
++                    }
++                    case "pause", "resume", "cancel" -> {
++                        exact(args, 2, action + " <job-id>");
++                        service.control(Long.parseLong(args[1]), action, null)
++                            .whenComplete((view, failure) -> complete(sender, failure, () -> show(sender, view)));
++                        reply(sender, "Job operation requested: " + action + ". Admitted work is drained before confirmation.");
++                    }
++                    case "mode" -> {
++                        if (args.length == 2) {
++                            selection.mode = WorldPregenerator.Mode.valueOf(args[1].toUpperCase(Locale.ROOT));
++                            selection.confirmation = null;
++                            reply(sender, "Selected mode: " + selection.mode);
++                        } else {
++                            exact(args, 3, "mode [job-id] <balanced|fast>");
++                            service.control(Long.parseLong(args[1]), "mode", WorldPregenerator.Mode.valueOf(args[2].toUpperCase(Locale.ROOT)))
++                                .whenComplete((view, failure) -> complete(sender, failure, () -> show(sender, view)));
++                        }
++                    }
++                    default -> help(sender);
++                }
++            }
++        } catch (RuntimeException failure) {
++            error(sender, failure);
++        }
++        return true;
++    }
++
++    private static int borderCoordinate(double coordinate) {
++        return (int) Math.clamp(Math.floor(coordinate), -PregenerationArea.MAX_COORDINATE, PregenerationArea.MAX_COORDINATE);
++    }
++
++    private static World requiredWorld(Selection selection) {
++        World world = selection.world == null ? null : Bukkit.getWorld(selection.world);
++        if (world == null) throw new IllegalStateException("Select a loaded dimension first: /pregen dimension <overworld|nether|end|namespace:key>");
++        return world;
++    }
++
++    private static void exact(String[] args, int length, String usage) {
++        if (args.length != length) throw new IllegalArgumentException("Usage: /pregen " + usage);
++    }
++
++    @Override
++    public List<String> tabComplete(CommandSender sender, String alias, String[] args) {
++        if (!sender.hasPermission(PERMISSION)) return List.of();
++        List<String> candidates = List.of();
++        if (args.length == 1) candidates = SUBCOMMANDS;
++        else if (args.length == 2 && args[0].equalsIgnoreCase("dimension")) candidates = PregenerationDimensions.suggestions(Bukkit.getWorlds());
++        else if (args.length == 2 && args[0].equalsIgnoreCase("shape")) candidates = List.of("circle", "square");
++        else if (args.length == 2 && args[0].equalsIgnoreCase("center")) candidates = List.of("here");
++        else if (args.length == 2 && args[0].equalsIgnoreCase("start")) candidates = List.of("confirm");
++        else if (args[0].equalsIgnoreCase("mode") && (args.length == 2 || args.length == 3)) candidates = List.of("balanced", "fast");
++        String prefix = args[args.length - 1].toLowerCase(Locale.ROOT);
++        return candidates.stream().filter(value -> value.toLowerCase(Locale.ROOT).startsWith(prefix)).toList();
++    }
++
++    private static void help(CommandSender sender) {
++        reply(sender, "Tessera pregeneration — coordinates/radius are in blocks");
++        reply(sender, "/pregen dimension <overworld|nether|end|namespace:key>");
++        reply(sender, "/pregen shape <circle|square> | center <x> <z> | radius <blocks>");
++        reply(sender, "/pregen corners <x1> <z1> <x2> <z2> | border | mode <balanced|fast>");
++        reply(sender, "/pregen plan | start [confirm] | status [job-id|all]");
++        reply(sender, "/pregen pause <id> | resume <id> | cancel <id> | mode <id> <balanced|fast>");
++        reply(sender, "Each sender has a separate selection. /tick freeze does not stop pregeneration.");
++    }
++
++    private static void show(CommandSender sender, WorldPregenerator.View view) {
++        reply(sender, Component.text("Pregeneration #" + view.id() + " — " + view.dimension(), NamedTextColor.AQUA)
++            .clickEvent(ClickEvent.runCommand("/pregen status " + view.id())));
++        reply(sender, "State: " + view.state() + " | Simulation: " + (view.frozen() ? "FROZEN" : "RUNNING") + " | Mode: " + view.mode());
++        double percent = view.total() == 0 ? 0 : 100.0 * (view.generated() + view.existing()) / view.total();
++        reply(sender, String.format(Locale.ROOT, "Progress: %.2f%% | Generated/finalized: %d | Already complete: %d | Total: %d",
++            percent, view.generated(), view.existing(), view.total()));
++        reply(sender, String.format(Locale.ROOT, "Rate: %.1f chunks/s | In flight: %d", view.rate(), view.inFlight()));
++        if (view.rate() > 0 && view.state().equals("RUNNING")) {
++            long seconds = (long) Math.ceil((view.total() - view.generated() - view.existing()) / view.rate());
++            reply(sender, "Estimated remaining: " + seconds / 3600 + "h " + seconds / 60 % 60 + "m " + seconds % 60 + "s");
++        }
++        if (!view.detail().isBlank()) reply(sender, view.detail());
++        reply(sender, Component.text("[Pause] ", NamedTextColor.YELLOW).clickEvent(ClickEvent.runCommand("/pregen pause " + view.id()))
++            .append(Component.text("[Resume] ", NamedTextColor.GREEN).clickEvent(ClickEvent.runCommand("/pregen resume " + view.id())))
++            .append(Component.text("[Cancel]", NamedTextColor.RED).clickEvent(ClickEvent.suggestCommand("/pregen cancel " + view.id()))));
++    }
++
++    private static void complete(CommandSender sender, Throwable failure, Runnable success) {
++        if (failure != null) error(sender, failure); else success.run();
++    }
++
++    private static void error(CommandSender sender, Throwable failure) {
++        reply(sender, Component.text("Pregeneration: " + WorldPregenerator.rootMessage(failure), NamedTextColor.RED));
++    }
++
++    private static void reply(CommandSender sender, String message) {
++        reply(sender, Component.text(message, NamedTextColor.GRAY));
++    }
++
++    private static void reply(CommandSender sender, Component message) {
++        if (sender instanceof CraftPlayer player) {
++            player.taskScheduler.schedule(entity -> sender.sendMessage(message), null, 1L);
++        } else if (RegionizedServer.isGlobalTickThread()) {
++            sender.sendMessage(message);
++        } else {
++            RegionizedServer.getInstance().addTask(() -> sender.sendMessage(message));
++        }
++    }
++}
+diff --git a/src/main/java/io/papermc/paper/pregeneration/PregenerationDimensions.java b/src/main/java/io/papermc/paper/pregeneration/PregenerationDimensions.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..30d7da4679ba1280d10be5fa4c441152e9a3815e
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/pregeneration/PregenerationDimensions.java
+@@ -0,0 +1,43 @@
++package io.papermc.paper.pregeneration;
++
++import java.util.ArrayList;
++import java.util.List;
++import java.util.Locale;
++import org.bukkit.NamespacedKey;
++import org.bukkit.World;
++
++/** Internal command selection. Environment/type is not a unique loaded dimension identity. */
++final class PregenerationDimensions {
++    private PregenerationDimensions() {
++    }
++
++    static World resolve(List<World> worlds, String input) {
++        String key = switch (input.toLowerCase(Locale.ROOT)) {
++            case "overworld" -> "minecraft:overworld";
++            case "nether" -> "minecraft:the_nether";
++            case "end" -> "minecraft:the_end";
++            default -> input;
++        };
++        if (!key.contains(":") || NamespacedKey.fromString(key) == null) {
++            throw new IllegalArgumentException("Use overworld, nether, end or a namespaced dimension key");
++        }
++        List<World> matches = worlds.stream().filter(world -> world.getKey().toString().equals(key)).toList();
++        if (matches.isEmpty()) throw new IllegalArgumentException("Dimension is not loaded: " + key);
++        if (matches.size() != 1) throw new IllegalStateException("Dimension key is ambiguous: " + key);
++        return matches.getFirst();
++    }
++
++    static List<String> keys(List<World> worlds) {
++        return worlds.stream().map(world -> world.getKey().toString()).distinct().sorted().toList();
++    }
++
++    static List<String> suggestions(List<World> worlds) {
++        List<String> keys = keys(worlds);
++        List<String> result = new ArrayList<>();
++        if (keys.contains("minecraft:overworld")) result.add("overworld");
++        if (keys.contains("minecraft:the_nether")) result.add("nether");
++        if (keys.contains("minecraft:the_end")) result.add("end");
++        result.addAll(keys);
++        return List.copyOf(result);
++    }
++}
+diff --git a/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java b/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
+index a5703b48712630bc86c39676d56fc72886178232..91afa4ac9146bcd8efd9e3314729c200de99e25b 100644
+--- a/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
++++ b/src/main/java/org/bukkit/craftbukkit/world/CraftRuntimeWorldManager.java
+@@ -440,7 +440,13 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+ 
+         final List<ServerLevel> frozen = new ArrayList<>(participants.size());
+         final List<CompletableFuture<Void>> playerSaves = new ArrayList<>();
+-        final SnapshotPipeline.Steps steps = new SnapshotPipeline.Steps(() -> this.onGlobal(() -> {
++        final java.util.concurrent.atomic.AtomicReference<io.papermc.paper.pregeneration.WorldPregenerator.LifecycleLease> pregenLease =
++            new java.util.concurrent.atomic.AtomicReference<>();
++        final SnapshotPipeline.Steps steps = new SnapshotPipeline.Steps(() ->
++            io.papermc.paper.pregeneration.WorldPregenerator.pauseForLifecycle(participants.stream().map(CraftWorld::getHandle).toList())
++                .orTimeout(30L, TimeUnit.SECONDS).thenCompose(lease -> {
++                    pregenLease.set(lease);
++                    return this.onGlobal(() -> {
+             this.ensureRunning();
+             if (!new HashSet<>(this.server.getWorlds()).equals(new HashSet<>(participants))
+                 || !participants.containsAll(sources)) {
+@@ -477,7 +483,8 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+                 }
+             }
+             return null;
+-        }), () -> CompletableFuture.allOf(playerSaves.toArray(CompletableFuture[]::new)),
++        });
++                }), () -> CompletableFuture.allOf(playerSaves.toArray(CompletableFuture[]::new)),
+         () -> CompletableFuture.allOf(
+             frozen.stream()
+                 .map(world -> RegionizedServer.getInstance().awaitWorldRegionTasks(world))
+@@ -538,7 +545,10 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+             return null;
+         }));
+ 
+-        return SnapshotPipeline.run(steps, 30L, TimeUnit.SECONDS).handle((ignored, failure) -> {
++        return SnapshotPipeline.run(steps, 30L, TimeUnit.SECONDS).whenComplete((ignored, failure) -> {
++            final io.papermc.paper.pregeneration.WorldPregenerator.LifecycleLease lease = pregenLease.get();
++            if (lease != null) lease.close();
++        }).handle((ignored, failure) -> {
+             if (failure == null) {
+                 return new WorldSnapshotResult(WorldSnapshotResult.Status.SUCCESS, snapshotPath,
+                     "Saved level root, " + sources.size() + " world(s) and player storage to a fresh snapshot", null);
+@@ -884,6 +894,14 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+     private CompletionStage<TemplateSnapshot> createTemplateSnapshot(
+         final CraftWorld source,
+         final WorldCloneOptions options
++    ) {
++        return this.withPregenerationPause(List.of(source.getHandle()), () -> this.createTemplateSnapshotDrained(source, options),
++            java.time.Duration.ofSeconds(30));
++    }
++
++    private CompletionStage<TemplateSnapshot> createTemplateSnapshotDrained(
++        final CraftWorld source,
++        final WorldCloneOptions options
+     ) {
+         final ServerLevel handle = source.getHandle();
+         final Path snapshotRoot;
+@@ -976,7 +994,7 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+         final AtomicBoolean timedOut = new AtomicBoolean();
+         CompletableFuture.delayedExecutor(options.timeout().toMillis(), TimeUnit.MILLISECONDS)
+             .execute(() -> timedOut.set(true));
+-        return this.beginUnload(world)
++        return this.withPregenerationPause(List.of(world.getHandle()), () -> this.beginUnload(world)
+             .thenCompose(context -> {
+                 this.ensureUnloadWithinDeadline(timedOut);
+                 return this.evacuatePlayers(context, options)
+@@ -1028,6 +1046,22 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+                         cause
+                     );
+                 });
++            }), options.timeout());
++    }
++
++    private <T> CompletionStage<T> withPregenerationPause(
++        final List<ServerLevel> worlds,
++        final Supplier<CompletionStage<T>> action,
++        final java.time.Duration timeout
++    ) {
++        return io.papermc.paper.pregeneration.WorldPregenerator.pauseForLifecycle(worlds)
++            .orTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS).thenCompose(lease -> {
++                try {
++                    return action.get().whenComplete((result, failure) -> lease.close());
++                } catch (final Throwable failure) {
++                    lease.close();
++                    return CompletableFuture.failedFuture(failure);
++                }
+             });
+     }
+ 
+@@ -1670,7 +1704,11 @@ public final class CraftRuntimeWorldManager implements RuntimeWorldManager {
+             try {
+                 final Path snapshots = this.snapshotRoot();
+                 this.deleteTreeBestEffort(snapshots);
+-                Files.deleteIfExists(snapshots.getParent());
++                try {
++                    Files.deleteIfExists(snapshots.getParent());
++                } catch (final java.nio.file.DirectoryNotEmptyException ignored) {
++                    // Other Tessera services, including persistent pregeneration jobs, share this parent.
++                }
+             } catch (final IOException exception) {
+                 this.server.getLogger().log(
+                     java.util.logging.Level.WARNING,
+diff --git a/src/test/java/io/papermc/paper/pregeneration/PregenerationAreaTest.java b/src/test/java/io/papermc/paper/pregeneration/PregenerationAreaTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..edb88d1bf96d818162ea8ea491727e6b3c94df1f
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/pregeneration/PregenerationAreaTest.java
+@@ -0,0 +1,79 @@
++package io.papermc.paper.pregeneration;
++
++import java.time.Duration;
++import java.util.HashSet;
++import java.util.Set;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.*;
++
++class PregenerationAreaTest {
++    @Test
++    void cursorMatchesExactGeometryAndCountAtNegativeCoordinatesAndMcaEdges() {
++        for (PregenerationArea.Shape shape : new PregenerationArea.Shape[]{PregenerationArea.Shape.CIRCLE, PregenerationArea.Shape.SQUARE}) {
++            for (int center : new int[]{-513, -512, -17, -16, -1, 0, 15, 16, 511, 512}) {
++                for (int radius : new int[]{1, 16, 33, 513}) {
++                    PregenerationArea area = PregenerationArea.centered(shape, center, -center, radius);
++                    Set<Long> expected = new HashSet<>();
++                    for (int x = area.minX() >> 4; x <= area.maxX() >> 4; x++) {
++                        for (int z = area.minZ() >> 4; z <= area.maxZ() >> 4; z++) {
++                            if (area.contains(x, z)) expected.add(key(x, z));
++                        }
++                    }
++                    Set<Long> actual = new HashSet<>();
++                    PregenerationArea.Cursor cursor = area.cursor(0);
++                    PregenerationArea.Point point;
++                    long last = 0;
++                    while ((point = cursor.next()) != null) {
++                        assertTrue(point.nextCursor() > last);
++                        last = point.nextCursor();
++                        assertTrue(actual.add(key(point.x(), point.z())), "Duplicate chunk");
++                    }
++                    assertEquals(expected, actual);
++                    assertEquals(expected.size(), area.chunkCount());
++                    assertNull(cursor.next());
++                }
++            }
++        }
++    }
++
++    @Test
++    void resumesExactlyAfterRecordedCursor() {
++        PregenerationArea area = PregenerationArea.centered(PregenerationArea.Shape.CIRCLE, -500, 1025, 600);
++        PregenerationArea.Cursor cursor = area.cursor(0);
++        for (int i = 0; i < 250; i++) {
++            PregenerationArea.Point point = cursor.next();
++            assertNotNull(point);
++            PregenerationArea.Cursor resumed = area.cursor(point.nextCursor());
++            assertEquals(cursor.next(), resumed.next());
++        }
++    }
++
++    @Test
++    void rectangleAndVeryLargeSelectionsDoNotOverflowOrMaterializeChunks() {
++        PregenerationArea area = PregenerationArea.rectangle(-PregenerationArea.MAX_COORDINATE,
++            -PregenerationArea.MAX_COORDINATE, PregenerationArea.MAX_COORDINATE, PregenerationArea.MAX_COORDINATE);
++        assertTrue(area.chunkCount() > Integer.MAX_VALUE);
++        assertTrue(area.scanLimit() > area.chunkCount());
++        assertTimeoutPreemptively(Duration.ofSeconds(2), () -> {
++            assertNotNull(area.cursor(0).next());
++            PregenerationArea circle = PregenerationArea.centered(PregenerationArea.Shape.CIRCLE, 0, 0, PregenerationArea.MAX_COORDINATE);
++            assertNotNull(circle.cursor(0).next());
++            assertNotNull(circle.cursor(circle.scanLimit() / 2).next());
++        });
++    }
++
++    @Test
++    void invalidCoordinatesAndCursorsFailClosed() {
++        assertThrows(IllegalArgumentException.class, () -> PregenerationArea.centered(PregenerationArea.Shape.CIRCLE, 0, 0, 0));
++        assertThrows(IllegalArgumentException.class, () -> PregenerationArea.centered(PregenerationArea.Shape.SQUARE, Integer.MAX_VALUE, 0, 100));
++        assertThrows(IllegalArgumentException.class, () -> PregenerationArea.rectangle(Integer.MIN_VALUE, 0, 0, 0));
++        PregenerationArea area = PregenerationArea.centered(PregenerationArea.Shape.CIRCLE, 0, 0, 1);
++        assertThrows(IllegalArgumentException.class, () -> area.cursor(-1));
++        assertThrows(IllegalArgumentException.class, () -> area.cursor(area.scanLimit() + 1));
++    }
++
++    private static long key(int x, int z) {
++        return (long) x << 32 | z & 0xffffffffL;
++    }
++}
+diff --git a/src/test/java/io/papermc/paper/pregeneration/PregenerationCheckpointTest.java b/src/test/java/io/papermc/paper/pregeneration/PregenerationCheckpointTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..26c8b3c45e14d8a6a80d2fa7a22be28a7d554a18
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/pregeneration/PregenerationCheckpointTest.java
+@@ -0,0 +1,33 @@
++package io.papermc.paper.pregeneration;
++
++import java.io.IOException;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.api.io.TempDir;
++
++import static org.junit.jupiter.api.Assertions.*;
++
++class PregenerationCheckpointTest {
++    @TempDir Path temporary;
++
++    @Test
++    void publishesAndReplacesCompleteUtf8FilesWithoutLeavingStagingFiles() throws IOException {
++        Path file = temporary.resolve("jobs/1.json");
++        PregenerationCheckpoint.write(file, "{\"world\":\"Welt-ä\",\"cursor\":1}");
++        assertEquals("{\"world\":\"Welt-ä\",\"cursor\":1}", Files.readString(file));
++        PregenerationCheckpoint.write(file, "{\"cursor\":999}");
++        assertEquals("{\"cursor\":999}", Files.readString(file));
++        try (var files = Files.list(file.getParent())) {
++            assertEquals(1, files.count());
++        }
++    }
++
++    @Test
++    void rejectsDirectoryAsCheckpointAndPreservesItsContents() throws IOException {
++        Path file = Files.createDirectory(temporary.resolve("1.json"));
++        Path unrelated = Files.writeString(file.resolve("keep"), "untouched");
++        assertThrows(IOException.class, () -> PregenerationCheckpoint.write(file, "replacement"));
++        assertEquals("untouched", Files.readString(unrelated));
++    }
++}
+diff --git a/src/test/java/io/papermc/paper/pregeneration/PregenerationDimensionsTest.java b/src/test/java/io/papermc/paper/pregeneration/PregenerationDimensionsTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..f0b7aeff08f585d6217b299d14eb4758fdd16a34
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/pregeneration/PregenerationDimensionsTest.java
+@@ -0,0 +1,55 @@
++package io.papermc.paper.pregeneration;
++
++import java.util.List;
++import org.bukkit.NamespacedKey;
++import org.bukkit.World;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.Mockito.*;
++
++class PregenerationDimensionsTest {
++    @Test
++    void vanillaAliasesResolveTheExactDimensionNotTheFolderOrEnvironment() {
++        World overworld = world("minecraft:overworld", "renamed", World.Environment.NORMAL);
++        World nether = world("minecraft:the_nether", "different_folder", World.Environment.NETHER);
++        World end = world("minecraft:the_end", "another_folder", World.Environment.THE_END);
++        World extra = world("tessera:extra", "overworld", World.Environment.NORMAL);
++        List<World> worlds = List.of(extra, nether, end, overworld);
++        assertSame(overworld, PregenerationDimensions.resolve(worlds, "overworld"));
++        assertSame(nether, PregenerationDimensions.resolve(worlds, "NeThEr"));
++        assertSame(end, PregenerationDimensions.resolve(worlds, "end"));
++        assertSame(nether, PregenerationDimensions.resolve(worlds, "minecraft:the_nether"));
++        assertSame(extra, PregenerationDimensions.resolve(worlds, "tessera:extra"));
++        assertThrows(IllegalArgumentException.class, () -> PregenerationDimensions.resolve(worlds, "renamed"));
++        assertThrows(IllegalArgumentException.class, () -> PregenerationDimensions.resolve(worlds, "different_folder"));
++    }
++
++    @Test
++    void unknownUnloadedInvalidAndAmbiguousKeysFailClosed() {
++        World extra = world("tessera:extra", "world", World.Environment.NORMAL);
++        assertThrows(IllegalArgumentException.class, () -> PregenerationDimensions.resolve(List.of(extra), "overworld"));
++        assertThrows(IllegalArgumentException.class, () -> PregenerationDimensions.resolve(List.of(extra), "tessera:missing"));
++        assertThrows(IllegalArgumentException.class, () -> PregenerationDimensions.resolve(List.of(extra), "tessera:BAD KEY"));
++        assertThrows(IllegalArgumentException.class, () -> PregenerationDimensions.resolve(List.of(extra), "world"));
++        assertThrows(IllegalStateException.class, () -> PregenerationDimensions.resolve(
++            List.of(extra, world("tessera:extra", "other", World.Environment.NORMAL)), "tessera:extra"));
++    }
++
++    @Test
++    void suggestionsContainOnlyLoadedDimensionKeysAndAvailableVanillaAliases() {
++        List<World> worlds = List.of(world("tessera:extra", "world", World.Environment.NORMAL),
++            world("minecraft:the_nether", "world_nether", World.Environment.NETHER));
++        assertEquals(List.of("nether", "minecraft:the_nether", "tessera:extra"), PregenerationDimensions.suggestions(worlds));
++        assertEquals(List.of(), PregenerationDimensions.suggestions(List.of()));
++        assertEquals(List.of("minecraft:the_nether", "tessera:extra"), PregenerationDimensions.keys(worlds));
++    }
++
++    private static World world(String key, String folderName, World.Environment environment) {
++        World world = mock(World.class);
++        when(world.getKey()).thenReturn(NamespacedKey.fromString(key));
++        when(world.getName()).thenReturn(folderName);
++        when(world.getEnvironment()).thenReturn(environment);
++        return world;
++    }
++}
+diff --git a/src/test/java/io/papermc/paper/pregeneration/PregenerationTestSuite.java b/src/test/java/io/papermc/paper/pregeneration/PregenerationTestSuite.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..53f05de6626a756c6f97798451a190422e09fbe8
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/pregeneration/PregenerationTestSuite.java
+@@ -0,0 +1,9 @@
++package io.papermc.paper.pregeneration;
++
++import org.junit.platform.suite.api.SelectClasses;
++import org.junit.platform.suite.api.Suite;
++
++@Suite
++@SelectClasses({PregenerationAreaTest.class, PregenerationCheckpointTest.class, PregenerationDimensionsTest.class})
++public class PregenerationTestSuite {
++}

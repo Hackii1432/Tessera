@@ -3,7 +3,7 @@ title: "Statische Weltvorlagen klonen"
 description: "Validierte Template-Kopien mit neuen Weltidentitäten, Optionen und Fehlerstatus."
 navTitle: "Weltvorlagen"
 order: 50
-updated: 2026-09-28
+updated: 2026-10-05
 minecraftVersion: "26.3"
 badge: "Referenz"
 ---
@@ -67,6 +67,12 @@ Nicht übernommen werden unter anderem:
 
 Die Zielwelt erhält einen eigenen Key, eine eigene UUID, eigene Metadaten und
 eigene Storage-Worker.
+
+Seit Build 015 hält eine neue Template-Sicherung die native Vorgenerierung der
+Quelle während ihres Lifecycle-Wechsels an und drainiert zuvor zugelassene
+Arbeit. Nach Freigabe der Quelle darf ein laufender Job weiterarbeiten. Ein
+bereits vorhandener gültiger Template-Cache bleibt davon unberührt; die
+öffentliche Clone-Signatur ist unverändert.
 
 ### `WorldCloneOptions`
 

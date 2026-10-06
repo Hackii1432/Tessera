@@ -3,7 +3,7 @@ title: "Runtime-Welten erstellen und laden"
 description: "Lifecycle-Schnittstelle, stabile Weltidentität und Ladeergebnisse."
 navTitle: "Runtime-Welten"
 order: 40
-updated: 2026-09-28
+updated: 2026-10-05
 minecraftVersion: "26.3"
 badge: "Referenz"
 ---
@@ -240,6 +240,13 @@ Dimensionswurzeln besitzen getrennte `region`, `entities`, `poi` und `data`-Bäu
 ## Abschluss und Lebenszyklus
 
 Aufträge für dieselbe Welt werden koordiniert. Erfolgreiches Create/Load folgt auf Registrierung, Spawnvorbereitung, Aktivierung und `WorldLoadEvent`. Danach tickt die Welt regional. Ein Resultat ist keine dauerhafte Besitz- oder Ladegarantie.
+
+Seit Build 015 drainiert Unload zuvor zugelassene native Vorgenerierung und
+sperrt deren neue Aufnahme während der Lifecycle-Operation. Ein alter Job wird
+nicht auf eine nachgeladene oder ersetzte Weltinstanz übertragen. Die dafür
+verwendeten Pregenerator-Klassen sind intern; es gibt keine zusätzliche öffentliche
+Bukkit-Vorgenerierungs-API. Template-Sicherungen und Welt-Snapshots verwenden
+dieselbe Kooperation, ohne ihre öffentlichen Signaturen zu ändern.
 
 Parameterfehler können als Ergebnis oder unmittelbar erscheinen: `loadWorldAsync((NamespacedKey) null)` wirft bereits im Default-Overload. Completion-Callbacks haben keine allgemeine Threadgarantie. [Fehlerbehandlung](error-handling.md) beschreibt Disable und Future-Ketten; [Events](events.md) beschreibt die Zuständigkeiten.
 

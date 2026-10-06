@@ -1,14 +1,15 @@
 param(
     [switch]$FullOnly,
     [switch]$KeepRuns,
-    [string[]]$Modes
+    [string[]]$Modes,
+    [string]$RunDirectory
 )
 
 $ErrorActionPreference = "Stop"
 $repository = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
-$runRoot = Join-Path $PSScriptRoot "build\runs"
+$runRoot = if ($RunDirectory) { $RunDirectory } else { Join-Path $PSScriptRoot "build\runs" }
 $resolvedRunRoot = [System.IO.Path]::GetFullPath($runRoot)
-$resolvedSmokeRoot = [System.IO.Path]::GetFullPath($PSScriptRoot)
+$resolvedSmokeRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "build")) + [System.IO.Path]::DirectorySeparatorChar
 
 if (-not $resolvedRunRoot.StartsWith($resolvedSmokeRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
     throw "Unsafe smoke run directory: $resolvedRunRoot"

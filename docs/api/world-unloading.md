@@ -3,7 +3,7 @@ title: "Runtime-Welten entladen"
 description: "Spielerbehandlung, reversible Timeouts und Freigabe von Weltdateien."
 navTitle: "Welt-Unload"
 order: 70
-updated: 2026-09-28
+updated: 2026-10-05
 minecraftVersion: "26.3"
 badge: "Referenz"
 ---
@@ -62,6 +62,11 @@ Den Pfad vorher über `World#getWorldPath()` erfassen. Dateilöschung benötigt 
 Der Ordner darf niemals vor einem erfolgreichen Unload-Ergebnis gelöscht
 werden. `successful()` ist insbesondere unter Windows das Gate für die
 Dateihandle-Freigabe.
+
+Seit Build 015 wird vor dem Lifecycle-Wechsel auch bereits zugelassene native
+Vorgenerierung einschließlich Schreibbestätigungen und eigener Ticket-Bereinigung
+drainiert. Neue Vorgenerierung bleibt während der Operation gesperrt. Dies
+ändert keine Signatur und keine Berechtigung der öffentlichen Unload-API.
 
 Beim Unload:
 

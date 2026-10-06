@@ -9,11 +9,11 @@ plugin APIs. Tessera is intended for SMP servers, independent arenas and
 multi-world game modes whose plugins support Folia's threading model.
 
 **Current branch:** `ver/26.3.x` · **Minecraft/API:** `26.3` ·
-**Tessera:** `014-beta` · **Java:** `25`
+**Tessera:** `015-beta` · **Java:** `25`
 
 Tessera uses the **beta** channel; this is not a blanket production guarantee.
-The [current changelog](docs/builds/26.3/0.0.14.md) and
-[Build 014 integration report](docs/BUILD-26.3-014.md) distinguish implemented
+The [current changelog](docs/builds/26.3/0.0.15.md) and
+[Build 015 integration report](docs/BUILD-26.3-015.md) distinguish implemented
 features from completed tests and outstanding integration checks. Older 26.2
 and 26.3 RC entries in the [release history](docs/builds/) are historical,
 not a promise that this branch builds or supports all those versions.
@@ -75,7 +75,7 @@ See [the region architecture](REGION_LOGIC.md) and
 ## Install and update
 
 1. Obtain a Tessera JAR built from the intended source revision, or build it below.
-   This branch produces `tessera-server-26.3.build.014-beta.jar` for Minecraft
+   This branch produces `tessera-server-26.3.build.015-beta.jar` for Minecraft
    **26.3** clients, not RC2/RC3 clients. Use Java **25** to run it.
 2. Use a dedicated server directory. Before migrating an existing server, stop it
    cleanly and make a separate backup of **all** worlds, player stores, level-root
@@ -83,7 +83,7 @@ See [the region architecture](REGION_LOGIC.md) and
 3. Copy the runnable JAR into that directory. Start it from that directory, for example:
 
    ```text
-   java -Xms2G -Xmx4G -jar tessera-server-26.3.build.014-beta.jar --nogui
+   java -Xms2G -Xmx4G -jar tessera-server-26.3.build.015-beta.jar --nogui
    ```
 
    The heap values are examples, not sizing guarantees. Leave memory and CPU
@@ -122,8 +122,8 @@ Run from the **Tessera repository root**, not from `sinopia/`:
 ```
 
 This prepares Sinopia, reapplies all patch layers, runs the tests/checks and
-creates the runnable JAR in `build/libs/`. The Build 014 source base,
-SHA-256 and actual test results are in [its integration report](docs/BUILD-26.3-014.md).
+creates the runnable JAR in `build/libs/`. The Build 015 source base,
+SHA-256 and actual test results are in [its integration report](docs/BUILD-26.3-015.md).
 For offline identity metadata affected by the old restore preview, follow the
 [backup and field-level repair guide](docs/restore-player-metadata-repair.md).
 
@@ -175,6 +175,7 @@ examples do not override the contracts of the API version you compile against.
 - [Build, patches and Sinopia workflow](docs/SINOPIA-WORKFLOW.md)
 - [Sinopia provenance and local upstream changes](sinopia/BASELINE.md)
 - [Runtime worlds](docs/api/runtime-worlds.md), [templates](docs/api/world-cloning.md) and [snapshots](docs/api/world-snapshots.md)
+- [Native world pregeneration](docs/world-pregeneration.md) — `/pregen dimension <overworld|nether|end|namespace:key>`, permission `tessera.command.pregen` (OP by default); works during `/tick freeze`.
 - [Player restore API](docs/api/player-restore.md)
 - [Native player restore and remaining integration checks](docs/mcc-player-restore-status.md)
 - [Console/RCON command handling](docs/console-command-context.md)

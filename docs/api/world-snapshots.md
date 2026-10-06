@@ -3,7 +3,7 @@ title: "Frische Welt- und Spieler-Snapshots"
 description: "Konsistente Live-Sicherungen, gemeinsame Level-Daten und Abschluss- sowie Fehlervertrag."
 navTitle: "Snapshots"
 order: 60
-updated: 2026-09-28
+updated: 2026-10-05
 minecraftVersion: "26.3"
 badge: "Referenz"
 ---
@@ -39,6 +39,13 @@ Verbundene Spieler werden auf ihren Besitzern gespeichert, laufende Speicherarbe
 beendet, Regionen/Chunk-Arbeit an Barrieren zusammengeführt und Chunks, Entities,
 POI, SavedData und globale Metadaten geflusht. Interne Drain-Arbeit kann auch
 bei Tick-Freeze laufen; normale Entity-Plugin-Tasks sind kein Ersatz dafür.
+
+Seit Build 015 wird auch die native Welt-Vorgenerierung koordiniert: Vor dem
+Lifecycle-Wechsel wird ihre Aufnahme neuer Arbeit für die beteiligten Welten
+gesperrt und bereits zugelassene Arbeit einschließlich ihrer Schreibbestätigungen
+und eigenen Ticket-Bereinigung abgewartet. Nach dem Snapshot wird die Aufnahme
+wieder freigegeben. Die Signatur und Ergebnisstatus bleiben unverändert.
+Gewöhnliches `/tick freeze` allein hält den nativen Pregenerator nicht an.
 
 ```text
 snapshotPath/

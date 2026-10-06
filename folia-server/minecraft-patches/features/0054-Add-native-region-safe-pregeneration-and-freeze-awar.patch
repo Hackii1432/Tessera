@@ -1,0 +1,1329 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Mon, 5 Oct 2026 20:45:36 +0200
+Subject: [PATCH] Add native region-safe pregeneration and freeze-aware cleanup
+
+
+diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/io/MoonriseRegionFileIO.java b/ca/spottedleaf/moonrise/patches/chunk_system/io/MoonriseRegionFileIO.java
+index 11705a58e68777834de7e928d929f9d230f4fa32..ceb85f49d3b245142a55869b2e6e8b8d4d05ccd5 100644
+--- a/ca/spottedleaf/moonrise/patches/chunk_system/io/MoonriseRegionFileIO.java
++++ b/ca/spottedleaf/moonrise/patches/chunk_system/io/MoonriseRegionFileIO.java
+@@ -159,6 +159,68 @@ public final class MoonriseRegionFileIO {
+         }
+     }
+ 
++    // Tessera start - acknowledge actual pregeneration writes, not just NBT serialization
++    private static final ThreadLocal<java.util.List<Throwable>> PREGEN_SAVE_FAILURES = new ThreadLocal<>();
++
++    public static void tessera$reportPregenerationSaveFailure(final Throwable failure) {
++        final java.util.List<Throwable> failures = PREGEN_SAVE_FAILURES.get();
++        if (failures != null) {
++            failures.add(failure);
++        }
++    }
++
++    public static CompletableFuture<Void> tessera$saveForPregeneration(
++        final ServerLevel world, final int chunkX, final int chunkZ, final Runnable save
++    ) {
++        if (PREGEN_SAVE_FAILURES.get() != null) {
++            return CompletableFuture.failedFuture(new IllegalStateException("Recursive pregeneration save"));
++        }
++        final java.util.List<Throwable> failures = new java.util.ArrayList<>();
++        PREGEN_SAVE_FAILURES.set(failures);
++        try {
++            save.run();
++        } catch (final Throwable failure) {
++            failures.add(failure);
++        } finally {
++            PREGEN_SAVE_FAILURES.remove();
++        }
++        final CompletableFuture<Void> writes = tessera$awaitChunkWrites(world, chunkX, chunkZ);
++        if (failures.isEmpty()) return writes;
++        final Throwable saveFailure = failures.getFirst();
++        for (int i = 1; i < failures.size(); i++) {
++            if (failures.get(i) != saveFailure) saveFailure.addSuppressed(failures.get(i));
++        }
++        // A synchronous failure in one store must not bypass other stores' queued writes.
++        return writes.handle((ignored, writeFailure) -> {
++            if (writeFailure != null && writeFailure != saveFailure) saveFailure.addSuppressed(writeFailure);
++            throw new java.util.concurrent.CompletionException(saveFailure);
++        });
++    }
++
++    public static CompletableFuture<Void> tessera$awaitChunkWrites(final ServerLevel world, final int chunkX, final int chunkZ) {
++        final java.util.List<CompletableFuture<Void>> writes = new java.util.ArrayList<>();
++        for (final RegionFileType type : CACHED_REGIONFILE_TYPES) {
++            final RegionDataController controller = getControllerFor(world, type);
++            controller.chunkTasks.compute(CoordinateUtils.getChunkKey(chunkX, chunkZ), (key, task) -> {
++                if (task != null && task.inProgressWrite != null) {
++                    if (task.failedWrite) {
++                        writes.add(CompletableFuture.failedFuture(new IOException("Previous write failed: " + task)));
++                    } else {
++                        if (task.tessera$writeWaiters == null) {
++                            task.tessera$writeWaiters = new java.util.ArrayList<>();
++                        }
++                        final CompletableFuture<Void> future = new CompletableFuture<>();
++                        task.tessera$writeWaiters.add(future);
++                        writes.add(future);
++                    }
++                }
++                return task;
++            });
++        }
++        return CompletableFuture.allOf(writes.toArray(CompletableFuture[]::new));
++    }
++    // Tessera end - acknowledge actual pregeneration writes
++
+     public static void flushRegionStorages(final ServerLevel world, final RegionFileType type) throws IOException {
+         getControllerFor(world, type).getCache().flush();
+     }
+@@ -967,6 +1029,7 @@ public final class MoonriseRegionFileIO {
+         private RegionDataController.ReadData readData;
+         private RegionDataController.WriteData writeData;
+         private boolean failedWrite;
++        private java.util.List<CompletableFuture<Void>> tessera$writeWaiters; // Tessera - accessed under chunkTasks.compute
+ 
+         public ChunkIOTask(final ServerLevel world, final RegionDataController regionDataController,
+                            final int chunkX, final int chunkZ, final Priority priority, final InProgressRead inProgressRead) {
+@@ -1258,6 +1321,7 @@ public final class MoonriseRegionFileIO {
+ 
+             RegionDataController.WriteData writeData = null;
+             boolean failedWrite = false;
++            Throwable tessera$writeFailure = inProgressWrite.throwable;
+ 
+             if (inProgressWrite.throwable != null) {
+                 LOGGER.error("Serialization task for chunk data failed: " + this.toString(), inProgressWrite.throwable);
+@@ -1265,6 +1329,7 @@ public final class MoonriseRegionFileIO {
+                 try {
+                     writeData = this.regionDataController.startWrite(this.chunkX, this.chunkZ, inProgressWrite.value);
+                 } catch (final Throwable thr) {
++                    tessera$writeFailure = thr; // Tessera - propagate compression/serialization failures to the job
+                     failedWrite = thr instanceof IOException;
+                     LOGGER.error("Failed to write chunk data for task: " + this.toString(), thr);
+                 }
+@@ -1275,7 +1340,7 @@ public final class MoonriseRegionFileIO {
+ 
+                 // we cannot continue to the I/O stage here, so try to complete
+ 
+-                if (this.tryCompleteWrite(inProgressWrite, failedWrite)) {
++                if (this.tryCompleteWrite(inProgressWrite, failedWrite, tessera$writeFailure)) {
+                     return;
+                 } else {
+                     // fetch new data and try again
+@@ -1307,6 +1372,7 @@ public final class MoonriseRegionFileIO {
+             this.writeData = null;
+ 
+             boolean failedWrite = false;
++            Throwable tessera$writeFailure = null;
+ 
+             try {
+                 this.regionDataController.finishWrite(this.chunkX, this.chunkZ, writeData);
+@@ -1319,21 +1385,23 @@ public final class MoonriseRegionFileIO {
+                 }
+                 // Paper end - flush regionfiles on save
+             } catch (final Throwable thr) {
++                tessera$writeFailure = thr; // Tessera - the completion barrier must fail on I/O failure
+                 failedWrite = thr instanceof IOException;
+                 LOGGER.error("Failed to write chunk data for task: " + this.toString(), thr);
+             }
+ 
+-            if (!this.tryCompleteWrite(inProgressWrite, failedWrite)) {
++            if (!this.tryCompleteWrite(inProgressWrite, failedWrite, tessera$writeFailure)) {
+                 // fetch new data and try again
+                 this.scheduleWriteCompress();
+             }
+             return;
+         }
+ 
+-        private boolean tryCompleteWrite(final InProgressWrite written, final boolean failedWrite) {
++        private boolean tryCompleteWrite(final InProgressWrite written, final boolean failedWrite, final Throwable tessera$writeFailure) {
+             final long chunkKey = CoordinateUtils.getChunkKey(this.chunkX, this.chunkZ);
+ 
+             final boolean[] done = new boolean[] { false };
++            final java.util.List<CompletableFuture<Void>> tessera$completed = new java.util.ArrayList<>();
+ 
+             this.regionDataController.chunkTasks.compute(chunkKey, (final long keyInMap, final ChunkIOTask valueInMap) -> {
+                 if (valueInMap == null) {
+@@ -1343,6 +1411,10 @@ public final class MoonriseRegionFileIO {
+                     throw new IllegalStateException("Chunk task mismatch, expected this task: " + ChunkIOTask.this.toString() + ", got: " + valueInMap.toString() + ", report this!");
+                 }
+                 if (valueInMap.inProgressWrite == written) {
++                    if (valueInMap.tessera$writeWaiters != null) {
++                        tessera$completed.addAll(valueInMap.tessera$writeWaiters);
++                        valueInMap.tessera$writeWaiters = null;
++                    }
+                     valueInMap.failedWrite = failedWrite;
+                     done[0] = true;
+                     // keep the data in map if we failed the write so we can try to prevent data loss
+@@ -1352,6 +1424,15 @@ public final class MoonriseRegionFileIO {
+                 return valueInMap;
+             });
+ 
++            // Never invoke service callbacks under the I/O map lock.
++            for (final CompletableFuture<Void> waiter : tessera$completed) {
++                if (tessera$writeFailure == null) {
++                    waiter.complete(null);
++                } else {
++                    waiter.completeExceptionally(tessera$writeFailure);
++                }
++            }
++
+             if (done[0]) {
+                 this.regionDataController.endTask(this);
+                 return true;
+diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
+index b944f8a465af5417d64b749096c74fbbcc000ca3..b029b0bd2be4deab6b04166e3663112c921f4dc1 100644
+--- a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
++++ b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
+@@ -80,6 +80,135 @@ public final class ChunkHolderManager {
+     public static final int MAX_TICKET_LEVEL = ChunkLevel.MAX_LEVEL; // inclusive
+ 
+     public static final TicketType UNLOAD_COOLDOWN = ChunkSystemTicketType.create("chunk_system:unload_cooldown", null, 5L * 20L);
++    // Tessera - own retry ticket; never expire another loader's tickets during /tick freeze.
++    private static final TicketType PREGEN_UNLOAD_COOLDOWN = ChunkSystemTicketType.create("tessera:pregen_unload_retry", null);
++    private record PregenerationRetryKey(long coordinate, int level) {}
++    private static final class PregenerationRetry {
++        volatile long deadline;
++        final java.util.concurrent.CompletableFuture<Void> released = new java.util.concurrent.CompletableFuture<>();
++        PregenerationRetry(final long deadline) { this.deadline = deadline; }
++    }
++    private final java.util.concurrent.ConcurrentHashMap<Long, java.util.concurrent.ConcurrentHashMap<PregenerationRetryKey, PregenerationRetry>> tessera$pregenUnloadRetries =
++        new java.util.concurrent.ConcurrentHashMap<>();
++    private final java.util.concurrent.ConcurrentHashMap<Long, java.util.concurrent.atomic.AtomicInteger> tessera$pregenFootprints =
++        new java.util.concurrent.ConcurrentHashMap<>();
++
++    public AutoCloseable tessera$admitPregenerationFootprint(final int x, final int z, final int radius) {
++        final java.util.Set<Long> keys = new java.util.HashSet<>();
++        final int shift = ((ChunkSystemServerLevel)this.world).moonrise$getRegionChunkShift();
++        for (int dz = -radius; dz <= radius; dz++) {
++            for (int dx = -radius; dx <= radius; dx++) {
++                keys.add(CoordinateUtils.getChunkKey(x + dx, z + dz));
++                // Native task queues retain a section anchor, which need not be a target chunk.
++                keys.add(CoordinateUtils.getChunkKey(((x + dx) >> shift) << shift, ((z + dz) >> shift) << shift));
++            }
++        }
++        keys.forEach(key -> this.tessera$pregenFootprints.compute(key, (ignored, count) -> {
++            if (count == null) count = new java.util.concurrent.atomic.AtomicInteger();
++            count.incrementAndGet();
++            return count;
++        }));
++        final java.util.concurrent.atomic.AtomicBoolean closed = new java.util.concurrent.atomic.AtomicBoolean();
++        return () -> {
++            if (closed.compareAndSet(false, true)) keys.forEach(key -> this.tessera$pregenFootprints.computeIfPresent(key,
++                (ignored, count) -> count.decrementAndGet() == 0 ? null : count));
++        };
++    }
++
++    public void tessera$tickPregenerationUnloads() {
++        final var region = TickRegionScheduler.getCurrentRegion();
++        if (region == null || region.regioniser.world != this.world) {
++            throw new IllegalStateException("Pregeneration unload maintenance must run on the owner");
++        }
++        if (this.tessera$pregenUnloadRetries.isEmpty()) return;
++        final long now = System.nanoTime();
++        for (final LongIterator iterator = region.getOwnedSectionsUnsynchronised(); iterator.hasNext();) {
++            final long section = iterator.nextLong();
++            final java.util.concurrent.ConcurrentHashMap<PregenerationRetryKey, PregenerationRetry> retries = this.tessera$pregenUnloadRetries.get(section);
++            if (retries == null) {
++                continue;
++            }
++            retries.forEach((key, retry) -> {
++                if (now - retry.deadline >= 0) {
++                    boolean retired = false;
++                    final ReentrantAreaLock.Node lock = this.ticketLockArea.lock(
++                        CoordinateUtils.getChunkX(key.coordinate()), CoordinateUtils.getChunkZ(key.coordinate()));
++                    try {
++                        // Registration takes this same ticket lock. Keep the receipt visible until
++                        // the ticket is gone, and recheck a concurrently extended deadline.
++                        if (retries.get(key) == retry && now - retry.deadline >= 0) {
++                            this.removeTicketAtLevel(PREGEN_UNLOAD_COOLDOWN, key.coordinate(), key.level(), null, false);
++                            retries.remove(key, retry);
++                            retired = true;
++                        }
++                    } catch (final Throwable failure) {
++                        retry.released.completeExceptionally(failure);
++                        throw failure;
++                    } finally {
++                        this.ticketLockArea.unlock(lock);
++                    }
++                    // Never run continuation code while holding a native ticket lock.
++                    if (retired) retry.released.complete(null);
++                }
++            });
++            this.tessera$pregenUnloadRetries.computeIfPresent(section, (ignored, current) -> current.isEmpty() ? null : current);
++        }
++    }
++
++    private void tessera$addPregenerationUnloadRetry(final NewChunkHolder holder) {
++        final long key = CoordinateUtils.getChunkKey(holder.chunkX, holder.chunkZ);
++        this.addTicketAtLevel(PREGEN_UNLOAD_COOLDOWN, key, MAX_TICKET_LEVEL, null, false);
++        this.tessera$registerPregenerationRelease(key, MAX_TICKET_LEVEL);
++    }
++
++    private void tessera$registerPregenerationRelease(final long key, final int level) {
++        final int shift = ((ChunkSystemServerLevel)this.world).moonrise$getRegionChunkShift();
++        final long section = CoordinateUtils.getChunkKey(CoordinateUtils.getChunkX(key) >> shift, CoordinateUtils.getChunkZ(key) >> shift);
++        this.tessera$pregenUnloadRetries.compute(section, (ignoredSection, retries) -> {
++            if (retries == null) retries = new java.util.concurrent.ConcurrentHashMap<>();
++            retries.compute(new PregenerationRetryKey(key, level), (ignored, retry) -> {
++                if (retry == null) retry = new PregenerationRetry(System.nanoTime() + 50_000_000L);
++                else retry.deadline = System.nanoTime() + 50_000_000L;
++                return retry;
++            });
++            return retries;
++        });
++    }
++
++    public java.util.concurrent.CompletableFuture<Void> tessera$awaitPregenerationRelease(final int x, final int z) {
++        final java.util.List<java.util.concurrent.CompletableFuture<Void>> pending = new java.util.ArrayList<>();
++        final int shift = ((ChunkSystemServerLevel)this.world).moonrise$getRegionChunkShift();
++        final long key = CoordinateUtils.getChunkKey(x, z);
++        final long section = CoordinateUtils.getChunkKey(x >> shift, z >> shift);
++        final long anchor = CoordinateUtils.getChunkKey((x >> shift) << shift, (z >> shift) << shift);
++        final var retries = this.tessera$pregenUnloadRetries.get(section);
++        if (retries != null) retries.forEach((retryKey, retry) -> {
++            if (retryKey.coordinate() == key || retryKey.coordinate() == anchor) pending.add(retry.released);
++        });
++        return java.util.concurrent.CompletableFuture.allOf(pending.toArray(java.util.concurrent.CompletableFuture[]::new));
++    }
++
++    /** Thread-safe holder metadata only; does not read or mutate a foreign live chunk. */
++    public void tessera$claimPregenerationUnload(final NewChunkHolder holder) {
++        final ReentrantAreaLock.Node lock = this.ticketLockArea.lock(holder.chunkX, holder.chunkZ);
++        try {
++            final TicketSet current = this.tickets.get(CoordinateUtils.getChunkKey(holder.chunkX, holder.chunkZ));
++            if (current != null) {
++                for (final Ticket ticket : current) {
++                    if (!tessera$isPregenerationMaintenanceTicket(ticket.getType())) return;
++                }
++            }
++            holder.tessera$pregenerationUnload = true;
++        } finally {
++            this.ticketLockArea.unlock(lock);
++        }
++    }
++
++    private static boolean tessera$isPregenerationMaintenanceTicket(final TicketType type) {
++        return type == PREGEN_UNLOAD_COOLDOWN
++            || type == io.papermc.paper.pregeneration.WorldPregenerator.PREGEN_TICKET
++            || type == io.papermc.paper.threadedregions.RegionizedTaskQueue.TASK_QUEUE_TICKET;
++    }
+ 
+     private static final long NO_TIMEOUT_MARKER = Long.MIN_VALUE;
+     public final ReentrantAreaLock ticketLockArea;
+@@ -723,6 +852,11 @@ public final class ChunkHolderManager {
+                 return new TicketSet(4);
+             });
+ 
++            final NewChunkHolder tessera$holder = this.chunkHolders.get(chunk);
++            if (tessera$holder != null && tessera$holder.tessera$pregenerationUnload && !tessera$isPregenerationMaintenanceTicket(type)) {
++                tessera$holder.tessera$pregenerationUnload = false; // Foreign access retains ordinary freeze/unload behaviour.
++            }
++
+             final int levelBefore = getTicketLevelAt(ticketsAtChunk);
+             final Ticket current = ticketsAtChunk.replace(ticket);
+             final int levelAfter = getTicketLevelAt(ticketsAtChunk);
+@@ -813,12 +947,29 @@ public final class ChunkHolderManager {
+             final int newLevel = getTicketLevelAt(ticketsAtChunk);
+             // we should not change the ticket levels while the target region may be ticking
+             if (oldLevel != newLevel) {
+-                final Ticket unknownTicket = new Ticket(TicketType.UNKNOWN, level);
+-                if (ticketsAtChunk.add(unknownTicket)) {
+-                    this.addExpireCount(chunkX, chunkZ);
+-                    this.addTicketCounter(TicketType.UNKNOWN, chunk);
++                if (type == PREGEN_UNLOAD_COOLDOWN && TickThread.isTickThreadFor(this.world, chunkX, chunkZ)) {
++                    // This runs in the owning region's maintenance phase, immediately before propagation.
++                    this.updateTicketLevel(chunk, newLevel);
++                    if (ticketsAtChunk.isEmpty()) this.tickets.remove(chunk);
+                 } else {
+-                    throw new IllegalStateException("Should have been able to add " + unknownTicket + " to " + ticketsAtChunk);
++                    final NewChunkHolder holder = this.chunkHolders.get(chunk);
++                    final boolean pregen = type == io.papermc.paper.pregeneration.WorldPregenerator.PREGEN_TICKET
++                        || type == PREGEN_UNLOAD_COOLDOWN
++                        || (type == io.papermc.paper.threadedregions.RegionizedTaskQueue.TASK_QUEUE_TICKET
++                            && holder != null && holder.tessera$pregenerationUnload);
++                    final TicketType deferredType = pregen ? PREGEN_UNLOAD_COOLDOWN : TicketType.UNKNOWN;
++                    final Ticket unknownTicket = new Ticket(deferredType, level);
++                    if (ticketsAtChunk.add(unknownTicket)) {
++                        if (pregen) {
++                            ((ChunkSystemTicket<?>)(Object)unknownTicket).moonrise$setRemoveDelay(NO_TIMEOUT_MARKER);
++                            this.tessera$registerPregenerationRelease(chunk, level);
++                        } else {
++                            this.addExpireCount(chunkX, chunkZ);
++                        }
++                        this.addTicketCounter(deferredType, chunk);
++                    } else {
++                        throw new IllegalStateException("Should have been able to add " + unknownTicket + " to " + ticketsAtChunk);
++                    }
+                 }
+             }
+ 
+@@ -1054,6 +1205,9 @@ public final class ChunkHolderManager {
+ 
+     private NewChunkHolder createChunkHolder(final long position) {
+         final NewChunkHolder ret = new NewChunkHolder(this.world, CoordinateUtils.getChunkX(position), CoordinateUtils.getChunkZ(position), this.taskScheduler);
++        if (this.tessera$pregenFootprints.containsKey(position)) {
++            this.tessera$claimPregenerationUnload(ret); // Tessera - newly created native dependencies only
++        }
+ 
+         PlatformHooks.get().onChunkHolderCreate(this.world, ret.vanillaChunkHolder);
+ 
+@@ -1458,7 +1612,11 @@ public final class ChunkHolderManager {
+                             this.removeChunkHolder(holder);
+                         } else {
+                             // add cooldown so the next unload check is not immediately next tick
+-                            this.addTicketAtLevel(UNLOAD_COOLDOWN, CoordinateUtils.getChunkKey(holder.chunkX, holder.chunkZ), MAX_TICKET_LEVEL, null, false);
++                            if (holder.tessera$pregenerationUnload) {
++                                this.tessera$addPregenerationUnloadRetry(holder);
++                            } else {
++                                this.addTicketAtLevel(UNLOAD_COOLDOWN, CoordinateUtils.getChunkKey(holder.chunkX, holder.chunkZ), MAX_TICKET_LEVEL, null, false);
++                            }
+                         }
+                     }
+                 } finally {
+diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/NewChunkHolder.java b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/NewChunkHolder.java
+index 98cb9bc8741c5dec0f2406e01916d3b8a47a8c25..ee5de6d5c1d85627633c1fcfeca52ac461055f7d 100644
+--- a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/NewChunkHolder.java
++++ b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/NewChunkHolder.java
+@@ -1640,6 +1640,17 @@ public final class NewChunkHolder {
+ 
+     public long lastAutoSave;
+ 
++    // Tessera - only newly created pregeneration dependencies use maintenance-time unload retries.
++    public volatile boolean tessera$pregenerationUnload;
++
++    public java.util.concurrent.CompletableFuture<Void> tessera$saveForPregeneration() {
++        TickThread.ensureTickThread(this.world, this.chunkX, this.chunkZ, "Cannot save pregeneration data off-region");
++        if (PlatformHooks.get().forceNoSave(this.getCurrentChunk())) {
++            return java.util.concurrent.CompletableFuture.failedFuture(new IllegalStateException("Chunk saving is disabled for this chunk"));
++        }
++        return MoonriseRegionFileIO.tessera$saveForPregeneration(this.world, this.chunkX, this.chunkZ, () -> this.save(false));
++    }
++
+     public static final record SaveStat(boolean savedChunk, boolean savedEntityChunk, boolean savedPoiChunk) {}
+ 
+     private static final MoonriseRegionFileIO.RegionFileType[] REGION_FILE_TYPES = MoonriseRegionFileIO.RegionFileType.values();
+@@ -1754,6 +1765,7 @@ public final class NewChunkHolder {
+             }
+         } catch (final Throwable thr) {
+             LOGGER.error("Failed to save chunk data (" + this.chunkX + "," + this.chunkZ + ") in world '" + WorldUtil.getWorldName(this.world) + "'", thr);
++            MoonriseRegionFileIO.tessera$reportPregenerationSaveFailure(thr); // Tessera - fail the owning job
+         }
+ 
+         return true;
+@@ -1810,6 +1822,7 @@ public final class NewChunkHolder {
+             }
+         } catch (final Throwable thr) {
+             LOGGER.error("Failed to save entity data (" + this.chunkX + "," + this.chunkZ + ") in world '" + WorldUtil.getWorldName(this.world) + "'", thr);
++            MoonriseRegionFileIO.tessera$reportPregenerationSaveFailure(thr); // Tessera - fail the owning job
+         }
+ 
+         return true;
+@@ -1831,6 +1844,7 @@ public final class NewChunkHolder {
+             }
+         } catch (final Throwable thr) {
+             LOGGER.error("Failed to save poi data (" + this.chunkX + "," + this.chunkZ + ") in world '" + WorldUtil.getWorldName(this.world) + "'", thr);
++            MoonriseRegionFileIO.tessera$reportPregenerationSaveFailure(thr); // Tessera - fail the owning job
+         }
+ 
+         return true;
+diff --git a/io/papermc/paper/pregeneration/WorldPregenerator.java b/io/papermc/paper/pregeneration/WorldPregenerator.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..ace38d0d9fbe1de3123568f72994e76cd0521b98
+--- /dev/null
++++ b/io/papermc/paper/pregeneration/WorldPregenerator.java
+@@ -0,0 +1,765 @@
++package io.papermc.paper.pregeneration;
++
++import ca.spottedleaf.concurrentutil.util.Priority;
++import ca.spottedleaf.moonrise.common.util.CoordinateUtils;
++import ca.spottedleaf.moonrise.common.util.TickThread;
++import ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO;
++import ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkHolderManager;
++import ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkTaskScheduler;
++import ca.spottedleaf.moonrise.patches.chunk_system.scheduling.NewChunkHolder;
++import ca.spottedleaf.moonrise.patches.chunk_system.ticket.ChunkSystemTicketType;
++import com.google.gson.Gson;
++import com.google.gson.GsonBuilder;
++import io.papermc.paper.threadedregions.RegionizedServer;
++import io.papermc.paper.threadedregions.TickRegions;
++import java.io.IOException;
++import java.lang.management.ManagementFactory;
++import java.nio.file.Files;
++import java.nio.file.LinkOption;
++import java.nio.file.Path;
++import java.util.ArrayList;
++import java.util.HashMap;
++import java.util.LinkedHashMap;
++import java.util.List;
++import java.util.Map;
++import java.util.Objects;
++import java.util.TreeMap;
++import java.util.UUID;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.ExecutorService;
++import java.util.concurrent.Executors;
++import java.util.concurrent.ScheduledExecutorService;
++import java.util.concurrent.TimeUnit;
++import java.util.concurrent.atomic.AtomicBoolean;
++import java.util.function.Supplier;
++import net.minecraft.SharedConstants;
++import net.minecraft.nbt.NbtUtils;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.level.ChunkLevel;
++import net.minecraft.server.level.FullChunkStatus;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.TicketType;
++import net.minecraft.world.level.chunk.status.ChunkStatus;
++import net.minecraft.world.level.chunk.storage.SerializableChunkData;
++import org.bukkit.craftbukkit.CraftWorld;
++import org.jspecify.annotations.Nullable;
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++
++/**
++ * Tessera internal service, not a public plugin API. All job state belongs to the
++ * controller; it never accesses live chunks. World/chunk mutation remains owner-bound.
++ */
++public final class WorldPregenerator {
++    private static final Logger LOGGER = LoggerFactory.getLogger(WorldPregenerator.class);
++    private static final Gson JSON = new GsonBuilder().setPrettyPrinting().create();
++    public static final TicketType<Long> PREGEN_TICKET = ChunkSystemTicketType.create("tessera:pregen", Long::compareTo);
++    private static volatile @Nullable WorldPregenerator instance;
++    private final MinecraftServer server;
++    private final Path directory;
++    private final ScheduledExecutorService controller = Executors.newSingleThreadScheduledExecutor(run -> {
++        final Thread thread = new Thread(run, "Tessera pregeneration controller");
++        thread.setDaemon(true);
++        return thread;
++    });
++    private final ExecutorService storage = Executors.newSingleThreadExecutor(run -> {
++        final Thread thread = new Thread(run, "Tessera pregeneration metadata");
++        thread.setDaemon(true);
++        return thread;
++    });
++    private final Map<Long, Job> jobs = new LinkedHashMap<>();
++    private final Map<ServerLevel, Integer> blockedWorlds = new HashMap<>();
++    private final List<Drain> drains = new ArrayList<>();
++    private final CompletableFuture<Void> ready = new CompletableFuture<>();
++    private final CompletableFuture<Void> stopped = new CompletableFuture<>();
++    private long nextId = 1;
++    private long lastCheckpoint;
++    private long lastPressureSample;
++    private int fairStart;
++    private boolean pressure;
++    private boolean memoryCritical;
++    private volatile boolean stopping;
++    private boolean publishingShutdown;
++
++    public enum Mode { BALANCED, FAST }
++    public enum State { STARTING, RUNNING, PAUSED, CANCELLED, COMPLETING, COMPLETED, FAILED }
++    public record Plan(UUID worldId, String worldName, String worldKey, String folder, long seed,
++                       String generator, PregenerationArea area, long total, Mode mode) {}
++    public record View(long id, String world, String dimension, String state, Mode mode, long total, long generated,
++                       long existing, int inFlight, double rate, boolean frozen, String detail) {}
++    private record Checkpoint(int format, long id, Plan plan, State state, long cursor,
++                              long generated, long existing, String detail) {}
++    private record Resolved(Plan plan, ServerLevel world) {}
++    private record Drain(List<ServerLevel> worlds, CompletableFuture<LifecycleLease> result) {}
++
++    private static final class Slot {
++        final PregenerationArea.Point point;
++        boolean done;
++        boolean generated;
++        Slot(final PregenerationArea.Point point) { this.point = point; }
++    }
++
++    private static final class Job {
++        final long id;
++        Plan plan;
++        @Nullable ServerLevel world;
++        State state;
++        String detail = "";
++        long cursor;
++        long generated;
++        long existing;
++        long started = System.nanoTime();
++        long sessionCompleted;
++        PregenerationArea.Cursor scan;
++        boolean exhausted;
++        boolean recovered;
++        boolean retiredWorld;
++        final TreeMap<Long, Slot> slots = new TreeMap<>();
++        Job(final long id, final Plan plan, final @Nullable ServerLevel world, final State state) {
++            this.id = id;
++            this.plan = plan;
++            this.world = world;
++            this.state = state;
++            this.scan = plan.area().cursor(0);
++        }
++        Checkpoint checkpoint() {
++            return new Checkpoint(1, id, plan, state, cursor, generated, existing, detail);
++        }
++    }
++
++    private WorldPregenerator(final MinecraftServer server) {
++        this.server = server;
++        this.directory = server.server.getWorldContainer().toPath().toAbsolutePath().normalize()
++            .resolve(".tessera").resolve("pregeneration");
++        CompletableFuture.supplyAsync(this::readCheckpoints, storage).whenComplete((loaded, failure) -> controller.execute(() -> {
++            if (failure != null) {
++                ready.completeExceptionally(failure);
++                LOGGER.error("Pregeneration checkpoints could not be read; service fails closed", failure);
++                return;
++            }
++            for (final Job job : loaded) {
++                jobs.put(job.id, job);
++                nextId = Math.max(nextId, Math.addExact(job.id, 1));
++            }
++            ready.complete(null);
++        }));
++        controller.scheduleWithFixedDelay(this::pumpSafely, 100, 100, TimeUnit.MILLISECONDS);
++    }
++
++    public static synchronized WorldPregenerator get(final MinecraftServer server) {
++        if (instance == null) {
++            instance = new WorldPregenerator(server);
++        }
++        if (instance.server != server) {
++            throw new IllegalStateException("Pregenerator belongs to a different server");
++        }
++        return instance;
++    }
++
++    public CompletableFuture<Plan> plan(final UUID worldId, final PregenerationArea area, final Mode mode) {
++        return ready.thenCompose(ignored -> onGlobal(() -> resolve(worldId, area, mode)))
++            .thenCompose(resolved -> CompletableFuture.supplyAsync(() -> withTotal(resolved.plan()), storage));
++    }
++
++    private static Plan withTotal(final Plan plan) {
++        return new Plan(plan.worldId(), plan.worldName(), plan.worldKey(), plan.folder(), plan.seed(),
++            plan.generator(), plan.area(), plan.area().chunkCount(), plan.mode());
++    }
++
++    private Resolved resolve(final UUID id, final PregenerationArea area, final Mode mode) {
++        final org.bukkit.World bukkit = server.server.getWorld(id);
++        if (!(bukkit instanceof CraftWorld craft) || !craft.getHandle().tessera$isRuntimeWorldActive()) {
++            throw new IllegalStateException("Selected world is not loaded and active");
++        }
++        final ServerLevel world = craft.getHandle();
++        final String generator = world.getChunkSource().getGenerator().getClass().getName() + "/"
++            + world.getChunkSource().getGenerator().getBiomeSource().getClass().getName();
++        return new Resolved(new Plan(id, bukkit.getName(), world.dimension().identifier().toString(),
++            bukkit.getWorldFolder().toPath().toAbsolutePath().normalize().toString(), world.getSeed(), generator, area, 0, mode), world);
++    }
++
++    public CompletableFuture<View> start(final Plan plan) {
++        return onGlobal(() -> resolve(plan.worldId(), plan.area(), plan.mode())).thenCompose(resolved -> submit(() -> {
++            ensureRunning();
++            verifyIdentity(plan, resolved.plan());
++            if (plan.total() <= 0) {
++                throw new IllegalArgumentException("Plan has no chunks");
++            }
++            if (blockedWorlds.containsKey(resolved.world())) {
++                throw new IllegalStateException("World is busy with a lifecycle operation");
++            }
++            if (jobs.values().stream().anyMatch(job -> job.plan.worldId().equals(plan.worldId()) && (!terminal(job.state) || !job.slots.isEmpty()))) {
++                throw new IllegalStateException("This world already has an unfinished job; resume or cancel it first");
++            }
++            final Job job = new Job(nextId++, plan, resolved.world(), State.STARTING);
++            jobs.put(job.id, job);
++            return job;
++        })).thenCompose(this::activateAfterPublication);
++    }
++
++    private CompletableFuture<View> activateAfterPublication(final Job job) {
++        return submit(job::checkpoint).thenCompose(this::persist).exceptionallyCompose(failure -> submit(() -> {
++            fail(job, failure);
++            throw new java.util.concurrent.CompletionException(failure);
++        })).thenCompose(ignored -> submit(() -> {
++            // A stop/cancel during initial publication must not reopen admission.
++            if (job.state == State.STARTING && !stopping) {
++                if (job.recovered) {
++                    // Checkpoints are not atomic with Minecraft's many region files.
++                    // Reset only after publication succeeds; a failed resume preserves its old progress.
++                    job.cursor = job.generated = job.existing = 0;
++                    job.scan = job.plan.area().cursor(0);
++                    job.exhausted = false;
++                    job.recovered = false;
++                }
++                job.state = State.RUNNING;
++                LOGGER.info("Pregeneration job #{} started in {} ({} chunks)", job.id, job.plan.worldName(), job.plan.total());
++            }
++            return view(job);
++        }));
++    }
++
++    public CompletableFuture<List<View>> views() {
++        return submit(() -> jobs.values().stream().map(this::view).toList());
++    }
++
++    public CompletableFuture<View> control(final long id, final String action, final @Nullable Mode mode) {
++        if (action.equals("resume")) {
++            return submit(() -> requireJob(id).plan).thenCompose(plan -> onGlobal(() -> resolve(plan.worldId(), plan.area(), plan.mode())))
++                .thenCompose(resolved -> submit(() -> {
++                    ensureRunning();
++                    final Job job = requireJob(id);
++                    if (job.state != State.PAUSED && job.state != State.FAILED) {
++                        throw new IllegalStateException("Job must be paused or failed before resuming");
++                    }
++                    if (!job.slots.isEmpty()) {
++                        throw new IllegalStateException("Job is still draining admitted work");
++                    }
++                    verifyIdentity(job.plan, resolved.plan());
++                    if (job.retiredWorld || (job.world != null && job.world != resolved.world())) {
++                        throw new IllegalStateException("World instance was replaced; cancel this job and create a new one");
++                    }
++                    if (blockedWorlds.containsKey(resolved.world())) {
++                        throw new IllegalStateException("World has an active lifecycle barrier");
++                    }
++                    job.world = resolved.world();
++                    if (job.recovered || job.state == State.FAILED) {
++                        job.recovered = true;
++                    }
++                    job.started = System.nanoTime();
++                    job.sessionCompleted = 0;
++                    job.detail = "";
++                    job.state = State.STARTING;
++                    return job;
++                })).thenCompose(this::activateAfterPublication);
++        }
++        return submit(() -> {
++            ensureRunning();
++            final Job job = requireJob(id);
++            if (terminal(job.state) || job.state == State.COMPLETING) {
++                throw new IllegalStateException("Job is already finished or publishing its completion");
++            }
++            switch (action) {
++                case "pause" -> job.state = State.PAUSED;
++                case "cancel" -> job.state = State.CANCELLED;
++                case "mode" -> job.plan = new Plan(job.plan.worldId(), job.plan.worldName(), job.plan.worldKey(),
++                    job.plan.folder(), job.plan.seed(), job.plan.generator(), job.plan.area(), job.plan.total(), Objects.requireNonNull(mode));
++                default -> throw new IllegalArgumentException("Unknown job operation");
++            }
++            return job;
++        }).thenCompose(job -> action.equals("mode") ? persistView(job) : awaitJobDrain(job).thenCompose(ignored -> persistView(job))
++            .thenCompose(ignored -> submit(() -> {
++                if (job.state == State.CANCELLED) job.world = null; // Keep history, not an unloaded world's object graph.
++                return view(job);
++            })));
++    }
++
++    private CompletableFuture<View> persistView(final Job job) {
++        return submit(job::checkpoint).thenCompose(this::persist).exceptionallyCompose(failure -> submit(() -> {
++            fail(job, failure);
++            throw new java.util.concurrent.CompletionException(failure);
++        })).thenCompose(ignored -> submit(() -> view(job)));
++    }
++
++    private CompletableFuture<Void> awaitJobDrain(final Job job) {
++        final CompletableFuture<Void> result = new CompletableFuture<>();
++        class Wait implements Runnable {
++            @Override public void run() {
++                if (job.slots.isEmpty()) {
++                    result.complete(null);
++                } else {
++                    controller.schedule(this, 100, TimeUnit.MILLISECONDS);
++                }
++            }
++        }
++        controller.execute(new Wait());
++        return result;
++    }
++
++    public static CompletableFuture<LifecycleLease> pauseForLifecycle(final List<ServerLevel> worlds) {
++        final WorldPregenerator service = instance;
++        if (service == null) {
++            return CompletableFuture.completedFuture(new LifecycleLease(null, List.of()));
++        }
++        final CompletableFuture<LifecycleLease> result = new CompletableFuture<>();
++        service.controller.execute(() -> {
++            final List<ServerLevel> distinct = worlds.stream().distinct().toList();
++            distinct.forEach(world -> service.blockedWorlds.merge(world, 1, Integer::sum));
++            service.drains.add(new Drain(distinct, result));
++            service.checkDrains();
++        });
++        return result;
++    }
++
++    public static final class LifecycleLease implements AutoCloseable {
++        private final @Nullable WorldPregenerator service;
++        private final List<ServerLevel> worlds;
++        private final AtomicBoolean closed = new AtomicBoolean();
++        private LifecycleLease(final @Nullable WorldPregenerator service, final List<ServerLevel> worlds) {
++            this.service = service;
++            this.worlds = worlds;
++        }
++        @Override public void close() {
++            if (service != null && closed.compareAndSet(false, true)) {
++                if (service.controller.isShutdown()) return;
++                service.controller.execute(() -> worlds.forEach(world -> {
++                    service.blockedWorlds.compute(world, (key, count) -> count == null || count <= 1 ? null : count - 1);
++                    if (world.tessera$getRuntimeLifecycleState() == ServerLevel.RuntimeLifecycleState.CLOSED) {
++                        for (final Job job : service.jobs.values()) {
++                            if (job.world != world) continue;
++                            job.retiredWorld = true;
++                            job.world = null;
++                            if (job.state == State.RUNNING || job.state == State.STARTING || job.state == State.PAUSED) {
++                                job.state = State.PAUSED;
++                                job.detail = "World was unloaded; cancel and create a new job";
++                            }
++                        }
++                    }
++                }));
++            }
++        }
++    }
++
++    private void checkDrains() {
++        final var iterator = drains.iterator();
++        while (iterator.hasNext()) {
++            final Drain drain = iterator.next();
++            if (jobs.values().stream().anyMatch(job -> drain.worlds().contains(job.world) && !job.slots.isEmpty())) {
++                continue;
++            }
++            iterator.remove();
++            // All write receipts and owner cleanup preceded the empty slot set.
++            final List<Checkpoint> snapshots = jobs.values().stream().filter(job -> drain.worlds().contains(job.world))
++                .map(Job::checkpoint).toList();
++            CompletableFuture.allOf(snapshots.stream().map(this::persist).toArray(CompletableFuture[]::new))
++                .whenComplete((ignored, failure) -> {
++                    final LifecycleLease lease = new LifecycleLease(this, drain.worlds());
++                    if (failure == null) {
++                        if (!drain.result().complete(lease)) lease.close();
++                    } else {
++                        lease.close();
++                        drain.result().completeExceptionally(failure);
++                    }
++                });
++        }
++    }
++
++    public static CompletableFuture<Void> shutdownIfRunning() {
++        final WorldPregenerator service = instance;
++        if (service == null) {
++            return CompletableFuture.completedFuture(null);
++        }
++        service.stopping = true; // Close admission immediately, before deferring scheduler shutdown.
++        service.controller.execute(() -> {
++            service.jobs.values().stream().filter(job -> job.state == State.RUNNING || job.state == State.STARTING)
++                .forEach(job -> { job.state = State.PAUSED; job.detail = "Server stopped; resume explicitly"; });
++        });
++        return service.stopped;
++    }
++
++    /** Called before Folia's first non-blocking scheduler halt, never waits on a tick thread. */
++    public static boolean deferSchedulerHaltForShutdown() {
++        if (instance == null || TickThread.isShutdownThread()) return false;
++        shutdownIfRunning();
++        return true;
++    }
++
++    private void pumpSafely() {
++        if (!ready.isDone() || ready.isCompletedExceptionally()) {
++            if (stopping) {
++                stopped.complete(null);
++            }
++            return;
++        }
++        try {
++            pump();
++        } catch (final Throwable failure) {
++            LOGGER.error("Pregeneration admission paused after controller failure", failure);
++            jobs.values().stream().filter(job -> job.state == State.RUNNING).forEach(job -> fail(job, failure));
++        }
++    }
++
++    private void pump() {
++        checkDrains();
++        if (stopping && !publishingShutdown && jobs.values().stream().allMatch(job -> job.slots.isEmpty() && job.state != State.COMPLETING)) {
++            publishingShutdown = true;
++            final List<Checkpoint> snapshots = jobs.values().stream().map(Job::checkpoint).toList();
++            CompletableFuture.allOf(snapshots.stream().map(this::persist).toArray(CompletableFuture[]::new))
++                .whenComplete((ignored, failure) -> {
++                    if (failure == null) stopped.complete(null); else stopped.completeExceptionally(failure);
++                });
++            return;
++        }
++        if (stopping) return;
++        if (jobs.values().stream().noneMatch(job -> job.state == State.RUNNING)) return;
++        final long now = System.nanoTime();
++        if (now - lastPressureSample > TimeUnit.SECONDS.toNanos(1)) {
++            pressure = samplePressure(now);
++            lastPressureSample = now;
++        }
++        final int fastBudget = Math.clamp(Runtime.getRuntime().availableProcessors() * 2, 4, 64);
++        final int balancedBudget = Math.max(2, fastBudget / 4);
++        final int budget = pressure ? 1 : jobs.values().stream().anyMatch(job -> job.state == State.RUNNING && job.plan.mode() == Mode.FAST)
++            ? fastBudget : balancedBudget;
++        int outstanding = jobs.values().stream().mapToInt(job -> job.slots.size()).sum();
++        final List<Job> active = jobs.values().stream().filter(job -> job.state == State.RUNNING).toList();
++        for (int i = 0; i < active.size() * budget; i++) {
++            if (stopping) break;
++            final Job job = active.get((fairStart + i) % active.size());
++            if (job.state != State.RUNNING) continue;
++            final ServerLevel world = job.world;
++            if (world == null || blockedWorlds.containsKey(world)) continue;
++            if (!world.tessera$isRuntimeWorldActive()) {
++                if (world.tessera$getRuntimeLifecycleState() == ServerLevel.RuntimeLifecycleState.CLOSED
++                    || world.tessera$getRuntimeLifecycleState() == ServerLevel.RuntimeLifecycleState.UNLOADING) {
++                    job.state = State.PAUSED;
++                    job.detail = "World was unloaded; explicit resume and identity validation required";
++                }
++                continue;
++            }
++            final int worldBudget = job.plan.mode() == Mode.FAST ? fastBudget : balancedBudget;
++            if (!memoryCritical && outstanding < budget && job.slots.size() < worldBudget && !job.exhausted) {
++                final PregenerationArea.Point point = job.scan.next();
++                if (point == null) {
++                    job.exhausted = true;
++                } else {
++                    final Slot slot = new Slot(point);
++                    job.slots.put(point.nextCursor(), slot);
++                    outstanding++;
++                    processChunk(job, point).whenComplete((generated, failure) -> controller.execute(() -> finishSlot(job, slot, generated, failure)));
++                }
++            }
++            if (job.exhausted && job.slots.isEmpty()) {
++                if (job.generated + job.existing != job.plan.total()) {
++                    fail(job, new IllegalStateException("Chunk count does not match selection"));
++                } else {
++                    job.cursor = job.plan.area().scanLimit();
++                    job.state = State.COMPLETING;
++                    final Checkpoint complete = new Checkpoint(1, job.id, job.plan, State.COMPLETED,
++                        job.cursor, job.generated, job.existing, "");
++                    persist(complete).whenComplete((ignored, failure) -> controller.execute(() -> {
++                        if (failure != null) fail(job, failure);
++                        else {
++                            job.state = State.COMPLETED;
++                            job.world = null;
++                            LOGGER.info("Pregeneration job #{} completed in {}: generated={}, already complete={}",
++                                job.id, job.plan.worldName(), job.generated, job.existing);
++                        }
++                    }));
++                }
++            }
++        }
++        fairStart = active.isEmpty() ? 0 : (fairStart + 1) % active.size();
++        if (now - lastCheckpoint > TimeUnit.SECONDS.toNanos(5)) {
++            lastCheckpoint = now;
++            for (final Job job : jobs.values()) {
++                if (job.state == State.RUNNING || !job.slots.isEmpty()) {
++                    persist(job.checkpoint()).whenComplete((ignored, failure) -> {
++                        if (failure != null) controller.execute(() -> fail(job, failure));
++                    });
++                }
++            }
++        }
++    }
++
++    private boolean samplePressure(final long now) {
++        final var memory = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
++        memoryCritical = memory.getMax() > 0 && memory.getUsed() > memory.getMax() * 0.90;
++        if (memory.getMax() > 0 && memory.getUsed() > memory.getMax() * 0.80) return true;
++        // Reports are immutable copies. Never inspect live foreign-region entity/chunk collections.
++        for (final org.bukkit.World bukkit : server.server.getWorlds()) {
++            final ServerLevel world = ((CraftWorld)bukkit).getHandle();
++            final List<TickRegions.TickRegionData> regions = new ArrayList<>();
++            world.regioniser.computeForAllRegions(region -> regions.add(region.getData()));
++            for (final TickRegions.TickRegionData region : regions) {
++                final var report = region.getRegionSchedulingHandle().getTickReport5s(now);
++                if (report != null && report.collectedTicks() > 0 && report.timePerTickData().segmentAll().average() > 40_000_000L) {
++                    return true;
++                }
++            }
++        }
++        return false;
++    }
++
++    private CompletableFuture<Boolean> processChunk(final Job job, final PregenerationArea.Point point) {
++        final ServerLevel world = Objects.requireNonNull(job.world);
++        final CompletableFuture<Boolean> result = new CompletableFuture<>();
++        // Native I/O already deduplicates reads and observes queued saves. A region-file
++        // header or mere file existence does NOT establish that a chunk is FULL.
++        try {
++        MoonriseRegionFileIO.loadDataAsync(world, point.x(), point.z(), MoonriseRegionFileIO.RegionFileType.CHUNK_DATA,
++            (tag, failure) -> {
++                try {
++                if (failure != null) {
++                    result.completeExceptionally(failure);
++                } else if (tag != null && NbtUtils.getDataVersion(tag) == SharedConstants.getCurrentVersion().dataVersion().version()
++                    && SerializableChunkData.getChunkStatusFromTag(tag).isOrAfter(ChunkStatus.FULL)) {
++                    MoonriseRegionFileIO.tessera$awaitChunkWrites(world, point.x(), point.z()).whenComplete((ignored, writeFailure) -> {
++                        if (writeFailure == null) result.complete(false); else result.completeExceptionally(writeFailure);
++                    });
++                } else {
++                    generateOwned(world, point, result);
++                }
++                } catch (final Throwable callbackFailure) {
++                    result.completeExceptionally(callbackFailure);
++                }
++            }, false, Priority.LOW);
++        } catch (final Throwable failure) {
++            result.completeExceptionally(failure);
++        }
++        return result;
++    }
++
++    private void generateOwned(final ServerLevel world, final PregenerationArea.Point point, final CompletableFuture<Boolean> result) {
++        final ChunkTaskScheduler scheduler = world.moonrise$getChunkTaskScheduler();
++        final ChunkHolderManager holders = scheduler.chunkHolderManager;
++        final int radius = ChunkTaskScheduler.getAccessRadius(ChunkStatus.FULL);
++        final AutoCloseable footprint = holders.tessera$admitPregenerationFootprint(point.x(), point.z(), radius);
++        result.whenComplete((generated, failure) -> {
++            try { footprint.close(); } catch (final Exception cleanupFailure) { LOGGER.error("Could not release generation footprint", cleanupFailure); }
++        });
++        // Only holder identities absent before admission may opt into our unload retry.
++        // This is thread-safe job bookkeeping, NOT cross-region block/entity access.
++        final Map<Long, NewChunkHolder> before = new HashMap<>();
++        for (int z = point.z() - radius; z <= point.z() + radius; z++) {
++            for (int x = point.x() - radius; x <= point.x() + radius; x++) {
++                final NewChunkHolder holder = holders.getChunkHolder(x, z);
++                if (holder != null) before.put(CoordinateUtils.getChunkKey(x, z), holder);
++            }
++        }
++        final long key = CoordinateUtils.getChunkKey(point.x(), point.z());
++        final Long ticket = ChunkTaskScheduler.getNextChunkLoadId();
++        final int level = ChunkLevel.byStatus(FullChunkStatus.FULL);
++        final AtomicBoolean acquired = new AtomicBoolean();
++        final CompletableFuture<Void> saved = new CompletableFuture<>();
++        try {
++            scheduler.scheduleChunkTask(point.x(), point.z(), () -> {
++                try {
++                    TickThread.ensureTickThread(world, point.x(), point.z(), "Pregeneration admission off-region");
++                    world.tessera$ensureAcceptingChunkRequests("native pregeneration");
++                    holders.addTicketAtLevel(PREGEN_TICKET, key, level, ticket);
++                    acquired.set(true);
++                    holders.processTicketUpdates();
++                    scheduler.scheduleChunkLoad(point.x(), point.z(), ChunkStatus.FULL, false, Priority.LOW, chunk -> {
++                        // Defer: FULL consumers may run during ticket propagation/full-status processing.
++                        scheduler.scheduleChunkTaskEventually(point.x(), point.z(), () -> {
++                            try {
++                                if (chunk == null) throw new IllegalStateException("Chunk generation was not completed");
++                                final NewChunkHolder holder = holders.getChunkHolder(key);
++                                if (holder == null) throw new IllegalStateException("Generated chunk lost its holder");
++                                for (int z = point.z() - radius; z <= point.z() + radius; z++) {
++                                    for (int x = point.x() - radius; x <= point.x() + radius; x++) {
++                                        final long neighbourKey = CoordinateUtils.getChunkKey(x, z);
++                                        final NewChunkHolder neighbour = holders.getChunkHolder(neighbourKey);
++                                        if (neighbour != null && !before.containsKey(neighbourKey)) {
++                                            holders.tessera$claimPregenerationUnload(neighbour);
++                                        }
++                                    }
++                                }
++                                holder.tessera$saveForPregeneration().whenComplete((ignored, failure) -> {
++                                    if (failure == null) saved.complete(null); else saved.completeExceptionally(failure);
++                                });
++                            } catch (final Throwable failure) {
++                                saved.completeExceptionally(failure);
++                            }
++                        }, Priority.LOW);
++                    });
++                } catch (final Throwable failure) {
++                    saved.completeExceptionally(failure);
++                }
++            }, Priority.LOW);
++        } catch (final Throwable failure) {
++            saved.completeExceptionally(failure);
++        }
++        saved.whenComplete((ignored, failure) -> {
++            if (!acquired.get()) {
++                result.completeExceptionally(failure == null ? new IllegalStateException("No pregeneration ticket") : failure);
++                return;
++            }
++            try {
++                RegionizedServer.getInstance().taskQueue.tessera$queueChunkTask(world, point.x(), point.z(), () -> {
++                    TickThread.ensureTickThread(world, point.x(), point.z(), "Pregeneration cleanup off-region");
++                    holders.removeTicketAtLevel(PREGEN_TICKET, key, level, ticket);
++                }, Priority.LOW).whenComplete((released, cleanupFailure) -> {
++                    if (cleanupFailure != null) {
++                        if (failure != null) cleanupFailure.addSuppressed(failure);
++                        result.completeExceptionally(cleanupFailure);
++                    } else holders.tessera$awaitPregenerationRelease(point.x(), point.z()).whenComplete((retired, retirementFailure) -> {
++                        if (retirementFailure != null) {
++                            if (failure != null) retirementFailure.addSuppressed(failure);
++                            result.completeExceptionally(retirementFailure);
++                        } else if (failure != null) result.completeExceptionally(failure);
++                        else result.complete(true);
++                    });
++                });
++            } catch (final Throwable cleanupFailure) {
++                if (failure != null) cleanupFailure.addSuppressed(failure);
++                result.completeExceptionally(cleanupFailure);
++            }
++        });
++    }
++
++    private void finishSlot(final Job job, final Slot slot, final @Nullable Boolean generated, final @Nullable Throwable failure) {
++        slot.done = true;
++        slot.generated = Boolean.TRUE.equals(generated);
++        if (failure != null) {
++            fail(job, failure);
++            // Failed work cannot advance the durable frontier. Other admitted slots still drain.
++            job.slots.remove(slot.point.nextCursor());
++            job.recovered = true;
++        }
++        while (!job.slots.isEmpty() && job.slots.firstEntry().getValue().done) {
++            final Slot completed = job.slots.pollFirstEntry().getValue();
++            if (!job.recovered) {
++                job.cursor = completed.point.nextCursor();
++                if (completed.generated) job.generated++; else job.existing++;
++                job.sessionCompleted++;
++            }
++        }
++        checkDrains();
++        pumpSafely();
++    }
++
++    private void fail(final Job job, final Throwable failure) {
++        job.state = State.FAILED;
++        job.detail = rootMessage(failure);
++        LOGGER.error("Pregeneration job #{} failed in {}: {}", job.id, job.plan.worldName(), job.detail, failure);
++        persist(job.checkpoint()).whenComplete((ignored, metadataFailure) -> {
++            if (metadataFailure != null) LOGGER.error("Could not publish failed pregeneration checkpoint #{}", job.id, metadataFailure);
++        });
++    }
++
++    private View view(final Job job) {
++        String state = job.state.name();
++        if (!job.slots.isEmpty() && job.state == State.PAUSED) state = "PAUSING";
++        else if (!job.slots.isEmpty() && job.state == State.CANCELLED) state = "CANCELLING";
++        else if (job.state == State.RUNNING && blockedWorlds.containsKey(job.world)) state = "WAITING_FOR_WORLD";
++        else if (job.state == State.RUNNING && memoryCritical) state = "WAITING_FOR_MEMORY";
++        final double rate = job.sessionCompleted / Math.max(0.001, (System.nanoTime() - job.started) / 1.0E9);
++        return new View(job.id, job.plan.worldName(), job.plan.worldKey(), state, job.plan.mode(), job.plan.total(), job.generated,
++            job.existing, job.slots.size(), rate, server.tickRateManager().isFrozen(), job.detail);
++    }
++
++    private Job requireJob(final long id) {
++        final Job job = jobs.get(id);
++        if (job == null) throw new IllegalArgumentException("Unknown job #" + id);
++        return job;
++    }
++
++    private void ensureRunning() {
++        if (stopping || server.hasStopped()) throw new IllegalStateException("Server is stopping");
++        if (!ready.isDone() || ready.isCompletedExceptionally()) throw new IllegalStateException("Pregenerator is not ready");
++    }
++
++    private static boolean terminal(final State state) {
++        return state == State.COMPLETED || state == State.CANCELLED;
++    }
++
++    private static void verifyIdentity(final Plan expected, final Plan actual) {
++        if (!expected.worldId().equals(actual.worldId()) || !expected.worldKey().equals(actual.worldKey())
++            || !expected.folder().equals(actual.folder()) || expected.seed() != actual.seed()
++            || !expected.generator().equals(actual.generator())) {
++            throw new IllegalStateException("World identity/seed/generator changed; create a new job instead");
++        }
++    }
++
++    public static String rootMessage(final Throwable failure) {
++        Throwable root = failure;
++        while (root.getCause() != null && root.getCause() != root) root = root.getCause();
++        return Objects.toString(root.getMessage(), root.getClass().getSimpleName());
++    }
++
++    private CompletableFuture<Void> persist(final Checkpoint checkpoint) {
++        return CompletableFuture.runAsync(() -> {
++            try {
++                PregenerationCheckpoint.write(directory.resolve(checkpoint.id() + ".json"), JSON.toJson(checkpoint));
++            } catch (final IOException failure) {
++                throw new java.io.UncheckedIOException(failure);
++            }
++        }, storage);
++    }
++
++    public static void finishShutdown() {
++        final WorldPregenerator service = instance;
++        if (service != null) {
++            service.controller.shutdown();
++            service.storage.shutdown();
++        }
++    }
++
++    private List<Job> readCheckpoints() {
++        final List<Job> result = new ArrayList<>();
++        if (!Files.exists(directory, LinkOption.NOFOLLOW_LINKS)) return result;
++        try {
++            if (!Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS) || Files.isSymbolicLink(directory)) {
++                throw new IOException("Unsafe pregeneration directory");
++            }
++            try (final var files = Files.newDirectoryStream(directory, "*.json")) {
++                for (final Path path : files) {
++                    if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS) || Files.size(path) > 64 * 1024) {
++                        throw new IOException("Unsafe or oversized checkpoint: " + path);
++                    }
++                    final Checkpoint checkpoint = JSON.fromJson(Files.readString(path), Checkpoint.class);
++                    if (checkpoint.format() != 1 || checkpoint.id() < 1 || checkpoint.id() == Long.MAX_VALUE
++                        || !path.getFileName().toString().equals(checkpoint.id() + ".json")
++                        || checkpoint.plan().total() != checkpoint.plan().area().chunkCount()
++                        || checkpoint.cursor() < 0 || checkpoint.cursor() > checkpoint.plan().area().scanLimit()
++                        || checkpoint.generated() < 0 || checkpoint.existing() < 0
++                        || checkpoint.generated() > checkpoint.plan().total() - checkpoint.existing()) {
++                        throw new IOException("Invalid pregeneration checkpoint: " + path);
++                    }
++                    final State state = terminal(checkpoint.state()) ? checkpoint.state() : State.PAUSED;
++                    final Job job = new Job(checkpoint.id(), checkpoint.plan(), null, state);
++                    job.cursor = checkpoint.cursor();
++                    job.generated = checkpoint.generated();
++                    job.existing = checkpoint.existing();
++                    job.recovered = true;
++                    job.detail = terminal(state) ? checkpoint.detail() : "Recovered paused; resume revalidates persisted chunks";
++                    result.add(job);
++                }
++            }
++        } catch (final Throwable failure) {
++            throw new IllegalStateException("Could not recover pregeneration jobs", failure);
++        }
++        result.sort(java.util.Comparator.comparingLong(job -> job.id));
++        return result;
++    }
++
++    private <T> CompletableFuture<T> submit(final Supplier<T> action) {
++        final CompletableFuture<T> future = new CompletableFuture<>();
++        controller.execute(() -> {
++            try { future.complete(action.get()); } catch (final Throwable failure) { future.completeExceptionally(failure); }
++        });
++        return future;
++    }
++
++    private <T> CompletableFuture<T> onGlobal(final Supplier<T> action) {
++        final CompletableFuture<T> result = new CompletableFuture<>();
++        if (server.hasStopped()) return CompletableFuture.failedFuture(new IllegalStateException("Server stopped"));
++        final Runnable run = () -> {
++            try { result.complete(action.get()); } catch (final Throwable failure) { result.completeExceptionally(failure); }
++        };
++        if (RegionizedServer.isGlobalTickThread()) run.run(); else RegionizedServer.getInstance().addTask(run);
++        return result;
++    }
++}
+diff --git a/io/papermc/paper/threadedregions/RegionShutdownThread.java b/io/papermc/paper/threadedregions/RegionShutdownThread.java
+index 66cef4686c608e549c899d26c4e0292f57add6b7..fb1ce7fb3114e926ff87c104fbd9d1aee4d2dd85 100644
+--- a/io/papermc/paper/threadedregions/RegionShutdownThread.java
++++ b/io/papermc/paper/threadedregions/RegionShutdownThread.java
+@@ -358,7 +358,14 @@ public final class RegionShutdownThread extends ca.spottedleaf.moonrise.common.u
+             return;
+         }
+         // Tessera end - runtime world lifecycle
++        // Tessera - drain native pregeneration while owning regions are still running.
++        try {
++            io.papermc.paper.pregeneration.WorldPregenerator.shutdownIfRunning().get(60, TimeUnit.SECONDS);
++        } catch (final Throwable failure) {
++            LOGGER.error("Pregeneration did not finish checkpoint/cleanup before shutdown", failure);
++        }
+         tessera$awaitRuntimeOperations(); // Tessera - avoid concurrent per-world storage close
++        io.papermc.paper.pregeneration.WorldPregenerator.finishShutdown(); // Tessera - lifecycle leases are now finished
+         // await scheduler termination
+         LOGGER.info("Awaiting scheduler termination for 60s...");
+         if (TickRegions.getScheduler().halt(true, TimeUnit.SECONDS.toNanos(60L))) {
+diff --git a/io/papermc/paper/threadedregions/RegionizedTaskQueue.java b/io/papermc/paper/threadedregions/RegionizedTaskQueue.java
+index d1a045d47dcd12f246d95ecdfc202da357897cbf..2b8c04fca75a964587d89b277b222dd23e8d760c 100644
+--- a/io/papermc/paper/threadedregions/RegionizedTaskQueue.java
++++ b/io/papermc/paper/threadedregions/RegionizedTaskQueue.java
+@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicLong;
+ 
+ public final class RegionizedTaskQueue {
+ 
+-    private static final TicketType<Long> TASK_QUEUE_TICKET = ChunkSystemTicketType.create("task_queue_ticket", Long::compareTo);
++    public static final TicketType<Long> TASK_QUEUE_TICKET = ChunkSystemTicketType.create("task_queue_ticket", Long::compareTo); // Tessera - internal pregeneration ticket classification
+ 
+     public PrioritisedExecutor.PrioritisedTask createChunkTask(final ServerLevel world, final int chunkX, final int chunkZ,
+                                                                final Runnable run) {
+@@ -58,6 +58,22 @@ public final class RegionizedTaskQueue {
+         return ret;
+     }
+ 
++    // Tessera - complete only after the task-queue's own ticket reference has been released.
++    public java.util.concurrent.CompletableFuture<Void> tessera$queueChunkTask(
++        final ServerLevel world, final int chunkX, final int chunkZ, final Runnable run, final Priority priority
++    ) {
++        final java.util.concurrent.CompletableFuture<Void> future = new java.util.concurrent.CompletableFuture<>();
++        final PrioritisedQueue.ChunkBasedPriorityTask task =
++            new PrioritisedQueue.ChunkBasedPriorityTask(world.taskQueueRegionData, chunkX, chunkZ, true, run, priority);
++        task.tessera$completion = future;
++        try {
++            if (!task.queue()) future.completeExceptionally(new IllegalStateException("Could not queue native chunk task"));
++        } catch (final Throwable failure) {
++            future.completeExceptionally(failure);
++        }
++        return future;
++    }
++
+     public PrioritisedExecutor.PrioritisedTask queueTickTaskQueue(final ServerLevel world, final int chunkX, final int chunkZ,
+                                                                   final Runnable run) {
+         return this.queueTickTaskQueue(world, chunkX, chunkZ, run, Priority.NORMAL);
+@@ -471,7 +487,17 @@ public final class RegionizedTaskQueue {
+             try {
+                 task.executeInternal();
+             } finally {
+-                task.world.decrementReference(referenceCounter, task.sectionLowerLeftCoord);
++                try {
++                    task.world.decrementReference(referenceCounter, task.sectionLowerLeftCoord);
++                } catch (final Throwable failure) {
++                    task.tessera$failure = failure;
++                    throw failure;
++                } finally {
++                    if (task.tessera$completion != null) {
++                        if (task.tessera$failure == null) task.tessera$completion.complete(null);
++                        else task.tessera$completion.completeExceptionally(task.tessera$failure);
++                    }
++                }
+             }
+ 
+             return true;
+@@ -493,6 +519,8 @@ public final class RegionizedTaskQueue {
+             private volatile ReferenceCountData referenceCounter;
+             private static final VarHandle REFERENCE_COUNTER_HANDLE = ConcurrentUtil.getVarHandle(ChunkBasedPriorityTask.class, "referenceCounter", ReferenceCountData.class);
+             private Runnable run;
++            private java.util.concurrent.CompletableFuture<Void> tessera$completion;
++            private Throwable tessera$failure;
+             private volatile Priority priority;
+             private static final VarHandle PRIORITY_HANDLE = ConcurrentUtil.getVarHandle(ChunkBasedPriorityTask.class, "priority", Priority.class);
+ 
+@@ -543,6 +571,9 @@ public final class RegionizedTaskQueue {
+             private void executeInternal() {
+                 try {
+                     this.run.run();
++                } catch (final Throwable failure) {
++                    if (this.tessera$completion == null) throw failure;
++                    this.tessera$failure = failure;
+                 } finally {
+                     this.run = null;
+                 }
+@@ -860,4 +891,4 @@ public final class RegionizedTaskQueue {
+             }
+         }
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
+index c111922b651a8b886d82b6eddeb13ef46a71d816..ba1615f515a9945c2662c65e7e0d205ff9ceadab 100644
+--- a/net/minecraft/server/MinecraftServer.java
++++ b/net/minecraft/server/MinecraftServer.java
+@@ -1099,6 +1099,12 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+             this.server.tessera$beginRuntimeWorldManagerShutdown();
+         }
+         // Tessera end - runtime world lifecycle
++        // Tessera - a native pregenerator drain still needs its actual region owners.
++        // stopServer otherwise halts the scheduler before RegionShutdownThread can await it.
++        if (io.papermc.paper.pregeneration.WorldPregenerator.deferSchedulerHaltForShutdown()) {
++            this.haltServerRegionThreading();
++            return;
++        }
+         // halt scheduler
+         // don't wait, we may be on a scheduler thread
+         io.papermc.paper.threadedregions.TickRegions.getScheduler().halt(false, 0L);
+diff --git a/net/minecraft/server/level/ServerChunkCache.java b/net/minecraft/server/level/ServerChunkCache.java
+index c6d00f0652240a049ff0c13b77469112fbb56265..02647897d70d73aa71061099ad5f22c1e4a32c33 100644
+--- a/net/minecraft/server/level/ServerChunkCache.java
++++ b/net/minecraft/server/level/ServerChunkCache.java
+@@ -505,6 +505,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+         final ca.spottedleaf.leafprofiler.RegionizedProfiler.Handle foliaProfiler = io.papermc.paper.threadedregions.TickRegionScheduler.getProfiler(); // Folia - profiler
+         ProfilerFiller profiler = Profiler.get();
+         profiler.push("purge");
++        this.level.moonrise$getChunkTaskScheduler().chunkHolderManager.tessera$tickPregenerationUnloads(); // Tessera - maintenance time, not gameplay time
+         foliaProfiler.startTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.CHUNK_HOLDER_MANAGER_TICK); try { // Folia - profiler
+         if (this.level.tickRateManager().runsNormally() || !tickChunks || this.level.spigotConfig.unloadFrozenChunks) { // Spigot
+             this.ticketStorage.purgeStaleTickets(this.chunkMap);

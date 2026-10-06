@@ -17,8 +17,10 @@ From the repository root on Windows:
 
 Use `-FullOnly` for the functional suite only and `-KeepRuns` to retain prior
 run directories. Every run writes `tessera-smoke-result.json` next to its
-server log. The script refuses to delete paths outside its own
-`smoke-tests/runtime-world-lifecycle/build/runs` directory.
+server log. `-RunDirectory <path>` selects a fresh directory below
+`smoke-tests/runtime-world-lifecycle/build/` (the default is `build/runs`).
+Use a unique path and `-KeepRuns` for isolated new evidence without deleting
+previous runs. The script rejects the build root itself and paths outside it.
 
 When a player is online during the full run, the plugin additionally verifies
 per-player scoreboard assignment/restoration, entity scoreboard tags,
