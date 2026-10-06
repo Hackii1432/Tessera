@@ -1,6 +1,6 @@
 ---
 title: "Konsole, RCON und Befehlsgrenzen"
-description: "Serverseitiger Weltkontext, regionsichere Abfragen und Grenzen für Pluginbefehle."
+description: "Serverseitiger Weltkontext, regionsichere NBT-Befehle und Grenzen für Pluginbefehle."
 navTitle: "Befehle"
 order: 140
 updated: 2026-10-06
@@ -9,7 +9,7 @@ badge: "Referenz"
 ---
 
 Tessera korrigiert Konsolen-/RCON-Kontexte und unterstützt ausgewählte
-regionsichere Vanilla-Abfragepfade. Dafür müssen Plugins keine internen
+regionsichere Vanilla-Abfrage- und NBT-Änderungspfade. Dafür müssen Plugins keine internen
 `CommandSourceStack`-Instanzen erzeugen.
 
 ## Startphase und Weltkontext
@@ -23,16 +23,95 @@ Thread auf. Dies gilt auch für `stop` und Pluginbefehle.
 ## Unterstützte Abfragen
 
 - `execute in <dimension> if block ...` / `unless block ...`, Blocktypen und Tags.
-- `data get block` als read-only Abfrage auf dem Regionsbesitzer.
+- `data get block` auf dem Regionsbesitzer, einschließlich NBT-Pfad und Skalierung.
 - Ortsgebundene Entity-Selektoren innerhalb der zulässigen Region.
 - Unbeschränkte Entity-Typ-/UUID-Auswahl über den nebenläufigen Index. Unterstützte
   Mutationsbefehle wie `kill` verteilen die Arbeit auf den jeweiligen Besitzer;
   die Auswahl allein verleiht einem beliebigen Pluginhandler keine Ownership.
 
 Räumliche Cross-Region-Suchen oder ungeladene unzulässige Ziele werden abgewiesen,
-nicht synchron vom Global-Thread gelesen. `data merge/modify/remove block` sind
-kein pauschal freigeschalteter Schreibpfad. Eine passende globale Befehlsquelle
+nicht synchron vom Global-Thread gelesen. Eine passende globale Befehlsquelle
 macht fremde Block-/Entity-Operationen nicht threadsicher.
+
+## NBT-Befehle
+
+Seit Build 017 registriert Tessera folgenden Vanilla-Teilumfang unter `/data`
+und dem geerbten Alias `/minecraft:data`:
+
+| Ziel | Lesen | Änderungen |
+| --- | --- | --- |
+| `block <pos>` | `get [path] [scale]` | `merge`, `remove`, `modify` auf dem aktuellen Besitzer einer geladenen Blockentity |
+| `entity <target>` | `get [path] [scale]` auf dem aktuellen Entity-Besitzer | Keine beliebigen Entity-NBT-Mutationen; auch `execute store ... entity` ist nicht registriert |
+| `storage <namespace:key>` | `get [path] [scale]` mit abgetrennten NBT-Daten | `merge`, `remove`, `modify` mit atomarem Read/Modify/Write |
+
+`modify` unterstützt die Vanilla-Operationen `set`, `merge`, `append`, `prepend`
+und `insert <index>` mit `value`, `from`, `string` einschließlich Substring und
+den in 26.3 vorhandenen `compute`-Float-/Integer-Providern. Diese serverseitige
+Befehlsunterstützung ist keine neue öffentliche NMS- oder Transaktions-API.
+
+### Besitz, Quelle und Ergebnis
+
+Spieler- und Blockquellen bleiben auf ihrem Besitzer. Ein Spieler kann also
+`data get entity @s Health` lesen, nicht beliebig die NBT einer fremden Region.
+Entity-Selektoren mit NBT-Abfragen benötigen `@s`, einen Spielernamen/eine UUID
+oder eine begrenzte Suchfläche vollständig innerhalb der aktuellen Region;
+unbegrenzte Selektoren wie `@e[nbt=...,limit=1]` werden vor der Auswertung der
+Live-Predikate abgewiesen. Dies gilt auch für vorgeschaltete `execute`-Selektoren
+in einem NBT-Befehl. `limit=1` allein begrenzt die Suchfläche nicht.
+Begrenzte Spieler-Suchen werten ihre Filter nur auf regionslokalen Spielern aus.
+Ein durch `execute as` auf eine fremde Entity gesetztes `@s` darf dort keine
+Live-Filter ausführen; die Ausführung wird vor der Filterauswertung abgewiesen.
+
+Konsole und RCON leiten bekannte Blockpositionen und Entity-Namen/UUIDs vor der
+Ausführung auf den Zielbesitzer weiter. Für räumliche Entity-Selektoren einen
+passenden Dimensions-/Positionskontext angeben. Bei Regions-/Dimensionswechsel
+wird der Besitzer erneut aufgelöst; eine bereits entfernte Entity wird nicht
+aus einem alten Handle serialisiert. RCON wartet außerhalb des Global-Ticks auf
+die weitergeleitete Ausführung; Tick-/Regions-Threads werden dafür nicht blockiert.
+Die interne Regions-Taskqueue verarbeitet diese Arbeit auch bei `tick freeze`,
+ohne normale Welt-/Entity-Simulation freizugeben.
+
+`from` und `string` dürfen eine Block-/Entity-Quelle nur auf deren Besitzer lesen.
+Quelle und ein räumliches Ziel müssen derselben aktuell besessenen Region
+angehören. Eine Storage-Quelle ist abgetrennt und regionsübergreifend lesbar;
+eine Storage-Mutation mit lokaler Block-/Entity-Quelle ist ebenfalls zulässig.
+Eine atomare Kopiertransaktion zwischen zwei getrennten Regionen oder Dimensionen
+wird damit **nicht** angeboten. `compute` benötigt seinen geladenen lokalen
+Quellkontext auch bei einem Storage-Ziel.
+
+NBT-Mutationsoperationen behalten die Vanilla-Ergebniswerte und Meldungen.
+`execute store result/success block|storage` nutzt dieselben Schreibprüfungen;
+ein späterer Callback prüft Blockbesitz und Blockentity-Identität erneut.
+`execute if/unless data block|entity|storage` verwendet dieselben lesenden
+Accessor-Schutzregeln. Ein Fehler publiziert keine teilweise veränderte
+Storage-NBT; parallele Mutationen desselben Dokuments verlieren keine fremden
+Felder. Leseantworten, Suggestions und Save-/Snapshot-Kodierung behalten keine
+veränderbaren Live-NBT-Referenzen. Dies ist keine Mehrdokument-/Mehrwelttransaktion.
+
+### Verwendung und Fehlerfälle
+
+Die folgenden Beispiele sind normale Befehle für eine berechtigte Konsole/RCON;
+Koordinaten müssen eine bereits geladene Blockentity bezeichnen:
+
+```text
+execute in minecraft:overworld run data get block 8 70 8
+execute in minecraft:overworld run data merge block 8 70 8 {Command:"say example"}
+data get entity PlayerName Health
+data merge storage example:state {counter:1,values:[1,2]}
+data modify storage example:state values append value 3
+execute store result storage example:state length int 1 run data get storage example:state values
+```
+
+Die geerbte Berechtigung `minecraft.command.data` beziehungsweise Vanilla-
+Gamemaster-Berechtigung bleibt erforderlich; OP erfüllt sie standardmäßig.
+Fehlende Blockentities, ungeladene/fremde Besitzer, verschwundene Entity-Ziele,
+ungültige Pfade/Typen, unveränderte Mutationen und unzulässige Selektoren liefern
+Befehlsfehler. Spieler-NBT kann wie in Vanilla nicht mit `merge/remove/modify`
+geschrieben werden. Ein normaler Block ohne Blockentity hat kein `/data`-NBT.
+
+Für Plugin-Disable oder mehrstufige asynchrone Pluginarbeit gelten unverändert die
+[Scheduler-Verträge](scheduler.md). Ein verzögerter Callback verleiht keine
+Ownership, und `Bukkit.dispatchCommand` bestätigt keine gesamte Transaktion.
 
 ## Pluginbefehle und Berechtigungen
 

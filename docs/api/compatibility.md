@@ -28,7 +28,7 @@ ihren eigenen zulässigen Threadkontext. Die reine Existenz von Scheduler- oder
 
 ## Versionen und interne Zugriffe
 
-`api-version: '26.3'` ist die Metadatenversion, `26.3.build.016-beta` die aktuelle
+`api-version: '26.3'` ist die Metadatenversion, `26.3.build.017-beta` die aktuelle
 Tessera-Maven-Version. Beides ersetzt keine Laufzeit-Capability. Sinopia ist in
 demselben Server enthalten; es gibt keinen separaten Sinopia-Plugin-Lader.
 

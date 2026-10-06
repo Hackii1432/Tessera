@@ -9,7 +9,7 @@ badge: "Referenz"
 ---
 
 Diese Referenz beschreibt den geprüften Quellstand von Tessera **26.3 Build
-016-beta**, Java **25**, auf `ver/26.3.x`. Sie ergänzt die geerbte Bukkit-,
+017-beta**, Java **25**, auf `ver/26.3.x`. Sie ergänzt die geerbte Bukkit-,
 Paper-, Folia- und Adventure-API, ersetzt aber nicht deren gesamte Javadoc.
 
 ## Herkunft der Schnittstellen

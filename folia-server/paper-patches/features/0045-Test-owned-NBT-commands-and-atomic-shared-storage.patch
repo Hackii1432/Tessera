@@ -1,0 +1,273 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Tue, 6 Oct 2026 21:40:38 +0200
+Subject: [PATCH] Test owned NBT commands and atomic shared storage
+
+
+diff --git a/src/test/java/io/papermc/paper/threadedregions/commands/RegionDataCommandTest.java b/src/test/java/io/papermc/paper/threadedregions/commands/RegionDataCommandTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..cad4aad1667caf9c618a34157eca2960ff6cba53
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/threadedregions/commands/RegionDataCommandTest.java
+@@ -0,0 +1,261 @@
++package io.papermc.paper.threadedregions.commands;
++
++import ca.spottedleaf.moonrise.common.util.TickThread;
++import com.mojang.brigadier.CommandDispatcher;
++import com.mojang.brigadier.exceptions.CommandSyntaxException;
++import java.util.List;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.Executors;
++import java.util.concurrent.TimeUnit;
++import java.util.concurrent.atomic.AtomicInteger;
++import net.minecraft.commands.CommandBuildContext;
++import net.minecraft.commands.CommandSourceStack;
++import net.minecraft.core.BlockPos;
++import net.minecraft.core.RegistryAccess;
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.nbt.NbtAccounter;
++import net.minecraft.nbt.NbtIo;
++import net.minecraft.network.chat.Component;
++import net.minecraft.resources.Identifier;
++import net.minecraft.server.commands.data.BlockDataAccessor;
++import net.minecraft.server.commands.data.DataCommands;
++import net.minecraft.server.commands.data.EntityDataAccessor;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.world.entity.Entity;
++import net.minecraft.world.level.block.entity.BlockEntity;
++import net.minecraft.world.level.storage.CommandStorage;
++import net.minecraft.world.level.storage.SavedDataStorage;
++import org.bukkit.support.environment.Normal;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.api.io.TempDir;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.ArgumentMatchers.*;
++import static org.mockito.Mockito.*;
++
++@Normal
++class RegionDataCommandTest {
++    @TempDir java.nio.file.Path folder;
++    private static final Identifier ID = Identifier.fromNamespaceAndPath("tessera_test", "shared");
++
++    private SavedDataStorage saved() {
++        var fixer = mock(com.mojang.datafixers.DataFixer.class);
++        when(fixer.update(any(), any(), anyInt(), anyInt())).thenAnswer(invocation -> invocation.getArgument(1));
++        return new SavedDataStorage(this.folder, fixer, RegistryAccess.EMPTY);
++    }
++
++    @Test
++    void registersVanillaReadsButOnlyBlockAndStorageMutations() {
++        var dispatcher = new CommandDispatcher<CommandSourceStack>();
++        DataCommands.registerRegionSafeCommands(dispatcher, mock(CommandBuildContext.class));
++        var root = dispatcher.getRoot().getChild("data");
++        assertEquals(List.of("block", "entity", "storage"), root.getChild("get").getChildren().stream().map(node -> node.getName()).sorted().toList());
++        for (String action : List.of("merge", "remove", "modify")) {
++            assertEquals(List.of("block", "storage"), root.getChild(action).getChildren().stream().map(node -> node.getName()).sorted().toList());
++            assertNull(root.getChild(action).getChild("entity"), "Entity.load must not be enabled by a copied command branch");
++        }
++        var path = root.getChild("modify").getChild("storage").getChild("target").getChild("targetPath");
++        assertEquals(List.of("append", "insert", "merge", "prepend", "set"), path.getChildren().stream().map(node -> node.getName()).sorted().toList());
++        assertEquals(List.of("compute", "from", "string", "value"), path.getChild("set").getChildren().stream().map(node -> node.getName()).sorted().toList());
++    }
++
++    @Test
++    void storageDoesNotExposeLiveNbtOnInputOrOutput() {
++        var storage = new CommandStorage(this.saved());
++        var input = new CompoundTag();
++        var nested = new CompoundTag();
++        nested.putInt("value", 7);
++        input.put("nested", nested);
++        storage.set(ID, input);
++        nested.putInt("value", 99);
++        storage.get(ID).getCompoundOrEmpty("nested").putInt("value", 123);
++        assertEquals(7, storage.get(ID).getCompoundOrEmpty("nested").getIntOr("value", -1));
++    }
++
++    @Test
++    void failedOperationDoesNotPublishPartialNbt() throws Exception {
++        var storage = new CommandStorage(this.saved());
++        storage.update(ID, data -> { data.putInt("value", 7); return 1; });
++        assertThrows(CommandSyntaxException.class, () -> storage.update(ID, data -> {
++            data.putInt("value", 99);
++            throw new com.mojang.brigadier.exceptions.SimpleCommandExceptionType(Component.literal("failure")).create();
++        }));
++        assertEquals(7, storage.get(ID).getIntOr("value", -1));
++    }
++
++    @Test
++    void operationCannotRetainAPublishedMutableReference() throws Exception {
++        var storage = new CommandStorage(this.saved());
++        var leaked = storage.update(ID, data -> { data.putInt("value", 7); return data; });
++        leaked.putInt("value", 99);
++        assertEquals(7, storage.get(ID).getIntOr("value", -1));
++    }
++
++    @Test
++    void parallelReadModifyWritesAreLinearizable() throws Exception {
++        var storage = new CommandStorage(this.saved());
++        try (var executor = Executors.newFixedThreadPool(4)) {
++            CompletableFuture<?>[] tasks = new CompletableFuture<?>[4];
++            for (int thread = 0; thread < tasks.length; thread++) {
++                int slot = thread;
++                tasks[thread] = CompletableFuture.runAsync(() -> {
++                    for (int i = 0; i < 250; i++) {
++                        try {
++                            storage.update(ID, data -> {
++                                data.putInt("count", data.getIntOr("count", 0) + 1);
++                                data.putInt("writer" + slot, data.getIntOr("writer" + slot, 0) + 1);
++                                return 1;
++                            });
++                        } catch (CommandSyntaxException error) {
++                            throw new AssertionError(error);
++                        }
++                    }
++                }, executor);
++            }
++            CompletableFuture.allOf(tasks).get(10, TimeUnit.SECONDS);
++        }
++        CompoundTag result = storage.get(ID);
++        assertEquals(1000, result.getIntOr("count", -1));
++        for (int i = 0; i < 4; i++) assertEquals(250, result.getIntOr("writer" + i, -1));
++    }
++
++    @Test
++    void keySuggestionsAreDetachedAndEmptyTagsRemoveKeys() {
++        var storage = new CommandStorage(this.saved());
++        var tag = new CompoundTag();
++        tag.putInt("value", 7);
++        storage.set(ID, tag);
++        var keys = storage.keys();
++        storage.set(ID, new CompoundTag());
++        assertEquals(List.of(ID), keys.toList());
++        assertTrue(storage.keys().toList().isEmpty());
++        assertTrue(storage.get(ID).isEmpty());
++    }
++
++    @Test
++    void snapshotEncodingDetachesNbtAndRetainsLaterDirtyWrites() throws Exception {
++        var saved = this.saved();
++        var storage = new CommandStorage(saved);
++        storage.update(ID, data -> { data.putInt("value", 7); return 1; });
++        var pending = new CompletableFuture<Void>();
++        var field = SavedDataStorage.class.getDeclaredField("pendingWriteFuture");
++        field.setAccessible(true);
++        field.set(saved, pending);
++        var snapshot = saved.tessera$beginSnapshotSave();
++        storage.update(ID, data -> { data.putInt("value", 99); return 1; });
++        pending.complete(null);
++        snapshot.get(5, TimeUnit.SECONDS);
++        var file = this.folder.resolve("tessera_test/command_storage.dat");
++        assertEquals(7, NbtIo.readCompressed(file, NbtAccounter.unlimitedHeap()).getCompoundOrEmpty("data")
++            .getCompoundOrEmpty("contents").getCompoundOrEmpty("shared").getIntOr("value", -1));
++        saved.tessera$endSnapshotSave();
++        saved.scheduleSave().get(5, TimeUnit.SECONDS);
++        assertEquals(99, new CommandStorage(this.saved()).get(ID).getIntOr("value", -1));
++    }
++
++    @Test
++    void foreignEntityReadIsRejectedBeforeSerialization() {
++        Entity entity = mock(Entity.class);
++        var accessor = new EntityDataAccessor(entity);
++        try (var threads = mockStatic(TickThread.class)) {
++            threads.when(() -> TickThread.isTickThreadFor(entity)).thenReturn(false);
++            assertThrows(CommandSyntaxException.class, accessor::getData);
++            verify(entity, never()).saveWithoutId(any());
++        }
++    }
++
++    @Test
++    void removedEntityReadIsRejected() {
++        Entity entity = mock(Entity.class);
++        when(entity.isRemoved()).thenReturn(true);
++        try (var threads = mockStatic(TickThread.class)) {
++            threads.when(() -> TickThread.isTickThreadFor(entity)).thenReturn(true);
++            assertThrows(CommandSyntaxException.class, new EntityDataAccessor(entity)::getData);
++            verify(entity, never()).saveWithoutId(any());
++        }
++    }
++
++    @Test
++    void unboundedNbtSelectorFailsBeforeEvaluatingLivePredicates() {
++        var source = mock(CommandSourceStack.class);
++        when(source.getPosition()).thenReturn(net.minecraft.world.phys.Vec3.ZERO);
++        var inspected = new AtomicInteger();
++        var selector = new net.minecraft.commands.arguments.selector.EntitySelector(1, true, false,
++            List.of(entity -> { inspected.incrementAndGet(); return true; }), null, position -> position, null,
++            net.minecraft.commands.arguments.selector.EntitySelector.ORDER_ARBITRARY, false, null, null, null, false);
++        assertThrows(CommandSyntaxException.class, () -> selector.tessera$findSingleOwnedEntity(source));
++        assertEquals(0, inspected.get(), "NBT predicates must not be evaluated by the concurrent global entity index");
++    }
++
++    @Test
++    void foreignSelfSelectorFailsBeforeEvaluatingNbtPredicates() {
++        var source = mock(CommandSourceStack.class);
++        Entity entity = mock(Entity.class);
++        when(source.getEntity()).thenReturn(entity);
++        var inspected = new AtomicInteger();
++        var selector = new net.minecraft.commands.arguments.selector.EntitySelector(1, true, false,
++            List.of(target -> { inspected.incrementAndGet(); return true; }), null, position -> position, null,
++            net.minecraft.commands.arguments.selector.EntitySelector.ORDER_ARBITRARY, true, null, null, null, false);
++        try (var threads = mockStatic(TickThread.class)) {
++            threads.when(() -> TickThread.isTickThreadFor(entity)).thenReturn(false);
++            assertThrows(CommandSyntaxException.class, () -> selector.tessera$findSingleOwnedEntity(source));
++            assertEquals(0, inspected.get());
++        }
++    }
++
++    @Test
++    void foreignSelfFiltersAreRejectedByExecuteSelectorsBeforeEvaluation() {
++        var source = mock(CommandSourceStack.class);
++        Entity entity = mock(Entity.class);
++        when(source.getEntity()).thenReturn(entity);
++        when(source.getPosition()).thenReturn(net.minecraft.world.phys.Vec3.ZERO);
++        var inspected = new AtomicInteger();
++        var selector = new net.minecraft.commands.arguments.selector.EntitySelector(1, true, false,
++            List.of(target -> { inspected.incrementAndGet(); return true; }), null, position -> position, null,
++            net.minecraft.commands.arguments.selector.EntitySelector.ORDER_ARBITRARY, true, null, null, null, false);
++        try (var threads = mockStatic(TickThread.class)) {
++            threads.when(() -> TickThread.isTickThreadFor(entity)).thenReturn(false);
++            assertThrows(CommandSyntaxException.class, () -> selector.findEntities(source));
++            assertThrows(CommandSyntaxException.class, () -> selector.findPlayers(source));
++            assertEquals(0, inspected.get(), "Earlier execute filters must fail before inspecting foreign NBT");
++        }
++    }
++
++    @Test
++    void boundedPlayerFiltersInspectOnlyTheOwningRegionsPlayers() throws Exception {
++        var source = mock(CommandSourceStack.class);
++        var level = mock(ServerLevel.class);
++        var player = mock(net.minecraft.server.level.ServerPlayer.class);
++        var bounds = new net.minecraft.world.phys.AABB(-1, -1, -1, 1, 1, 1);
++        when(source.getLevel()).thenReturn(level);
++        when(source.getPosition()).thenReturn(net.minecraft.world.phys.Vec3.ZERO);
++        when(level.getLocalPlayers()).thenReturn(List.of(player));
++        when(player.getBoundingBox()).thenReturn(bounds);
++        var inspected = new AtomicInteger();
++        var selector = new net.minecraft.commands.arguments.selector.EntitySelector(1, false, true,
++            List.of(target -> { inspected.incrementAndGet(); return true; }), null, position -> position, bounds,
++            net.minecraft.commands.arguments.selector.EntitySelector.ORDER_ARBITRARY, false, null, null, null, false);
++        try (var threads = mockStatic(TickThread.class)) {
++            threads.when(() -> TickThread.isTickThreadFor(level, bounds)).thenReturn(true);
++            assertEquals(List.of(player), selector.findPlayers(source));
++            assertEquals(1, inspected.get());
++            verify(level, never()).getPlayers(any(), anyInt());
++        }
++    }
++
++    @Test
++    void foreignBlockAccessorRejectsDelayedReadAndWrite() {
++        BlockEntity entity = mock(BlockEntity.class);
++        ServerLevel level = mock(ServerLevel.class);
++        when(entity.getLevel()).thenReturn(level);
++        BlockPos pos = new BlockPos(8, 70, 8);
++        var accessor = new BlockDataAccessor(entity, pos);
++        try (var threads = mockStatic(TickThread.class)) {
++            threads.when(() -> TickThread.isTickThreadFor(level, pos)).thenReturn(false);
++            assertThrows(CommandSyntaxException.class, accessor::getData);
++            assertThrows(CommandSyntaxException.class, () -> accessor.updateData(data -> { data.putInt("value", 1); return 1; }));
++            verify(level, never()).getBlockState(any());
++            verify(entity, never()).setChanged();
++        }
++    }
++}

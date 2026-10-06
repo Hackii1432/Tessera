@@ -1,0 +1,681 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Tue, 6 Oct 2026 21:40:38 +0200
+Subject: [PATCH] Restore region-owned data commands and atomic command storage
+
+Register owner-only entity reads and loaded block mutations while keeping Entity.load and cross-region copies unsupported. Resolve console/RCON identities before predicates, guard bounded player and foreign self filters, and await ownership reroutes. Serialize namespace mutations and detached saved-data snapshots under the same container lock; do not expose live tags.
+
+diff --git a/net/minecraft/commands/Commands.java b/net/minecraft/commands/Commands.java
+index 6de7d41e55d5e9e33bd5a582e52d64da814b8c35..a1379381477b6a41560528241df3dac4e65fd245 100644
+--- a/net/minecraft/commands/Commands.java
++++ b/net/minecraft/commands/Commands.java
+@@ -212,7 +212,7 @@ public class Commands {
+         //CloneCommands.register(this.dispatcher, context); // Folia - region threading - TODO
+         ComputeCommand.register(this.dispatcher, context);
+         DamageCommand.register(this.dispatcher, context);
+-        DataCommands.registerRegionSafeBlockReads(this.dispatcher); // Tessera - region-safe console block reads
++        DataCommands.registerRegionSafeCommands(this.dispatcher, context); // Tessera - owned NBT access and atomic shared storage
+         //DataPackCommand.register(this.dispatcher, context); // Folia - region threading - TODO
+         //DebugCommand.register(this.dispatcher); // Folia - region threading - TODO
+         DefaultGameModeCommands.register(this.dispatcher);
+@@ -402,6 +402,12 @@ public class Commands {
+ 
+         try {
+             if (commandChain != null) {
++                // New NBT branches must not expose an unsafe selector in an earlier
++                // execute modifier, before the accessor can check its target's owner.
++                if (!tessera$validateNbtSelectors(commandChain, sender)) {
++                    sender.callback().onFailure();
++                    return CompletableFuture.completedFuture(null);
++                }
+                 final CommandSourceStack regionTarget = tessera$findRegionTarget(commandChain, sender);
+                 if (regionTarget != null
+                     && !ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(
+@@ -474,8 +480,13 @@ public class Commands {
+                 chunkZ,
+                 () -> {
+                     try {
+-                        this.performCommand(command, commandString, throwCommandError);
+-                        completion.complete(null);
++                        // Ownership may have changed while queued. Await every reroute, not
++                        // merely admission of a nested task (RCON must receive the real reply).
++                        this.performCommandAsync(command, commandString, throwCommandError)
++                            .whenComplete((ignored, failure) -> {
++                                if (failure == null) completion.complete(null);
++                                else completion.completeExceptionally(failure);
++                            });
+                     } catch (final Throwable throwable) {
+                         completion.completeExceptionally(throwable);
+                     }
+@@ -514,10 +525,6 @@ public class Commands {
+                     target = target.withPosition(Vec3Argument.getVec3(context.copyFor(target), "pos"));
+                 }
+ 
+-                if (tessera$hasArgumentType(context, EntityArgument.class)) {
+-                    return explicitDimension ? target : null;
+-                }
+-
+                 final String blockPositionArgument = tessera$findLocalBlockReadPosition(context);
+                 if (blockPositionArgument != null) {
+                     final net.minecraft.core.BlockPos blockPosition = BlockPosArgument.getBlockPos(
+@@ -526,6 +533,32 @@ public class Commands {
+                     return target.withPosition(Vec3.atCenterOf(blockPosition));
+                 }
+ 
++                if (tessera$hasArgumentType(context, EntityArgument.class)) {
++                    // Only NBT providers use this identity-only owner resolution. Other
++                    // command selectors retain their existing routing and execution.
++                    if (tessera$containsNbtProvider(command)) {
++                        final String argument = context.getNodes().stream()
++                            .map(com.mojang.brigadier.context.ParsedCommandNode::getNode)
++                            .filter(node -> node instanceof ArgumentCommandNode<?, ?> arg && arg.getType() instanceof EntityArgument)
++                            .map(CommandNode::getName).findFirst().orElseThrow();
++                        final net.minecraft.commands.arguments.selector.EntitySelector selector = context.getArgument(
++                            argument, net.minecraft.commands.arguments.selector.EntitySelector.class);
++                        if (selector.tessera$hasExplicitIdentity()) {
++                            final net.minecraft.world.entity.Entity entity = selector.tessera$findExplicitEntity(target);
++                            if (entity == null) return null;
++                            return target.withLevel((ServerLevel)entity.level()).withPosition(entity.position());
++                        }
++                        return target.withPosition(selector.tessera$getQueryPosition(target));
++                    }
++                    return explicitDimension ? target : null;
++                }
++
++                // A storage target has no spatial argument. Compute still evaluates
++                // region-owned context; use execute's dimension/position, never global state.
++                if (tessera$hasNode(context, "data") && tessera$hasNode(context, "compute")) {
++                    return target;
++                }
++
+                 if (stage.getStage() == ContextChain.Stage.EXECUTE) {
+                     return null;
+                 }
+@@ -541,10 +574,9 @@ public class Commands {
+         final com.mojang.brigadier.context.CommandContext<CommandSourceStack> context
+     ) {
+         final boolean blockConditional = tessera$hasArgumentType(context, BlockPredicateArgument.class);
+-        final boolean blockDataGet = tessera$hasNode(context, "data")
+-            && tessera$hasNode(context, "get")
+-            && tessera$hasNode(context, "block");
+-        if (!blockConditional && !blockDataGet) {
++        final boolean blockData = tessera$hasNode(context, "data") && tessera$hasNode(context, "block");
++        final boolean blockStore = tessera$hasNode(context, "store") && tessera$hasNode(context, "block");
++        if (!blockConditional && !blockData && !blockStore) {
+             return null;
+         }
+ 
+@@ -560,7 +592,38 @@ public class Commands {
+         final com.mojang.brigadier.context.CommandContext<CommandSourceStack> context,
+         final String name
+     ) {
+-        return context.getNodes().stream().anyMatch(node -> node.getNode().getName().equals(name));
++        return context.getNodes().stream().anyMatch(node -> node.getNode().getName().equals(name)
++            || node.getNode().getName().equals("minecraft:" + name));
++    }
++
++    private static boolean tessera$containsNbtProvider(final ContextChain<CommandSourceStack> command) {
++        ContextChain<CommandSourceStack> stage = command;
++        while (true) {
++            if (tessera$hasNode(stage.getTopContext(), "data")) return true;
++            if (stage.getStage() == ContextChain.Stage.EXECUTE) return false;
++            stage = stage.nextStage();
++        }
++    }
++
++    private static boolean tessera$validateNbtSelectors(final ContextChain<CommandSourceStack> command, final CommandSourceStack sender) {
++        if (!tessera$containsNbtProvider(command)) return true;
++        ContextChain<CommandSourceStack> stage = command;
++        while (true) {
++            final com.mojang.brigadier.context.CommandContext<CommandSourceStack> context = stage.getTopContext();
++            for (final com.mojang.brigadier.context.ParsedCommandNode<CommandSourceStack> parsed : context.getNodes()) {
++                if (parsed.getNode() instanceof ArgumentCommandNode<?, ?> argument && argument.getType() instanceof EntityArgument) {
++                    final net.minecraft.commands.arguments.selector.EntitySelector selector = context.getArgument(
++                        argument.getName(), net.minecraft.commands.arguments.selector.EntitySelector.class);
++                    if (!selector.tessera$hasExplicitIdentity() && !selector.tessera$hasBoundedQuery()) {
++                        sender.sendFailure(Component.literal(
++                            "NBT command selectors require a name/UUID, @s, or a bounded search inside a loaded region"));
++                        return false;
++                    }
++                }
++            }
++            if (stage.getStage() == ContextChain.Stage.EXECUTE) return true;
++            stage = stage.nextStage();
++        }
+     }
+ 
+     private static boolean tessera$hasArgumentType(
+diff --git a/net/minecraft/commands/arguments/selector/EntitySelector.java b/net/minecraft/commands/arguments/selector/EntitySelector.java
+index a5890223c91c274bf95df4ff099d5756bd768da5..dc4f351fca08f972ce06c07bfed504eefac75d49 100644
+--- a/net/minecraft/commands/arguments/selector/EntitySelector.java
++++ b/net/minecraft/commands/arguments/selector/EntitySelector.java
+@@ -35,6 +35,9 @@ public class EntitySelector {
+     private static final SimpleCommandExceptionType ERROR_CROSS_REGION_QUERY = new SimpleCommandExceptionType(
+         Component.literal("The entity selector search area crosses region boundaries and is not supported")
+     );
++    private static final SimpleCommandExceptionType ERROR_NBT_QUERY = new SimpleCommandExceptionType(
++        Component.literal("Entity NBT queries require a name/UUID, @s, or a bounded selector inside the current loaded region")
++    );
+     // Tessera end - reject unsafe cross-region entity selectors cleanly
+     private static final EntityTypeTest<Entity, ?> ANY_TYPE = new EntityTypeTest<Entity, Entity>() {
+         @Override
+@@ -142,6 +145,55 @@ public class EntitySelector {
+         }
+     }
+ 
++    // Tessera - resolve identity without evaluating live NBT/score/name predicates off-owner.
++    public boolean tessera$hasExplicitIdentity() {
++        return this.currentEntity || this.playerName != null || this.entityUUID != null;
++    }
++
++    public boolean tessera$hasBoundedQuery() {
++        return this.worldLimited && this.aabb != null;
++    }
++
++    public @Nullable Entity tessera$findExplicitEntity(final CommandSourceStack sender) throws CommandSyntaxException {
++        this.checkPermissions(sender);
++        if (this.currentEntity) return sender.getEntity();
++        if (this.playerName != null) return sender.getServer().getPlayerList().getPlayerByName(this.playerName);
++        if (this.entityUUID != null) {
++            for (ServerLevel level : sender.getServer().getAllLevels()) {
++                Entity entity = level.getEntity(this.entityUUID);
++                if (entity != null) return entity;
++            }
++        }
++        return null;
++    }
++
++    public Vec3 tessera$getQueryPosition(final CommandSourceStack sender) {
++        return this.position.apply(sender.getPosition());
++    }
++
++    public Entity tessera$findSingleOwnedEntity(final CommandSourceStack sender) throws CommandSyntaxException {
++        this.checkPermissions(sender);
++        if (this.tessera$hasExplicitIdentity()) {
++            Entity target = this.tessera$findExplicitEntity(sender);
++            if (target == null) throw EntityArgument.NO_ENTITIES_FOUND.create();
++            if (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(target) || target.isRemoved()) {
++                throw ERROR_NBT_QUERY.create();
++            }
++        } else {
++            AABB bounds = this.getAbsoluteAabb(this.tessera$getQueryPosition(sender));
++            // Even a read selector may evaluate arbitrary live NBT predicates. An unbounded
++            // concurrent identity index is not permission to serialize foreign entities.
++            if (!this.worldLimited || bounds == null || !ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(sender.getLevel(), bounds)) {
++                throw ERROR_NBT_QUERY.create();
++            }
++        }
++        Entity target = this.findSingleEntity(sender);
++        if (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(target) || target.isRemoved()) {
++            throw ERROR_NBT_QUERY.create();
++        }
++        return target;
++    }
++
+     public List<? extends Entity> findEntities(final CommandSourceStack sender) throws CommandSyntaxException {
+         this.checkPermissions(sender);
+         if (!this.includesEntities) {
+@@ -169,6 +221,7 @@ public class EntitySelector {
+             Vec3 pos = this.position.apply(sender.getPosition());
+             AABB absoluteAabb = this.getAbsoluteAabb(pos);
+             if (this.currentEntity) {
++                this.tessera$checkSelfPredicateOwner(sender); // Tessera - execute filters must not serialize a foreign @s
+                 Predicate<Entity> predicate = this.getPredicate(pos, absoluteAabb, null);
+                 return sender.getEntity() != null && predicate.test(sender.getEntity()) ? List.of(sender.getEntity()) : List.of();
+             }
+@@ -250,13 +303,31 @@ public class EntitySelector {
+         AABB absoluteAabb = this.getAbsoluteAabb(pos);
+         Predicate<Entity> predicate = this.getPredicate(pos, absoluteAabb, null);
+         if (this.currentEntity) {
++            this.tessera$checkSelfPredicateOwner(sender); // Tessera - same guard for player-only @s filters
+             return sender.getEntity() instanceof ServerPlayer player && predicate.test(player) ? List.of(player) : List.of();
+         }
+ 
+         int limit = this.getResultLimit();
+         List<ServerPlayer> result;
+         if (this.isWorldLimited()) {
+-            result = sender.getLevel().getPlayers(predicate, limit);
++            // Tessera start - bounded player filters only inspect their region's live players
++            if (absoluteAabb != null) {
++                if (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(sender.getLevel(), absoluteAabb)) {
++                    CommandSyntaxException failure = ERROR_CROSS_REGION_QUERY.create();
++                    sender.sendFailure(ComponentUtils.fromMessage(failure.getRawMessage()));
++                    throw failure;
++                }
++                result = new ObjectArrayList<>();
++                for (ServerPlayer player : sender.getLevel().getLocalPlayers()) {
++                    if (predicate.test(player)) {
++                        result.add(player);
++                        if (result.size() >= limit) break;
++                    }
++                }
++            } else {
++                result = sender.getLevel().getPlayers(predicate, limit);
++            }
++            // Tessera end - bounded player filters only inspect their region's live players
+         } else {
+             result = new ObjectArrayList<>();
+ 
+@@ -273,6 +344,16 @@ public class EntitySelector {
+         return this.sortAndLimit(pos, result);
+     }
+ 
++    // Tessera - execute as can replace @s without transferring command execution.
++    private void tessera$checkSelfPredicateOwner(final CommandSourceStack sender) throws CommandSyntaxException {
++        if (sender.getEntity() != null && !this.contextFreePredicates.isEmpty()
++            && !ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(sender.getEntity())) {
++            CommandSyntaxException failure = ERROR_CROSS_REGION_QUERY.create();
++            sender.sendFailure(ComponentUtils.fromMessage(failure.getRawMessage()));
++            throw failure;
++        }
++    }
++
+     private @Nullable AABB getAbsoluteAabb(final Vec3 pos) {
+         return this.aabb != null ? this.aabb.move(pos) : null;
+     }
+diff --git a/net/minecraft/server/commands/ExecuteCommand.java b/net/minecraft/server/commands/ExecuteCommand.java
+index 1a3de1a672b3157e7433b83252b798aa08ca8ed5..69239cffb5fee3d15ece582ed38c3e7610e885f9 100644
+--- a/net/minecraft/server/commands/ExecuteCommand.java
++++ b/net/minecraft/server/commands/ExecuteCommand.java
+@@ -303,7 +303,7 @@ public class ExecuteCommand {
+                 )
+         );
+ 
+-        for (ArgProvider<DataAccessor> provider : DataCommands.TARGET_PROVIDERS) {
++        for (ArgProvider<DataAccessor> provider : DataCommands.REGION_SAFE_WRITE_PROVIDERS) { // Tessera - no arbitrary entity NBT reloads
+             provider.wrap(
+                 literal,
+                 p -> p.then(
+@@ -446,11 +446,10 @@ public class ExecuteCommand {
+     ) {
+         return source.withCallback((success, result) -> {
+             try {
+-                CompoundTag data = accessor.getData();
+                 int value = storeResult ? result : (success ? 1 : 0);
+-                path.set(data, constructor.apply(value));
+-                accessor.setData(data);
+-            } catch (CommandSyntaxException var8) {
++                accessor.updateData(data -> path.set(data, constructor.apply(value)));
++            } catch (CommandSyntaxException failure) {
++                source.sendFailure(net.minecraft.network.chat.ComponentUtils.fromMessage(failure.getRawMessage()));
+             }
+         }, CommandResultCallback::chain);
+     }
+diff --git a/net/minecraft/server/commands/data/BlockDataAccessor.java b/net/minecraft/server/commands/data/BlockDataAccessor.java
+index d701058e22bb39cc2208ef7dbd4022d70bc6f081..96468be3d105f4f5f498b109c9e2b30dc3992f80 100644
+--- a/net/minecraft/server/commands/data/BlockDataAccessor.java
++++ b/net/minecraft/server/commands/data/BlockDataAccessor.java
+@@ -26,7 +26,7 @@ public class BlockDataAccessor implements DataAccessor {
+     );
+     // Tessera start - reject foreign-region block reads clearly
+     private static final SimpleCommandExceptionType ERROR_NOT_REGION_OWNED = new SimpleCommandExceptionType(
+-        Component.literal("Cannot read block data outside the command's current region")
++        Component.literal("Block NBT access requires its current loaded region owner")
+     );
+     // Tessera end - reject foreign-region block reads clearly
+     public static final ArgProvider.Factory<DataAccessor> PROVIDER = arg -> ArgProvider.create(
+@@ -54,7 +54,8 @@ public class BlockDataAccessor implements DataAccessor {
+     }
+ 
+     @Override
+-    public void setData(final CompoundTag tag) {
++    public void setData(final CompoundTag tag) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
++        this.checkOwner();
+         BlockState state = this.entity.getLevel().getBlockState(this.pos);
+ 
+         try (ProblemReporter.ScopedCollector reporter = new ProblemReporter.ScopedCollector(this.entity.problemPath(), LOGGER)) {
+@@ -65,10 +66,23 @@ public class BlockDataAccessor implements DataAccessor {
+     }
+ 
+     @Override
+-    public CompoundTag getData() {
++    public CompoundTag getData() throws com.mojang.brigadier.exceptions.CommandSyntaxException {
++        this.checkOwner();
+         return this.entity.saveWithFullMetadata(this.entity.getLevel().registryAccess());
+     }
+ 
++    // Accessors can outlive an execute modifier. Recheck before reads AND callback writes.
++    private void checkOwner() throws com.mojang.brigadier.exceptions.CommandSyntaxException {
++        if (!(this.entity.getLevel() instanceof net.minecraft.server.level.ServerLevel level)
++            || !ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(level, this.pos)) {
++            throw ERROR_NOT_REGION_OWNED.create();
++        }
++        if (this.entity.isRemoved() || level.getChunkSource().getChunkNow(this.pos.getX() >> 4, this.pos.getZ() >> 4) == null
++            || level.getBlockEntity(this.pos) != this.entity) {
++            throw ERROR_NOT_A_BLOCK_ENTITY.create();
++        }
++    }
++
+     @Override
+     public Component getModifiedSuccess() {
+         return Component.translatable("commands.data.block.modified", this.pos.getX(), this.pos.getY(), this.pos.getZ());
+diff --git a/net/minecraft/server/commands/data/DataAccessor.java b/net/minecraft/server/commands/data/DataAccessor.java
+index 8eed353e878d3c2bede58ed526c4bc065fe7db90..5139b41e4c1475290885bcf8fd9b0c1b79765a0f 100644
+--- a/net/minecraft/server/commands/data/DataAccessor.java
++++ b/net/minecraft/server/commands/data/DataAccessor.java
+@@ -11,6 +11,14 @@ public interface DataAccessor {
+ 
+     CompoundTag getData() throws CommandSyntaxException;
+ 
++    // Tessera - one read/modify/write operation; shared storage overrides this atomically.
++    default <T> T updateData(net.minecraft.server.commands.InCommandFunction<CompoundTag, T> operation) throws CommandSyntaxException {
++        CompoundTag data = this.getData();
++        T result = operation.apply(data);
++        this.setData(data);
++        return result;
++    }
++
+     Component getModifiedSuccess();
+ 
+     Component getPrintSuccess(Tag data);
+diff --git a/net/minecraft/server/commands/data/DataCommands.java b/net/minecraft/server/commands/data/DataCommands.java
+index 7868a4a4cc17bdeec3370eda666950190b3e3c7c..0cfa7bd240bcd053b6c98c9596749870dbf604b1 100644
+--- a/net/minecraft/server/commands/data/DataCommands.java
++++ b/net/minecraft/server/commands/data/DataCommands.java
+@@ -66,11 +66,28 @@ public class DataCommands {
+     );
+     public static final List<ArgProvider<DataAccessor>> TARGET_PROVIDERS = ArgProvider.buildList("target", ALL_PROVIDERS);
+     public static final List<ArgProvider<DataAccessor>> SOURCE_PROVIDERS = ArgProvider.buildList("source", ALL_PROVIDERS);
++    // Tessera - arbitrary Entity.load mutations remain unsupported, including execute store.
++    public static final List<ArgProvider<DataAccessor>> REGION_SAFE_WRITE_PROVIDERS = ArgProvider.buildList(
++        "target", List.of(BlockDataAccessor.PROVIDER, StorageDataAccessor.PROVIDER)
++    );
+ 
+     public static void register(final CommandDispatcher<CommandSourceStack> dispatcher, final CommandBuildContext buildContext) {
++        register(dispatcher, buildContext, TARGET_PROVIDERS);
++    }
++
++    // Tessera - retain Vanilla grammar, but register writes only for blocks and shared storage.
++    public static void registerRegionSafeCommands(final CommandDispatcher<CommandSourceStack> dispatcher, final CommandBuildContext buildContext) {
++        register(dispatcher, buildContext, REGION_SAFE_WRITE_PROVIDERS);
++        registerReads(dispatcher, EntityDataAccessor.PROVIDER.create("target"));
++    }
++
++    private static void register(
++        final CommandDispatcher<CommandSourceStack> dispatcher, final CommandBuildContext buildContext,
++        final List<ArgProvider<DataAccessor>> writeProviders
++    ) {
+         LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("data").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS));
+ 
+-        for (ArgProvider<DataAccessor> targetProvider : TARGET_PROVIDERS) {
++        for (ArgProvider<DataAccessor> targetProvider : writeProviders) {
+             root.then(
+                     targetProvider.wrap(
+                         Commands.literal("merge"),
+@@ -113,6 +130,7 @@ public class DataCommands {
+                 .then(
+                     decorateModification(
+                         buildContext,
++                        writeProviders,
+                         (parent, rest) -> parent.then(
+                                 Commands.literal("insert")
+                                     .then(
+@@ -169,21 +187,19 @@ public class DataCommands {
+         dispatcher.register(root);
+     }
+ 
+-    // Tessera start - expose the region-safe read-only block data command
+-    public static void registerRegionSafeBlockReads(final CommandDispatcher<CommandSourceStack> dispatcher) {
++    private static void registerReads(final CommandDispatcher<CommandSourceStack> dispatcher, final ArgProvider<DataAccessor> provider) {
+         final LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("data")
+             .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS));
+-        final ArgProvider<DataAccessor> blockProvider = BlockDataAccessor.PROVIDER.create("target");
+         root.then(
+-            blockProvider.wrap(
++            provider.wrap(
+                 Commands.literal("get"),
+-                get -> get.executes(context -> getData(context.getSource(), blockProvider.access(context)))
++                get -> get.executes(context -> getData(context.getSource(), provider.access(context)))
+                     .then(
+                         Commands.argument("path", NbtPathArgument.nbtPath())
+                             .executes(
+                                 context -> getData(
+                                     context.getSource(),
+-                                    blockProvider.access(context),
++                                    provider.access(context),
+                                     NbtPathArgument.getPath(context, "path")
+                                 )
+                             )
+@@ -192,7 +208,7 @@ public class DataCommands {
+                                     .executes(
+                                         context -> getNumeric(
+                                             context.getSource(),
+-                                            blockProvider.access(context),
++                                            provider.access(context),
+                                             NbtPathArgument.getPath(context, "path"),
+                                             DoubleArgumentType.getDouble(context, "scale")
+                                         )
+@@ -203,7 +219,6 @@ public class DataCommands {
+         );
+         dispatcher.register(root);
+     }
+-    // Tessera end - expose the region-safe read-only block data command
+ 
+     private static String getAsText(final Tag tag) throws CommandSyntaxException {
+         return switch (tag) {
+@@ -225,11 +240,12 @@ public class DataCommands {
+     }
+ 
+     private static ArgumentBuilder<CommandSourceStack, ?> decorateModification(
+-        final CommandBuildContext buildContext, final BiConsumer<ArgumentBuilder<CommandSourceStack, ?>, DataCommands.DataManipulatorDecorator> nodeSupplier
++        final CommandBuildContext buildContext, final List<ArgProvider<DataAccessor>> targets,
++        final BiConsumer<ArgumentBuilder<CommandSourceStack, ?>, DataCommands.DataManipulatorDecorator> nodeSupplier
+     ) {
+         LiteralArgumentBuilder<CommandSourceStack> modify = Commands.literal("modify");
+ 
+-        for (ArgProvider<DataAccessor> targetProvider : TARGET_PROVIDERS) {
++        for (ArgProvider<DataAccessor> targetProvider : targets) {
+             targetProvider.wrap(
+                 modify,
+                 t -> {
+@@ -381,25 +397,21 @@ public class DataCommands {
+     ) throws CommandSyntaxException {
+         DataAccessor target = targetProvider.access(context);
+         NbtPathArgument.NbtPath targetPath = NbtPathArgument.getPath(context, "targetPath");
+-        CompoundTag targetData = target.getData();
+-        int result = manipulator.modify(context, targetData, targetPath, source);
+-        if (result == 0) {
+-            throw ERROR_MERGE_UNCHANGED.create();
+-        }
+-
+-        target.setData(targetData);
++        int result = target.updateData(targetData -> {
++            int changed = manipulator.modify(context, targetData, targetPath, source);
++            if (changed == 0) throw ERROR_MERGE_UNCHANGED.create();
++            return changed;
++        });
+         context.getSource().sendSuccess(() -> target.getModifiedSuccess(), true);
+         return result;
+     }
+ 
+     private static int removeData(final CommandSourceStack source, final DataAccessor accessor, final NbtPathArgument.NbtPath path) throws CommandSyntaxException {
+-        CompoundTag result = accessor.getData();
+-        int count = path.remove(result);
+-        if (count == 0) {
+-            throw ERROR_MERGE_UNCHANGED.create();
+-        }
+-
+-        accessor.setData(result);
++        int count = accessor.updateData(data -> {
++            int removed = path.remove(data);
++            if (removed == 0) throw ERROR_MERGE_UNCHANGED.create();
++            return removed;
++        });
+         source.sendSuccess(() -> accessor.getModifiedSuccess(), true);
+         return count;
+     }
+@@ -447,17 +459,16 @@ public class DataCommands {
+     }
+ 
+     private static int mergeData(final CommandSourceStack source, final DataAccessor accessor, final CompoundTag nbt) throws CommandSyntaxException {
+-        CompoundTag old = accessor.getData();
+         if (NbtPathArgument.NbtPath.isTooDeep(nbt, 0)) {
+             throw NbtPathArgument.ERROR_DATA_TOO_DEEP.create();
+         }
+ 
+-        CompoundTag result = old.copy().merge(nbt);
+-        if (old.equals(result)) {
+-            throw ERROR_MERGE_UNCHANGED.create();
+-        }
+-
+-        accessor.setData(result);
++        accessor.updateData(data -> {
++            CompoundTag old = data.copy();
++            data.merge(nbt);
++            if (old.equals(data)) throw ERROR_MERGE_UNCHANGED.create();
++            return Command.SINGLE_SUCCESS;
++        });
+         source.sendSuccess(() -> accessor.getModifiedSuccess(), true);
+         return Command.SINGLE_SUCCESS;
+     }
+diff --git a/net/minecraft/server/commands/data/EntityDataAccessor.java b/net/minecraft/server/commands/data/EntityDataAccessor.java
+index d8cacf975c2c35e5fe7370bd5b007fbe0d4bd031..0f3767057ee5511f74a9cec30ec8d10d8b1bc6ba 100644
+--- a/net/minecraft/server/commands/data/EntityDataAccessor.java
++++ b/net/minecraft/server/commands/data/EntityDataAccessor.java
+@@ -23,8 +23,12 @@ import org.slf4j.Logger;
+ public class EntityDataAccessor implements DataAccessor {
+     private static final Logger LOGGER = LogUtils.getLogger();
+     private static final SimpleCommandExceptionType ERROR_NO_PLAYERS = new SimpleCommandExceptionType(Component.translatable("commands.data.entity.invalid"));
++    private static final SimpleCommandExceptionType ERROR_NOT_REGION_OWNED = new SimpleCommandExceptionType(
++        Component.literal("Entity NBT access requires its current loaded region owner")
++    );
+     public static final ArgProvider.Factory<DataAccessor> PROVIDER = arg -> ArgProvider.create(
+-        "entity", () -> Commands.argument(arg, EntityArgument.entity()), c -> new EntityDataAccessor(EntityArgument.getEntity(c, arg))
++        "entity", () -> Commands.argument(arg, EntityArgument.entity()),
++        c -> new EntityDataAccessor(c.getArgument(arg, net.minecraft.commands.arguments.selector.EntitySelector.class).tessera$findSingleOwnedEntity(c.getSource()))
+     );
+     private final Entity entity;
+ 
+@@ -34,6 +38,7 @@ public class EntityDataAccessor implements DataAccessor {
+ 
+     @Override
+     public void setData(final CompoundTag tag) throws CommandSyntaxException {
++        this.checkOwner();
+         if (this.entity instanceof Player) {
+             throw ERROR_NO_PLAYERS.create();
+         }
+@@ -48,10 +53,17 @@ public class EntityDataAccessor implements DataAccessor {
+     }
+ 
+     @Override
+-    public CompoundTag getData() {
++    public CompoundTag getData() throws CommandSyntaxException {
++        this.checkOwner();
+         return NbtPredicate.getEntityTagToCompare(this.entity);
+     }
+ 
++    private void checkOwner() throws CommandSyntaxException {
++        if (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this.entity) || this.entity.isRemoved()) {
++            throw ERROR_NOT_REGION_OWNED.create();
++        }
++    }
++
+     @Override
+     public Component getModifiedSuccess() {
+         return Component.translatable("commands.data.entity.modified", this.entity.getDisplayName());
+diff --git a/net/minecraft/server/commands/data/StorageDataAccessor.java b/net/minecraft/server/commands/data/StorageDataAccessor.java
+index 1b71babeabae2cc8efad898294014a5effd00750..0a25191171ab78207a685ececaeb7745f0e73b4d 100644
+--- a/net/minecraft/server/commands/data/StorageDataAccessor.java
++++ b/net/minecraft/server/commands/data/StorageDataAccessor.java
+@@ -45,6 +45,12 @@ public class StorageDataAccessor implements DataAccessor {
+         return this.storage.get(this.id);
+     }
+ 
++    @Override
++    public <T> T updateData(net.minecraft.server.commands.InCommandFunction<CompoundTag, T> operation)
++        throws com.mojang.brigadier.exceptions.CommandSyntaxException {
++        return this.storage.update(this.id, operation);
++    }
++
+     @Override
+     public Component getModifiedSuccess() {
+         return Component.translatable("commands.data.storage.modified", Component.translationArg(this.id));
+diff --git a/net/minecraft/world/level/storage/CommandStorage.java b/net/minecraft/world/level/storage/CommandStorage.java
+index c99b9001cefdf6992dfcbe90294f697fe3b2eb64..1f36e3d21362cc03a4a41a07402f282d2d39598d 100644
+--- a/net/minecraft/world/level/storage/CommandStorage.java
++++ b/net/minecraft/world/level/storage/CommandStorage.java
+@@ -15,7 +15,8 @@ import org.jspecify.annotations.Nullable;
+ 
+ public class CommandStorage {
+     private static final String COMMAND_STORAGE = "command_storage";
+-    private final Map<String, CommandStorage.Container> namespaces = new HashMap<>();
++    // Tessera - namespace publication is concurrent; each container owns its NBT lock.
++    private final Map<String, CommandStorage.Container> namespaces = new java.util.concurrent.ConcurrentHashMap<>();
+     private final SavedDataStorage savedDataStorage;
+ 
+     public CommandStorage(final SavedDataStorage savedDataStorage) {
+@@ -56,19 +57,27 @@ public class CommandStorage {
+         this.getOrCreateContainer(id.getNamespace()).put(id.getPath(), contents);
+     }
+ 
++    // Tessera - commit only after the entire NBT operation succeeds, without losing other regions' edits.
++    public <T> T update(final Identifier id, final net.minecraft.server.commands.InCommandFunction<CompoundTag, T> operation)
++        throws com.mojang.brigadier.exceptions.CommandSyntaxException {
++        return this.getOrCreateContainer(id.getNamespace()).update(id.getPath(), operation);
++    }
++
+     public Stream<Identifier> keys() {
+-        return this.namespaces.entrySet().stream().flatMap(e -> e.getValue().getKeys(e.getKey()));
++        // Detach the stream before Brigadier's asynchronous suggestions iterate it.
++        return this.namespaces.entrySet().stream().flatMap(e -> e.getValue().getKeys(e.getKey())).toList().stream();
+     }
+ 
+     private static class Container extends SavedData {
+         public static final Codec<CommandStorage.Container> CODEC = RecordCodecBuilder.create(
+-            i -> i.group(Codec.unboundedMap(ExtraCodecs.RESOURCE_PATH_CODEC, CompoundTag.CODEC).fieldOf("contents").forGetter(container -> container.storage))
++            i -> i.group(Codec.unboundedMap(ExtraCodecs.RESOURCE_PATH_CODEC, CompoundTag.CODEC).fieldOf("contents").forGetter(Container::snapshot))
+                 .apply(i, CommandStorage.Container::new)
+         );
+         private final Map<String, CompoundTag> storage;
+ 
+         private Container(final Map<String, CompoundTag> storage) {
+-            this.storage = new HashMap<>(storage);
++            this.storage = new HashMap<>();
++            storage.forEach((key, value) -> this.storage.put(key, value.copy()));
+         }
+ 
+         private Container() {
+@@ -81,23 +90,37 @@ public class CommandStorage {
+             );
+         }
+ 
+-        public CompoundTag get(final String id) {
++        public synchronized CompoundTag get(final String id) {
+             CompoundTag result = this.storage.get(id);
+-            return result != null ? result : new CompoundTag();
++            return result != null ? result.copy() : new CompoundTag();
+         }
+ 
+-        public void put(final String id, final CompoundTag contents) {
++        public synchronized void put(final String id, final CompoundTag contents) {
+             if (contents.isEmpty()) {
+                 this.storage.remove(id);
+             } else {
+-                this.storage.put(id, contents);
++                this.storage.put(id, contents.copy());
+             }
+ 
+             this.setDirty();
+         }
+ 
+-        public Stream<Identifier> getKeys(final String namespace) {
+-            return this.storage.keySet().stream().map(p -> Identifier.fromNamespaceAndPath(namespace, p));
++        public synchronized Stream<Identifier> getKeys(final String namespace) {
++            return this.storage.keySet().stream().map(p -> Identifier.fromNamespaceAndPath(namespace, p)).toList().stream();
++        }
++
++        private synchronized <T> T update(final String id, final net.minecraft.server.commands.InCommandFunction<CompoundTag, T> operation)
++            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
++            CompoundTag updated = this.get(id);
++            T result = operation.apply(updated);
++            this.put(id, updated);
++            return result;
++        }
++
++        private synchronized Map<String, CompoundTag> snapshot() {
++            Map<String, CompoundTag> copy = new HashMap<>();
++            this.storage.forEach((key, value) -> copy.put(key, value.copy()));
++            return copy;
+         }
+     }
+ }

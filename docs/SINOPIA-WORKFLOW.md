@@ -186,14 +186,17 @@ Das ist ausdrücklich KEINE Erklärung, dass die Minecraft-Portierung fertig ist
 ## 26.3-Status
 
 Die aktuelle Minecraft-Basis ist das Release `26.3` mit Mache
-`26.3+build.1` und Tessera Build `016-beta`. Java 25 und die
+`26.3+build.1` und Tessera Build `017-beta`. Java 25 und die
 Plugin-API-Version `26.3` bleiben erhalten. Seit der Paper-main-Integration
 vom 25. September werden Gradle `9.8.0` und Paperweight `2.0.0-beta.24`
 gemeinsam verwendet. Der Build erzeugt die ausführbare JAR unter
-`build/libs/tessera-server-26.3.build.016-beta.jar`.
+`build/libs/tessera-server-26.3.build.017-beta.jar`.
 Der Beta-Kanal ersetzt keine Abnahme mit dem eigenen Plugin-Stack. Änderungen und
-Prüfstand: [Build 016](builds/26.3/0.0.16.md) und
-[Paper-Korrekturen mit nativer Abnahme](BUILD-26.3-016.md).
+Prüfstand: [Build 017](builds/26.3/0.0.17.md) und
+[NBT-Befehle mit nativer Abnahme](BUILD-26.3-017.md).
+Build 017 ergänzt regionslokale Block-NBT-Änderungen, Entity-Abfragen und
+atomaren CommandStorage. Die [Paper-Korrekturen aus Build 016](BUILD-26.3-016.md)
+bleiben unverändert enthalten.
 Die [Paper-Integration vom 6. Oktober](PAPER-INTEGRATION-2026-10-06.md)
 ergänzt die lokale Basis selektiv; ein Wechsel von `paperRef` allein bleibt
 kein Upstream-Update. Pregen und Endportal-Anpassungen aus den vorherigen Builds

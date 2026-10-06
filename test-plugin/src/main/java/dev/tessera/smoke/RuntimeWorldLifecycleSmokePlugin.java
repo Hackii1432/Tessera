@@ -89,6 +89,10 @@ public final class RuntimeWorldLifecycleSmokePlugin extends JavaPlugin {
             return;
         }
         this.worlds = Bukkit.getRuntimeWorldManager();
+        if (this.mode.equals("data-command") || this.mode.equals("data-command-restart")) {
+            new NativeDataCommandSmoke(this, this.mode.endsWith("-restart")).start();
+            return;
+        }
         if (this.mode.equals("paper-october")) {
             new PaperOctoberSmoke(this).start();
             return;

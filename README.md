@@ -9,11 +9,11 @@ plugin APIs. Tessera is intended for SMP servers, independent arenas and
 multi-world game modes whose plugins support Folia's threading model.
 
 **Current branch:** `ver/26.3.x` · **Minecraft/API:** `26.3` ·
-**Tessera:** `016-beta` · **Java:** `25`
+**Tessera:** `017-beta` · **Java:** `25`
 
 Tessera uses the **beta** channel; this is not a blanket production guarantee.
-The [current changelog](docs/builds/26.3/0.0.16.md) and
-[Build 016 integration report](docs/BUILD-26.3-016.md) distinguish implemented
+The [current changelog](docs/builds/26.3/0.0.17.md) and
+[Build 017 integration report](docs/BUILD-26.3-017.md) distinguish implemented
 features from completed tests and outstanding integration checks. Older 26.2
 and 26.3 RC entries in the [release history](docs/builds/) are historical,
 not a promise that this branch builds or supports all those versions.
@@ -45,7 +45,7 @@ import; changing that hash alone does not update the local base. See the
 | World snapshots | Coordinated snapshots of live worlds, player stores and shared level-root data. Participating worlds pause during flush/copy; this is not an unrestricted filesystem backup or a power-loss-atomic transaction. |
 | Native player restore | Contract 1 through `Bukkit.getPlayerRestoreService()`: connected-player state replacement, prepared target worlds and rollback. Requires explicit plugin integration, not an automatic SMP rollback feature. |
 | Scoreboards | Region-aware per-player scoreboards, teams, objectives and scores, with delivery on the owning player thread. |
-| Console/RCON commands | Region routing for supported Vanilla block queries and entity commands; unsupported cross-region or unloaded targets are rejected rather than bypassing thread checks. |
+| Console/RCON commands | Owner-routed block/entity NBT reads, loaded block NBT mutations and atomic shared storage; unsafe entity writes and cross-region copies remain unsupported. |
 | Tick control | Rate, freeze, step and sprint support. Player use of `/tick` requires actual OP status, not only a granted permission. |
 | Native pregeneration | Dimension-selectable `/pregen`, OP by default, with bounded asynchronous work, tick-freeze support and restartable checkpoints. |
 | Regional TPS display | English, clickable `/tps` overview, `/tps player <name>`, region details and `/tps all`, using existing server measurements and `bukkit.command.tps`. |
@@ -76,7 +76,7 @@ See [the region architecture](REGION_LOGIC.md) and
 ## Install and update
 
 1. Obtain a Tessera JAR built from the intended source revision, or build it below.
-   This branch produces `tessera-server-26.3.build.016-beta.jar` for Minecraft
+   This branch produces `tessera-server-26.3.build.017-beta.jar` for Minecraft
    **26.3** clients, not RC2/RC3 clients. Use Java **25** to run it.
 2. Use a dedicated server directory. Before migrating an existing server, stop it
    cleanly and make a separate backup of **all** worlds, player stores, level-root
@@ -84,7 +84,7 @@ See [the region architecture](REGION_LOGIC.md) and
 3. Copy the runnable JAR into that directory. Start it from that directory, for example:
 
    ```text
-   java -Xms2G -Xmx4G -jar tessera-server-26.3.build.016-beta.jar --nogui
+   java -Xms2G -Xmx4G -jar tessera-server-26.3.build.017-beta.jar --nogui
    ```
 
    The heap values are examples, not sizing guarantees. Leave memory and CPU
@@ -123,8 +123,8 @@ Run from the **Tessera repository root**, not from `sinopia/`:
 ```
 
 This prepares Sinopia, reapplies all patch layers, runs the tests/checks and
-creates the runnable JAR in `build/libs/`. The Build 016 source base,
-SHA-256 and actual test results are in [its integration report](docs/BUILD-26.3-016.md).
+creates the runnable JAR in `build/libs/`. The Build 017 source base,
+SHA-256 and actual test results are in [its integration report](docs/BUILD-26.3-017.md).
 For offline identity metadata affected by the old restore preview, follow the
 [backup and field-level repair guide](docs/restore-player-metadata-repair.md).
 

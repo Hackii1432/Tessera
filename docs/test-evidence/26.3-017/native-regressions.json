@@ -1,0 +1,92 @@
+{
+  "date": "2026-10-06",
+  "version": "26.3-017-beta",
+  "jar": "build/libs/tessera-server-26.3.build.017-beta.jar",
+  "bytes": 55612829,
+  "sha256": "640d81ad7034809b4b9b0ccb9a7569b29ff1e8820c1160f9c7c8e91501860273",
+  "rootBaseCommit": "ff02f0ed13d2ed5c43cedc9f24b3ce2e9e08181a",
+  "additionalLocalChanges": true,
+  "sinopiaSnapshot": "cebdb10d9418432a18b920f7f2e902a8d03a43f4",
+  "appliedMinecraftHead": "c25926e902ddff4e4569ea77117d8d308fc27a6d",
+  "appliedServerHead": "d14265be5262bad35488c944392952a2886b09b0",
+  "build": {
+    "successful": true,
+    "duration": "4m 42s",
+    "serverCases": 10241,
+    "serverSkips": 87,
+    "apiCases": 529,
+    "apiSkips": 2,
+    "failures": 0,
+    "errors": 0,
+    "newRegressionCases": 14,
+    "apiExamples": 10,
+    "buildSupportChecks": 22,
+    "documentationValidatorTests": 57,
+    "freshServerSuiteLog": "build/reports/build-logs/data-command-buildTessera.log",
+    "finalBuildLog": "build/reports/build-logs/data-command-buildTessera-final.log"
+  },
+  "dataCommands": {
+    "fixture": "data-command-1791316812918",
+    "evidence": "build/reports/native-fixtures/data-command-1791316812918/result.json",
+    "minecraftPort": 61360,
+    "rconPort": 61361,
+    "independentRegionOwners": 2,
+    "actualRconQueries": 8,
+    "actualParallelCommandWrites": 300,
+    "parallelFinalValues": {"region0": 150, "region128": 150},
+    "checks": [
+      "Loaded block get/path/scale/merge/remove/set and same-owner from under tick freeze",
+      "Bounded and UUID owner entity NBT reads under tick freeze",
+      "Storage list insert/prepend/append/set/remove, compound merge, from/string/compute, actual execute store/if callbacks",
+      "Actual RCON replies including minecraft:data aliases",
+      "Foreign/unloaded/cross-region/unbounded-NBT/earlier-execute filters, entity writes and stale block accessor rejected before changes",
+      "Player name/@s and bounded player NBT filters on owner, foreign filtered @s rejected, actual Nether transfer and numeric store result",
+      "Actual level-root snapshot and runtime world unload/reload preserve command block NBT",
+      "Clean restart reloads marker 17017, removed field stays absent, parallel values remain 150"
+    ],
+    "phases": [
+      {"mode": "data-command", "passed": true, "exitCode": 0, "logins": 2, "kicks": 0, "disconnectsBeforeResult": 0},
+      {"mode": "data-command-restart", "passed": true, "exitCode": 0, "logins": 2, "kicks": 0, "disconnectsBeforeResult": 0}
+    ],
+    "intentionalRestartExcludedFromContinuityCounts": true
+  },
+  "restoreRegression": {
+    "mode": "native-restore-transaction",
+    "fixture": "native-restore-smoke-1791316815656",
+    "evidence": "build/reports/native-fixtures/native-restore-smoke-1791316815656/native-restore-result.json",
+    "port": 61370,
+    "sameJarSha256": true,
+    "exitCode": 0,
+    "contractVersion": 1,
+    "nativeComponentChecksPassed": true,
+    "publicTransactionAccepted": true,
+    "clients": [
+      {"name": "RestoreOne", "logins": 1, "kicks": 0, "disconnectsBeforeResult": 0, "teleports": 35, "statsResets": 8, "advancementResets": 12},
+      {"name": "RestoreTwo", "logins": 1, "kicks": 0, "disconnectsBeforeResult": 0, "teleports": 38, "statsResets": 8, "advancementResets": 12}
+    ],
+    "checks": [
+      "Repeated prepare/apply/complete and resave, fresh rollback, immutable source and exact state",
+      "Transfer veto, fresh player defaults, cancelled callers and native writer drain",
+      "Actual statistics flush and Windows publication failures recover through explicit rollback",
+      "Dead/sleeping connected players, prepared generator bindings and final runtime snapshot"
+    ]
+  },
+  "cleanup": {
+    "completed": true,
+    "removedTargets": 62,
+    "removedBytes": 11800578453,
+    "oldJarsRemoved": 7,
+    "cleanCapturedSinopiaWorkspacesRemoved": 3,
+    "finalJarAndEvidencePreserved": true,
+    "productionWorldsTouched": false
+  },
+  "boundaries": {
+    "protocolClientsNotVisualVanillaAcceptance": true,
+    "mccMveTabLuckPermsStackRetested": false,
+    "pregenAndSandDuperNativeRetested": false,
+    "arbitraryEntityNbtWritesEnabled": false,
+    "crossRegionSpatialNbtCopiesEnabled": false,
+    "multiDocumentStorageTransaction": false,
+    "historicalChangelogSchemaIssueUnchanged": true
+  }
+}
