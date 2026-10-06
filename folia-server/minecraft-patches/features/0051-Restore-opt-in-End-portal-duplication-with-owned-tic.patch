@@ -7,7 +7,7 @@ Subject: [PATCH] Restore opt-in End portal duplication with owned tick
 Resume the vanilla landing tail on a separately registered source entity instead of ticking the removed original. Preserve Tessera asynchronous portal preflight, plugin vetoes and wrapper ownership. Continuation approach informed by CraftCanvasMC/Canvas PR 307; implemented against Tessera's deferred transfer lifecycle.
 
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index c105e6b907e49e06c2c24f60fb09982fb5b077c1..9ba374ee88e539d2e58594cc433d095c41d80566 100644
+index e75d4e2c357adc8b3114e703b4399ecabd132eec..45f013550528199af36eadd3d840741d3f493325 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
 @@ -5052,6 +5052,15 @@ public abstract class Entity

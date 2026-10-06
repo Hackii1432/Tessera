@@ -100,18 +100,18 @@ index ffa813ad111f05716c658e3a66a9eeb9b70c5e4c..67cae76e0f9a7a6a67f4af218435f396
 +    // Tessera end - fence the complete phase
  }
 diff --git a/net/minecraft/world/level/dimension/end/EnderDragonFight.java b/net/minecraft/world/level/dimension/end/EnderDragonFight.java
-index cf6b3705d2950df8c0e4e76cf3163a4422b5cd09..0422887784e12deee942a25b9c17250ee9499a03 100644
+index 321bf3f123ed47560f6a02f2047cc69a34206d45..725b8996d9303b2ce1685d6459d37f84b357c485 100644
 --- a/net/minecraft/world/level/dimension/end/EnderDragonFight.java
 +++ b/net/minecraft/world/level/dimension/end/EnderDragonFight.java
-@@ -104,6 +104,7 @@ public class EnderDragonFight extends SavedData {
-     public @Nullable DragonRespawnStage respawnStage;
+@@ -105,6 +105,7 @@ public class EnderDragonFight extends SavedData {
      private int respawnTime;
      public List<EntityReference<EndCrystal>> respawnCrystals;
+     public boolean emptyCrystalRespawnAllowed = false; // Paper - explicit API respawn without crystals
 +    private boolean tessera$reportedUnavailableRespawnCrystal;
      public static final Codec<EnderDragonFight> CODEC = RecordCodecBuilder.create(
          i -> i.group(
                  ExtraCodecs.optionalAlwaysPresentFieldOf(Codec.BOOL, "needs_state_scanning", true).forGetter(fight -> fight.needsStateScanning),
-@@ -571,6 +572,22 @@ public class EnderDragonFight extends SavedData {
+@@ -574,6 +575,22 @@ public class EnderDragonFight extends SavedData {
          this.setDirty();
      }
  
@@ -134,7 +134,7 @@ index cf6b3705d2950df8c0e4e76cf3163a4422b5cd09..0422887784e12deee942a25b9c17250e
      public boolean hasPreviouslyKilledDragon() {
          return this.hasPreviouslyKilledDragon;
      }
-@@ -645,6 +662,7 @@ public class EnderDragonFight extends SavedData {
+@@ -648,6 +665,7 @@ public class EnderDragonFight extends SavedData {
              }
  
              this.respawnStage = DragonRespawnStage.START;

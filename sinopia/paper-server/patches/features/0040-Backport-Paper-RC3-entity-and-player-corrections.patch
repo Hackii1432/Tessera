@@ -14,9 +14,10 @@ Keep the existing bed overload, sign editor and downstream region patches.
 No additional scheduling, chunk access or configuration changes.
 
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+index dfbf54c1be9d8de45ac13418153243ac6c8fcf5d..40f0e498567b49bee44ccbc5ade3d8fa283dec24 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
-@@ -3544,7 +3544,7 @@
+@@ -2734,7 +2734,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
              }
          }
          // Paper start - remove player from map on drop
@@ -26,9 +27,10 @@ diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server
              if (mapData != null) {
                  mapData.tickCarriedBy(this, droppedItemStack, null);
 diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 54463d937e0dfdfd367e52cc25a2f232071888ef..fc188402dcaf3c7866c739d8dea5334aeb35fa2b 100644
 --- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -1494,7 +1494,7 @@
+@@ -1455,7 +1455,7 @@ public class ServerGamePacketListenerImpl
          } else {
              if (packet.hasPosition()) {
                  if (this.receivedPositionThisTick) {
@@ -38,9 +40,10 @@ diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/ne
                  }
  
 diff --git a/net/minecraft/world/entity/decoration/BlockAttachedEntity.java b/net/minecraft/world/entity/decoration/BlockAttachedEntity.java
+index 474f7064479cbe93e79b229a0bc835d32c40c3f2..077366c850d44bf86a330ec0ce3c53755fc670b4 100644
 --- a/net/minecraft/world/entity/decoration/BlockAttachedEntity.java
 +++ b/net/minecraft/world/entity/decoration/BlockAttachedEntity.java
-@@ -49,7 +49,7 @@
+@@ -49,7 +49,7 @@ public abstract class BlockAttachedEntity extends Entity {
                      // CraftBukkit start - fire break events
                      boolean cancelled;
                      final io.papermc.paper.event.entity.EntityBreakEvent.RemoveCause cause;
@@ -49,7 +52,7 @@ diff --git a/net/minecraft/world/entity/decoration/BlockAttachedEntity.java b/ne
                          cause = io.papermc.paper.event.entity.EntityBreakEvent.RemoveCause.OBSTRUCTION;
                      } else {
                          cause = io.papermc.paper.event.entity.EntityBreakEvent.RemoveCause.PHYSICS;
-@@ -166,11 +166,13 @@
+@@ -166,11 +166,13 @@ public abstract class BlockAttachedEntity extends Entity {
          if (this.level() instanceof ServerLevel level && !this.isRemoved() && delta.lengthSqr() > 0.0) {
              // CraftBukkit start - fire break events
              // TODO - Does this need its own cause? Seems to only be triggered by pistons

@@ -1,0 +1,511 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Tue, 6 Oct 2026 16:57:31 +0200
+Subject: [PATCH] Backport October Paper correctness fixes and
+ invocation-scoped bucket results
+
+
+diff --git a/ca/spottedleaf/moonrise/paper/PaperHooks.java b/ca/spottedleaf/moonrise/paper/PaperHooks.java
+index c34b3c1c0e4fe6503a5702e544a192d2bb11d263..02fc0e8bbbee1bbaf5c12917852fb014387defd1 100644
+--- a/ca/spottedleaf/moonrise/paper/PaperHooks.java
++++ b/ca/spottedleaf/moonrise/paper/PaperHooks.java
+@@ -209,12 +209,12 @@ public final class PaperHooks extends BaseChunkSystemHooks implements PlatformHo
+ 
+     @Override
+     public int configMinChunkUnloadCount(final ServerLevel world) {
+-        return 50;
++        return world.paperConfig().chunks.minChunkUnloadCount;
+     }
+ 
+     @Override
+     public double configMinChunkUnloadFraction(final ServerLevel world) {
+-        return 0.05;
++        return world.paperConfig().chunks.minChunkUnloadFraction;
+     }
+ 
+     @Override
+diff --git a/net/minecraft/commands/Commands.java b/net/minecraft/commands/Commands.java
+index fb816ac65e382eac207afd56185a73c440c6245a..66eca3b2627cac121e555b457c9686df373a3fd2 100644
+--- a/net/minecraft/commands/Commands.java
++++ b/net/minecraft/commands/Commands.java
+@@ -490,9 +490,10 @@ public class Commands {
+         // CraftBukkit start
+         // Register Vanilla commands into builtRoot as before
+         // Paper start - Perf: Async command map building
+-        // Copy root children to avoid concurrent modification during building
+-        final java.util.Collection<CommandNode<CommandSourceStack>> commandNodes = new java.util.ArrayList<>(this.dispatcher.getRoot().getChildren());
+-        COMMAND_SENDING_POOL.execute(() -> this.sendAsync(player, commandNodes));
++        // Copy root node to avoid concurrent modification during building
++        final RootCommandNode<CommandSourceStack> rootNode = new RootCommandNode<>();
++        this.dispatcher.getRoot().getChildren().forEach(rootNode::addChild);
++        COMMAND_SENDING_POOL.execute(() -> this.sendAsync(player, rootNode));
+     }
+ 
+     // Fixed pool, but with discard policy
+@@ -506,12 +507,12 @@ public class Commands {
+         new java.util.concurrent.ThreadPoolExecutor.DiscardPolicy()
+     );
+ 
+-    private void sendAsync(ServerPlayer player, java.util.Collection<CommandNode<CommandSourceStack>> dispatcherRootChildren) {
++    private void sendAsync(ServerPlayer player, RootCommandNode<CommandSourceStack> dispatcherRoot) {
+         // Paper end - Perf: Async command map building
+         Map<CommandNode<CommandSourceStack>, CommandNode<CommandSourceStack>> playerCommands = new HashMap<>();
+         RootCommandNode<CommandSourceStack> root = new RootCommandNode<>();
+-        playerCommands.put(this.dispatcher.getRoot(), root);
+-        fillUsableCommands(dispatcherRootChildren, root, player.createCommandSourceStack(), playerCommands); // Paper - Perf: Async command map building; pass copy of children
++        playerCommands.put(dispatcherRoot, root);
++        fillUsableCommands(dispatcherRoot, root, player.createCommandSourceStack(), playerCommands); // Paper - Perf: Async command map building; pass copy of root
+ 
+         java.util.Collection<String> bukkit = new java.util.LinkedHashSet<>();
+         for (CommandNode node : root.getChildren()) {
+@@ -541,9 +542,9 @@ public class Commands {
+     }
+ 
+     private static <S> void fillUsableCommands(
+-        final java.util.Collection<CommandNode<S>> children, final CommandNode<S> target, final S commandFilter, final Map<CommandNode<S>, CommandNode<S>> converted // Paper - Perf: Async command map building; pass copy of children
++        final CommandNode<S> source, final CommandNode<S> target, final S commandFilter, final Map<CommandNode<S>, CommandNode<S>> converted
+     ) {
+-        for (CommandNode<S> child : children) { // Paper - Perf: Async command map building; pass copy of children
++        for (CommandNode<S> child : source.getChildren()) {
+             // Paper start - Brigadier API
+             if (child.clientNode != null) {
+                 child = child.clientNode;
+@@ -595,7 +596,7 @@ public class Commands {
+                 converted.put(child, node);
+                 target.addChild(node);
+                 if (!child.getChildren().isEmpty()) {
+-                    fillUsableCommands(child.getChildren(), node, commandFilter, converted); // Paper - Perf: Async command map building; pass copy of children
++                    fillUsableCommands(child, node, commandFilter, converted);
+                 }
+             }
+         }
+diff --git a/net/minecraft/network/protocol/game/GameProtocols.java b/net/minecraft/network/protocol/game/GameProtocols.java
+index ef1ff52dbcafcfb1840bc6eb8260adafff09bb7e..27ce361e8c129d89479ed077adcf965a89241ad7 100644
+--- a/net/minecraft/network/protocol/game/GameProtocols.java
++++ b/net/minecraft/network/protocol/game/GameProtocols.java
+@@ -60,6 +60,27 @@ public class GameProtocols {
+             original.encode(output, value);
+         }
+     };
++    // Paper start - check if game master
++    public static final CodecModifier<RegistryFriendlyByteBuf, ServerboundTestInstanceBlockActionPacket, GameProtocols.Context> IS_GAME_MASTER = (original, context) -> new StreamCodec<>(
++    ) {
++        @Override
++        public ServerboundTestInstanceBlockActionPacket decode(final RegistryFriendlyByteBuf input) {
++            if (!context.canUseCommandBlocks()) {
++                throw new SkipPacketDecoderException("Not a game master");
++            } else {
++                return original.decode(input);
++            }
++        }
++
++        @Override
++        public void encode(final RegistryFriendlyByteBuf output, final ServerboundTestInstanceBlockActionPacket value) {
++            if (!context.canUseCommandBlocks()) {
++                throw new SkipPacketEncoderException("Not a game master");
++            }
++            original.encode(output, value);
++        }
++    };
++    // Paper end - check if game master
+     public static final UnboundProtocol<ServerGamePacketListener, RegistryFriendlyByteBuf, GameProtocols.Context> SERVERBOUND_TEMPLATE = ProtocolInfoBuilder.contextServerboundProtocol(
+         ConnectionProtocol.PLAY,
+         builder -> builder.addPacket(GamePacketTypes.SERVERBOUND_ACCEPT_TELEPORTATION, ServerboundAcceptTeleportationPacket.STREAM_CODEC)
+@@ -135,7 +156,7 @@ public class GameProtocols {
+             .addPacket(GamePacketTypes.SERVERBOUND_SIGN_UPDATE, ServerboundSignUpdatePacket.STREAM_CODEC)
+             .addPacket(GamePacketTypes.SERVERBOUND_SPECTATOR_ACTION, ServerboundSpectatorActionPacket.STREAM_CODEC)
+             .addPacket(GamePacketTypes.SERVERBOUND_TELEPORT_TO_ENTITY, ServerboundTeleportToEntityPacket.STREAM_CODEC)
+-            .addPacket(GamePacketTypes.SERVERBOUND_TEST_INSTANCE_BLOCK_ACTION, ServerboundTestInstanceBlockActionPacket.STREAM_CODEC)
++            .addPacket(GamePacketTypes.SERVERBOUND_TEST_INSTANCE_BLOCK_ACTION, ServerboundTestInstanceBlockActionPacket.STREAM_CODEC, IS_GAME_MASTER) // Paper - check if game master
+             .addPacket(GamePacketTypes.SERVERBOUND_USE_ITEM_ON, ServerboundUseItemOnPacket.STREAM_CODEC)
+             .addPacket(GamePacketTypes.SERVERBOUND_USE_ITEM, ServerboundUseItemPacket.STREAM_CODEC)
+             .addPacket(CommonPacketTypes.SERVERBOUND_CUSTOM_CLICK_ACTION, ServerboundCustomClickActionPacket.STREAM_CODEC)
+diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+index a66b547e78e786588bd51606b4813af71b3d5e9a..6f38dabe6844efb0312ff30899dcf1556e229fe1 100644
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -1433,7 +1433,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+ 
+     public void sendPostEffects() {
+         this.postEffectsDirty = false;
+-        this.connection.send(new ClientboundPostEffectsPacket(this.postEffects));
++        this.connection.send(new ClientboundPostEffectsPacket(List.copyOf(this.postEffects))); // Paper - immutable packet for asynchronous encoding
+     }
+ 
+     // Paper start - Post effects API
+@@ -1552,7 +1552,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         final org.bukkit.event.player.PlayerTeleportEvent tpEvent;
+         // Paper start - gateway-specific teleport event
+         if (this.portalProcess != null && this.portalProcess.isSamePortal(((net.minecraft.world.level.block.EndGatewayBlock) net.minecraft.world.level.block.Blocks.END_GATEWAY)) && this.level().getBlockEntity(this.portalProcess.getEntryPosition()) instanceof net.minecraft.world.level.block.entity.TheEndGatewayBlockEntity theEndGatewayBlockEntity) {
+-            tpEvent = new com.destroystokyo.paper.event.player.PlayerTeleportEndGatewayEvent(this.getBukkitEntity(), enter, exit.clone(), new org.bukkit.craftbukkit.block.CraftEndGateway(this.level().getWorld(), theEndGatewayBlockEntity));
++            tpEvent = new com.destroystokyo.paper.event.player.PlayerTeleportEndGatewayEvent(this.getBukkitEntity(), enter, exit.clone(), new org.bukkit.craftbukkit.block.CraftEndGateway(this.level().getWorld(), theEndGatewayBlockEntity, true));
+         } else {
+             tpEvent = new org.bukkit.event.player.PlayerTeleportEvent(this.getBukkitEntity(), enter, exit.clone(), transition.cause());
+         }
+diff --git a/net/minecraft/server/level/ServerPlayerGameMode.java b/net/minecraft/server/level/ServerPlayerGameMode.java
+index 5b975aa7db797e874668ea49ba132f1c9d29af87..bed8a8a4e0c26eb5310b60bf494d1e1935946426 100644
+--- a/net/minecraft/server/level/ServerPlayerGameMode.java
++++ b/net/minecraft/server/level/ServerPlayerGameMode.java
+@@ -364,6 +364,11 @@ public class ServerPlayerGameMode {
+         org.bukkit.block.Block bblock = org.bukkit.craftbukkit.block.CraftBlock.at(this.level, pos);
+         org.bukkit.event.block.BlockBreakEvent event = null;
+         if (this.player instanceof ServerPlayer) {
++            // Paper start - only fire BlockBreakEvent for permitted adventure breaks
++            if (this.player.blockActionRestricted(this.level, pos, this.gameModeForPlayer)) {
++                return false;
++            }
++            // Paper end - only fire BlockBreakEvent for permitted adventure breaks
+             // Sword + Creative mode pre-cancel
+             boolean canAttackBlock = !this.player.getMainHandItem().canDestroyBlock(state, this.level, pos, this.player);
+             event = new org.bukkit.event.block.BlockBreakEvent(bblock, this.player.getBukkitEntity());
+@@ -411,7 +416,7 @@ public class ServerPlayerGameMode {
+             return false;
+         }
+ 
+-        if (this.player.blockActionRestricted(this.level, pos, this.gameModeForPlayer)) {
++        if (false && this.player.blockActionRestricted(this.level, pos, this.gameModeForPlayer)) { // Paper - moved before BlockBreakEvent
+             return false;
+         }
+ 
+diff --git a/net/minecraft/server/packs/repository/PackRepository.java b/net/minecraft/server/packs/repository/PackRepository.java
+index 7437af063b854fcac9d6d0d95e2690a3c953af88..01efb041f2d1b82a0e3ed842e6eecc5721fc00ab 100644
+--- a/net/minecraft/server/packs/repository/PackRepository.java
++++ b/net/minecraft/server/packs/repository/PackRepository.java
+@@ -99,7 +99,7 @@ public class PackRepository {
+         List<Pack> selectedAndPresent = this.getAvailablePacks(selectedNames).collect(Util.toMutableList());
+ 
+         for (Pack pack : this.available.values()) {
+-            if (pack.isRequired() && !selectedAndPresent.contains(pack) && pendingReload) { // Paper - add pendingReload flag to determine required pack loading
++            if (pack.isRequired() && !selectedNames.contains(pack.getId()) && pendingReload) { // Paper - compare IDs before registries load; pendingReload required
+                 pack.getDefaultPosition().insert(selectedAndPresent, pack, Pack::selectionConfig, false);
+             }
+         }
+diff --git a/net/minecraft/util/TickThrottler.java b/net/minecraft/util/TickThrottler.java
+index 49ded8671febedb8a0ca977f7bf444e6f28ecfc2..140a803f60e36618997d56570a280a5cae812764 100644
+--- a/net/minecraft/util/TickThrottler.java
++++ b/net/minecraft/util/TickThrottler.java
+@@ -35,7 +35,7 @@ public class TickThrottler {
+     }
+ 
+     public boolean isIncrementAndUnderThreshold(int incrementStep, int threshold) {
+-        return this.count.addAndGet(incrementStep) < threshold;
++        return threshold <= 0 || this.count.addAndGet(incrementStep) < threshold; // Paper - disabled spam threshold
+         // CraftBukkit end
+     }
+ }
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index 6b1b46150fd8117e2605f5f8e7a4322df88063df..b07d61d985ffdb8a013bc591399af6383d5b3bbf 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -4209,7 +4209,7 @@ public abstract class Entity
+             // Paper start - gateway-specific teleport event
+             final org.bukkit.event.entity.EntityTeleportEvent teleEvent;
+             if (this.portalProcess != null && this.portalProcess.isSamePortal(((net.minecraft.world.level.block.EndGatewayBlock) Blocks.END_GATEWAY)) && this.level.getBlockEntity(this.portalProcess.getEntryPosition()) instanceof net.minecraft.world.level.block.entity.TheEndGatewayBlockEntity theEndGatewayBlockEntity) {
+-                teleEvent = new com.destroystokyo.paper.event.entity.EntityTeleportEndGatewayEvent(this.getBukkitEntity(), this.getBukkitEntity().getLocation(), to, new org.bukkit.craftbukkit.block.CraftEndGateway(to.getWorld(), theEndGatewayBlockEntity));
++                teleEvent = new com.destroystokyo.paper.event.entity.EntityTeleportEndGatewayEvent(this.getBukkitEntity(), this.getBukkitEntity().getLocation(), to, new org.bukkit.craftbukkit.block.CraftEndGateway(to.getWorld(), theEndGatewayBlockEntity, true));
+                 teleEvent.callEvent();
+             } else {
+                 teleEvent = org.bukkit.craftbukkit.event.CraftEventFactory.callEntityTeleportEvent(this, to);
+diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
+index 8bcdafee9133137ee8c335ce62c9b799d743872e..83e63b979fa29f978367056d124ad482cbfe79d2 100644
+--- a/net/minecraft/world/entity/LivingEntity.java
++++ b/net/minecraft/world/entity/LivingEntity.java
+@@ -278,7 +278,7 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+     private long lastKineticHitFeedbackTime = -2147483648L;
+     private BlockPos lastPos;
+     private Optional<BlockPos> lastClimbablePos = Optional.empty();
+-    private @Nullable DamageSource lastDamageSource;
++    protected @Nullable DamageSource lastDamageSource; // Paper - Backport MC-311924 fix
+     private long lastDamageStamp;
+     protected int autoSpinAttackTicks;
+     protected float autoSpinAttackDmg;
+diff --git a/net/minecraft/world/entity/decoration/ArmorStand.java b/net/minecraft/world/entity/decoration/ArmorStand.java
+index 2fad574474a68e84a9a10425e356a4d9bf04bf8f..bde1ccf8b1a16347ca02e89d2cedd4695d4edb2f 100644
+--- a/net/minecraft/world/entity/decoration/ArmorStand.java
++++ b/net/minecraft/world/entity/decoration/ArmorStand.java
+@@ -572,10 +572,11 @@ public class ArmorStand extends LivingEntity {
+         if (callEvent && !org.bukkit.craftbukkit.event.CraftEventFactory.callEntityDeathEvent(level, this, (source == null ? this.damageSources().genericKill() : source))) {
+             return;
+         }
+-        final Entity attributedTo = source == null ? null : source.getEntity();
+-    // Paper end - pass damage source for event
++        // Paper end - pass damage source for event
++        // final Entity attributedTo = source == null ? null : source.getEntity(); // Paper - Backport MC-311924 fix
++        this.lastDamageSource = source; // // Paper - Backport MC-311924 fix
+         this.remove(Entity.RemovalReason.KILLED);
+-        this.gameEvent(GameEvent.ENTITY_DIE, attributedTo != null ? attributedTo : this);
++        this.gameEvent(GameEvent.ENTITY_DIE); // Paper - Backport MC-311924 fix
+     }
+ 
+     @Override
+diff --git a/net/minecraft/world/entity/decoration/BlockAttachedEntity.java b/net/minecraft/world/entity/decoration/BlockAttachedEntity.java
+index 077366c850d44bf86a330ec0ce3c53755fc670b4..cd36ccf07874e9186c65bd5a9cacb5ea3b2de3d3 100644
+--- a/net/minecraft/world/entity/decoration/BlockAttachedEntity.java
++++ b/net/minecraft/world/entity/decoration/BlockAttachedEntity.java
+@@ -26,6 +26,7 @@ public abstract class BlockAttachedEntity extends Entity {
+     private static final int CHECK_INTERVAL = 100;
+     private int ticksSinceLastCheck; { this.ticksSinceLastCheck = this.getId() % this.level().spigotConfig.hangingTickFrequency; } // Paper - Perf: offset item frame ticking
+     protected BlockPos pos;
++    protected @Nullable DamageSource lastDamageSource; // Paper - Backport MC-311924 fix
+ 
+     protected BlockAttachedEntity(final EntityType<? extends BlockAttachedEntity> type, final Level level) {
+         super(type, level);
+@@ -90,6 +91,8 @@ public abstract class BlockAttachedEntity extends Entity {
+             && (!this.level().mayInteract(player, this.pos) || this.hurtOrSimulate(this.damageSources().playerAttack(player), 0.0F));
+     }
+ 
++    // Paper start - Backport MC-311924 fix
++    /*
+     @Override
+     public void kill(final ServerLevel level) {
+         this.kill(level, this);
+@@ -103,6 +106,17 @@ public abstract class BlockAttachedEntity extends Entity {
+ 
+     protected void onKilled() {
+     }
++    */
++
++    public @Nullable DamageSource getLastDamageSource() {
++        return this.lastDamageSource;
++    }
++
++    protected void kill(final ServerLevel level, final DamageSource source) {
++        this.lastDamageSource = source;
++        this.kill(level);
++    }
++    // Paper end - Backport MC-311924 fix
+ 
+     @Override
+     public boolean hurtClient(final DamageSource source) {
+@@ -147,7 +161,7 @@ public abstract class BlockAttachedEntity extends Entity {
+                 return true;
+             }
+             // CraftBukkit end
+-            this.kill(level, source.getEntity());
++            this.kill(level, source); // Paper - Backport MC-311924 fix
+             this.markHurt();
+             this.dropItem(level, source.getEntity());
+         }
+diff --git a/net/minecraft/world/entity/decoration/Cushion.java b/net/minecraft/world/entity/decoration/Cushion.java
+index 5766e5564e5047076c5fd326864a1a2c9ba5c8fd..fb1894ac6eb99b60544f6ac2a13de86f045422ef 100644
+--- a/net/minecraft/world/entity/decoration/Cushion.java
++++ b/net/minecraft/world/entity/decoration/Cushion.java
+@@ -143,7 +143,7 @@ public class Cushion extends BlockAttachedEntity {
+     @Override
+     public void thunderHit(final ServerLevel level, final LightningBolt lightningBolt) {
+         if (!this.isRemoved()) {
+-            this.kill(level, lightningBolt);
++            this.kill(level, this.damageSources().lightningBolt()); // Paper - Backport MC-311924 fix
+             this.dropItem(level, lightningBolt);
+         }
+     }
+diff --git a/net/minecraft/world/entity/decoration/ItemFrame.java b/net/minecraft/world/entity/decoration/ItemFrame.java
+index 5939638aead0dd38e61bc18b897015004abf50d2..cb974394d08b3bc6fa3dbb87119436cd9a164b77 100644
+--- a/net/minecraft/world/entity/decoration/ItemFrame.java
++++ b/net/minecraft/world/entity/decoration/ItemFrame.java
+@@ -102,6 +102,13 @@ public class ItemFrame extends HangingEntity {
+         this.syncPacketPositionCodec(this.getX(), this.getY(), this.getZ());
+     }
+ 
++    // Paper start - MC-311788 workaround
++    @Override
++    public boolean getRequiresPrecisePosition() {
++        return true; // Fix client bug that applies stale position data on relative moves by forcing absolute positions
++    }
++    // Paper end - MC-311788 workaround
++
+     @Override
+     protected AABB calculateBoundingBox(final BlockPos blockPos, final Direction direction) {
+         return this.createBoundingBox(blockPos, direction, this.hasFramedMap());
+@@ -158,8 +165,9 @@ public class ItemFrame extends HangingEntity {
+     }
+ 
+     @Override
+-    protected void onKilled() {
++    public void kill(final ServerLevel level) { // Paper - Backport MC-311924 fix
+         this.removeFramedMap(this.getItem());
++        super.kill(level); // Paper - Backport MC-311924 fix
+     }
+ 
+     private boolean shouldDamageDropItem(final DamageSource source) {
+diff --git a/net/minecraft/world/item/BucketItem.java b/net/minecraft/world/item/BucketItem.java
+index 4293fdab491b8a7996d743bb44cbef66d82db310..19ac193487b724f0eabd6aae8c4b839661ac7107 100644
+--- a/net/minecraft/world/item/BucketItem.java
++++ b/net/minecraft/world/item/BucketItem.java
+@@ -34,7 +34,6 @@ import net.minecraft.world.phys.HitResult;
+ import org.jspecify.annotations.Nullable;
+ 
+ public class BucketItem extends Item implements DispensibleContainerItem {
+-    private static @Nullable ItemStack itemLeftInHandAfterPlayerBucketEmptyEvent = null; // Paper - Fix PlayerBucketEmptyEvent result itemstack
+     protected final Fluid content;
+ 
+     public BucketItem(final Fluid content, final Item.Properties properties) {
+@@ -44,6 +43,14 @@ public class BucketItem extends Item implements DispensibleContainerItem {
+ 
+     @Override
+     public InteractionResult use(final Level level, final Player player, final InteractionHand hand) {
++        // Tessera start - invocation-scoped bucket results, including nested plugin callbacks
++        try (io.papermc.paper.event.BucketResultScope ignored = io.papermc.paper.event.BucketResultScope.openUse()) {
++            return this.useWithResult(level, player, hand);
++        }
++    }
++
++    private InteractionResult useWithResult(final Level level, final Player player, final InteractionHand hand) {
++        // Tessera end - invocation-scoped bucket results
+         ItemStack itemStack = player.getItemInHand(hand);
+         BlockHitResult hitResult = getPlayerPOVHitResult(level, player, this.getFluidContext());
+         if (hitResult.getType() == HitResult.Type.MISS) {
+@@ -61,13 +68,14 @@ public class BucketItem extends Item implements DispensibleContainerItem {
+             BlockState clicked = level.getBlockState(pos);
+             BlockPos placePos = clicked.getBlock() instanceof LiquidBlockContainer && this.content == Fluids.WATER ? pos : directionOffsetPos;
+             if (this.emptyContents(player, level, placePos, hitResult, hitResult.getDirection(), pos, itemStack, hand)) { // CraftBukkit
++                ItemStack successItem = getEmptySuccessItem(itemStack, player); // Tessera - consume before further callbacks can reenter
+                 this.checkExtraContent(player, level, itemStack, placePos);
+                 if (player instanceof ServerPlayer serverPlayer && this.content != Fluids.EMPTY) {
+                     CriteriaTriggers.PLACED_BLOCK.trigger(serverPlayer, placePos, itemStack);
+                 }
+ 
+                 player.awardStat(Stats.ITEM_USED.get(this));
+-                ItemStack emptyResult = ItemUtils.createFilledResult(itemStack, player, getEmptySuccessItem(itemStack, player));
++                ItemStack emptyResult = ItemUtils.createFilledResult(itemStack, player, successItem);
+                 return InteractionResult.SUCCESS.heldItemTransformedTo(emptyResult);
+             } else {
+                 if (this.content == Fluids.EMPTY) {
+@@ -111,9 +119,8 @@ public class BucketItem extends Item implements DispensibleContainerItem {
+ 
+     public static ItemStack getEmptySuccessItem(final ItemStack itemStack, final Player player) {
+         // Paper start - Fix PlayerBucketEmptyEvent result itemstack
+-        if (itemLeftInHandAfterPlayerBucketEmptyEvent != null) {
+-            ItemStack itemInHand = itemLeftInHandAfterPlayerBucketEmptyEvent;
+-            itemLeftInHandAfterPlayerBucketEmptyEvent = null;
++        ItemStack itemInHand = io.papermc.paper.event.BucketResultScope.takeUseResult(); // Tessera - no cross-region or stale event result
++        if (itemInHand != null) {
+             return itemInHand;
+         }
+         // Paper end - Fix PlayerBucketEmptyEvent result itemstack
+@@ -131,6 +138,16 @@ public class BucketItem extends Item implements DispensibleContainerItem {
+     }
+ 
+     public boolean emptyContents(final @Nullable LivingEntity user, final Level level, final BlockPos pos, final @Nullable BlockHitResult hitResult, final Direction direction, final BlockPos clicked, final ItemStack itemStack, final InteractionHand hand) {
++        // Tessera start - direct/nested placements cannot overwrite the caller's event result
++        try (io.papermc.paper.event.BucketResultScope result = io.papermc.paper.event.BucketResultScope.openPlacement()) {
++            boolean successful = this.emptyContentsWithResult(user, level, pos, hitResult, direction, clicked, itemStack, hand, result);
++            result.completePlacement(successful);
++            return successful;
++        }
++    }
++
++    private boolean emptyContentsWithResult(final @Nullable LivingEntity user, final Level level, final BlockPos pos, final @Nullable BlockHitResult hitResult, final Direction direction, final BlockPos clicked, final ItemStack itemStack, final InteractionHand hand, final io.papermc.paper.event.BucketResultScope result) {
++        // Tessera end - invocation-scoped bucket results
+         // CraftBukkit end
+         if (!(this.content instanceof FlowingFluid flowingFluid)) {
+             return false;
+@@ -150,7 +167,7 @@ public class BucketItem extends Item implements DispensibleContainerItem {
+                         player.containerMenu.sendAllDataToRemote(); // SPIGOT-4541
+                         return false;
+                     }
+-                    itemLeftInHandAfterPlayerBucketEmptyEvent = event.getItemStack() != null ? event.getItemStack().equals(org.bukkit.craftbukkit.inventory.CraftItemStack.asNewCraftStack(net.minecraft.world.item.Items.BUCKET)) ? null : org.bukkit.craftbukkit.inventory.CraftItemStack.asNMSCopy(event.getItemStack()) : ItemStack.EMPTY; // Paper - Fix PlayerBucketEmptyEvent result itemstack
++                    result.setResult(event.getItemStack() != null ? event.getItemStack().equals(org.bukkit.craftbukkit.inventory.CraftItemStack.asNewCraftStack(net.minecraft.world.item.Items.BUCKET)) ? null : org.bukkit.craftbukkit.inventory.CraftItemStack.asNMSCopy(event.getItemStack()) : ItemStack.EMPTY); // Tessera - publish only if placement succeeds
+                 }
+                 // CraftBukkit end
+                 if (level.environmentAttributes().getValue(EnvironmentAttributes.WATER_EVAPORATES, pos) && this.content.is(FluidTags.WATER)) {
+@@ -184,7 +201,7 @@ public class BucketItem extends Item implements DispensibleContainerItem {
+                     return true;
+                 }
+             } else {
+-                return hitResult != null && this.emptyContents(user, level, hitResult.getBlockPos().relative(hitResult.getDirection()), null, direction, clicked, itemStack, hand); // CraftBukkit
++                return hitResult != null && this.emptyContentsWithResult(user, level, hitResult.getBlockPos().relative(hitResult.getDirection()), null, direction, clicked, itemStack, hand, result); // Tessera - fallback belongs to the same placement
+             }
+         }
+     }
+diff --git a/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+index fef616d7b92454a721f7a14941b62a8963080cc5..f51ebee5338b22c85ad785074659a49276b096d1 100644
+--- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+@@ -271,7 +271,6 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+         ItemStack movedItem = origItemStack;
+         final int originalItemCount = origItemStack.getCount();
+         final int movedItemCount = Math.min(level.spigotConfig.hopperAmount, originalItemCount);
+-        container.setChanged(); // original logic always marks source inv as changed even if no move happens.
+         movedItem.setCount(movedItemCount);
+ 
+         if (!skipPullModeEventFire) {
+@@ -302,6 +301,14 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+         }
+         origItemStack.setCount(originalItemCount);
+ 
++        // Paper start - mark the source half after restoring the original stack
++        Container updatedContainer = container;
++        if (container instanceof net.minecraft.world.CompoundContainer compoundContainer) {
++            updatedContainer = i >= compoundContainer.container1.getContainerSize() ? compoundContainer.container2 : compoundContainer.container1;
++        }
++        updatedContainer.setChanged();
++        // Paper end - mark the source half after restoring the original stack
++
+         if (level.paperConfig().hopper.cooldownWhenFull) {
+             applyCooldown(hopper);
+         }
+diff --git a/net/minecraft/world/level/block/entity/SculkShriekerBlockEntity.java b/net/minecraft/world/level/block/entity/SculkShriekerBlockEntity.java
+index 8ad288bfb58d888950c2404ccd287b16d34bf67f..3adfffd3f0a7e6b4867248f6483a36ca9f5f1ee3 100644
+--- a/net/minecraft/world/level/block/entity/SculkShriekerBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/SculkShriekerBlockEntity.java
+@@ -101,9 +101,21 @@ public class SculkShriekerBlockEntity extends BlockEntity implements GameEventLi
+             return player;
+         } else if (sourceEntity instanceof Projectile projectile && projectile.getOwner() instanceof ServerPlayer player) {
+             return player;
++        // Paper start - Backport MC-311924 fix
++        } else if (sourceEntity instanceof ItemEntity item && item.getOwner() instanceof ServerPlayer player) {
++            return player;
++        } else if (sourceEntity instanceof net.minecraft.world.entity.decoration.BlockAttachedEntity entity
++            && entity.getLastDamageSource() != null
++            && entity.getLastDamageSource().getEntity() instanceof ServerPlayer player) {
++            return player;
+         } else {
+-            return sourceEntity instanceof ItemEntity item && item.getOwner() instanceof ServerPlayer player ? player : null;
++            return sourceEntity instanceof net.minecraft.world.entity.decoration.ArmorStand armorStand
++                && armorStand.getLastDamageSource() != null
++                && armorStand.getLastDamageSource().getEntity() instanceof ServerPlayer player
++                ? player
++                : null;
+         }
++        // Paper end - Backport MC-311924 fix
+     }
+ 
+     public void tryShriek(final ServerLevel level, final @Nullable ServerPlayer player) {
+diff --git a/net/minecraft/world/level/dimension/end/EnderDragonFight.java b/net/minecraft/world/level/dimension/end/EnderDragonFight.java
+index 6061f047f023919bf7e12ed9385798af5b62dced..136be1cb188d8e797586f4fac93c3dc393622dee 100644
+--- a/net/minecraft/world/level/dimension/end/EnderDragonFight.java
++++ b/net/minecraft/world/level/dimension/end/EnderDragonFight.java
+@@ -104,6 +104,7 @@ public class EnderDragonFight extends SavedData {
+     public @Nullable DragonRespawnStage respawnStage;
+     private int respawnTime;
+     public List<EntityReference<EndCrystal>> respawnCrystals;
++    public boolean emptyCrystalRespawnAllowed = false; // Paper - explicit API respawn without crystals
+     public static final Codec<EnderDragonFight> CODEC = RecordCodecBuilder.create(
+         i -> i.group(
+                 ExtraCodecs.optionalAlwaysPresentFieldOf(Codec.BOOL, "needs_state_scanning", true).forGetter(fight -> fight.needsStateScanning),
+@@ -205,7 +206,7 @@ public class EnderDragonFight extends SavedData {
+                     .map(e -> e.getEntity(this.level, EndCrystal.class))
+                     .filter(Objects::nonNull)
+                     .toList();
+-                if (respawnCrystals.isEmpty()) {
++                if (respawnCrystals.isEmpty() && !this.emptyCrystalRespawnAllowed) { // Paper - explicit API respawn without crystals
+                     this.abortRespawnSequence();
+                     return;
+                 }
+@@ -287,6 +288,7 @@ public class EnderDragonFight extends SavedData {
+         if (stage == DragonRespawnStage.END) {
+             this.respawnStage = null;
+             this.dragonKilled = false;
++            this.emptyCrystalRespawnAllowed = false; // Paper - explicit API respawn without crystals
+             EnderDragon dragon = this.createNewDragon();
+             if (dragon != null) {
+                 for (ServerPlayer player : this.dragonEvent.getPlayers()) {
+@@ -546,6 +548,7 @@ public class EnderDragonFight extends SavedData {
+ 
+     private void abortRespawnSequence() {
+         LOGGER.debug("Aborting respawn sequence");
++        this.emptyCrystalRespawnAllowed = false; // Paper - explicit API respawn without crystals
+         this.respawnStage = null;
+         this.respawnTime = 0;
+         this.resetSpikeCrystals();

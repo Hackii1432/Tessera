@@ -5,10 +5,10 @@ Subject: [PATCH] Route spectator portals through regional teleportation
 
 
 diff --git a/net/minecraft/server/level/ServerPlayerGameMode.java b/net/minecraft/server/level/ServerPlayerGameMode.java
-index a9d1e454e1edb8df99f314e61cf237a4cef2b5a8..70b6311dd41704f77498624d014f9c625ca7ba21 100644
+index d58dc498570d59e0789db2566e79346fd49c8f0c..2d91cfa862d7671c6083a089ced5b88d829123d0 100644
 --- a/net/minecraft/server/level/ServerPlayerGameMode.java
 +++ b/net/minecraft/server/level/ServerPlayerGameMode.java
-@@ -589,17 +589,27 @@ public class ServerPlayerGameMode {
+@@ -594,17 +594,27 @@ public class ServerPlayerGameMode {
              }
  
              if (state.getBlock() instanceof Portal portal) {

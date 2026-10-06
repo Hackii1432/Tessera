@@ -5,7 +5,7 @@ Subject: [PATCH] Adapt portal transitions to updated Paper API
 
 
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index 0d0ef57d0b49292e1499a6cd12c8d7855d6d5df6..667c1b6c70a75a4ec21ece0245c26d83706a4431 100644
+index 879b12b7d9ed69a8c1ae4d41c9dcbc3d05d45538..ef7318db8e885365c9a88e1570055c75856f5c81 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
 @@ -4729,9 +4729,8 @@ public abstract class Entity

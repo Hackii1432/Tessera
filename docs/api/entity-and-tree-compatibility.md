@@ -3,7 +3,7 @@ title: "Mob-, SulfurCube- und Poplar-APIs"
 description: "Übernommene Paper-APIs für Friedlich-Despawn, SulfurCube-Ausrüstung und Poplar-Bäume mit Tesseras Regionsregeln."
 navTitle: "Entities und Bäume"
 order: 115
-updated: 2026-09-28
+updated: 2026-10-06
 minecraftVersion: "26.3"
 badge: "Paper-Kompatibilität"
 ---
@@ -147,6 +147,32 @@ Baum und alle betroffenen Nachbarpositionen müssen geladen und in der eigenen
 Region sein; diese neue Konstante umgeht keine bestehenden Grenzen.
 
 ## Plattformgrenzen
+
+### Spawn-Passagiere und DragonBattle
+
+Ab Build 016 übernimmt der geerbte `RegionAccessor#spawn`-Pfad auch natürliche
+Passagiere in die Welt. Ein im Pre-Spawn-Consumer bereits hinzugefügter gültiger
+Passagier verhindert nicht mehr das Hinzufügen der Wurzel. Bestehende Entities
+werden nicht ein zweites Mal gespawnt. Die Signaturen und Spawn-Grund-Events
+bleiben unverändert. Die komplette Passagiergruppe muss im selben geladenen
+Owner-Kontext liegen; Cross-Region-Gruppen werden vor der Mutation abgewiesen.
+Callbacks können Entities entfernen oder transferieren; der Server prüft den
+Besitzer vor jeder weiteren Aufnahme erneut. Für Transfers den EntityScheduler
+verwenden und keine alten Welt-/Regionsreferenzen nach einem Callback weiterbenutzen.
+
+`org.bukkit.boss.DragonBattle#initiateRespawn(Collection<EnderCrystal>): boolean`
+unterstützt nun auch eine leere gültige Kristallliste. Die Rückgabe bedeutet,
+dass die Respawn-Sequenz gestartet wurde, nicht dass bereits ein Drache entstanden
+ist. Ohne zuvor getöteten Drachen oder bei laufendem Respawn liefert sie `false`.
+`null`-Einträge und Kristalle anderer Welten werden wie in Paper herausgefiltert;
+eine danach leere Liste darf den API-Respawn starten. Der Aufruf gehört zum
+Besitzer der geladenen End-Arena, verwendete Kristalle ebenfalls. Eine nicht
+vollständig besessene Arena führt zu `IllegalStateException`, ungültige entfernte
+Kristalle zu `IllegalArgumentException`; Zugriff auf einen fremden Kristallbesitzer
+wird durch Folias Threadprüfung abgewiesen. Ungeladene oder fremde Regionen
+werden nicht vom Global-Thread synchron mutiert. Entfernen oder Transfer
+eines benötigten Kristalls bricht die Sequenz regionssicher ab. Die normale
+Vanilla-Anforderung mit vier Kristallen wird durch diesen API-Pfad nicht geändert.
 
 Nicht jeder ältere Paper-/Folia-Build enthält diese API-Mitglieder. Gegen die
 passende Tessera-API kompilieren und bei mehreren Zielplattformen entsprechende

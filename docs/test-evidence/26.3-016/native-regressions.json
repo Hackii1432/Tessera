@@ -1,0 +1,146 @@
+{
+  "date": "2026-10-06",
+  "version": "26.3-016-beta",
+  "jar": "build/libs/tessera-server-26.3.build.016-beta.jar",
+  "sha256": "4d35acc43b3af40a91784e744d3a2c09ee5a69b309a1307e7a3611edca3b173f",
+  "rootBaseCommit": "e803eff86ba2c36ae35f8e7dd7521f42da19b864",
+  "additionalLocalChanges": true,
+  "sinopiaSnapshot": "cebdb10d9418432a18b920f7f2e902a8d03a43f4",
+  "build": {
+    "successful": true,
+    "duration": "14m 23s",
+    "serverCases": 10227,
+    "serverSkips": 87,
+    "apiCases": 529,
+    "apiSkips": 2,
+    "failures": 0,
+    "errors": 0,
+    "newRegressionCases": 13,
+    "apiExamples": 10,
+    "buildSupportChecks": 22,
+    "documentationValidatorTests": 57
+  },
+  "october": {
+    "fixture": "build/paper-october-1791301650498",
+    "port": 52390,
+    "passed": true,
+    "exitCode": 0,
+    "logins": 2,
+    "kicks": 0,
+    "disconnects": 0,
+    "checks": [
+      "block-snapshots: 128 explicit live/snapshot plus instrument",
+      "block-snapshots: 0 explicit live/snapshot plus instrument",
+      "death-attribution: 128 armor stand source remains available after death",
+      "death-attribution: 0 armor stand source remains available after death",
+      "shelf-network-disk: 128 network sanitized, persistent nested bundle intact",
+      "shelf-network-disk: 0 network sanitized, persistent nested bundle intact",
+      "passenger-spawn: 0 existing and unregistered passengers plus root valid",
+      "passenger-spawn: 128 existing and unregistered passengers plus root valid",
+      "parallel-regions: two distinct owners",
+      "shelf-reload: 0 exact nested contents and no entity duplication",
+      "shelf-reload: 128 exact nested contents and no entity duplication",
+      "clients: two connected protocol clients"
+    ]
+  },
+  "pregeneration": {
+    "fixture": "build/native-pregeneration-1791301713881",
+    "sha256": "4d35acc43b3af40a91784e744d3a2c09ee5a69b309a1307e7a3611edca3b173f",
+    "phases": [
+      {
+        "mode": "native-pregeneration",
+        "passed": true,
+        "exitCode": 0,
+        "port": 52431,
+        "logins": 2,
+        "kicks": 0,
+        "checks": [
+          "command-permission-selection: passed; aliases/keys/completion/rejections/isolation; dimension=minecraft:overworld targets=49; retarget prevented",
+          "freeze-parallel-dimensions: passed; overworld=81 nether=4; connected players",
+          "freeze-ticket-retirement: passed; holder unloaded at 1024,1024",
+          "saved-full: world 1024,1024",
+          "existing-full-skip: passed; generated=0 existing=81",
+          "mode-pause-resume-cancel: passed",
+          "custom-world-generator: passed; selected by dimension key; diamond marker at y=60",
+          "expected-save-failure: id=7",
+          "save-failure-resume: passed; total=4",
+          "expected-checkpoint-failure: id=8",
+          "checkpoint-failure-resume: passed; total=81",
+          "runtime-unload-with-active-job: passed",
+          "snapshot-with-active-job: passed",
+          "restart-checkpoint-prepared: id=10",
+          "shutdown-with-active-job: id=11",
+          "clients: joins=2 quits=0"
+        ]
+      },
+      {
+        "mode": "native-pregeneration-recovery",
+        "passed": true,
+        "exitCode": 0,
+        "port": 52431,
+        "logins": 2,
+        "kicks": 0,
+        "checks": [
+          "shutdown-active-drain: passed; generated=2",
+          "restart-paused: passed",
+          "restart-resume-revalidate: passed; total=1089 existing=2",
+          "saved-full: world 4096,4096",
+          "clients: joins=2 quits=0"
+        ]
+      }
+    ],
+    "intentionalRestartBetweenPhases": true
+  },
+  "restore": {
+    "fixture": "build/native-restore-smoke-1791301836557",
+    "sha256": "4d35acc43b3af40a91784e744d3a2c09ee5a69b309a1307e7a3611edca3b173f",
+    "port": 52500,
+    "contractVersion": 1,
+    "nativeComponentChecksPassed": true,
+    "publicTransactionExercised": true,
+    "publicTransactionAccepted": true,
+    "clients": [
+      {
+        "username": "RestoreOne",
+        "logins": 1,
+        "kicks": 0,
+        "disconnects": 0,
+        "teleports": 37,
+        "statsResets": 8,
+        "advancementResets": 12
+      },
+      {
+        "username": "RestoreTwo",
+        "logins": 1,
+        "kicks": 0,
+        "disconnects": 0,
+        "teleports": 34,
+        "statsResets": 8,
+        "advancementResets": 12
+      }
+    ],
+    "checks": [
+      "Public prepare/apply/complete cycle 0: fresh on-disk backup, idempotence, store generation, exact player state, immutable source and successful resave",
+      "Public prepare/apply/complete cycle 1: fresh on-disk backup, idempotence, store generation, exact player state, immutable source and successful resave",
+      "Real published-store rollback restored XP/PDC from the freshly captured rollback directory and allowed another snapshot",
+      "Transfer veto after file publication failed explicitly; rollback and completion restored native state and reopened admission",
+      "Players without a saved entry received fresh defaults in the explicit fallback world; rollback restored their original files/state",
+      "Native admission drain, cancelled caller future and concurrent rollback: no early backup/publication, all work drained, fence reopened only by completion",
+      "Completion waited for native owned writer even after its caller cancelled; repeated completion returned the same committed decision",
+      "Actual native statistic-file flush failure aborted prepare and retained admission until explicit rollback/completion",
+      "Actual Windows file-sharing failure prevented native publication; failure retained admission, disallowed commit and recovered by real rollback",
+      "Dead connected player restored to saved health via native client respawn/reset without replacing the connection",
+      "Sleeping connected player safely detached from its current bed and restored to the saved awake state",
+      "Prepared desert/red-sand generator and Nether generator bindings survived repeated restores; a newly generated target chunk retained its original biome/layers instead of the server's plains settings",
+      "Cancelled identities stayed cancelled; gameplay freeze was released and the final runtime snapshot succeeded without reconnect"
+    ]
+  },
+  "limits": [
+    "Connected protocol clients, not visual Vanilla-client acceptance",
+    "October clients remain in the standard world; distinct test-region ownership asserted natively",
+    "MCC/MVE/TAB/LuckPerms/Horizons product stack not tested",
+    "Full visible dragon respawn sequence and interactive TTY not newly tested",
+    "Native restore transaction repeated; entire crash/recovery matrix not rerun",
+    "Existing historical 26.2/0.0.1 changelog prevents global changelog validation"
+  ]
+}

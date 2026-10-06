@@ -5,7 +5,7 @@ Subject: [PATCH] Forgive village defense aggression after player death
 
 
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 771576b5c2603ff69c9eb499a95068f6f80f7cb8..8a9d3d06cbc582d677cc20d6d92606b6418538c5 100644
+index edfda0622ef8f0056478584919a0b03351b5fb0f..c830858f6a7d87373a1bb811ff510610c0efc449 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
 @@ -22,6 +22,7 @@ import java.util.Set;

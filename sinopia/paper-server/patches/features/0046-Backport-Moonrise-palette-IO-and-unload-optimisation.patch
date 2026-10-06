@@ -130,10 +130,10 @@ index 0000000000000000000000000000000000000000..345f1a2562e087c9b99045063e83c7de
 +    }
 +}
 diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/io/MoonriseRegionFileIO.java b/ca/spottedleaf/moonrise/patches/chunk_system/io/MoonriseRegionFileIO.java
-index 3bb9b58ee97464687e348e23b99159226415c267..775d93d35855e394e5eccf0ad80eca43b1ed9562 100644
+index 3bb9b58ee97464687e348e23b99159226415c267..11705a58e68777834de7e928d929f9d230f4fa32 100644
 --- a/ca/spottedleaf/moonrise/patches/chunk_system/io/MoonriseRegionFileIO.java
 +++ b/ca/spottedleaf/moonrise/patches/chunk_system/io/MoonriseRegionFileIO.java
-@@ -780,6 +780,7 @@ public final class MoonriseRegionFileIO {
+@@ -782,6 +782,7 @@ public final class MoonriseRegionFileIO {
                  newTask.inProgressRead.addToAsyncWaiters(onComplete);
  
                  callbackInfo.tasksNeedReadScheduling = true;
@@ -141,7 +141,7 @@ index 3bb9b58ee97464687e348e23b99159226415c267..775d93d35855e394e5eccf0ad80eca43
                  return newTask;
              }
  
-@@ -790,6 +790,9 @@ public final class MoonriseRegionFileIO {
+@@ -790,6 +791,9 @@ public final class MoonriseRegionFileIO {
              if (pendingWrite == null) {
                  // need to add to waiters here, because the regionfile thread will use compute() to lock and check for cancellations
                  if (!running.inProgressRead.addToAsyncWaiters(onComplete)) {
@@ -151,7 +151,7 @@ index 3bb9b58ee97464687e348e23b99159226415c267..775d93d35855e394e5eccf0ad80eca43
                      callbackInfo.data = running.inProgressRead.value;
                      callbackInfo.throwable = running.inProgressRead.throwable;
                      callbackInfo.completeNow = true;
-@@ -824,7 +827,8 @@ public final class MoonriseRegionFileIO {
+@@ -824,7 +828,8 @@ public final class MoonriseRegionFileIO {
              ret.scheduleReadIO();
          } else if (callbackInfo.completeNow) {
              try {
@@ -161,7 +161,7 @@ index 3bb9b58ee97464687e348e23b99159226415c267..775d93d35855e394e5eccf0ad80eca43
              } catch (final Throwable thr) {
                  LOGGER.error("Callback " + ConcurrentUtil.genericToString(onComplete) + " synchronously failed to handle chunk data for task " + ret.toString(), thr);
              }
-@@ -1092,6 +1096,7 @@ public final class MoonriseRegionFileIO {
+@@ -1092,6 +1097,7 @@ public final class MoonriseRegionFileIO {
                  // further synchronisation.
              }
  
@@ -169,7 +169,7 @@ index 3bb9b58ee97464687e348e23b99159226415c267..775d93d35855e394e5eccf0ad80eca43
              if (canRead[0]) {
                  RegionDataController.ReadData readData = null;
                  Throwable throwable = null;
-@@ -1104,12 +1109,12 @@ public final class MoonriseRegionFileIO {
+@@ -1104,12 +1110,12 @@ public final class MoonriseRegionFileIO {
                  }
  
                  if (throwable != null) {
@@ -184,7 +184,7 @@ index 3bb9b58ee97464687e348e23b99159226415c267..775d93d35855e394e5eccf0ad80eca43
                              break;
                          }
                          case HAS_DATA: {
-@@ -1123,9 +1128,11 @@ public final class MoonriseRegionFileIO {
+@@ -1123,9 +1129,11 @@ public final class MoonriseRegionFileIO {
                          }
                      }
                  }
@@ -197,7 +197,7 @@ index 3bb9b58ee97464687e348e23b99159226415c267..775d93d35855e394e5eccf0ad80eca43
                  this.scheduleWriteCompress();
              }
          }
-@@ -1159,14 +1166,45 @@ public final class MoonriseRegionFileIO {
+@@ -1159,14 +1167,45 @@ public final class MoonriseRegionFileIO {
                  return;
              }
  
@@ -247,7 +247,7 @@ index 3bb9b58ee97464687e348e23b99159226415c267..775d93d35855e394e5eccf0ad80eca43
          }
  
          public void scheduleWriteCompress() {
-@@ -1180,7 +1218,7 @@ public final class MoonriseRegionFileIO {
+@@ -1180,7 +1219,7 @@ public final class MoonriseRegionFileIO {
                  this.currentTask = task;
              }
  
@@ -256,7 +256,7 @@ index 3bb9b58ee97464687e348e23b99159226415c267..775d93d35855e394e5eccf0ad80eca43
                  task.queue();
              });
          }
-@@ -1330,6 +1368,7 @@ public final class MoonriseRegionFileIO {
+@@ -1330,6 +1369,7 @@ public final class MoonriseRegionFileIO {
  
              private static final Logger LOGGER = LoggerFactory.getLogger(InProgressRead.class);
  
@@ -264,7 +264,7 @@ index 3bb9b58ee97464687e348e23b99159226415c267..775d93d35855e394e5eccf0ad80eca43
              private CompoundTag value;
              private Throwable throwable;
              private final MultiThreadedQueue<BiConsumer<CompoundTag, Throwable>> callbacks = new MultiThreadedQueue<>();
-@@ -1346,17 +1385,44 @@ public final class MoonriseRegionFileIO {
+@@ -1346,17 +1386,44 @@ public final class MoonriseRegionFileIO {
                  return this.callbacks.remove(callback);
              }
  
@@ -314,7 +314,7 @@ index 3bb9b58ee97464687e348e23b99159226415c267..775d93d35855e394e5eccf0ad80eca43
                  }
              }
          }
-@@ -1398,7 +1464,8 @@ public final class MoonriseRegionFileIO {
+@@ -1398,7 +1465,8 @@ public final class MoonriseRegionFileIO {
  
              private void syncAccept(final ChunkIOTask task, final BiConsumer<CompoundTag, Throwable> consumer, final CompoundTag value, final Throwable throwable) {
                  try {
@@ -324,7 +324,7 @@ index 3bb9b58ee97464687e348e23b99159226415c267..775d93d35855e394e5eccf0ad80eca43
                  } catch (final Throwable thr) {
                      LOGGER.error("Callback " + ConcurrentUtil.genericToString(consumer) + " failed to handle chunk data (write) for task " + task.toString(), thr);
                  }
-@@ -1423,6 +1490,12 @@ public final class MoonriseRegionFileIO {
+@@ -1423,6 +1491,12 @@ public final class MoonriseRegionFileIO {
          }
      }
  

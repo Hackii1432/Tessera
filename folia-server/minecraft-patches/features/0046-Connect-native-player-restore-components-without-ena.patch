@@ -115,7 +115,7 @@ index 80208563fcf318869265924f31b77b9e5271bf99..0d62b2230436d39c7554edcf33b3224a
          boolean result = false;
          AdvancementProgress progress = this.getOrStartProgress(holder);
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 9e4c3a7553bf40955ac5bd7c9f5521d3bf5ff22c..c2a1d7daccb08f684eafc7add77ee8e2ad543edd 100644
+index 74dceb17b5829affecb5feeb11687964bd170ba5..7c7e5ef429170ec9bc8218a8574e574a8a449d1f 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
 @@ -492,14 +492,20 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc

@@ -3,12 +3,9 @@ From: Tessera <development@tessera.local>
 Date: Sun, 13 Sep 2026 02:41:21 +0200
 Subject: [PATCH] Support vanilla poplar tree types
 
----
- net/minecraft/world/level/block/grower/TreeGrower.java | 6 ++++++
- 1 file changed, 6 insertions(+)
 
 diff --git a/net/minecraft/world/level/block/grower/TreeGrower.java b/net/minecraft/world/level/block/grower/TreeGrower.java
-index c07fc1b..4bae78d 100644
+index c07fc1b46cba11f43e92f008790483e11b6a1148..4bae78d20f492079c87a0541c9f63346687b1f47 100644
 --- a/net/minecraft/world/level/block/grower/TreeGrower.java
 +++ b/net/minecraft/world/level/block/grower/TreeGrower.java
 @@ -280,6 +280,12 @@ public final class TreeGrower {

@@ -7,11 +7,14 @@ Selective backport of Paper 2307f8f477997c9dbe17f789007c22356070e3a9,
 adapted for Sinopia and Tessera. See docs/PAPER-BACKPORTS-2026-09-15.md.
 
 diff --git a/net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java b/net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java
+index dec5e928679392853fdc547cd78433754e16dc87..53d75876b4a21ff86a903c49c0e4bf7413adafd3 100644
 --- a/net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java
 +++ b/net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java
-@@ -365,4 +365,26 @@
+@@ -365,8 +365,30 @@ public final class NoiseBasedChunkGenerator extends ChunkGenerator {
+         final BiomeManager biomeManager,
+         final @Nullable WorldGenRegion carverBiomeRegion,
          final Set<Holder<Biome>> possibleBiomes
-     ) {
++    ) {
 +        return this.buildTerrain(chunk, blender, randomState, structureManager, biomeManager, carverBiomeRegion, possibleBiomes, null);
 +    }
 +
@@ -25,7 +28,7 @@ diff --git a/net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java b/
 +        final @Nullable WorldGenRegion carverBiomeRegion,
 +        final Set<Holder<Biome>> possibleBiomes,
 +        final org.bukkit.craftbukkit.generator.@Nullable CustomChunkGenerator customGenerator
-+    ) {
+     ) {
          NoiseSettings noiseSettings = this.settings.value().noiseSettings().clampToHeightAccessor(chunk.getHeightAccessorForGeneration());
 +        if (customGenerator != null && (noiseSettings.height() <= 0 || SharedConstants.debugVoidTerrain(chunk.getPos()))) {
 +            return CompletableFuture.supplyAsync(() -> {
@@ -36,7 +39,11 @@ diff --git a/net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java b/
 +            }, io.papermc.paper.FeatureHooks.getWorldgenExecutor()); // Paper - retain the chunk-system generation executor
 +        }
          return noiseSettings.height() > 0 && !SharedConstants.debugVoidTerrain(chunk.getPos()) ? CompletableFuture.supplyAsync(() -> {
-@@ -384,19 +409,28 @@
+             ProfilerFiller profiler = Profiler.get();
+ 
+@@ -383,22 +405,31 @@ public final class NoiseBasedChunkGenerator extends ChunkGenerator {
+                 }
+ 
                  try (Zone var39 = profiler.zone("doFill")) {
 -                    this.doFill(noiseChunk, chunk);
 +                    if (customGenerator == null || customGenerator.shouldGenerateNoise(chunk)) {
@@ -68,3 +75,4 @@ diff --git a/net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java b/
 +                if (customGenerator != null) customGenerator.applyCarvers(chunk);
  
                  return chunk;
+             }

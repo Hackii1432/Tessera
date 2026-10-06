@@ -5,7 +5,7 @@ Subject: [PATCH] Restore Folia-safe locator bar
 
 
 diff --git a/net/minecraft/commands/Commands.java b/net/minecraft/commands/Commands.java
-index 317608f77d122735110c0fc22b8b58b517e19d3b..aa8396a72f83e0d50c363e3a1a69639bae319b0b 100644
+index 924c505e053ae5058a1f34646f78af7ecb7cb1d2..bb5977dd21cb5e0bdc979e558d45b2b74a3ba95a 100644
 --- a/net/minecraft/commands/Commands.java
 +++ b/net/minecraft/commands/Commands.java
 @@ -266,7 +266,7 @@ public class Commands {

@@ -239,7 +239,7 @@ index e5fdc61a46d750d8279dade6efb36917e7af393f..4df589a4f7a7dcc735bb540fe94cf55b
      @Override
      public WorldBorder createWorldBorder() {
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index 0e7208cf3525cecb60b90b7d4d9cbb66239bbc41..57305b47438824ad4a11b3411e45f6e7e6f14265 100644
+index 713554345308c17db44e16f9edd373d700ed34fd..697e86af20a7f7c54d11781d310b4b6c63f99a81 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 @@ -564,6 +564,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {

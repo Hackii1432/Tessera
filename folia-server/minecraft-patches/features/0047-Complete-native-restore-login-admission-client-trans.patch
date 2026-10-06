@@ -86,7 +86,7 @@ index 0d62b2230436d39c7554edcf33b3224aa04376e6..b6e4c0bdce695fab69889eec3a8ce368
          DataFixTypes.ADVANCEMENTS.wrapCodec(PlayerAdvancements.Data.CODEC, fixer, 1343)
              .parse(JsonOps.INSTANCE, json.deepCopy()).getOrThrow();
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index c2a1d7daccb08f684eafc7add77ee8e2ad543edd..a8ccf1fef95db65d62a3f89fb182b58ed33c41c7 100644
+index 7c7e5ef429170ec9bc8218a8574e574a8a449d1f..ec9b8b7d9229fa357d691f868980aa644e70569d 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
 @@ -261,7 +261,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
@@ -505,7 +505,7 @@ index 4e353f89d05be262890f3944f160ccfacee234ab..f5d931db129e239d92e57de6c7ddd23c
          this.dirty.addAll(this.stats.keySet());
      }
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index 24253c32d8388a63ad608d067a01bdca7f79ac3c..c105e6b907e49e06c2c24f60fb09982fb5b077c1 100644
+index 163565d2ea3101b162d2319e2f774330447c84d0..e75d4e2c357adc8b3114e703b4399ecabd132eec 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
 @@ -4617,7 +4617,7 @@ public abstract class Entity

@@ -138,3 +138,23 @@ Tessera Build `011-beta` setzt den Beta-Kanal in beiden Buildschichten. Paper-ei
 CI-Infrastruktur und README-Sponsoren wurden nicht übernommen. `paperRef` bleibt
 Import-Provenienz. Original-Commits, Regionsanpassungen und tatsächliche Prüfungen:
 [Beta-Integration](../docs/PAPER-BETA-INTEGRATION-2026-09-28.md).
+
+## Selektive Paper-Integration vom 6. Oktober 2026
+
+Geprüfter Bereich: `c27ca36bf1d9d705e260f1cfb866c97de1ac537d` bis
+`4728a906edb501c3749dfcc437a419094a95a2c7` (26 Commits). 21 funktionale
+Änderungen einschließlich expliziter Snapshot-Übergabe, Chunk-Unload-Konfiguration
+und JLine 4.4.6 sind übernommen. Vier Paper-eigene CI-/CODEOWNERS-Änderungen
+bleiben bewusst ausgelassen; der Schutz vor doppeltem Spieler-Entfernen beim
+Konfigurationswechsel ist in Folia bereits gleichwertig vorhanden.
+
+Sinopia-Minecraft-Patch 0048 enthält die Laufzeitänderungen. Öffentliche API und
+CraftBukkit-Adapter liegen direkt in Sinopia; zusätzliche Folia-Ownership-Prüfungen
+werden in Tessera-Patches gesichert. Der bisherige Snapshot-ThreadLocal-Patch
+entfällt zugunsten expliziter Parameter, nicht zugunsten ungeschützter Zugriffe.
+Der Patch-Rebuild normalisiert mehrere historische Ganzdatei-/Zeilenende-Diffs;
+ihre bestehenden Funktionen bleiben erhalten. Kein vollständiger Paper-Rebase
+und keine neue Minecraft-, Mache-, Leafpile- oder DataConverter-Version.
+
+Umfang, Original-Commits und Nachweise:
+[Integration und Build 016](../docs/PAPER-INTEGRATION-2026-10-06.md).

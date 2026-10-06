@@ -56,7 +56,7 @@
  configurations.named(log4jPlugins.compileClasspathConfigurationName) {
      extendsFrom(configurations.compileClasspath.get())
  }
-@@ -109,10 +_,11 @@
+@@ -109,9 +_,10 @@
  }
  
  dependencies {
@@ -67,8 +67,7 @@
      implementation("ca.spottedleaf.leafpile:concurrentutil")
      implementation("ca.spottedleaf.leafpile:converter")
 +    implementation("ca.spottedleaf.leafpile:profiler") // Folia - regional profiler
-     implementation("org.jline:jline-terminal-ffm:3.27.1") // use ffm on java 22+
-     implementation("org.jline:jline-terminal-jni:3.27.1") // fall back to jni on java 21
+     implementation("org.jline:jline-terminal-ffm:4.4.6")
 @@ -163,27 +_,29 @@
      manifest {
          val git = Git(rootProject.layout.projectDirectory.path)

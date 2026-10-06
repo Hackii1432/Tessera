@@ -30,7 +30,7 @@ index fff7a796a61542213bdaa417d44e25cd05f7e774..69770538f68fb2aa3abc181993ac8ff1
          }
      }
 diff --git a/ca/spottedleaf/moonrise/paper/PaperHooks.java b/ca/spottedleaf/moonrise/paper/PaperHooks.java
-index c34b3c1c0e4fe6503a5702e544a192d2bb11d263..d78c1e7678b2ceae5cafedbf784c6f3fe70bd24d 100644
+index 02fc0e8bbbee1bbaf5c12917852fb014387defd1..2b715f5dd2fc7aee0a79c738f50cec42a5206c07 100644
 --- a/ca/spottedleaf/moonrise/paper/PaperHooks.java
 +++ b/ca/spottedleaf/moonrise/paper/PaperHooks.java
 @@ -108,7 +108,7 @@ public final class PaperHooks extends BaseChunkSystemHooks implements PlatformHo
@@ -7438,7 +7438,7 @@ index 7cbcc8865893ea4f7fae8da13f534c65fcdcd216..fa52d458d402ae9121eaa8b876d8d6b4
      }
  
 diff --git a/net/minecraft/commands/Commands.java b/net/minecraft/commands/Commands.java
-index fb816ac65e382eac207afd56185a73c440c6245a..3bab87d0f5a6fb6e24ab9d5f9cd7aa458f15fae1 100644
+index 66eca3b2627cac121e555b457c9686df373a3fd2..d9565a07fb39e4360710bddb28671e9a70ba1836 100644
 --- a/net/minecraft/commands/Commands.java
 +++ b/net/minecraft/commands/Commands.java
 @@ -200,16 +200,16 @@ public class Commands {
@@ -7546,7 +7546,7 @@ index fb816ac65e382eac207afd56185a73c440c6245a..3bab87d0f5a6fb6e24ab9d5f9cd7aa45
              SaveOffCommand.register(this.dispatcher);
              SaveOnCommand.register(this.dispatcher);
              SetPlayerIdleTimeoutCommand.register(this.dispatcher);
-@@ -519,9 +519,11 @@ public class Commands {
+@@ -520,9 +520,11 @@ public class Commands {
          }
          // Paper start - Perf: Async command map building
          new com.destroystokyo.paper.event.brigadier.AsyncPlayerSendCommandsEvent<CommandSourceStack>(player.getBukkitEntity(), (RootCommandNode) root, false).callEvent(); // Paper - Brigadier API
@@ -12640,7 +12640,7 @@ index bcdd985d0f6fe70bb844a373573bf40934bee874..a1278f1897f3fa316dbd11fdc5d08289
      // Paper end - lag compensation
  }
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index a66b547e78e786588bd51606b4813af71b3d5e9a..cb03d43ae2884053dc8723bac16dbd3faf92ad4d 100644
+index 6f38dabe6844efb0312ff30899dcf1556e229fe1..9158235f1c9a9185af44a83131e6706d44e31776 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
 @@ -212,7 +212,7 @@ import org.slf4j.Logger;
@@ -13275,7 +13275,7 @@ index a66b547e78e786588bd51606b4813af71b3d5e9a..cb03d43ae2884053dc8723bac16dbd3f
          this.removeStingerTime = 0;
          this.setArrowCount(0, true); // CraftBukkit - ArrowBodyCountChangeEvent
 diff --git a/net/minecraft/server/level/ServerPlayerGameMode.java b/net/minecraft/server/level/ServerPlayerGameMode.java
-index 5b975aa7db797e874668ea49ba132f1c9d29af87..f4c1b4bedbc7f94e61c1b9a0690475c73a96a266 100644
+index bed8a8a4e0c26eb5310b60bf494d1e1935946426..136689a60336d4a39e1c6abc064147426820dcf1 100644
 --- a/net/minecraft/server/level/ServerPlayerGameMode.java
 +++ b/net/minecraft/server/level/ServerPlayerGameMode.java
 @@ -135,7 +135,7 @@ public class ServerPlayerGameMode {
@@ -13296,7 +13296,7 @@ index 5b975aa7db797e874668ea49ba132f1c9d29af87..f4c1b4bedbc7f94e61c1b9a0690475c7
              if (blockState == null) {
                  this.isDestroyingBlock = false;
                  return;
-@@ -417,7 +417,7 @@ public class ServerPlayerGameMode {
+@@ -422,7 +422,7 @@ public class ServerPlayerGameMode {
  
          // CraftBukkit start
          org.bukkit.block.BlockState bState = bblock.getState();
@@ -13305,7 +13305,7 @@ index 5b975aa7db797e874668ea49ba132f1c9d29af87..f4c1b4bedbc7f94e61c1b9a0690475c7
          // CraftBukkit end
          BlockState adjustedState = block.playerWillDestroy(this.level, pos, state, this.player);
          boolean changed = this.level.removeBlock(pos, false);
-@@ -443,8 +443,8 @@ public class ServerPlayerGameMode {
+@@ -448,8 +448,8 @@ public class ServerPlayerGameMode {
          } // CraftBukkit
  
          // CraftBukkit start
@@ -14862,7 +14862,7 @@ index bb5f66c62c9541bb76a9faad9e9ee91c1466fc6a..66d7bb9418832638c220a08d06c01ef0
              return blockToFallLocation(blockState);
          } else {
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index 6b1b46150fd8117e2605f5f8e7a4322df88063df..0d0ef57d0b49292e1499a6cd12c8d7855d6d5df6 100644
+index b07d61d985ffdb8a013bc591399af6383d5b3bbf..879b12b7d9ed69a8c1ae4d41c9dcbc3d05d45538 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
 @@ -174,7 +174,7 @@ public abstract class Entity
@@ -16045,13 +16045,13 @@ index cca73fb6f9d7aed48bdbb340d504a5226fdfca86..55a80fbb0a57ce6b930effcf421e4819
          final UUIDLookup<? extends UniquelyIdentifyable> uuidLookup,
          final Class<StoredEntityType> entityClass
 diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
-index 8bcdafee9133137ee8c335ce62c9b799d743872e..713a3fe3461208ad9243b37990a423295918f974 100644
+index 83e63b979fa29f978367056d124ad482cbfe79d2..0a117d7548d69d5b06ea1a94eb54fa818c290839 100644
 --- a/net/minecraft/world/entity/LivingEntity.java
 +++ b/net/minecraft/world/entity/LivingEntity.java
 @@ -279,7 +279,7 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
      private BlockPos lastPos;
      private Optional<BlockPos> lastClimbablePos = Optional.empty();
-     private @Nullable DamageSource lastDamageSource;
+     protected @Nullable DamageSource lastDamageSource; // Paper - Backport MC-311924 fix
 -    private long lastDamageStamp;
 +    private long lastDamageStamp = Long.MIN_VALUE; // Folia - region threading
      protected int autoSpinAttackTicks;
@@ -16721,10 +16721,10 @@ index ae4b41c803db064ff38971e940e1e956ac1b3609..f2b80a6f5195bb20a01b7eda3e800432
              BlockPos pos = this.blockPosition();
              if (serverLevel.getDragonFight() != null && serverLevel.getBlockState(pos).isAir()) {
 diff --git a/net/minecraft/world/entity/decoration/ItemFrame.java b/net/minecraft/world/entity/decoration/ItemFrame.java
-index 5939638aead0dd38e61bc18b897015004abf50d2..67d58d95fedbf0ce0d8d75f49b466d4fadfd4a0f 100644
+index cb974394d08b3bc6fa3dbb87119436cd9a164b77..e7cc94cdc9cc6c5333da54b0c6a2b68a24f63207 100644
 --- a/net/minecraft/world/entity/decoration/ItemFrame.java
 +++ b/net/minecraft/world/entity/decoration/ItemFrame.java
-@@ -267,7 +267,9 @@ public class ItemFrame extends HangingEntity {
+@@ -275,7 +275,9 @@ public class ItemFrame extends HangingEntity {
          if (mapId != null) {
              MapItemSavedData mapItemSavedData = MapItem.getSavedData(mapId, this.level());
              if (mapItemSavedData != null) {
@@ -18940,7 +18940,7 @@ index 189dc349bbd84059a7c3a56a072c959f40cdc7da..eab53d1b4573529db6ebb5e16c0b6a4b
          if (gameTime % 40L == 0L) {
              boolean active = updateShape(level, pos, effectBlocks);
 diff --git a/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
-index fef616d7b92454a721f7a14941b62a8963080cc5..a858cb658af70f07614fa1f4d9e8a3435d5c161f 100644
+index f51ebee5338b22c85ad785074659a49276b096d1..4ba408d46ba6d6eecd47196b17f91539291cc3ed 100644
 --- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
 +++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
 @@ -36,7 +36,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
@@ -19003,7 +19003,7 @@ index fef616d7b92454a721f7a14941b62a8963080cc5..a858cb658af70f07614fa1f4d9e8a343
                      movedItem = callPushMoveEvent(destination, movedItem, hopper);
                      if (movedItem == null) { // cancelled
                          origItemStack.setCount(originalItemCount);
-@@ -268,13 +277,14 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -268,12 +277,13 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
      }
  
      private static boolean hopperPull(final Level level, final Hopper hopper, final Container container, ItemStack origItemStack, final int i) {
@@ -19011,7 +19011,6 @@ index fef616d7b92454a721f7a14941b62a8963080cc5..a858cb658af70f07614fa1f4d9e8a343
          ItemStack movedItem = origItemStack;
          final int originalItemCount = origItemStack.getCount();
          final int movedItemCount = Math.min(level.spigotConfig.hopperAmount, originalItemCount);
-         container.setChanged(); // original logic always marks source inv as changed even if no move happens.
          movedItem.setCount(movedItemCount);
  
 -        if (!skipPullModeEventFire) {
@@ -19019,7 +19018,7 @@ index fef616d7b92454a721f7a14941b62a8963080cc5..a858cb658af70f07614fa1f4d9e8a343
              movedItem = callPullMoveEvent(hopper, container, movedItem);
              if (movedItem == null) { // cancelled
                  origItemStack.setCount(originalItemCount);
-@@ -294,9 +304,9 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -293,9 +303,9 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
                  origItemStack.setCount(originalItemCount - movedItemCount + remainingItemCount);
              }
  
@@ -19031,7 +19030,7 @@ index fef616d7b92454a721f7a14941b62a8963080cc5..a858cb658af70f07614fa1f4d9e8a343
              container.setChanged();
              return true;
          }
-@@ -311,6 +321,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -318,6 +328,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
  
      @Nullable
      private static ItemStack callPushMoveEvent(Container destination, ItemStack itemStack, HopperBlockEntity hopper) {
@@ -19039,7 +19038,7 @@ index fef616d7b92454a721f7a14941b62a8963080cc5..a858cb658af70f07614fa1f4d9e8a343
          final org.bukkit.inventory.Inventory destinationInventory = getInventory(destination);
          final io.papermc.paper.event.inventory.PaperInventoryMoveItemEvent event = new io.papermc.paper.event.inventory.PaperInventoryMoveItemEvent(
              hopper.getOwner(false).getInventory(),
-@@ -320,7 +331,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -327,7 +338,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
          );
          final boolean result = event.callEvent();
          if (!event.calledGetItem && !event.calledSetItem) {
@@ -19048,7 +19047,7 @@ index fef616d7b92454a721f7a14941b62a8963080cc5..a858cb658af70f07614fa1f4d9e8a343
          }
          if (!result) {
              applyCooldown(hopper);
-@@ -336,6 +347,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -343,6 +354,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
  
      @Nullable
      private static ItemStack callPullMoveEvent(final Hopper hopper, final Container container, final ItemStack itemstack) {
@@ -19056,7 +19055,7 @@ index fef616d7b92454a721f7a14941b62a8963080cc5..a858cb658af70f07614fa1f4d9e8a343
          final org.bukkit.inventory.Inventory sourceInventory = getInventory(container);
          final org.bukkit.inventory.Inventory destination = getInventory(hopper);
  
-@@ -343,7 +355,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -350,7 +362,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
          final io.papermc.paper.event.inventory.PaperInventoryMoveItemEvent event = new io.papermc.paper.event.inventory.PaperInventoryMoveItemEvent(sourceInventory, org.bukkit.craftbukkit.inventory.CraftItemStack.asCraftMirror(itemstack), destination, false);
          final boolean result = event.callEvent();
          if (!event.calledGetItem && !event.calledSetItem) {
@@ -19065,7 +19064,7 @@ index fef616d7b92454a721f7a14941b62a8963080cc5..a858cb658af70f07614fa1f4d9e8a343
          }
          if (!result) {
              applyCooldown(hopper);
-@@ -476,12 +488,13 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -483,12 +495,13 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
      }
  
      public static boolean suckInItems(final Level level, final Hopper hopper) {
@@ -19080,7 +19079,7 @@ index fef616d7b92454a721f7a14941b62a8963080cc5..a858cb658af70f07614fa1f4d9e8a343
  
              for (int slot : getSlots(container, direction)) {
                  if (tryTakeInItemFromSlot(hopper, container, slot, direction, level)) { // Spigot
-@@ -585,9 +598,9 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -592,9 +605,9 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
                      itemStack = itemStack.split(container.getMaxStackSize());
                  }
                  // Spigot end
@@ -19712,7 +19711,7 @@ index 7840a52aa1cb1566acb3511495f74477fc8c81ea..23d8fe9c0c61980726b684098f3ee69f
              .map(shorts -> shorts != null && !shorts.isEmpty() ? new ShortArrayList(shorts) : null)
              .toArray(ShortList[]::new);
 diff --git a/net/minecraft/world/level/dimension/end/EnderDragonFight.java b/net/minecraft/world/level/dimension/end/EnderDragonFight.java
-index 6061f047f023919bf7e12ed9385798af5b62dced..cf6b3705d2950df8c0e4e76cf3163a4422b5cd09 100644
+index 136be1cb188d8e797586f4fac93c3dc393622dee..321bf3f123ed47560f6a02f2047cc69a34206d45 100644
 --- a/net/minecraft/world/level/dimension/end/EnderDragonFight.java
 +++ b/net/minecraft/world/level/dimension/end/EnderDragonFight.java
 @@ -81,7 +81,7 @@ public class EnderDragonFight extends SavedData {
@@ -19724,7 +19723,7 @@ index 6061f047f023919bf7e12ed9385798af5b62dced..cf6b3705d2950df8c0e4e76cf3163a44
      public final List<Integer> gateways;
      private final BlockPattern exitPortalPattern = BlockPatternBuilder.start()
          .aisle("       ", "       ", "       ", "   #   ", "       ", "       ", "       ")
-@@ -245,6 +245,12 @@ public class EnderDragonFight extends SavedData {
+@@ -246,6 +246,12 @@ public class EnderDragonFight extends SavedData {
          }
  
          List<? extends EnderDragon> entities = this.level.getDragons();
@@ -19737,7 +19736,7 @@ index 6061f047f023919bf7e12ed9385798af5b62dced..cf6b3705d2950df8c0e4e76cf3163a44
          if (entities.isEmpty()) {
              this.dragonKilled = true;
          } else {
-@@ -365,8 +371,15 @@ public class EnderDragonFight extends SavedData {
+@@ -367,8 +373,15 @@ public class EnderDragonFight extends SavedData {
  
          ChunkPos chunkOrigin = ChunkPos.containing(this.origin);
  
@@ -19755,7 +19754,7 @@ index 6061f047f023919bf7e12ed9385798af5b62dced..cf6b3705d2950df8c0e4e76cf3163a44
                  if (!(this.level.getChunk(x, z, ChunkStatus.FULL, false) instanceof LevelChunk levelChunk)) {
                      return false;
                  }
-@@ -534,6 +547,11 @@ public class EnderDragonFight extends SavedData {
+@@ -536,6 +549,11 @@ public class EnderDragonFight extends SavedData {
      }
  
      public void onCrystalDestroyed(final EndCrystal crystal, final DamageSource source) {
@@ -19767,7 +19766,7 @@ index 6061f047f023919bf7e12ed9385798af5b62dced..cf6b3705d2950df8c0e4e76cf3163a44
          if (this.respawnStage != null && this.respawnCrystals.stream().anyMatch(ref -> ref.matches(crystal))) {
              this.abortRespawnSequence();
          } else {
-@@ -564,7 +582,7 @@ public class EnderDragonFight extends SavedData {
+@@ -567,7 +585,7 @@ public class EnderDragonFight extends SavedData {
  
      public boolean tryRespawn(@Nullable final BlockPos placedEndCrystalPos) { // placedEndCrystalPos is null if the tryRespawn() call was not caused by a placed end crystal
          // Paper end - Perf: Do crystal-portal proximity check before entity lookup

@@ -5,7 +5,7 @@ Subject: [PATCH] Fix neutral mob aggression after player death
 
 
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 65d3856688baae6c21fcbef2d1dc919149ba0b02..771576b5c2603ff69c9eb499a95068f6f80f7cb8 100644
+index 91771de04caff6bb5922bca2680407a9f47c7e54..edfda0622ef8f0056478584919a0b03351b5fb0f 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
 @@ -1432,7 +1432,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc

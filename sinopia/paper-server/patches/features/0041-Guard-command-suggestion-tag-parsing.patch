@@ -6,21 +6,13 @@ Subject: [PATCH] Guard command suggestion tag parsing
 Selective backport of Paper 2307f8f477997c9dbe17f789007c22356070e3a9,
 adapted for Sinopia and Tessera. See docs/PAPER-BACKPORTS-2026-09-15.md.
 
-diff --git a/net/minecraft/util/parsing/packrat/Scope.java b/net/minecraft/util/parsing/packrat/Scope.java
---- a/net/minecraft/util/parsing/packrat/Scope.java
-+++ b/net/minecraft/util/parsing/packrat/Scope.java
-@@ -271,6 +271,6 @@
-     private static final Term<?> INCREASING_DEPTH_TERM = (parseState, scope, control) -> {
-         if (++scope.depth > 512) {
--            parseState.errorCollector().store(parseState.mark(), new IllegalStateException("Too deep"));
-+            parseState.errorCollector().store(parseState.mark(), new io.papermc.paper.brigadier.TagParseCommandSyntaxException("Too deep")); // Paper - identify unrecoverable tag parses
-             return false;
-         }
-         return true;
 diff --git a/net/minecraft/server/network/ServerCommandSuggestionsProvider.java b/net/minecraft/server/network/ServerCommandSuggestionsProvider.java
+index 234f734cb7f4874f5fca87dc137b6f07c124eb2f..0a0d2bd53d2cb8b928a860b7a8ecc9704572b77f 100644
 --- a/net/minecraft/server/network/ServerCommandSuggestionsProvider.java
 +++ b/net/minecraft/server/network/ServerCommandSuggestionsProvider.java
-@@ -46,9 +46,24 @@
+@@ -47,12 +47,27 @@ public class ServerCommandSuggestionsProvider {
+                     MinecraftServer server = this.player.level().getServer();
+                     CommandDispatcher<CommandSourceStack> dispatcher = server.getCommands().getDispatcher();
                      ParseResults<CommandSourceStack> parse = dispatcher.parse(reader, this.player.createCommandSourceStack());
 +                    // Sinopia - validate plugin-handled requests through the same budgeted parser.
 +                    if (parse.getExceptions().values().stream().anyMatch(io.papermc.paper.brigadier.TagParseCommandSyntaxException.class::isInstance)) {
@@ -46,7 +38,10 @@ diff --git a/net/minecraft/server/network/ServerCommandSuggestionsProvider.java 
 +                    request.future.completeExceptionally(e);
                      LOGGER.error("Failed to resolve command suggestions for {}", this.player.getGameProfile().name(), e);
                  }
-@@ -73,8 +90,15 @@
+             }
+@@ -70,10 +85,17 @@ public class ServerCommandSuggestionsProvider {
+     }
+ 
      public CompletableFuture<Suggestions> request(final String command) {
 -        ServerCommandSuggestionsProvider.Request request = new ServerCommandSuggestionsProvider.Request(command);
 +        return this.request(command, true);
@@ -63,7 +58,8 @@ diff --git a/net/minecraft/server/network/ServerCommandSuggestionsProvider.java 
          }
  
          return request.future;
-@@ -84,8 +111,10 @@
+@@ -81,10 +103,12 @@ public class ServerCommandSuggestionsProvider {
+ 
      private static class Request {
          private final String command;
 +        private final boolean generateSuggestions;
@@ -75,10 +71,14 @@ diff --git a/net/minecraft/server/network/ServerCommandSuggestionsProvider.java 
 +            this.generateSuggestions = generateSuggestions;
          }
      }
+ }
 diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index fc188402dcaf3c7866c739d8dea5334aeb35fa2b..07f2b4ccf799c82333edbd5fde1dd3e3456d27ee 100644
 --- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -927,2 +927,13 @@
+@@ -894,6 +894,17 @@ public class ServerGamePacketListenerImpl
+ 
+             this.sendServerSuggestions(packet); // This method will schedule work onto the main thread.
          } else if (!completions.isEmpty()) {
 +            // Sinopia - parsing touches player/world state; use the provider's owning-thread queue.
 +            // Copy the plugin's mutable list before crossing the scheduling boundary.
@@ -92,7 +92,12 @@ diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/ne
 +    private void sendPluginSuggestions(final ServerboundCommandSuggestionPacket packet,
 +                                      final List<com.destroystokyo.paper.event.server.AsyncTabCompleteEvent.Completion> completions) {
              final com.mojang.brigadier.suggestion.SuggestionsBuilder builder0 = new com.mojang.brigadier.suggestion.SuggestionsBuilder(packet.command(), packet.command().length());
-@@ -938,10 +949,9 @@
+             final com.mojang.brigadier.suggestion.SuggestionsBuilder builder = builder0.createOffset(builder0.getInput().lastIndexOf(' ') + 1);
+             for (final com.destroystokyo.paper.event.server.AsyncTabCompleteEvent.Completion completion : completions) {
+@@ -904,22 +915,23 @@ public class ServerGamePacketListenerImpl
+                     builder.suggest(completion.suggestion(), PaperAdventure.asVanilla(completion.tooltip()));
+                 }
+             }
 -            com.mojang.brigadier.suggestion.Suggestions suggestions = builder.buildFuture().join();
 +            com.mojang.brigadier.suggestion.Suggestions suggestions = builder.build();
              com.destroystokyo.paper.event.brigadier.AsyncPlayerSendSuggestionsEvent suggestEvent = new com.destroystokyo.paper.event.brigadier.AsyncPlayerSendSuggestionsEvent(this.getCraftPlayer(), suggestions, packet.command());
@@ -105,11 +110,28 @@ diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/ne
              }
 -        }
      }
-@@ -954,3 +965,5 @@
+     public void sendServerSuggestions(final ServerboundCommandSuggestionPacket packet) {
+         // Paper end - Async TabComplete Event
+         int clientId = packet.id();
+         this.commandSuggestionsProvider
              .request(packet.command())
 -            .thenAccept(suggestions -> this.send(new ClientboundCommandSuggestionsPacket(clientId, suggestions)));
 +            .thenAccept(suggestions -> {
 +                if (this.isAcceptingMessages()) this.send(new ClientboundCommandSuggestionsPacket(clientId, suggestions));
 +            });
      }
-
+ 
+     @Override
+diff --git a/net/minecraft/util/parsing/packrat/Scope.java b/net/minecraft/util/parsing/packrat/Scope.java
+index 4880f16347c99dc5c1a06fbbf0af197c95f3c9e7..85e104e0f0d4eb02fc5fd70e37ae787222d8c0cb 100644
+--- a/net/minecraft/util/parsing/packrat/Scope.java
++++ b/net/minecraft/util/parsing/packrat/Scope.java
+@@ -271,7 +271,7 @@ public final class Scope {
+ 
+     private static final Term<?> INCREASING_DEPTH_TERM = (parseState, scope, control) -> {
+         if (++scope.depth > 512) {
+-            parseState.errorCollector().store(parseState.mark(), new IllegalStateException("Too deep"));
++            parseState.errorCollector().store(parseState.mark(), new io.papermc.paper.brigadier.TagParseCommandSyntaxException("Too deep")); // Paper - identify unrecoverable tag parses
+             return false;
+         }
+         return true;

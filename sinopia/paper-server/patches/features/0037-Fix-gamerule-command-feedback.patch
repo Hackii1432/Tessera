@@ -4,12 +4,9 @@ Date: Sun, 13 Sep 2026 01:45:30 +0200
 Subject: [PATCH] Fix gamerule command feedback
 
 Compare the effective event result to the value before mutation. Report plugin cancellation separately, preserve event-adjusted values and keep numeric zero results successful. Leave the shared Bukkit event and per-world mutation path unchanged.
----
- .../server/commands/GameRuleCommand.java      | 29 +++++++++++++++----
- 1 file changed, 23 insertions(+), 6 deletions(-)
 
 diff --git a/net/minecraft/server/commands/GameRuleCommand.java b/net/minecraft/server/commands/GameRuleCommand.java
-index 0b8ba22..a06d03c 100644
+index 0b8ba22a4b696e319830e61fd8e6ffbec2907b49..a06d03cbcf626bed69c790633414405be87ebb8e 100644
 --- a/net/minecraft/server/commands/GameRuleCommand.java
 +++ b/net/minecraft/server/commands/GameRuleCommand.java
 @@ -17,6 +17,13 @@ public class GameRuleCommand {

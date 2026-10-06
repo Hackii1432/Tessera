@@ -7,9 +7,11 @@ Selective backport of Paper 2307f8f477997c9dbe17f789007c22356070e3a9,
 adapted for Sinopia and Tessera. See docs/PAPER-BACKPORTS-2026-09-15.md.
 
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+index 40f0e498567b49bee44ccbc5ade3d8fa283dec24..f6b7128b7f1312f85511da9293b7eb4d0844da45 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
-@@ -2504,6 +2504,6 @@
+@@ -1720,7 +1720,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+             bedResult = Either.right(Unit.INSTANCE);
          }
  
 -        bedResult = org.bukkit.craftbukkit.event.CraftEventFactory.callPlayerBedEnterEvent(this, pos, bedResult);
@@ -18,9 +20,11 @@ diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server
              return bedResult;
          }
 diff --git a/net/minecraft/world/level/block/AbstractBedBlock.java b/net/minecraft/world/level/block/AbstractBedBlock.java
+index 725f04c7a422cf813c2b48264b841a7ebf95c32f..842bf1d0d91e5eaeef6021771af1e89d04efcd4f 100644
 --- a/net/minecraft/world/level/block/AbstractBedBlock.java
 +++ b/net/minecraft/world/level/block/AbstractBedBlock.java
-@@ -116,7 +116,7 @@
+@@ -115,7 +115,7 @@ public abstract class AbstractBedBlock extends HorizontalDirectionalBlock {
+                         player.sendOverlayMessage(problem.message());
                      }
                      if (problem != null) {
 -                        io.papermc.paper.event.player.PlayerBedFailEnterEvent event = org.bukkit.craftbukkit.event.CraftEventFactory.callPlayerBedFailEnterEvent(player, finalPos, problem);
@@ -28,4 +32,3 @@ diff --git a/net/minecraft/world/level/block/AbstractBedBlock.java b/net/minecra
                          if (event.isCancelled()) {
                              return;
                          }
-                         // Paper end - PlayerBedFailEnterEvent

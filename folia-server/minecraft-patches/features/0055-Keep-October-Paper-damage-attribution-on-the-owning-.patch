@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Tue, 6 Oct 2026 17:20:23 +0200
+Subject: [PATCH] Keep October Paper damage attribution on the owning region
+
+
+diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
+index 0a117d7548d69d5b06ea1a94eb54fa818c290839..58437ea50aa3386301ed526b260342cfb807b52a 100644
+--- a/net/minecraft/world/entity/LivingEntity.java
++++ b/net/minecraft/world/entity/LivingEntity.java
+@@ -279,7 +279,7 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+     private BlockPos lastPos;
+     private Optional<BlockPos> lastClimbablePos = Optional.empty();
+     protected @Nullable DamageSource lastDamageSource; // Paper - Backport MC-311924 fix
+-    private long lastDamageStamp = Long.MIN_VALUE; // Folia - region threading
++    protected long lastDamageStamp = Long.MIN_VALUE; // Tessera - subclasses recording death damage must use the region clock too
+     protected int autoSpinAttackTicks;
+     protected float autoSpinAttackDmg;
+     protected @Nullable ItemStack autoSpinAttackItemStack;
+diff --git a/net/minecraft/world/entity/decoration/ArmorStand.java b/net/minecraft/world/entity/decoration/ArmorStand.java
+index bde1ccf8b1a16347ca02e89d2cedd4695d4edb2f..0359c2d30be65a7c0e632a64159d684d37345e24 100644
+--- a/net/minecraft/world/entity/decoration/ArmorStand.java
++++ b/net/minecraft/world/entity/decoration/ArmorStand.java
+@@ -574,7 +574,8 @@ public class ArmorStand extends LivingEntity {
+         }
+         // Paper end - pass damage source for event
+         // final Entity attributedTo = source == null ? null : source.getEntity(); // Paper - Backport MC-311924 fix
+-        this.lastDamageSource = source; // // Paper - Backport MC-311924 fix
++        this.lastDamageSource = source; // Paper - Backport MC-311924 fix
++        this.lastDamageStamp = this.level().getRedstoneGameTime(); // Tessera - preserve Folia's region-local damage timeout
+         this.remove(Entity.RemovalReason.KILLED);
+         this.gameEvent(GameEvent.ENTITY_DIE); // Paper - Backport MC-311924 fix
+     }
+diff --git a/net/minecraft/world/level/block/entity/SculkShriekerBlockEntity.java b/net/minecraft/world/level/block/entity/SculkShriekerBlockEntity.java
+index 3adfffd3f0a7e6b4867248f6483a36ca9f5f1ee3..b9f1675b2174387d64bbbd37de9fbb671528f204 100644
+--- a/net/minecraft/world/level/block/entity/SculkShriekerBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/SculkShriekerBlockEntity.java
+@@ -90,7 +90,10 @@ public class SculkShriekerBlockEntity extends BlockEntity implements GameEventLi
+     public static @Nullable ServerPlayer tryGetPlayer(final @Nullable Entity sourceEntity) {
+     // Paper start - check global player list where appropriate; ensure level is the same for sculk events
+         final ServerPlayer player = tryGetPlayer0(sourceEntity);
+-        return player != null && sourceEntity != null && player.level() == sourceEntity.level() ? player : null;
++        // Tessera - an attributed projectile/death can outlive its player's region or dimension transfer.
++        return player != null && sourceEntity != null
++            && ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(player)
++            && player.level() == sourceEntity.level() ? player : null;
+     }
+     @Nullable
+     private static ServerPlayer tryGetPlayer0(final @Nullable Entity sourceEntity) {

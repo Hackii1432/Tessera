@@ -565,704 +565,80 @@ index c8d7aca95500306e73d28267cfb72d01329e197f..98ae2e45e9967e115124143299007444
          return this.getControlledVehicle() instanceof Mob riding ? riding.getMoveControl() : this.moveControl;
      }
 diff --git a/net/minecraft/world/entity/PathfinderMob.java b/net/minecraft/world/entity/PathfinderMob.java
-index a19d8d4c0075340e8d187d5f8b6ce989567d3163..7cf869edd927854a52faf0d2b9c3e73aab83be89 100644
+index a19d8d4c0075340e8d187d5f8b6ce989567d3163..c661311dfdc1e21e3d6ec65e1e8b953637149675 100644
 --- a/net/minecraft/world/entity/PathfinderMob.java
 +++ b/net/minecraft/world/entity/PathfinderMob.java
-@@ -1,78 +1,80 @@
--package net.minecraft.world.entity;
-+package net.minecraft.world.entity;
-+
-+import net.minecraft.core.BlockPos;
-+import net.minecraft.world.entity.ai.goal.Goal;
-+import net.minecraft.world.entity.ai.goal.PanicGoal;
-+import net.minecraft.world.entity.ai.goal.WrappedGoal;
-+import net.minecraft.world.entity.ai.memory.MemoryModuleType;
-+import net.minecraft.world.level.Level;
-+import net.minecraft.world.level.LevelAccessor;
-+import net.minecraft.world.level.LevelReader;
-+import net.minecraft.world.phys.Vec3;
-+
-+public abstract class PathfinderMob extends Mob {
-+    protected static final float DEFAULT_WALK_TARGET_VALUE = 0.0F;
-+
-+    protected PathfinderMob(final EntityType<? extends PathfinderMob> type, final Level level) {
-+        super(type, level);
-+    }
-+
-+    public BlockPos movingTarget; public BlockPos getMovingTarget() { return movingTarget; } // Paper
+@@ -17,6 +17,8 @@ public abstract class PathfinderMob extends Mob {
+         super(type, level);
+     }
  
--import net.minecraft.core.BlockPos;
--import net.minecraft.world.entity.ai.goal.Goal;
--import net.minecraft.world.entity.ai.goal.PanicGoal;
--import net.minecraft.world.entity.ai.goal.WrappedGoal;
--import net.minecraft.world.entity.ai.memory.MemoryModuleType;
--import net.minecraft.world.level.Level;
--import net.minecraft.world.level.LevelAccessor;
--import net.minecraft.world.level.LevelReader;
--import net.minecraft.world.phys.Vec3;
--
--public abstract class PathfinderMob extends Mob {
--    protected static final float DEFAULT_WALK_TARGET_VALUE = 0.0F;
--
--    protected PathfinderMob(final EntityType<? extends PathfinderMob> type, final Level level) {
--        super(type, level);
--    }
--
--    public float getWalkTargetValue(final BlockPos pos) {
--        return this.getWalkTargetValue(pos, this.level());
--    }
--
--    public float getWalkTargetValue(final BlockPos pos, final LevelReader level) {
--        return 0.0F;
--    }
--
--    @Override
--    public boolean checkSpawnRules(final LevelAccessor level, final EntitySpawnReason spawnReason) {
--        return this.getWalkTargetValue(this.blockPosition(), level) >= 0.0F;
--    }
--
--    public boolean isPathFinding() {
--        return !this.getNavigation().isDone();
--    }
--
--    public boolean isPanicking() {
--        if (!this.brain.isBrainDead() && this.brain.hasMemoryValue(MemoryModuleType.IS_PANICKING)) {
--            return this.brain.getMemory(MemoryModuleType.IS_PANICKING).isPresent();
--        }
--
--        for (WrappedGoal wrappedGoal : this.goalSelector.getAvailableGoals()) {
--            if (wrappedGoal.isRunning() && wrappedGoal.getGoal() instanceof PanicGoal) {
--                return true;
--            }
--        }
--
--        return false;
--    }
--
--    protected boolean shouldStayCloseToLeashHolder() {
--        return true;
--    }
--
--    @Override
--    public void closeRangeLeashBehaviour(final Entity leashHolder) {
--        super.closeRangeLeashBehaviour(leashHolder);
--        if (this.shouldStayCloseToLeashHolder() && !this.isPanicking()) {
--            this.goalSelector.enableControlFlag(Goal.Flag.MOVE);
--            float wantedDistance = 2.0F;
--            float distanceTo = this.distanceTo(leashHolder);
--            Vec3 delta = new Vec3(leashHolder.getX() - this.getX(), leashHolder.getY() - this.getY(), leashHolder.getZ() - this.getZ())
--                .normalize()
--                .scale(Math.max(distanceTo - 2.0F, 0.0F));
--            this.getNavigation().moveTo(this.getX() + delta.x, this.getY() + delta.y, this.getZ() + delta.z, this.followLeashSpeed());
--        }
--    }
--
--    @Override
--    public void whenLeashedTo(final Entity leashHolder) {
--        this.setHomeTo(leashHolder.blockPosition(), (int)this.leashElasticDistance() - 1);
--        super.whenLeashedTo(leashHolder);
--    }
--
--    protected double followLeashSpeed() {
--        return 1.0;
--    }
--}
-+    public float getWalkTargetValue(final BlockPos pos) {
-+        return this.getWalkTargetValue(pos, this.level());
-+    }
++    public BlockPos movingTarget; public BlockPos getMovingTarget() { return movingTarget; } // Paper
 +
-+    public float getWalkTargetValue(final BlockPos pos, final LevelReader level) {
-+        return 0.0F;
-+    }
-+
-+    @Override
-+    public boolean checkSpawnRules(final LevelAccessor level, final EntitySpawnReason spawnReason) {
-+        return this.getWalkTargetValue(this.blockPosition(), level) >= 0.0F;
-+    }
-+
-+    public boolean isPathFinding() {
-+        return !this.getNavigation().isDone();
-+    }
-+
-+    public boolean isPanicking() {
-+        if (!this.brain.isBrainDead() && this.brain.hasMemoryValue(MemoryModuleType.IS_PANICKING)) {
-+            return this.brain.getMemory(MemoryModuleType.IS_PANICKING).isPresent();
-+        }
-+
-+        for (WrappedGoal wrappedGoal : this.goalSelector.getAvailableGoals()) {
-+            if (wrappedGoal.isRunning() && wrappedGoal.getGoal() instanceof PanicGoal) {
-+                return true;
-+            }
-+        }
-+
-+        return false;
-+    }
-+
-+    protected boolean shouldStayCloseToLeashHolder() {
-+        return true;
-+    }
-+
-+    @Override
-+    public void closeRangeLeashBehaviour(final Entity leashHolder) {
-+        super.closeRangeLeashBehaviour(leashHolder);
-+        if (this.shouldStayCloseToLeashHolder() && !this.isPanicking()) {
-+            this.goalSelector.enableControlFlag(Goal.Flag.MOVE);
-+            float wantedDistance = 2.0F;
-+            float distanceTo = this.distanceTo(leashHolder);
-+            Vec3 delta = new Vec3(leashHolder.getX() - this.getX(), leashHolder.getY() - this.getY(), leashHolder.getZ() - this.getZ())
-+                .normalize()
-+                .scale(Math.max(distanceTo - 2.0F, 0.0F));
-+            this.getNavigation().moveTo(this.getX() + delta.x, this.getY() + delta.y, this.getZ() + delta.z, this.followLeashSpeed());
-+        }
-+    }
-+
-+    @Override
-+    public void whenLeashedTo(final Entity leashHolder) {
-+        this.setHomeTo(leashHolder.blockPosition(), (int)this.leashElasticDistance() - 1);
-+        super.whenLeashedTo(leashHolder);
-+    }
-+
-+    protected double followLeashSpeed() {
-+        return 1.0;
-+    }
-+}
+     public float getWalkTargetValue(final BlockPos pos) {
+         return this.getWalkTargetValue(pos, this.level());
+     }
 diff --git a/net/minecraft/world/entity/ai/goal/GoalSelector.java b/net/minecraft/world/entity/ai/goal/GoalSelector.java
-index 706a7ce383afef9d80197afafcb6e6dab138ae29..0275c6570315bca06369adfa00fb5fdce01d8f0d 100644
+index 706a7ce383afef9d80197afafcb6e6dab138ae29..66839736d997f5c911dfd9cf251b0d4406172782 100644
 --- a/net/minecraft/world/entity/ai/goal/GoalSelector.java
 +++ b/net/minecraft/world/entity/ai/goal/GoalSelector.java
-@@ -1,128 +1,145 @@
--package net.minecraft.world.entity.ai.goal;
--
--import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
--import java.util.EnumMap;
--import java.util.EnumSet;
--import java.util.Map;
--import java.util.Set;
--import java.util.function.Predicate;
--import net.minecraft.util.profiling.Profiler;
--import net.minecraft.util.profiling.ProfilerFiller;
--
--public class GoalSelector {
--    private static final WrappedGoal NO_GOAL = new WrappedGoal(Integer.MAX_VALUE, new Goal() {
--        @Override
--        public boolean canUse() {
--            return false;
--        }
--    }) {
--        @Override
--        public boolean isRunning() {
--            return false;
--        }
--    };
--    private final Map<Goal.Flag, WrappedGoal> lockedFlags = new EnumMap<>(Goal.Flag.class);
--    private final Set<WrappedGoal> availableGoals = new ObjectLinkedOpenHashSet<>();
--    private final EnumSet<Goal.Flag> disabledFlags = EnumSet.noneOf(Goal.Flag.class);
--
--    public void addGoal(final int prio, final Goal goal) {
--        this.availableGoals.add(new WrappedGoal(prio, goal));
--    }
--
--    public void removeAllGoals(final Predicate<Goal> predicate) {
--        for (WrappedGoal availableGoal : this.availableGoals) {
--            if (predicate.test(availableGoal.getGoal()) && availableGoal.isRunning()) {
--                availableGoal.stop();
--            }
--        }
--
--        this.availableGoals.removeIf(goal -> predicate.test(goal.getGoal()));
--    }
--
--    public void removeGoal(final Goal toRemove) {
--        this.removeAllGoals(goal -> goal == toRemove);
-+package net.minecraft.world.entity.ai.goal;
-+
-+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
-+import java.util.EnumMap;
-+import java.util.EnumSet;
-+import java.util.Map;
-+import java.util.Set;
-+import java.util.function.Predicate;
-+import net.minecraft.util.profiling.Profiler;
-+import net.minecraft.util.profiling.ProfilerFiller;
-+
-+public class GoalSelector {
-+    private static final WrappedGoal NO_GOAL = new WrappedGoal(Integer.MAX_VALUE, new Goal() {
-+        @Override
-+        public boolean canUse() {
-+            return false;
-+        }
-+    }) {
-+        @Override
-+        public boolean isRunning() {
-+            return false;
-+        }
-+    };
-+    private final Map<Goal.Flag, WrappedGoal> lockedFlags = new EnumMap<>(Goal.Flag.class);
-+    private final Set<WrappedGoal> availableGoals = new ObjectLinkedOpenHashSet<>();
-+    private final EnumSet<Goal.Flag> disabledFlags = EnumSet.noneOf(Goal.Flag.class);
+@@ -24,6 +24,7 @@ public class GoalSelector {
+     private final Map<Goal.Flag, WrappedGoal> lockedFlags = new EnumMap<>(Goal.Flag.class);
+     private final Set<WrappedGoal> availableGoals = new ObjectLinkedOpenHashSet<>();
+     private final EnumSet<Goal.Flag> disabledFlags = EnumSet.noneOf(Goal.Flag.class);
 +    private int curRate; // Paper - EAR 2
-+
-+    public void addGoal(final int prio, final Goal goal) {
-+        this.availableGoals.add(new WrappedGoal(prio, goal));
-+    }
-+
-+    public void removeAllGoals(final Predicate<Goal> predicate) {
-+        for (WrappedGoal availableGoal : this.availableGoals) {
-+            if (predicate.test(availableGoal.getGoal()) && availableGoal.isRunning()) {
-+                availableGoal.stop();
-+            }
-+        }
-+
-+        this.availableGoals.removeIf(goal -> predicate.test(goal.getGoal()));
-+    }
-+
+ 
+     public void addGoal(final int prio, final Goal goal) {
+         this.availableGoals.add(new WrappedGoal(prio, goal));
+@@ -39,6 +40,22 @@ public class GoalSelector {
+         this.availableGoals.removeIf(goal -> predicate.test(goal.getGoal()));
+     }
+ 
 +    // Paper start - EAR 2
 +    public boolean inactiveTick() {
 +        this.curRate++;
 +        return this.curRate % 3 == 0; // TODO newGoalRate was already unused in 1.20.4, check if this is correct
-     }
- 
--    private static boolean goalContainsAnyFlags(final WrappedGoal goal, final EnumSet<Goal.Flag> disabledFlags) {
--        for (Goal.Flag flag : goal.getFlags()) {
--            if (disabledFlags.contains(flag)) {
++    }
++
 +    public boolean hasTasks() {
 +        for (final WrappedGoal task : this.availableGoals) {
 +            if (task.isRunning()) {
-                 return true;
-             }
-         }
--
-         return false;
-     }
--
--    private static boolean goalCanBeReplacedForAllFlags(final WrappedGoal goal, final Map<Goal.Flag, WrappedGoal> lockedFlags) {
--        for (Goal.Flag flag : goal.getFlags()) {
--            if (!lockedFlags.getOrDefault(flag, NO_GOAL).canBeReplacedBy(goal)) {
--                return false;
--            }
--        }
--
--        return true;
--    }
--
--    public void tick() {
--        ProfilerFiller profiler = Profiler.get();
--        profiler.push("goalCleanup");
--
--        for (WrappedGoal goal : this.availableGoals) {
--            if (goal.isRunning() && (goalContainsAnyFlags(goal, this.disabledFlags) || !goal.canContinueToUse())) {
--                goal.stop();
--            }
--        }
--
--        this.lockedFlags.entrySet().removeIf(entry -> !entry.getValue().isRunning());
--        profiler.pop();
--        profiler.push("goalUpdate");
--
--        for (WrappedGoal goal : this.availableGoals) {
--            if (!goal.isRunning() && !goalContainsAnyFlags(goal, this.disabledFlags) && goalCanBeReplacedForAllFlags(goal, this.lockedFlags) && goal.canUse()) {
--                for (Goal.Flag flag : goal.getFlags()) {
--                    WrappedGoal currentGoal = this.lockedFlags.getOrDefault(flag, NO_GOAL);
--                    currentGoal.stop();
--                    this.lockedFlags.put(flag, goal);
--                }
--
--                goal.start();
--            }
--        }
--
--        profiler.pop();
--        this.tickRunningGoals(true);
--    }
--
--    public void tickRunningGoals(final boolean forceTickAllRunningGoals) {
--        ProfilerFiller profiler = Profiler.get();
--        profiler.push("goalTick");
--
--        for (WrappedGoal goal : this.availableGoals) {
--            if (goal.isRunning() && (forceTickAllRunningGoals || goal.requiresUpdateEveryTick())) {
--                goal.tick();
--            }
--        }
--
--        profiler.pop();
--    }
--
--    public Set<WrappedGoal> getAvailableGoals() {
--        return this.availableGoals;
--    }
--
--    public void disableControlFlag(final Goal.Flag flag) {
--        this.disabledFlags.add(flag);
--    }
--
--    public void enableControlFlag(final Goal.Flag flag) {
--        this.disabledFlags.remove(flag);
--    }
--
--    public void setControlFlag(final Goal.Flag flag, final boolean enabled) {
--        if (enabled) {
--            this.enableControlFlag(flag);
--        } else {
--            this.disableControlFlag(flag);
--        }
--    }
--}
-+    // Paper end - EAR 2
-+
-+    public void removeGoal(final Goal toRemove) {
-+        this.removeAllGoals(goal -> goal == toRemove);
-+    }
-+
-+    private static boolean goalContainsAnyFlags(final WrappedGoal goal, final EnumSet<Goal.Flag> disabledFlags) {
-+        for (Goal.Flag flag : goal.getFlags()) {
-+            if (disabledFlags.contains(flag)) {
 +                return true;
 +            }
 +        }
-+
 +        return false;
 +    }
++    // Paper end - EAR 2
 +
-+    private static boolean goalCanBeReplacedForAllFlags(final WrappedGoal goal, final Map<Goal.Flag, WrappedGoal> lockedFlags) {
-+        for (Goal.Flag flag : goal.getFlags()) {
-+            if (!lockedFlags.getOrDefault(flag, NO_GOAL).canBeReplacedBy(goal)) {
-+                return false;
-+            }
-+        }
-+
-+        return true;
-+    }
-+
-+    public void tick() {
-+        ProfilerFiller profiler = Profiler.get();
-+        profiler.push("goalCleanup");
-+
-+        for (WrappedGoal goal : this.availableGoals) {
-+            if (goal.isRunning() && (goalContainsAnyFlags(goal, this.disabledFlags) || !goal.canContinueToUse())) {
-+                goal.stop();
-+            }
-+        }
-+
-+        this.lockedFlags.entrySet().removeIf(entry -> !entry.getValue().isRunning());
-+        profiler.pop();
-+        profiler.push("goalUpdate");
-+
-+        for (WrappedGoal goal : this.availableGoals) {
-+            if (!goal.isRunning() && !goalContainsAnyFlags(goal, this.disabledFlags) && goalCanBeReplacedForAllFlags(goal, this.lockedFlags) && goal.canUse()) {
-+                for (Goal.Flag flag : goal.getFlags()) {
-+                    WrappedGoal currentGoal = this.lockedFlags.getOrDefault(flag, NO_GOAL);
-+                    currentGoal.stop();
-+                    this.lockedFlags.put(flag, goal);
-+                }
-+
-+                goal.start();
-+            }
-+        }
-+
-+        profiler.pop();
-+        this.tickRunningGoals(true);
-+    }
-+
-+    public void tickRunningGoals(final boolean forceTickAllRunningGoals) {
-+        ProfilerFiller profiler = Profiler.get();
-+        profiler.push("goalTick");
-+
-+        for (WrappedGoal goal : this.availableGoals) {
-+            if (goal.isRunning() && (forceTickAllRunningGoals || goal.requiresUpdateEveryTick())) {
-+                goal.tick();
-+            }
-+        }
-+
-+        profiler.pop();
-+    }
-+
-+    public Set<WrappedGoal> getAvailableGoals() {
-+        return this.availableGoals;
-+    }
-+
-+    public void disableControlFlag(final Goal.Flag flag) {
-+        this.disabledFlags.add(flag);
-+    }
-+
-+    public void enableControlFlag(final Goal.Flag flag) {
-+        this.disabledFlags.remove(flag);
-+    }
-+
-+    public void setControlFlag(final Goal.Flag flag, final boolean enabled) {
-+        if (enabled) {
-+            this.enableControlFlag(flag);
-+        } else {
-+            this.disableControlFlag(flag);
-+        }
-+    }
-+}
+     public void removeGoal(final Goal toRemove) {
+         this.removeAllGoals(goal -> goal == toRemove);
+     }
 diff --git a/net/minecraft/world/entity/ai/goal/MoveToBlockGoal.java b/net/minecraft/world/entity/ai/goal/MoveToBlockGoal.java
-index d46e0e3a4a7fc3bb3f1dd695d4cc563778b99db0..5758c71899b016030ec89e29e1d85a76f34efb8f 100644
+index d46e0e3a4a7fc3bb3f1dd695d4cc563778b99db0..c6e9b155c2341c13d569f28f54f0c1d2d7313676 100644
 --- a/net/minecraft/world/entity/ai/goal/MoveToBlockGoal.java
 +++ b/net/minecraft/world/entity/ai/goal/MoveToBlockGoal.java
-@@ -1,127 +1,136 @@
--package net.minecraft.world.entity.ai.goal;
--
--import java.util.EnumSet;
--import net.minecraft.core.BlockPos;
--import net.minecraft.world.entity.PathfinderMob;
--import net.minecraft.world.level.LevelReader;
--
--public abstract class MoveToBlockGoal extends Goal {
--    private static final int GIVE_UP_TICKS = 1200;
--    private static final int STAY_TICKS = 1200;
--    private static final int INTERVAL_TICKS = 200;
--    protected final PathfinderMob mob;
--    public final double speedModifier;
--    protected int nextStartTick;
--    protected int tryTicks;
--    private int maxStayTicks;
--    protected BlockPos blockPos = BlockPos.ZERO;
--    private boolean reachedTarget;
--    private final int searchRange;
--    private final int verticalSearchRange;
--    protected int verticalSearchStart;
--
--    public MoveToBlockGoal(final PathfinderMob mob, final double speedModifier, final int searchRange) {
--        this(mob, speedModifier, searchRange, 1);
--    }
--
--    public MoveToBlockGoal(final PathfinderMob mob, final double speedModifier, final int searchRange, final int verticalSearchRange) {
--        this.mob = mob;
--        this.speedModifier = speedModifier;
--        this.searchRange = searchRange;
--        this.verticalSearchStart = 0;
--        this.verticalSearchRange = verticalSearchRange;
--        this.setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.JUMP));
--    }
--
--    @Override
--    public boolean canUse() {
--        if (this.nextStartTick > 0) {
--            this.nextStartTick--;
--            return false;
--        } else {
--            this.nextStartTick = this.nextStartTick(this.mob);
--            return this.findNearestBlock();
--        }
--    }
--
--    protected int nextStartTick(final PathfinderMob mob) {
--        return reducedTickDelay(200 + mob.getRandom().nextInt(200));
--    }
--
-+package net.minecraft.world.entity.ai.goal;
-+
-+import java.util.EnumSet;
-+import net.minecraft.core.BlockPos;
-+import net.minecraft.world.entity.PathfinderMob;
-+import net.minecraft.world.level.LevelReader;
-+
-+public abstract class MoveToBlockGoal extends Goal {
-+    private static final int GIVE_UP_TICKS = 1200;
-+    private static final int STAY_TICKS = 1200;
-+    private static final int INTERVAL_TICKS = 200;
-+    protected final PathfinderMob mob;
-+    public final double speedModifier;
-+    protected int nextStartTick;
-+    protected int tryTicks;
-+    private int maxStayTicks;
-+    protected BlockPos blockPos = BlockPos.ZERO;
-+    private boolean reachedTarget;
-+    private final int searchRange;
-+    private final int verticalSearchRange;
-+    protected int verticalSearchStart;
-+
-+    public MoveToBlockGoal(final PathfinderMob mob, final double speedModifier, final int searchRange) {
-+        this(mob, speedModifier, searchRange, 1);
-+    }
+@@ -23,6 +23,14 @@ public abstract class MoveToBlockGoal extends Goal {
+     public MoveToBlockGoal(final PathfinderMob mob, final double speedModifier, final int searchRange) {
+         this(mob, speedModifier, searchRange, 1);
+     }
 +    // Paper start - activation range improvements
-     @Override
--    public boolean canContinueToUse() {
--        return this.tryTicks >= -this.maxStayTicks && this.tryTicks <= 1200 && this.isValidTarget(this.mob.level(), this.blockPos);
--    }
--
--    @Override
--    public void start() {
--        this.moveMobToBlock();
--        this.tryTicks = 0;
--        this.maxStayTicks = this.mob.getRandom().nextInt(this.mob.getRandom().nextInt(1200) + 1200) + 1200;
--    }
--
--    protected void moveMobToBlock() {
--        this.mob.getNavigation().moveTo(this.blockPos.getX() + 0.5, this.blockPos.getY() + 1, this.blockPos.getZ() + 0.5, this.speedModifier);
--    }
--
--    public double acceptedDistance() {
--        return 1.0;
--    }
--
--    protected BlockPos getMoveToTarget() {
--        return this.blockPos.above();
--    }
--
--    @Override
--    public boolean requiresUpdateEveryTick() {
--        return true;
--    }
--
--    @Override
--    public void tick() {
--        BlockPos moveToTarget = this.getMoveToTarget();
--        if (!moveToTarget.closerToCenterThan(this.mob.position(), this.acceptedDistance())) {
--            this.reachedTarget = false;
--            this.tryTicks++;
--            if (this.shouldRecalculatePath()) {
--                this.mob.getNavigation().moveTo(moveToTarget.getX() + 0.5, moveToTarget.getY(), moveToTarget.getZ() + 0.5, this.speedModifier);
--            }
--        } else {
--            this.reachedTarget = true;
--            this.tryTicks--;
--        }
--    }
--
--    public boolean shouldRecalculatePath() {
--        return this.tryTicks % 40 == 0;
--    }
--
--    protected boolean isReachedTarget() {
--        return this.reachedTarget;
--    }
--
--    protected boolean findNearestBlock() {
--        int horizontalSearch = this.searchRange;
--        int verticalSearch = this.verticalSearchRange;
--        BlockPos mobPos = this.mob.blockPosition();
--        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
--
--        for (int y = this.verticalSearchStart; y <= verticalSearch; y = y > 0 ? -y : 1 - y) {
--            for (int r = 0; r < horizontalSearch; r++) {
--                for (int x = 0; x <= r; x = x > 0 ? -x : 1 - x) {
--                    for (int z = x < r && x > -r ? r : 0; z <= r; z = z > 0 ? -z : 1 - z) {
--                        pos.setWithOffset(mobPos, x, y - 1, z);
--                        if (this.mob.isWithinHome(pos) && this.isValidTarget(this.mob.level(), pos)) {
--                            this.blockPos = pos;
--                            return true;
--                        }
--                    }
--                }
--            }
--        }
--
--        return false;
++    @Override
 +    public void stop() {
 +        super.stop();
 +        this.blockPos = BlockPos.ZERO;
 +        this.mob.movingTarget = null;
-     }
--
--    protected abstract boolean isValidTarget(LevelReader level, BlockPos pos);
--}
++    }
 +    // Paper end
-+
-+    public MoveToBlockGoal(final PathfinderMob mob, final double speedModifier, final int searchRange, final int verticalSearchRange) {
-+        this.mob = mob;
-+        this.speedModifier = speedModifier;
-+        this.searchRange = searchRange;
-+        this.verticalSearchStart = 0;
-+        this.verticalSearchRange = verticalSearchRange;
-+        this.setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.JUMP));
-+    }
-+
-+    @Override
-+    public boolean canUse() {
-+        if (this.nextStartTick > 0) {
-+            this.nextStartTick--;
-+            return false;
-+        } else {
-+            this.nextStartTick = this.nextStartTick(this.mob);
-+            return this.findNearestBlock();
-+        }
-+    }
-+
-+    protected int nextStartTick(final PathfinderMob mob) {
-+        return reducedTickDelay(200 + mob.getRandom().nextInt(200));
-+    }
-+
-+    @Override
-+    public boolean canContinueToUse() {
-+        return this.tryTicks >= -this.maxStayTicks && this.tryTicks <= 1200 && this.isValidTarget(this.mob.level(), this.blockPos);
-+    }
-+
-+    @Override
-+    public void start() {
-+        this.moveMobToBlock();
-+        this.tryTicks = 0;
-+        this.maxStayTicks = this.mob.getRandom().nextInt(this.mob.getRandom().nextInt(1200) + 1200) + 1200;
-+    }
-+
-+    protected void moveMobToBlock() {
-+        this.mob.getNavigation().moveTo(this.blockPos.getX() + 0.5, this.blockPos.getY() + 1, this.blockPos.getZ() + 0.5, this.speedModifier);
-+    }
-+
-+    public double acceptedDistance() {
-+        return 1.0;
-+    }
-+
-+    protected BlockPos getMoveToTarget() {
-+        return this.blockPos.above();
-+    }
-+
-+    @Override
-+    public boolean requiresUpdateEveryTick() {
-+        return true;
-+    }
-+
-+    @Override
-+    public void tick() {
-+        BlockPos moveToTarget = this.getMoveToTarget();
-+        if (!moveToTarget.closerToCenterThan(this.mob.position(), this.acceptedDistance())) {
-+            this.reachedTarget = false;
-+            this.tryTicks++;
-+            if (this.shouldRecalculatePath()) {
-+                this.mob.getNavigation().moveTo(moveToTarget.getX() + 0.5, moveToTarget.getY(), moveToTarget.getZ() + 0.5, this.speedModifier);
-+            }
-+        } else {
-+            this.reachedTarget = true;
-+            this.tryTicks--;
-+        }
-+    }
-+
-+    public boolean shouldRecalculatePath() {
-+        return this.tryTicks % 40 == 0;
-+    }
-+
-+    protected boolean isReachedTarget() {
-+        return this.reachedTarget;
-+    }
-+
-+    protected boolean findNearestBlock() {
-+        int horizontalSearch = this.searchRange;
-+        int verticalSearch = this.verticalSearchRange;
-+        BlockPos mobPos = this.mob.blockPosition();
-+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-+
-+        for (int y = this.verticalSearchStart; y <= verticalSearch; y = y > 0 ? -y : 1 - y) {
-+            for (int r = 0; r < horizontalSearch; r++) {
-+                for (int x = 0; x <= r; x = x > 0 ? -x : 1 - x) {
-+                    for (int z = x < r && x > -r ? r : 0; z <= r; z = z > 0 ? -z : 1 - z) {
-+                        pos.setWithOffset(mobPos, x, y - 1, z);
-+                        if (this.mob.isWithinHome(pos) && this.isValidTarget(this.mob.level(), pos)) {
-+                            this.blockPos = pos;
+ 
+     public MoveToBlockGoal(final PathfinderMob mob, final double speedModifier, final int searchRange, final int verticalSearchRange) {
+         this.mob = mob;
+@@ -113,6 +121,7 @@ public abstract class MoveToBlockGoal extends Goal {
+                         pos.setWithOffset(mobPos, x, y - 1, z);
+                         if (this.mob.isWithinHome(pos) && this.isValidTarget(this.mob.level(), pos)) {
+                             this.blockPos = pos;
 +                            this.mob.movingTarget = pos == BlockPos.ZERO ? null : pos.immutable(); // Paper
-+                            return true;
-+                        }
-+                    }
-+                }
-+            }
-+        }
-+
-+        return false;
-+    }
-+
-+    protected abstract boolean isValidTarget(LevelReader level, BlockPos pos);
-+}
+                             return true;
+                         }
+                     }
 diff --git a/net/minecraft/world/entity/item/ItemEntity.java b/net/minecraft/world/entity/item/ItemEntity.java
 index 469ab01df66e33ef83d2a7344b9e8544ce4dcfdd..ed893f66f5eed97abc4ee3a5da0b5c9d88859ac3 100644
 --- a/net/minecraft/world/entity/item/ItemEntity.java
@@ -1395,302 +771,36 @@ index e9199464cebb0d704c02cf4fcf8c00343ec824c5..504472285bd8c173de2b406365d04e31
      public void tick() {
          super.tick();
 diff --git a/net/minecraft/world/entity/vehicle/minecart/MinecartHopper.java b/net/minecraft/world/entity/vehicle/minecart/MinecartHopper.java
-index f46cca0467bb4da5511bc953ce5b43fa606bf978..dff154c14a0574394aa0021621f7ba7e150b5281 100644
+index f46cca0467bb4da5511bc953ce5b43fa606bf978..445c5cafad71028171c1f261939661775dd7f2bd 100644
 --- a/net/minecraft/world/entity/vehicle/minecart/MinecartHopper.java
 +++ b/net/minecraft/world/entity/vehicle/minecart/MinecartHopper.java
-@@ -1,145 +1,155 @@
--package net.minecraft.world.entity.vehicle.minecart;
--
--import net.minecraft.core.BlockPos;
--import net.minecraft.server.level.ServerLevel;
--import net.minecraft.world.entity.EntitySelector;
--import net.minecraft.world.entity.EntityType;
--import net.minecraft.world.entity.item.ItemEntity;
--import net.minecraft.world.entity.player.Inventory;
--import net.minecraft.world.inventory.AbstractContainerMenu;
--import net.minecraft.world.inventory.HopperMenu;
--import net.minecraft.world.item.Item;
--import net.minecraft.world.item.ItemStack;
--import net.minecraft.world.item.Items;
--import net.minecraft.world.level.Level;
--import net.minecraft.world.level.block.Blocks;
--import net.minecraft.world.level.block.entity.Hopper;
--import net.minecraft.world.level.block.entity.HopperBlockEntity;
--import net.minecraft.world.level.block.state.BlockState;
--import net.minecraft.world.level.block.state.properties.RailShape;
--import net.minecraft.world.level.storage.ValueInput;
--import net.minecraft.world.level.storage.ValueOutput;
--
--public class MinecartHopper extends AbstractMinecartContainer implements Hopper {
--    private static final boolean DEFAULT_ENABLED = true;
--    private boolean enabled = true;
--    private boolean consumedItemThisFrame = false;
--
--    public MinecartHopper(final EntityType<? extends MinecartHopper> type, final Level level) {
--        super(type, level);
--    }
--
--    @Override
--    public BlockState getDefaultDisplayBlockState() {
--        return Blocks.HOPPER.defaultBlockState();
--    }
--
--    @Override
--    public int getDefaultDisplayOffset() {
--        return 1;
--    }
--
--    @Override
--    public int getContainerSize() {
--        return 5;
--    }
--
--    @Override
--    public void activateMinecart(final ServerLevel level, final int xt, final int yt, final int zt, final boolean state) {
--        boolean newEnabled = !state;
--        if (newEnabled != this.isEnabled()) {
--            this.setEnabled(newEnabled);
--        }
--    }
--
--    public boolean isEnabled() {
--        return this.enabled;
--    }
--
--    public void setEnabled(final boolean enabled) {
--        this.enabled = enabled;
--    }
--
--    @Override
--    public double getLevelX() {
--        return this.getX();
--    }
--
--    @Override
--    public double getLevelY() {
--        return this.getY() + 0.5;
--    }
--
--    @Override
--    public double getLevelZ() {
--        return this.getZ();
--    }
--
--    @Override
--    public boolean isGridAligned() {
--        return false;
--    }
--
--    @Override
--    public void tick() {
--        this.consumedItemThisFrame = false;
--        super.tick();
--        this.tryConsumeItems();
--    }
--
--    @Override
--    protected double makeStepAlongTrack(final BlockPos pos, final RailShape shape, final double movementLeft) {
--        double left = super.makeStepAlongTrack(pos, shape, movementLeft);
--        this.tryConsumeItems();
--        return left;
--    }
--
--    private void tryConsumeItems() {
--        if (!this.level().isClientSide() && this.isAlive() && this.isEnabled() && !this.consumedItemThisFrame && this.suckInItems()) {
--            this.consumedItemThisFrame = true;
--            this.setChanged();
--        }
--    }
--
--    public boolean suckInItems() {
--        if (HopperBlockEntity.suckInItems(this.level(), this)) {
--            return true;
--        }
--
--        for (ItemEntity entity : this.level()
--            .getEntitiesOfClass(ItemEntity.class, this.getBoundingBox().inflate(0.25, 0.0, 0.25), EntitySelector.ENTITY_STILL_ALIVE)) {
--            if (HopperBlockEntity.addItem(this, entity)) {
--                return true;
--            }
--        }
--
--        return false;
--    }
--
--    @Override
--    public Item getDropItem() {
--        return Items.HOPPER_MINECART;
--    }
--
--    @Override
--    public ItemStack getPickResult() {
--        return new ItemStack(Items.HOPPER_MINECART);
--    }
--
--    @Override
--    protected void addAdditionalSaveData(final ValueOutput output) {
--        super.addAdditionalSaveData(output);
--        output.putBoolean("Enabled", this.enabled);
--    }
--
--    @Override
--    protected void readAdditionalSaveData(final ValueInput input) {
--        super.readAdditionalSaveData(input);
--        this.enabled = input.getBooleanOr("Enabled", true);
--    }
--
--    @Override
--    public AbstractContainerMenu createMenu(final int containerId, final Inventory inventory) {
--        return new HopperMenu(containerId, inventory, this);
--    }
--}
-+package net.minecraft.world.entity.vehicle.minecart;
-+
-+import net.minecraft.core.BlockPos;
-+import net.minecraft.server.level.ServerLevel;
-+import net.minecraft.world.entity.EntitySelector;
-+import net.minecraft.world.entity.EntityType;
-+import net.minecraft.world.entity.item.ItemEntity;
-+import net.minecraft.world.entity.player.Inventory;
-+import net.minecraft.world.inventory.AbstractContainerMenu;
-+import net.minecraft.world.inventory.HopperMenu;
-+import net.minecraft.world.item.Item;
-+import net.minecraft.world.item.ItemStack;
-+import net.minecraft.world.item.Items;
-+import net.minecraft.world.level.Level;
-+import net.minecraft.world.level.block.Blocks;
-+import net.minecraft.world.level.block.entity.Hopper;
-+import net.minecraft.world.level.block.entity.HopperBlockEntity;
-+import net.minecraft.world.level.block.state.BlockState;
-+import net.minecraft.world.level.block.state.properties.RailShape;
-+import net.minecraft.world.level.storage.ValueInput;
-+import net.minecraft.world.level.storage.ValueOutput;
-+
-+public class MinecartHopper extends AbstractMinecartContainer implements Hopper {
-+    private static final boolean DEFAULT_ENABLED = true;
-+    private boolean enabled = true;
-+    private boolean consumedItemThisFrame = false;
-+
-+    public MinecartHopper(final EntityType<? extends MinecartHopper> type, final Level level) {
-+        super(type, level);
-+    }
-+
-+    @Override
-+    public BlockState getDefaultDisplayBlockState() {
-+        return Blocks.HOPPER.defaultBlockState();
-+    }
-+
-+    @Override
-+    public int getDefaultDisplayOffset() {
-+        return 1;
-+    }
-+
-+    @Override
-+    public int getContainerSize() {
-+        return 5;
-+    }
-+
-+    @Override
-+    public void activateMinecart(final ServerLevel level, final int xt, final int yt, final int zt, final boolean state) {
-+        boolean newEnabled = !state;
-+        if (newEnabled != this.isEnabled()) {
-+            this.setEnabled(newEnabled);
-+        }
+@@ -50,6 +50,7 @@ public class MinecartHopper extends AbstractMinecartContainer implements Hopper
+         if (newEnabled != this.isEnabled()) {
+             this.setEnabled(newEnabled);
+         }
 +        this.immunize(); // Paper
-+    }
-+
-+    public boolean isEnabled() {
-+        return this.enabled;
-+    }
-+
-+    public void setEnabled(final boolean enabled) {
-+        this.enabled = enabled;
-+    }
-+
-+    @Override
-+    public double getLevelX() {
-+        return this.getX();
-+    }
-+
-+    @Override
-+    public double getLevelY() {
-+        return this.getY() + 0.5;
-+    }
-+
-+    @Override
-+    public double getLevelZ() {
-+        return this.getZ();
-+    }
-+
-+    @Override
-+    public boolean isGridAligned() {
-+        return false;
-+    }
-+
-+    @Override
-+    public void tick() {
-+        this.consumedItemThisFrame = false;
-+        super.tick();
-+        this.tryConsumeItems();
-+    }
-+
-+    @Override
-+    protected double makeStepAlongTrack(final BlockPos pos, final RailShape shape, final double movementLeft) {
-+        double left = super.makeStepAlongTrack(pos, shape, movementLeft);
-+        this.tryConsumeItems();
-+        return left;
-+    }
-+
-+    private void tryConsumeItems() {
-+        if (!this.level().isClientSide() && this.isAlive() && this.isEnabled() && !this.consumedItemThisFrame && this.suckInItems()) {
-+            this.consumedItemThisFrame = true;
-+            this.setChanged();
-+        }
-+    }
-+
-+    public boolean suckInItems() {
-+        if (HopperBlockEntity.suckInItems(this.level(), this)) {
+     }
+ 
+     public boolean isEnabled() {
+@@ -103,12 +104,14 @@ public class MinecartHopper extends AbstractMinecartContainer implements Hopper
+ 
+     public boolean suckInItems() {
+         if (HopperBlockEntity.suckInItems(this.level(), this)) {
 +            this.immunize(); // Paper
-+            return true;
-+        }
-+
-+        for (ItemEntity entity : this.level()
-+            .getEntitiesOfClass(ItemEntity.class, this.getBoundingBox().inflate(0.25, 0.0, 0.25), EntitySelector.ENTITY_STILL_ALIVE)) {
-+            if (HopperBlockEntity.addItem(this, entity)) {
+             return true;
+         }
+ 
+         for (ItemEntity entity : this.level()
+             .getEntitiesOfClass(ItemEntity.class, this.getBoundingBox().inflate(0.25, 0.0, 0.25), EntitySelector.ENTITY_STILL_ALIVE)) {
+             if (HopperBlockEntity.addItem(this, entity)) {
 +                this.immunize(); // Paper
-+                return true;
-+            }
-+        }
-+
-+        return false;
-+    }
-+
-+    @Override
-+    public Item getDropItem() {
-+        return Items.HOPPER_MINECART;
-+    }
-+
-+    @Override
-+    public ItemStack getPickResult() {
-+        return new ItemStack(Items.HOPPER_MINECART);
-+    }
-+
-+    @Override
-+    protected void addAdditionalSaveData(final ValueOutput output) {
-+        super.addAdditionalSaveData(output);
-+        output.putBoolean("Enabled", this.enabled);
-+    }
-+
-+    @Override
-+    protected void readAdditionalSaveData(final ValueInput input) {
-+        super.readAdditionalSaveData(input);
-+        this.enabled = input.getBooleanOr("Enabled", true);
-+    }
-+
-+    @Override
-+    public AbstractContainerMenu createMenu(final int containerId, final Inventory inventory) {
-+        return new HopperMenu(containerId, inventory, this);
-+    }
+                 return true;
+             }
+         }
+@@ -142,4 +145,11 @@ public class MinecartHopper extends AbstractMinecartContainer implements Hopper
+     public AbstractContainerMenu createMenu(final int containerId, final Inventory inventory) {
+         return new HopperMenu(containerId, inventory, this);
+     }
 +
 +    // Paper start
 +    public void immunize() {
@@ -1698,7 +808,7 @@ index f46cca0467bb4da5511bc953ce5b43fa606bf978..dff154c14a0574394aa0021621f7ba7e
 +    }
 +    // Paper end
 +
-+}
+ }
 diff --git a/net/minecraft/world/level/Level.java b/net/minecraft/world/level/Level.java
 index 4677d7724be10499d71d23c32f9c66517005dc5b..1df11298a56e63fa394741eb14f1476a76c43127 100644
 --- a/net/minecraft/world/level/Level.java

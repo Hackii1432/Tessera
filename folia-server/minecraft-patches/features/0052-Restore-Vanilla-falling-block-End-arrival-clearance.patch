@@ -5,7 +5,7 @@ Subject: [PATCH] Restore Vanilla falling-block End arrival clearance
 
 
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index 9ba374ee88e539d2e58594cc433d095c41d80566..c9c18da8818082e034e016091cdbcd81df0a39d6 100644
+index 45f013550528199af36eadd3d840741d3f493325..316c9e3718b557cdc772fe3c4092640769aa683c 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
 @@ -4698,6 +4698,16 @@ public abstract class Entity

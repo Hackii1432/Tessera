@@ -39,174 +39,21 @@ index 82377ee76caac220f7565cb729b9e608206a685a..504fdb2c4000eafae4341ec8b24ce9cb
  
      public static Set<Long> getSentChunkKeys(final ServerPlayer player) {
 diff --git a/net/minecraft/network/protocol/game/ClientboundChunksBiomesPacket.java b/net/minecraft/network/protocol/game/ClientboundChunksBiomesPacket.java
-index 987bf797c7b241d74929bbed41bed3ca9d3e4158..601f107f46c9b04dad800042a8de22e6f09280e8 100644
+index 987bf797c7b241d74929bbed41bed3ca9d3e4158..46d654fa2286c760a00e5de130d7cdd3260ed089 100644
 --- a/net/minecraft/network/protocol/game/ClientboundChunksBiomesPacket.java
 +++ b/net/minecraft/network/protocol/game/ClientboundChunksBiomesPacket.java
-@@ -1,81 +1,83 @@
--package net.minecraft.network.protocol.game;
--
--import io.netty.buffer.ByteBuf;
--import io.netty.buffer.Unpooled;
--import java.util.List;
--import net.minecraft.network.FriendlyByteBuf;
--import net.minecraft.network.codec.ByteBufCodecs;
--import net.minecraft.network.codec.StreamCodec;
--import net.minecraft.network.protocol.Packet;
--import net.minecraft.network.protocol.PacketType;
--import net.minecraft.world.level.ChunkPos;
--import net.minecraft.world.level.chunk.LevelChunk;
--import net.minecraft.world.level.chunk.LevelChunkSection;
--
--public record ClientboundChunksBiomesPacket(List<ClientboundChunksBiomesPacket.ChunkBiomeData> chunkBiomeData) implements Packet<ClientGamePacketListener> {
--    public static final StreamCodec<ByteBuf, ClientboundChunksBiomesPacket> STREAM_CODEC = StreamCodec.composite(
--        ClientboundChunksBiomesPacket.ChunkBiomeData.STREAM_CODEC.apply(ByteBufCodecs.list()),
--        ClientboundChunksBiomesPacket::chunkBiomeData,
--        ClientboundChunksBiomesPacket::new
--    );
--    private static final int TWO_MEGABYTES = 2097152;
--
--    public static ClientboundChunksBiomesPacket forChunks(final List<LevelChunk> chunks) {
--        return new ClientboundChunksBiomesPacket(chunks.stream().map(ClientboundChunksBiomesPacket.ChunkBiomeData::new).toList());
--    }
--
--    @Override
--    public PacketType<ClientboundChunksBiomesPacket> type() {
--        return GamePacketTypes.CLIENTBOUND_CHUNKS_BIOMES;
--    }
--
--    @Override
--    public void handle(final ClientGamePacketListener listener) {
--        listener.handleChunksBiomes(this);
--    }
--
--    public record ChunkBiomeData(ChunkPos pos, byte[] buffer) {
--        public static final StreamCodec<ByteBuf, ClientboundChunksBiomesPacket.ChunkBiomeData> STREAM_CODEC = StreamCodec.composite(
--            ChunkPos.STREAM_CODEC,
--            ClientboundChunksBiomesPacket.ChunkBiomeData::pos,
--            ByteBufCodecs.byteArray(ClientboundChunksBiomesPacket.TWO_MEGABYTES),
--            ClientboundChunksBiomesPacket.ChunkBiomeData::buffer,
--            ClientboundChunksBiomesPacket.ChunkBiomeData::new
--        );
--
--        public ChunkBiomeData(final LevelChunk chunk) {
--            this(chunk.getPos(), new byte[calculateChunkSize(chunk)]);
--            extractChunkData(new FriendlyByteBuf(this.getWriteBuffer()), chunk);
--        }
--
--        private static int calculateChunkSize(final LevelChunk chunk) {
--            int total = 0;
--
--            for (LevelChunkSection section : chunk.getSections()) {
--                total += section.getBiomes().getSerializedSize();
--            }
--
--            return total;
--        }
--
--        public FriendlyByteBuf getReadBuffer() {
--            return new FriendlyByteBuf(Unpooled.wrappedBuffer(this.buffer));
--        }
--
--        private ByteBuf getWriteBuffer() {
--            ByteBuf buffer = Unpooled.wrappedBuffer(this.buffer);
--            buffer.writerIndex(0);
--            return buffer;
--        }
--
--        public static void extractChunkData(final FriendlyByteBuf buffer, final LevelChunk chunk) {
--            for (LevelChunkSection section : chunk.getSections()) {
--                section.getBiomes().write(buffer);
--            }
--
--            if (buffer.writerIndex() != buffer.capacity()) {
--                throw new IllegalStateException("Didn't fill biome buffer: expected " + buffer.capacity() + " bytes, got " + buffer.writerIndex());
--            }
--        }
--    }
--}
-+package net.minecraft.network.protocol.game;
-+
-+import io.netty.buffer.ByteBuf;
-+import io.netty.buffer.Unpooled;
-+import java.util.List;
-+import net.minecraft.network.FriendlyByteBuf;
-+import net.minecraft.network.codec.ByteBufCodecs;
-+import net.minecraft.network.codec.StreamCodec;
-+import net.minecraft.network.protocol.Packet;
-+import net.minecraft.network.protocol.PacketType;
-+import net.minecraft.world.level.ChunkPos;
-+import net.minecraft.world.level.chunk.LevelChunk;
-+import net.minecraft.world.level.chunk.LevelChunkSection;
-+
-+public record ClientboundChunksBiomesPacket(List<ClientboundChunksBiomesPacket.ChunkBiomeData> chunkBiomeData) implements Packet<ClientGamePacketListener> {
-+    public static final StreamCodec<ByteBuf, ClientboundChunksBiomesPacket> STREAM_CODEC = StreamCodec.composite(
-+        ClientboundChunksBiomesPacket.ChunkBiomeData.STREAM_CODEC.apply(ByteBufCodecs.list()),
-+        ClientboundChunksBiomesPacket::chunkBiomeData,
-+        ClientboundChunksBiomesPacket::new
-+    );
-+    private static final int TWO_MEGABYTES = 2097152;
-+
-+    public static ClientboundChunksBiomesPacket forChunks(final List<LevelChunk> chunks) {
-+        return new ClientboundChunksBiomesPacket(chunks.stream().map(ClientboundChunksBiomesPacket.ChunkBiomeData::new).toList());
-+    }
-+
-+    @Override
-+    public PacketType<ClientboundChunksBiomesPacket> type() {
-+        return GamePacketTypes.CLIENTBOUND_CHUNKS_BIOMES;
-+    }
-+
-+    @Override
-+    public void handle(final ClientGamePacketListener listener) {
-+        listener.handleChunksBiomes(this);
-+    }
-+
-+    public record ChunkBiomeData(ChunkPos pos, byte[] buffer) {
-+        public static final StreamCodec<ByteBuf, ClientboundChunksBiomesPacket.ChunkBiomeData> STREAM_CODEC = StreamCodec.composite(
-+            ChunkPos.STREAM_CODEC,
-+            ClientboundChunksBiomesPacket.ChunkBiomeData::pos,
-+            ByteBufCodecs.byteArray(ClientboundChunksBiomesPacket.TWO_MEGABYTES),
-+            ClientboundChunksBiomesPacket.ChunkBiomeData::buffer,
-+            ClientboundChunksBiomesPacket.ChunkBiomeData::new
-+        );
-+
-+        public ChunkBiomeData(final LevelChunk chunk) {
-+            this(chunk.getPos(), new byte[calculateChunkSize(chunk)]);
-+            extractChunkData(new FriendlyByteBuf(this.getWriteBuffer()), chunk);
-+        }
-+
-+        private static int calculateChunkSize(final LevelChunk chunk) {
-+            int total = 0;
-+
-+            for (LevelChunkSection section : chunk.getSections()) {
-+                total += section.getBiomes().getSerializedSize();
-+            }
-+
-+            return total;
-+        }
-+
-+        public FriendlyByteBuf getReadBuffer() {
-+            return new FriendlyByteBuf(Unpooled.wrappedBuffer(this.buffer));
-+        }
-+
-+        private ByteBuf getWriteBuffer() {
-+            ByteBuf buffer = Unpooled.wrappedBuffer(this.buffer);
-+            buffer.writerIndex(0);
-+            return buffer;
-+        }
-+
-+        public static void extractChunkData(final FriendlyByteBuf buffer, final LevelChunk chunk) {
+@@ -69,8 +69,10 @@ public record ClientboundChunksBiomesPacket(List<ClientboundChunksBiomesPacket.C
+         }
+ 
+         public static void extractChunkData(final FriendlyByteBuf buffer, final LevelChunk chunk) {
 +            int chunkSectionIndex = 0; // Paper - Anti-Xray
-+            for (LevelChunkSection section : chunk.getSections()) {
+             for (LevelChunkSection section : chunk.getSections()) {
+-                section.getBiomes().write(buffer);
 +                section.getBiomes().write(buffer, null, chunkSectionIndex); // Paper - Anti-Xray
 +                chunkSectionIndex++; // Paper - Anti-Xray
-+            }
-+
-+            if (buffer.writerIndex() != buffer.capacity()) {
-+                throw new IllegalStateException("Didn't fill biome buffer: expected " + buffer.capacity() + " bytes, got " + buffer.writerIndex());
-+            }
-+        }
-+    }
-+}
+             }
+ 
+             if (buffer.writerIndex() != buffer.capacity()) {
 diff --git a/net/minecraft/network/protocol/game/ClientboundLevelChunkPacketData.java b/net/minecraft/network/protocol/game/ClientboundLevelChunkPacketData.java
 index be30d31270a9080faf4e785ca9614f55f64bf714..79d6f5b6d3bd2d80362749c276d7df49afbb129e 100644
 --- a/net/minecraft/network/protocol/game/ClientboundLevelChunkPacketData.java
@@ -770,295 +617,34 @@ index 9977331d182cbc592f00006aabce23f0f69d2393..cd20a791b101548367ed53080f78e78b
      }
  }
 diff --git a/net/minecraft/world/level/chunk/PalettedContainerRO.java b/net/minecraft/world/level/chunk/PalettedContainerRO.java
-index 8ce60c968bf8c9be2d6f21cc16762627cbc23219..52fa0159580031c7e97eb218b341af27fa0bb383 100644
+index 8ce60c968bf8c9be2d6f21cc16762627cbc23219..45e95faebdb81485dc9b3823601f4506d8e85f25 100644
 --- a/net/minecraft/world/level/chunk/PalettedContainerRO.java
 +++ b/net/minecraft/world/level/chunk/PalettedContainerRO.java
-@@ -1,47 +1,51 @@
--package net.minecraft.world.level.chunk;
--
--import com.google.common.annotations.VisibleForTesting;
--import com.mojang.serialization.DataResult;
--import java.util.List;
--import java.util.Optional;
--import java.util.function.Consumer;
--import java.util.function.Predicate;
--import java.util.stream.LongStream;
--import net.minecraft.network.FriendlyByteBuf;
--
--public interface PalettedContainerRO<T> {
--    T get(int x, int y, int z);
--
--    void getAll(Consumer<T> consumer);
--
--    void write(FriendlyByteBuf buffer);
--
--    int getSerializedSize();
--
--    @VisibleForTesting
--    int bitsPerEntry();
--
--    boolean maybeHas(Predicate<T> predicate);
--
--    void forEachInPalette(Consumer<T> consumer);
--
--    void count(PalettedContainer.CountConsumer<T> output);
--
--    PalettedContainer<T> copy();
--
--    PalettedContainer<T> recreate();
--
--    PalettedContainerRO.PackedData<T> pack(Strategy<T> strategy);
--
--    record PackedData<T>(List<T> paletteEntries, Optional<LongStream> storage, int bitsPerEntry) {
--        public static final int UNKNOWN_BITS_PER_ENTRY = -1;
--
--        public PackedData(final List<T> paletteEntries, final Optional<LongStream> storage) {
--            this(paletteEntries, storage, -1);
--        }
--    }
--
--    interface Unpacker<T, C extends PalettedContainerRO<T>> {
--        DataResult<C> read(Strategy<T> strategy, PalettedContainerRO.PackedData<T> discData);
--    }
--}
-+package net.minecraft.world.level.chunk;
-+
-+import com.google.common.annotations.VisibleForTesting;
-+import com.mojang.serialization.DataResult;
-+import java.util.List;
-+import java.util.Optional;
-+import java.util.function.Consumer;
-+import java.util.function.Predicate;
-+import java.util.stream.LongStream;
-+import net.minecraft.network.FriendlyByteBuf;
-+
-+public interface PalettedContainerRO<T> {
-+    T get(int x, int y, int z);
-+
-+    void getAll(Consumer<T> consumer);
-+
+@@ -14,7 +14,11 @@ public interface PalettedContainerRO<T> {
+ 
+     void getAll(Consumer<T> consumer);
+ 
 +    // Paper start - Anti-Xray - Add chunk packet info
 +    @Deprecated @io.papermc.paper.annotation.DoNotUse
-+    void write(FriendlyByteBuf buffer);
+     void write(FriendlyByteBuf buffer);
 +    void write(FriendlyByteBuf buffer, io.papermc.paper.antixray.@org.jspecify.annotations.Nullable ChunkPacketInfo<T> chunkPacketInfo, int chunkSectionIndex);
 +    // Paper end
-+
-+    int getSerializedSize();
-+
-+    @VisibleForTesting
-+    int bitsPerEntry();
-+
-+    boolean maybeHas(Predicate<T> predicate);
-+
-+    void forEachInPalette(Consumer<T> consumer);
-+
-+    void count(PalettedContainer.CountConsumer<T> output);
-+
-+    PalettedContainer<T> copy();
-+
-+    PalettedContainer<T> recreate();
-+
-+    PalettedContainerRO.PackedData<T> pack(Strategy<T> strategy);
-+
-+    record PackedData<T>(List<T> paletteEntries, Optional<LongStream> storage, int bitsPerEntry) {
-+        public static final int UNKNOWN_BITS_PER_ENTRY = -1;
-+
-+        public PackedData(final List<T> paletteEntries, final Optional<LongStream> storage) {
-+            this(paletteEntries, storage, -1);
-+        }
-+    }
-+
-+    interface Unpacker<T, C extends PalettedContainerRO<T>> {
-+        DataResult<C> read(Strategy<T> strategy, PalettedContainerRO.PackedData<T> discData);
-+    }
-+}
+ 
+     int getSerializedSize();
+ 
 diff --git a/net/minecraft/world/level/chunk/Strategy.java b/net/minecraft/world/level/chunk/Strategy.java
-index 5c518b6ec7da546460884c37e9af682b6ab9fc22..18c6845bcd3a96e5f1290018e546b3d9e898fb63 100644
+index 5c518b6ec7da546460884c37e9af682b6ab9fc22..958be147cd940ac430576ca5b4ada70fa5d051e3 100644
 --- a/net/minecraft/world/level/chunk/Strategy.java
 +++ b/net/minecraft/world/level/chunk/Strategy.java
-@@ -1,91 +1,91 @@
--package net.minecraft.world.level.chunk;
--
--import net.minecraft.core.IdMap;
--import net.minecraft.util.Mth;
--
--public abstract class Strategy<T> {
+@@ -4,7 +4,7 @@ import net.minecraft.core.IdMap;
+ import net.minecraft.util.Mth;
+ 
+ public abstract class Strategy<T> {
 -    private static final Palette.Factory SINGLE_VALUE_PALETTE_FACTORY = SingleValuePalette::create;
--    private static final Palette.Factory LINEAR_PALETTE_FACTORY = LinearPalette::create;
--    private static final Palette.Factory HASHMAP_PALETTE_FACTORY = HashMapPalette::create;
--    private static final Configuration ZERO_BITS = new Configuration.Simple(SINGLE_VALUE_PALETTE_FACTORY, 0);
--    private static final Configuration ONE_BIT_LINEAR = new Configuration.Simple(LINEAR_PALETTE_FACTORY, 1);
--    private static final Configuration TWO_BITS_LINEAR = new Configuration.Simple(LINEAR_PALETTE_FACTORY, 2);
--    private static final Configuration THREE_BITS_LINEAR = new Configuration.Simple(LINEAR_PALETTE_FACTORY, 3);
--    private static final Configuration FOUR_BITS_LINEAR = new Configuration.Simple(LINEAR_PALETTE_FACTORY, 4);
--    private static final Configuration FIVE_BITS_HASHMAP = new Configuration.Simple(HASHMAP_PALETTE_FACTORY, 5);
--    private static final Configuration SIX_BITS_HASHMAP = new Configuration.Simple(HASHMAP_PALETTE_FACTORY, 6);
--    private static final Configuration SEVEN_BITS_HASHMAP = new Configuration.Simple(HASHMAP_PALETTE_FACTORY, 7);
--    private static final Configuration EIGHT_BITS_HASHMAP = new Configuration.Simple(HASHMAP_PALETTE_FACTORY, 8);
--    private final IdMap<T> globalMap;
--    private final GlobalPalette<T> globalPalette;
--    protected final int globalPaletteBitsInMemory;
--    private final int bitsPerAxis;
--    private final int entryCount;
--
--    private Strategy(final IdMap<T> globalMap, final int bitsPerAxis) {
--        this.globalMap = globalMap;
--        this.globalPalette = new GlobalPalette<>(globalMap);
--        this.globalPaletteBitsInMemory = minimumBitsRequiredForDistinctValues(globalMap.size());
--        this.bitsPerAxis = bitsPerAxis;
--        this.entryCount = 1 << bitsPerAxis * 3;
--    }
--
--    public static <T> Strategy<T> createForBlockStates(final IdMap<T> registry) {
--        return new Strategy<T>(registry, 4) {
--            @Override
--            public Configuration getConfigurationForBitCount(final int entryBits) {
--                return switch (entryBits) {
--                    case 0 -> Strategy.ZERO_BITS;
--                    case 1, 2, 3, 4 -> Strategy.FOUR_BITS_LINEAR;
--                    case 5 -> Strategy.FIVE_BITS_HASHMAP;
--                    case 6 -> Strategy.SIX_BITS_HASHMAP;
--                    case 7 -> Strategy.SEVEN_BITS_HASHMAP;
--                    case 8 -> Strategy.EIGHT_BITS_HASHMAP;
--                    default -> new Configuration.Global(this.globalPaletteBitsInMemory, entryBits);
--                };
--            }
--        };
--    }
--
--    public static <T> Strategy<T> createForBiomes(final IdMap<T> registry) {
--        return new Strategy<T>(registry, 2) {
--            @Override
--            public Configuration getConfigurationForBitCount(final int entryBits) {
--                return switch (entryBits) {
--                    case 0 -> Strategy.ZERO_BITS;
--                    case 1 -> Strategy.ONE_BIT_LINEAR;
--                    case 2 -> Strategy.TWO_BITS_LINEAR;
--                    case 3 -> Strategy.THREE_BITS_LINEAR;
--                    default -> new Configuration.Global(this.globalPaletteBitsInMemory, entryBits);
--                };
--            }
--        };
--    }
--
--    public int entryCount() {
--        return this.entryCount;
--    }
--
--    public int getIndex(final int x, final int y, final int z) {
--        return (y << this.bitsPerAxis | z) << this.bitsPerAxis | x;
--    }
--
--    public IdMap<T> globalMap() {
--        return this.globalMap;
--    }
--
--    public GlobalPalette<T> globalPalette() {
--        return this.globalPalette;
--    }
--
--    protected abstract Configuration getConfigurationForBitCount(int entryBits);
--
--    protected Configuration getConfigurationForPaletteSize(final int paletteSize) {
--        int bits = minimumBitsRequiredForDistinctValues(paletteSize);
--        return this.getConfigurationForBitCount(bits);
--    }
--
--    private static int minimumBitsRequiredForDistinctValues(final int count) {
--        return Mth.ceillog2(count);
--    }
--}
-+package net.minecraft.world.level.chunk;
-+
-+import net.minecraft.core.IdMap;
-+import net.minecraft.util.Mth;
-+
-+public abstract class Strategy<T> {
 +    public static final Palette.Factory SINGLE_VALUE_PALETTE_FACTORY = SingleValuePalette::create; // Paper - Anti-Xray
-+    private static final Palette.Factory LINEAR_PALETTE_FACTORY = LinearPalette::create;
-+    private static final Palette.Factory HASHMAP_PALETTE_FACTORY = HashMapPalette::create;
-+    private static final Configuration ZERO_BITS = new Configuration.Simple(SINGLE_VALUE_PALETTE_FACTORY, 0);
-+    private static final Configuration ONE_BIT_LINEAR = new Configuration.Simple(LINEAR_PALETTE_FACTORY, 1);
-+    private static final Configuration TWO_BITS_LINEAR = new Configuration.Simple(LINEAR_PALETTE_FACTORY, 2);
-+    private static final Configuration THREE_BITS_LINEAR = new Configuration.Simple(LINEAR_PALETTE_FACTORY, 3);
-+    private static final Configuration FOUR_BITS_LINEAR = new Configuration.Simple(LINEAR_PALETTE_FACTORY, 4);
-+    private static final Configuration FIVE_BITS_HASHMAP = new Configuration.Simple(HASHMAP_PALETTE_FACTORY, 5);
-+    private static final Configuration SIX_BITS_HASHMAP = new Configuration.Simple(HASHMAP_PALETTE_FACTORY, 6);
-+    private static final Configuration SEVEN_BITS_HASHMAP = new Configuration.Simple(HASHMAP_PALETTE_FACTORY, 7);
-+    private static final Configuration EIGHT_BITS_HASHMAP = new Configuration.Simple(HASHMAP_PALETTE_FACTORY, 8);
-+    private final IdMap<T> globalMap;
-+    private final GlobalPalette<T> globalPalette;
-+    protected final int globalPaletteBitsInMemory;
-+    private final int bitsPerAxis;
-+    private final int entryCount;
-+
-+    private Strategy(final IdMap<T> globalMap, final int bitsPerAxis) {
-+        this.globalMap = globalMap;
-+        this.globalPalette = new GlobalPalette<>(globalMap);
-+        this.globalPaletteBitsInMemory = minimumBitsRequiredForDistinctValues(globalMap.size());
-+        this.bitsPerAxis = bitsPerAxis;
-+        this.entryCount = 1 << bitsPerAxis * 3;
-+    }
-+
-+    public static <T> Strategy<T> createForBlockStates(final IdMap<T> registry) {
-+        return new Strategy<T>(registry, 4) {
-+            @Override
-+            public Configuration getConfigurationForBitCount(final int entryBits) {
-+                return switch (entryBits) {
-+                    case 0 -> Strategy.ZERO_BITS;
-+                    case 1, 2, 3, 4 -> Strategy.FOUR_BITS_LINEAR;
-+                    case 5 -> Strategy.FIVE_BITS_HASHMAP;
-+                    case 6 -> Strategy.SIX_BITS_HASHMAP;
-+                    case 7 -> Strategy.SEVEN_BITS_HASHMAP;
-+                    case 8 -> Strategy.EIGHT_BITS_HASHMAP;
-+                    default -> new Configuration.Global(this.globalPaletteBitsInMemory, entryBits);
-+                };
-+            }
-+        };
-+    }
-+
-+    public static <T> Strategy<T> createForBiomes(final IdMap<T> registry) {
-+        return new Strategy<T>(registry, 2) {
-+            @Override
-+            public Configuration getConfigurationForBitCount(final int entryBits) {
-+                return switch (entryBits) {
-+                    case 0 -> Strategy.ZERO_BITS;
-+                    case 1 -> Strategy.ONE_BIT_LINEAR;
-+                    case 2 -> Strategy.TWO_BITS_LINEAR;
-+                    case 3 -> Strategy.THREE_BITS_LINEAR;
-+                    default -> new Configuration.Global(this.globalPaletteBitsInMemory, entryBits);
-+                };
-+            }
-+        };
-+    }
-+
-+    public int entryCount() {
-+        return this.entryCount;
-+    }
-+
-+    public int getIndex(final int x, final int y, final int z) {
-+        return (y << this.bitsPerAxis | z) << this.bitsPerAxis | x;
-+    }
-+
-+    public IdMap<T> globalMap() {
-+        return this.globalMap;
-+    }
-+
-+    public GlobalPalette<T> globalPalette() {
-+        return this.globalPalette;
-+    }
-+
-+    protected abstract Configuration getConfigurationForBitCount(int entryBits);
-+
-+    protected Configuration getConfigurationForPaletteSize(final int paletteSize) {
-+        int bits = minimumBitsRequiredForDistinctValues(paletteSize);
-+        return this.getConfigurationForBitCount(bits);
-+    }
-+
-+    private static int minimumBitsRequiredForDistinctValues(final int count) {
-+        return Mth.ceillog2(count);
-+    }
-+}
+     private static final Palette.Factory LINEAR_PALETTE_FACTORY = LinearPalette::create;
+     private static final Palette.Factory HASHMAP_PALETTE_FACTORY = HashMapPalette::create;
+     private static final Configuration ZERO_BITS = new Configuration.Simple(SINGLE_VALUE_PALETTE_FACTORY, 0);
 diff --git a/net/minecraft/world/level/chunk/storage/SerializableChunkData.java b/net/minecraft/world/level/chunk/storage/SerializableChunkData.java
 index f099aa45853b4e21b4a6e8052fa6848da6c4ed0b..1bfb83a0194bf5d802370ae53d4cbfeca0069584 100644
 --- a/net/minecraft/world/level/chunk/storage/SerializableChunkData.java

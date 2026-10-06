@@ -5,7 +5,7 @@ Subject: [PATCH] Restore async player respawn lifecycle
 
 
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 77db63f19c334857cd3b9630867617761ddf8fe9..9e4c3a7553bf40955ac5bd7c9f5521d3bf5ff22c 100644
+index 093163f06ef85fccddc9f182bfb6008eca6bf269..74dceb17b5829affecb5feeb11687964bd170ba5 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
 @@ -292,6 +292,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
