@@ -90,6 +90,10 @@ public final class RuntimeWorldLifecycleSmokePlugin extends JavaPlugin {
             return;
         }
         this.worlds = Bukkit.getRuntimeWorldManager();
+        if (this.mode.equals("whitelist-command")) {
+            new NativeWhitelistCommandSmoke(this).start();
+            return;
+        }
         if (this.mode.equals("console-shutdown")) {
             this.consoleShutdown = new ConsoleShutdownSmoke(this);
             this.consoleShutdown.start();

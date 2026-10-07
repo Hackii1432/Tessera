@@ -1,0 +1,477 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Wed, 7 Oct 2026 17:53:55 +0200
+Subject: [PATCH] Resolve whitelist profiles off tick threads with accurate
+ failures
+
+
+diff --git a/com/mojang/authlib/services/MinecraftServicesProfileRepository.java b/com/mojang/authlib/services/MinecraftServicesProfileRepository.java
+index 65adccd1952bb9f6b8c46ac72cd725f37ece0829..6049ef63c4fd7ed01f1d409b82f00174aa1dffec 100644
+--- a/com/mojang/authlib/services/MinecraftServicesProfileRepository.java
++++ b/com/mojang/authlib/services/MinecraftServicesProfileRepository.java
+@@ -124,6 +124,21 @@ public class MinecraftServicesProfileRepository implements GameProfileRepository
+         }
+     }
+ 
++    // Tessera start - distinguish a missing whitelist profile from a failed service request
++    public Optional<NameAndId> tessera$findProfileByNameStrict(final String name) {
++        try {
++            return Optional.ofNullable(client.get(HttpDiscoveryService.constantURL(
++                discoveryService.getUrl(Service.PROFILES, "getByName").replace("{name}", normalizeName(name))
++            ), NameAndId.class));
++        } catch (final com.mojang.authlib.exceptions.MinecraftClientHttpException exception) {
++            if (exception.getStatus() == 404) {
++                return Optional.empty();
++            }
++            throw exception;
++        }
++    }
++    // Tessera end - distinguish a missing whitelist profile from a failed service request
++
+     private static String normalizeName(final String name) {
+         return name.toLowerCase(Locale.ROOT);
+     }
+diff --git a/io/papermc/paper/command/WhitelistProfileLookup.java b/io/papermc/paper/command/WhitelistProfileLookup.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a39782e6eb3a5c74e407a9f87abf38f81458a820
+--- /dev/null
++++ b/io/papermc/paper/command/WhitelistProfileLookup.java
+@@ -0,0 +1,156 @@
++package io.papermc.paper.command;
++
++import com.mojang.brigadier.context.ContextChain;
++import com.mojang.brigadier.exceptions.CommandSyntaxException;
++import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
++import java.util.Locale;
++import java.util.Optional;
++import java.util.concurrent.ArrayBlockingQueue;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.ConcurrentHashMap;
++import java.util.concurrent.Executor;
++import java.util.concurrent.ThreadPoolExecutor;
++import java.util.concurrent.TimeUnit;
++import java.util.function.Supplier;
++import net.minecraft.commands.CommandSourceStack;
++import net.minecraft.commands.arguments.GameProfileArgument;
++import net.minecraft.network.chat.Component;
++import net.minecraft.server.players.CachedUserNameToIdResolver;
++import net.minecraft.server.players.NameAndId;
++import net.minecraft.util.StringUtil;
++import org.jspecify.annotations.NullMarked;
++import org.jspecify.annotations.Nullable;
++
++/** Internal command preparation, not a plugin API or a replacement for authentication. */
++@NullMarked
++public final class WhitelistProfileLookup {
++    private static final org.slf4j.Logger LOGGER = com.mojang.logging.LogUtils.getLogger();
++    private static final WhitelistProfileLookup INSTANCE = new WhitelistProfileLookup(
++        new ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(32),
++            Thread.ofPlatform().daemon().name("Tessera whitelist profiles-", 0).factory(),
++            new ThreadPoolExecutor.AbortPolicy()), 10L, TimeUnit.SECONDS
++    );
++    private final Executor executor;
++    private final long timeout;
++    private final TimeUnit timeoutUnit;
++    private final ConcurrentHashMap<String, CompletableFuture<Outcome>> inFlight = new ConcurrentHashMap<>();
++
++    public WhitelistProfileLookup(final Executor executor, final long timeout, final TimeUnit timeoutUnit) {
++        this.executor = executor;
++        this.timeout = timeout;
++        this.timeoutUnit = timeoutUnit;
++    }
++
++    public record Outcome(@Nullable NameAndId profile, @Nullable Throwable failure) {
++        public NameAndId requireProfile(final String requestedName) throws CommandSyntaxException {
++            if (this.failure != null) {
++                throw new SimpleCommandExceptionType(Component.literal(
++                    "Unable to look up player '" + requestedName + "': profile service unavailable, timed out or busy. Please try again."
++                )).create();
++            }
++            if (this.profile == null) {
++                throw GameProfileArgument.ERROR_UNKNOWN_PLAYER.create();
++            }
++            return this.profile;
++        }
++    }
++
++    public record Prepared(GameProfileArgument.NameResult argument, CompletableFuture<Outcome> result) {}
++
++    public static @Nullable Prepared prepare(final ContextChain<CommandSourceStack> chain, final CommandSourceStack sender) {
++        ContextChain<CommandSourceStack> terminal = chain;
++        boolean whitelist = false;
++        while (true) {
++            whitelist |= terminal.getTopContext().getNodes().stream().anyMatch(node -> {
++                final String name = node.getNode().getName();
++                return name.equals("whitelist") || name.equals("minecraft:whitelist");
++            });
++            if (terminal.getStage() == ContextChain.Stage.EXECUTE) break;
++            terminal = terminal.nextStage();
++        }
++        final var context = terminal.getTopContext();
++        if (!whitelist) {
++            return null;
++        }
++        final GameProfileArgument.Result targets;
++        try {
++            targets = context.getArgument("targets", GameProfileArgument.Result.class);
++        } catch (final IllegalArgumentException absent) {
++            return null; // on/off/list/reload
++        }
++        if (!(targets instanceof GameProfileArgument.NameResult named) || named.tessera$isPrepared()) {
++            return null; // selectors need their existing owner's context
++        }
++        final String name = named.tessera$name();
++        final boolean removing = context.getNodes().stream().anyMatch(node -> node.getNode().getName().equals("remove"));
++        final NameAndId known = removing ? findKnownForRemoval(sender, name) : findKnown(sender, name);
++        if (known != null) {
++            named.tessera$prepare(new Outcome(known, null));
++            return null;
++        }
++        if (!StringUtil.isValidPlayerName(name)) {
++            named.tessera$prepare(new Outcome(null, null));
++            return null;
++        }
++        if (!(sender.getServer().services().nameToIdCache() instanceof CachedUserNameToIdResolver resolver)) {
++            named.tessera$prepare(new Outcome(null, new IllegalStateException("Unsupported profile resolver")));
++            return null;
++        }
++        return new Prepared(named, INSTANCE.request(name, () -> resolver.tessera$lookupUncachedForWhitelist(name)));
++    }
++
++    public static @Nullable NameAndId findKnown(final CommandSourceStack sender, final String name) {
++        if (sender.getServer().services().nameToIdCache() instanceof CachedUserNameToIdResolver resolver) {
++            return resolver.tessera$getValidCached(name);
++        }
++        return null;
++    }
++
++    public static @Nullable NameAndId findKnownForRemoval(final CommandSourceStack sender, final String name) {
++        // Remove the stored identity even without usercache/network availability. For add,
++        // a stale whitelist name alone is NOT evidence of the name's current UUID owner.
++        for (final var entry : sender.getServer().getPlayerList().getWhiteList().getEntries()) {
++            final NameAndId profile = entry.getUser();
++            if (profile != null && profile.name().equalsIgnoreCase(name)) {
++                return profile;
++            }
++        }
++        return findKnown(sender, name);
++    }
++
++    public CompletableFuture<Outcome> request(final String name, final Supplier<Optional<NameAndId>> lookup) {
++        final String key = name.toLowerCase(Locale.ROOT);
++        final CompletableFuture<Outcome> pending = new CompletableFuture<>();
++        final CompletableFuture<Outcome> existing = this.inFlight.putIfAbsent(key, pending);
++        if (existing != null) {
++            // A caller cancelling its own command must not cancel another caller's lookup.
++            return existing.copy();
++        }
++        pending.orTimeout(this.timeout, this.timeoutUnit);
++        pending.whenComplete((ignored, failure) -> this.inFlight.remove(key, pending));
++        try {
++            this.executor.execute(() -> {
++                if (pending.isDone()) return;
++                try {
++                    final Optional<NameAndId> result = lookup.get();
++                    final NameAndId profile = result.orElse(null);
++                    if (profile != null && (profile.id() == null || !profile.name().equalsIgnoreCase(name))) {
++                        throw new IllegalStateException("Profile service returned a different player identity");
++                    }
++                    pending.complete(new Outcome(profile, null));
++                } catch (final Throwable failure) {
++                    pending.complete(new Outcome(null, failure));
++                }
++            });
++        } catch (final java.util.concurrent.RejectedExecutionException busy) {
++            pending.complete(new Outcome(null, busy));
++        }
++        return pending.handle((result, failure) -> {
++            final Outcome outcome = failure == null ? result : new Outcome(null, failure);
++            if (outcome.failure() != null) {
++                LOGGER.warn("Whitelist profile lookup failed for {}: {}", name, outcome.failure().toString());
++            }
++            return outcome;
++        });
++    }
++}
+diff --git a/net/minecraft/commands/Commands.java b/net/minecraft/commands/Commands.java
+index a1379381477b6a41560528241df3dac4e65fd245..3a2f0476d822024c81849e6a09a7640eae57520b 100644
+--- a/net/minecraft/commands/Commands.java
++++ b/net/minecraft/commands/Commands.java
+@@ -402,6 +402,12 @@ public class Commands {
+ 
+         try {
+             if (commandChain != null) {
++                // Tessera start - await whitelist profiles outside all tick threads
++                final var whitelist = io.papermc.paper.command.WhitelistProfileLookup.prepare(commandChain, sender);
++                if (whitelist != null) {
++                    return this.tessera$scheduleWhitelistCommand(command, commandString, throwCommandError, sender, whitelist);
++                }
++                // Tessera end - await whitelist profiles outside all tick threads
+                 // New NBT branches must not expose an unsafe selector in an earlier
+                 // execute modifier, before the accessor can check its target's owner.
+                 if (!tessera$validateNbtSelectors(commandChain, sender)) {
+@@ -454,6 +460,85 @@ public class Commands {
+         }
+     }
+ 
++    // Tessera start - await whitelist profiles outside all tick threads
++    private CompletableFuture<Void> tessera$scheduleWhitelistCommand(
++        final ParseResults<CommandSourceStack> command, final String commandString, final boolean throwCommandError,
++        final CommandSourceStack sender, final io.papermc.paper.command.WhitelistProfileLookup.Prepared lookup
++    ) {
++        final CompletableFuture<Void> completion = new CompletableFuture<>();
++        completion.orTimeout(15L, java.util.concurrent.TimeUnit.SECONDS);
++        final net.minecraft.world.entity.Entity sourceEntity = sender.getEntity();
++        final boolean refreshPlayerPermissions = sourceEntity instanceof net.minecraft.server.level.ServerPlayer player
++            && sender.source == player.commandSource();
++        final org.bukkit.craftbukkit.entity.CraftEntity sourceHandle = sourceEntity == null ? null : sourceEntity.getBukkitEntity();
++        lookup.result().whenComplete((outcome, lookupFailure) -> {
++            if (completion.isDone()) return;
++            lookup.argument().tessera$prepare(lookupFailure == null ? outcome
++                : new io.papermc.paper.command.WhitelistProfileLookup.Outcome(null, lookupFailure));
++            final java.util.function.Consumer<CommandSourceStack> resume = currentSource -> {
++                if (completion.isDone()) return;
++                if (sender.getServer().hasStopped()) {
++                    completion.completeExceptionally(new IllegalStateException("Server stopped before whitelist command completed"));
++                    return;
++                }
++                try {
++                    final ParseResults<CommandSourceStack> currentCommand = mapSource(command, ignored -> currentSource);
++                    // Permissions can change while the remote lookup is in flight.
++                    com.mojang.brigadier.context.CommandContextBuilder<CommandSourceStack> stage = currentCommand.getContext();
++                    while (stage != null) {
++                        for (final var node : stage.getNodes()) {
++                            if (!node.getNode().canUse(currentSource)) {
++                                currentSource.sendFailure(Component.literal("You no longer have permission to run this whitelist command."));
++                                currentSource.callback().onFailure();
++                                completion.complete(null);
++                                return;
++                            }
++                        }
++                        stage = stage.getChild();
++                    }
++                    if (outcome != null && outcome.profile() != null) {
++                        sender.getServer().services().nameToIdCache().add(outcome.profile());
++                    }
++                    this.performCommandAsync(currentCommand, commandString, throwCommandError)
++                        .whenComplete((ignored, failure) -> {
++                            if (failure == null) completion.complete(null);
++                            else completion.completeExceptionally(failure);
++                        });
++                } catch (final Throwable failure) {
++                    completion.completeExceptionally(failure);
++                }
++            };
++            if (sender.getServer().hasStopped()) {
++                completion.completeExceptionally(new IllegalStateException("Server stopped before whitelist command completed"));
++            } else if (sourceHandle != null) {
++                final boolean scheduled = sourceHandle.taskScheduler.schedule(currentEntity -> {
++                    if (currentEntity instanceof net.minecraft.server.level.ServerPlayer player && !player.connection.isAcceptingMessages()) {
++                        completion.completeExceptionally(new IllegalStateException("Whitelist command source disconnected"));
++                        return;
++                    }
++                    CommandSourceStack currentSource = sender.withEntity(currentEntity).withLevel((ServerLevel)currentEntity.level())
++                        .withPosition(currentEntity.position());
++                    if (refreshPlayerPermissions && currentEntity instanceof net.minecraft.server.level.ServerPlayer player) {
++                        currentSource = currentSource.withSource(player.commandSource()).withPermission(player.permissions());
++                    }
++                    resume.accept(currentSource);
++                }, retired -> completion.completeExceptionally(new IllegalStateException("Whitelist command source retired")), 1L);
++                if (!scheduled) completion.completeExceptionally(new IllegalStateException("Whitelist command source retired"));
++            } else if (sender.source == sender.getServer() || sender.source instanceof net.minecraft.server.rcon.RconConsoleSource) {
++                io.papermc.paper.threadedregions.RegionizedServer.getInstance().addTask(() -> resume.accept(sender));
++            } else {
++                // Command blocks and non-entity plugin sources retain their captured region.
++                final var task = io.papermc.paper.threadedregions.RegionizedServer.getInstance().taskQueue.createTickTaskQueue(
++                    sender.getLevel(), net.minecraft.util.Mth.floor(sender.getPosition().x()) >> 4,
++                    net.minecraft.util.Mth.floor(sender.getPosition().z()) >> 4, () -> resume.accept(sender)
++                );
++                if (!task.queue()) completion.completeExceptionally(new IllegalStateException("Whitelist command source region unavailable"));
++            }
++        });
++        return completion;
++    }
++    // Tessera end - await whitelist profiles outside all tick threads
++
+     private CompletableFuture<Void> tessera$scheduleRegionCommand(
+         final ParseResults<CommandSourceStack> command,
+         final String commandString,
+diff --git a/net/minecraft/commands/arguments/GameProfileArgument.java b/net/minecraft/commands/arguments/GameProfileArgument.java
+index 447bd7fa8e61d8db7539baf05eb7f65b6dcd030c..597579c5c0a197bb6f7fa464f5b33d90638f1e27 100644
+--- a/net/minecraft/commands/arguments/GameProfileArgument.java
++++ b/net/minecraft/commands/arguments/GameProfileArgument.java
+@@ -62,10 +62,7 @@ public class GameProfileArgument implements ArgumentType<GameProfileArgument.Res
+             }
+ 
+             String name = reader.getString().substring(start, reader.getCursor());
+-            return c -> {
+-                Optional<NameAndId> result = c.getServer().services().nameToIdCache().get(name);
+-                return Collections.singleton(result.orElseThrow(ERROR_UNKNOWN_PLAYER::create));
+-            };
++            return new NameResult(name); // Tessera - prepare named whitelist targets off tick threads
+         }
+     }
+ 
+@@ -97,6 +94,57 @@ public class GameProfileArgument implements ArgumentType<GameProfileArgument.Res
+         Collection<NameAndId> getNames(final CommandSourceStack sender) throws CommandSyntaxException;
+     }
+ 
++    // Tessera start - prepare named whitelist targets off tick threads
++    public static final class NameResult implements Result {
++        private final String name;
++        private volatile io.papermc.paper.command.WhitelistProfileLookup.@org.jspecify.annotations.Nullable Outcome whitelistOutcome;
++
++        public NameResult(final String name) {
++            this.name = name;
++        }
++
++        public String tessera$name() {
++            return this.name;
++        }
++
++        public boolean tessera$isPrepared() {
++            return this.whitelistOutcome != null;
++        }
++
++        public void tessera$prepare(final io.papermc.paper.command.WhitelistProfileLookup.Outcome outcome) {
++            this.whitelistOutcome = outcome;
++        }
++
++        public Collection<NameAndId> tessera$getWhitelistNames(final CommandSourceStack sender) throws CommandSyntaxException {
++            return this.tessera$getWhitelistNames(sender, false);
++        }
++
++        public Collection<NameAndId> tessera$getWhitelistNames(final CommandSourceStack sender, final boolean removing) throws CommandSyntaxException {
++            final var outcome = this.whitelistOutcome;
++            if (outcome != null) {
++                return Collections.singleton(outcome.requireProfile(this.name));
++            }
++            // Function/direct-Brigadier execution has no asynchronous dispatcher Future.
++            // Never let those paths silently reintroduce network I/O on a tick thread.
++            final NameAndId cached = removing
++                ? io.papermc.paper.command.WhitelistProfileLookup.findKnownForRemoval(sender, this.name)
++                : io.papermc.paper.command.WhitelistProfileLookup.findKnown(sender, this.name);
++            if (cached != null) {
++                return Collections.singleton(cached);
++            }
++            throw new SimpleCommandExceptionType(Component.literal(
++                "Uncached whitelist names require asynchronous command dispatch; run this command from console, RCON or a player."
++            )).create();
++        }
++
++        @Override
++        public Collection<NameAndId> getNames(final CommandSourceStack sender) throws CommandSyntaxException {
++            Optional<NameAndId> result = sender.getServer().services().nameToIdCache().get(this.name);
++            return Collections.singleton(result.orElseThrow(ERROR_UNKNOWN_PLAYER::create));
++        }
++    }
++    // Tessera end - prepare named whitelist targets off tick threads
++
+     public static class SelectorResult implements GameProfileArgument.Result {
+         private final EntitySelector selector;
+ 
+diff --git a/net/minecraft/server/commands/WhitelistCommand.java b/net/minecraft/server/commands/WhitelistCommand.java
+index 3bc559b636288d38192c64a2aba15c062898182f..591e25d7223c8846a38f9f6f62beb5a2630cea89 100644
+--- a/net/minecraft/server/commands/WhitelistCommand.java
++++ b/net/minecraft/server/commands/WhitelistCommand.java
+@@ -54,7 +54,7 @@ public class WhitelistCommand {
+                                         );
+                                     }
+                                 )
+-                                .executes(c -> addPlayers(c.getSource(), GameProfileArgument.getGameProfiles(c, "targets")))
++                                .executes(c -> addPlayers(c.getSource(), tessera$getProfiles(c, false))) // Tessera - nonblocking profiles
+                         )
+                 )
+                 .then(
+@@ -62,13 +62,23 @@ public class WhitelistCommand {
+                         .then(
+                             Commands.argument("targets", GameProfileArgument.gameProfile())
+                                 .suggests((c, p) -> SharedSuggestionProvider.suggest(c.getSource().getServer().getPlayerList().getWhiteListNames(), p))
+-                                .executes(c -> removePlayers(c.getSource(), GameProfileArgument.getGameProfiles(c, "targets")))
++                                .executes(c -> removePlayers(c.getSource(), tessera$getProfiles(c, true))) // Tessera - nonblocking profiles
+                         )
+                 )
+                 .then(Commands.literal("reload").executes(c -> reload(c.getSource())))
+         );
+     }
+ 
++    // Tessera start - keep selectors local and named lookups off tick threads
++    private static Collection<NameAndId> tessera$getProfiles(
++        final com.mojang.brigadier.context.CommandContext<CommandSourceStack> context, final boolean removing
++    ) throws CommandSyntaxException {
++        final GameProfileArgument.Result result = context.getArgument("targets", GameProfileArgument.Result.class);
++        return result instanceof GameProfileArgument.NameResult named
++            ? named.tessera$getWhitelistNames(context.getSource(), removing) : result.getNames(context.getSource());
++    }
++    // Tessera end - keep selectors local and named lookups off tick threads
++
+     private static int reload(final CommandSourceStack source) {
+         source.getServer().getPlayerList().reloadWhiteList();
+         source.sendSuccess(() -> Component.translatable("commands.whitelist.reloaded"), true);
+@@ -83,7 +93,9 @@ public class WhitelistCommand {
+         for (NameAndId target : targets) {
+             if (!list.isWhiteListed(target)) {
+                 UserWhiteListEntry entry = new UserWhiteListEntry(target);
+-                list.add(entry);
++                if (!list.add(entry)) { // Tessera - respect Paper whitelist event vetoes
++                    throw new SimpleCommandExceptionType(Component.literal("Whitelist addition was cancelled or rejected for " + target.name())).create();
++                }
+                 source.sendSuccess(() -> Component.translatable("commands.whitelist.add.success", Component.literal(target.name())), true);
+                 success++;
+             }
+@@ -103,7 +115,9 @@ public class WhitelistCommand {
+         for (NameAndId target : targets) {
+             if (list.isWhiteListed(target)) {
+                 UserWhiteListEntry entry = new UserWhiteListEntry(target);
+-                list.remove(entry);
++                if (!list.remove(entry)) { // Tessera - respect Paper whitelist event vetoes
++                    throw new SimpleCommandExceptionType(Component.literal("Whitelist removal was cancelled or rejected for " + target.name())).create();
++                }
+                 source.sendSuccess(() -> Component.translatable("commands.whitelist.remove.success", Component.literal(target.name())), true);
+                 success++;
+             }
+diff --git a/net/minecraft/server/players/CachedUserNameToIdResolver.java b/net/minecraft/server/players/CachedUserNameToIdResolver.java
+index 7443744e3f256983e52a1cefcaf66082e4a46a7b..78f123a651ee6fbfa69337d214c1d0775399eec5 100644
+--- a/net/minecraft/server/players/CachedUserNameToIdResolver.java
++++ b/net/minecraft/server/players/CachedUserNameToIdResolver.java
+@@ -120,6 +120,40 @@ public class CachedUserNameToIdResolver implements UserNameToIdResolver {
+     }
+     // Paper end
+ 
++    // Tessera start - nonblocking whitelist profile preparation
++    public @org.jspecify.annotations.Nullable NameAndId tessera$getValidCached(final String name) {
++        this.stateLock.lock();
++        try {
++            final GameProfileInfo entry = this.profilesByName.get(name.toLowerCase(Locale.ROOT));
++            if (entry == null || System.currentTimeMillis() >= entry.expirationDate.getTime()) {
++                return null;
++            }
++            entry.setLastAccess(this.getNextOperation());
++            return entry.nameAndId();
++        } finally {
++            this.stateLock.unlock();
++        }
++    }
++
++    public Optional<NameAndId> tessera$lookupUncachedForWhitelist(final String name) {
++        if (ca.spottedleaf.moonrise.common.util.TickThread.isTickThread()) {
++            throw new IllegalStateException("Whitelist profile network lookups cannot run on a tick thread");
++        }
++        if (!StringUtil.isValidPlayerName(name)) {
++            return Optional.empty();
++        }
++        if (!io.papermc.paper.configuration.GlobalConfiguration.get().proxies.isProxyOnlineMode()) {
++            // Preserve Vanilla's case-sensitive offline UUID derivation. Known profiles
++            // and existing whitelist entries are resolved before reaching this fallback.
++            return this.createUnknownProfile(name);
++        }
++        if (this.profileRepository instanceof com.mojang.authlib.services.MinecraftServicesProfileRepository repository) {
++            return repository.tessera$findProfileByNameStrict(name).map(NameAndId::new);
++        }
++        return this.profileRepository.findProfileByName(name).map(NameAndId::new);
++    }
++    // Tessera end - nonblocking whitelist profile preparation
++
+     @Override
+     public Optional<NameAndId> get(final String name) {
+         String userName = name.toLowerCase(Locale.ROOT);

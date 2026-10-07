@@ -1,0 +1,77 @@
+{
+  "date": "2026-10-07",
+  "release": "26.3-017-beta",
+  "source": {
+    "rootBaseCommit": "07c34c0257275c4dbc23c081d95e9538196c2916",
+    "includesLocalChanges": true,
+    "minecraftAppliedHead": "a44249c6b9c44b67f56301e0a0416a394e3b1a2e",
+    "paperServerAppliedHead": "752c7e85fb7fa82d716bf41ac8834aa3f23b9c91",
+    "rootCommitOrPushPerformed": false
+  },
+  "artifact": {
+    "path": "build/libs/tessera-server-26.3.build.017-beta.jar",
+    "bytes": 55630688,
+    "sha256": "262768301132e194c35aeb4cfff9cb84a4c6d676f03a92934782dab0edaa7196"
+  },
+  "patches": [
+    {
+      "path": "folia-server/minecraft-patches/features/0059-Resolve-whitelist-profiles-off-tick-threads-with-acc.patch",
+      "sha256": "5d657c089f37fa53fd48c31117b919a74d85268edebc644809ff1ffc971e232c"
+    },
+    {
+      "path": "folia-server/paper-patches/features/0048-Preserve-profile-hooks-and-test-nonblocking-whitelis.patch",
+      "sha256": "84c0b9b8a5e0f3e873d02ad7a1f79647be050c68be1b032c8c98766e942610be"
+    }
+  ],
+  "build": {
+    "task": "buildTessera",
+    "successful": true,
+    "duration": "9m 26s",
+    "java": "25.0.3",
+    "gradle": "9.8.0",
+    "patchesReapplied": true,
+    "qualityChecksDisabled": false,
+    "log": "build/reports/build-logs/whitelist-build.log"
+  },
+  "tests": {
+    "server": {"tests": 10285, "skipped": 87, "failures": 0, "errors": 0, "freshlyExecuted": true},
+    "api": {"tests": 529, "skipped": 2, "failures": 0, "errors": 0, "upToDate": true},
+    "checkstyleHelper": {"tests": 3, "failures": 0, "errors": 0},
+    "whitelist": {"tests": 19, "skipped": 0, "failures": 0, "errors": 0},
+    "documentation": {"validatorTests": 35, "articles": 19, "articleLinks": 52, "passed": true}
+  },
+  "native": {
+    "passed": true,
+    "evidence": "build/reports/native-fixtures/whitelist-command-20261007/result.json",
+    "runner": "smoke-tests/whitelist-command/run.mjs",
+    "assertions": 28,
+    "rconSocketResponses": 8,
+    "logins": 2,
+    "kicks": 1,
+    "disconnects": 1,
+    "intentionalDisconnects": 1,
+    "unexpectedDisconnects": 0,
+    "exitCode": 0,
+    "tickFreeze": true,
+    "actualHttpAuthlibClient": true,
+    "caseInsensitiveUuidChecks": true,
+    "http404And503": true,
+    "actualSocketReadTimeout": true,
+    "latePluginResultRejected": true,
+    "paperWhitelistVeto": true,
+    "playerDimensionChangeDuringLookup": true,
+    "permissionRevocationDuringLookup": true,
+    "disconnectPreventsMutation": true,
+    "actualConsoleStdin": true,
+    "globalWatchdogWarnings": 0,
+    "crossRegionExceptions": 0
+  },
+  "limits": [
+    "Native profile requests use a controlled local HTTP service, not a real Mojang availability test.",
+    "No separate integration with MCSM or the user's actual plugins on this artifact.",
+    "MCC/MVE product code and Sinopia are unchanged; their native integration was not rerun.",
+    "No new visual Vanilla client or native Windows terminal acceptance on this hash.",
+    "Uncached whitelist names in direct Brigadier/datapack function execution are explicitly rejected rather than blocking tick threads.",
+    "Vanilla derivation of new offline UUIDs retains the exact input spelling."
+  ]
+}

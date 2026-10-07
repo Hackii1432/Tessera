@@ -1,0 +1,356 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Wed, 7 Oct 2026 17:53:55 +0200
+Subject: [PATCH] Preserve profile hooks and test nonblocking whitelist
+ resolution
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/profile/PaperGameProfileRepository.java b/src/main/java/com/destroystokyo/paper/profile/PaperGameProfileRepository.java
+index 319f34796ce433a768c5788eb653a44f0fb48d40..1d963cfec70d3b1d953bf74597f954473647bb21 100644
+--- a/src/main/java/com/destroystokyo/paper/profile/PaperGameProfileRepository.java
++++ b/src/main/java/com/destroystokyo/paper/profile/PaperGameProfileRepository.java
+@@ -51,6 +51,20 @@ public class PaperGameProfileRepository extends MinecraftServicesProfileReposito
+         return super.findProfileByName(name);
+     }
+ 
++    // The strict command path keeps the existing profile interception event, including
++    // the requested spelling. Only the network request and cache keys are normalized.
++    @Override
++    public Optional<NameAndId> tessera$findProfileByNameStrict(final String name) {
++        PreLookupProfileEvent event = new PreLookupProfileEvent(name);
++        event.callEvent();
++        if (event.getUUID() != null) {
++            return Optional.of(new NameAndId(event.getUUID(), name));
++        }
++        Optional<NameAndId> result = super.tessera$findProfileByNameStrict(name);
++        result.ifPresent(profile -> new LookupProfileEvent(new CraftPlayerProfile(profile.id(), profile.name())).callEvent());
++        return result;
++    }
++
+     private record PreProfileLookupCallback(ProfileLookupCallback callback) implements ProfileLookupCallback {
+         @Override
+         public void onProfileLookupSucceeded(final String  profileName, final UUID profileId) {
+diff --git a/src/test/java/io/papermc/paper/command/WhitelistProfileLookupTest.java b/src/test/java/io/papermc/paper/command/WhitelistProfileLookupTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..8ddb9772b12afecda4975238a536880c0e18d48d
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/command/WhitelistProfileLookupTest.java
+@@ -0,0 +1,318 @@
++package io.papermc.paper.command;
++
++import com.mojang.authlib.exceptions.MinecraftClientException;
++import com.mojang.authlib.services.MinecraftServicesDiscoveryService;
++import com.mojang.authlib.services.MinecraftServicesProfileRepository;
++import com.mojang.authlib.services.response.discovery.Service;
++import com.mojang.brigadier.CommandDispatcher;
++import com.mojang.brigadier.context.CommandContextBuilder;
++import com.mojang.brigadier.context.ParsedArgument;
++import com.mojang.brigadier.exceptions.CommandSyntaxException;
++import com.sun.net.httpserver.HttpServer;
++import java.net.InetSocketAddress;
++import java.net.Proxy;
++import java.nio.charset.StandardCharsets;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.util.ArrayList;
++import java.util.List;
++import java.util.Locale;
++import java.util.Optional;
++import java.util.UUID;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.CountDownLatch;
++import java.util.concurrent.Executor;
++import java.util.concurrent.Executors;
++import java.util.concurrent.TimeUnit;
++import java.util.concurrent.atomic.AtomicInteger;
++import net.minecraft.commands.CommandSourceStack;
++import net.minecraft.commands.arguments.GameProfileArgument;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.commands.WhitelistCommand;
++import net.minecraft.server.players.CachedUserNameToIdResolver;
++import net.minecraft.server.players.NameAndId;
++import net.minecraft.server.players.PlayerList;
++import net.minecraft.server.players.UserWhiteList;
++import net.minecraft.server.players.UserWhiteListEntry;
++import org.bukkit.support.environment.Normal;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.api.io.TempDir;
++import org.junit.jupiter.api.parallel.ResourceLock;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.ArgumentMatchers.*;
++import static org.mockito.Mockito.*;
++
++@Normal
++class WhitelistProfileLookupTest {
++    private static final NameAndId PROFILE = new NameAndId(UUID.fromString("46e3b5d0-1779-41d2-b72c-68d795a66111"), "smokelower");
++    @TempDir Path directory;
++
++    private WhitelistProfileLookup lookup(Executor executor) {
++        return new WhitelistProfileLookup(executor, 2, TimeUnit.SECONDS);
++    }
++
++    @Test
++    void casingVariantsShareOneInFlightUuidAndKeepCanonicalSpelling() throws Exception {
++        List<Runnable> work = new ArrayList<>();
++        WhitelistProfileLookup service = lookup(work::add);
++        AtomicInteger calls = new AtomicInteger();
++        var lower = service.request("smokelower", () -> { calls.incrementAndGet(); return Optional.of(PROFILE); });
++        var upper = service.request("SmokeLower", () -> { fail("Second spelling must reuse lookup"); return Optional.empty(); });
++        assertFalse(lower.isDone());
++        assertFalse(upper.isDone());
++        assertEquals(1, work.size());
++        work.getFirst().run();
++        assertEquals(PROFILE, lower.get(2, TimeUnit.SECONDS).requireProfile("smokelower"));
++        assertEquals(PROFILE, upper.get(2, TimeUnit.SECONDS).requireProfile("SmokeLower"));
++        assertEquals(1, calls.get());
++    }
++
++    @Test
++    @ResourceLock("default locale")
++    void nameKeysUseRootLocaleRatherThanTurkishDefaultLocale() throws Exception {
++        Locale previous = Locale.getDefault();
++        try {
++            Locale.setDefault(Locale.forLanguageTag("tr-TR"));
++            List<Runnable> work = new ArrayList<>();
++            WhitelistProfileLookup service = lookup(work::add);
++            NameAndId profile = new NameAndId(PROFILE.id(), "ironplayer");
++            var first = service.request("IronPlayer", () -> Optional.of(profile));
++            var second = service.request("ironplayer", Optional::empty);
++            assertEquals(1, work.size());
++            work.getFirst().run();
++            assertEquals(profile, first.get().profile());
++            assertEquals(profile, second.get().profile());
++        } finally {
++            Locale.setDefault(previous);
++        }
++    }
++
++    @Test
++    void cancelledDuplicateDoesNotCancelOtherCallers() throws Exception {
++        List<Runnable> work = new ArrayList<>();
++        WhitelistProfileLookup service = lookup(work::add);
++        var first = service.request("smokelower", () -> Optional.of(PROFILE));
++        var cancelled = service.request("SMOKELOWER", Optional::empty);
++        assertTrue(cancelled.cancel(false));
++        work.getFirst().run();
++        assertEquals(PROFILE, first.get().profile());
++    }
++
++    @Test
++    void serviceFailureIsNotReportedAsAnUnknownPlayerAndDoesNotPoisonRetry() throws Exception {
++        WhitelistProfileLookup service = lookup(Runnable::run);
++        var failed = service.request("smokelower", () -> { throw new IllegalStateException("injected unavailable service"); }).get();
++        assertNotNull(failed.failure());
++        assertTrue(assertThrows(CommandSyntaxException.class, () -> failed.requireProfile("smokelower"))
++            .getRawMessage().getString().contains("Please try again"));
++        assertEquals(PROFILE, service.request("SmokeLower", () -> Optional.of(PROFILE)).get().profile());
++    }
++
++    @Test
++    void missingPlayerUsesVanillaErrorAndIsNotNegativelyCached() throws Exception {
++        WhitelistProfileLookup service = lookup(Runnable::run);
++        var missing = service.request("smokelower", Optional::empty).get();
++        assertNull(missing.failure());
++        assertSame(GameProfileArgument.ERROR_UNKNOWN_PLAYER,
++            assertThrows(CommandSyntaxException.class, () -> missing.requireProfile("smokelower")).getType());
++        assertEquals(PROFILE, service.request("SmokeLower", () -> Optional.of(PROFILE)).get().profile());
++    }
++
++    @Test
++    void aBusyExecutorProducesAServiceFailureWithoutRunningOnTheCaller() throws Exception {
++        AtomicInteger calls = new AtomicInteger();
++        WhitelistProfileLookup service = lookup(task -> { throw new java.util.concurrent.RejectedExecutionException("full"); });
++        var result = service.request("smokelower", () -> { calls.incrementAndGet(); return Optional.of(PROFILE); }).get();
++        assertInstanceOf(java.util.concurrent.RejectedExecutionException.class, result.failure());
++        assertEquals(0, calls.get());
++    }
++
++    @Test
++    void delayedLookupDoesNotHoldTheCallerOrPublishAfterTimeout() throws Exception {
++        CountDownLatch started = new CountDownLatch(1), release = new CountDownLatch(1);
++        try (var worker = Executors.newSingleThreadExecutor()) {
++            var service = new WhitelistProfileLookup(worker, 100, TimeUnit.MILLISECONDS);
++            Thread caller = Thread.currentThread();
++            var result = service.request("smokelower", () -> {
++                assertNotSame(caller, Thread.currentThread());
++                started.countDown();
++                try { assertTrue(release.await(3, TimeUnit.SECONDS)); }
++                catch (InterruptedException exception) { throw new RuntimeException(exception); }
++                return Optional.of(PROFILE);
++            });
++            assertTrue(started.await(2, TimeUnit.SECONDS));
++            var timeout = result.get(2, TimeUnit.SECONDS);
++            assertNotNull(timeout.failure());
++            assertNull(timeout.profile());
++            release.countDown();
++            worker.submit(() -> {}).get(2, TimeUnit.SECONDS);
++            assertSame(timeout, result.get());
++        } finally {
++            release.countDown();
++        }
++    }
++
++    @Test
++    void aQueuedLookupThatAlreadyTimedOutDoesNotStartNetworkWork() throws Exception {
++        List<Runnable> work = new ArrayList<>();
++        var service = new WhitelistProfileLookup(work::add, 20, TimeUnit.MILLISECONDS);
++        AtomicInteger calls = new AtomicInteger();
++        var result = service.request("smokelower", () -> { calls.incrementAndGet(); return Optional.of(PROFILE); });
++        assertNotNull(result.get(2, TimeUnit.SECONDS).failure());
++        work.getFirst().run();
++        assertEquals(0, calls.get());
++    }
++
++    @Test
++    void aDifferentReturnedIdentityIsRejected() throws Exception {
++        var result = lookup(Runnable::run).request("smokelower",
++            () -> Optional.of(new NameAndId(PROFILE.id(), "someoneelse"))).get();
++        assertNull(result.profile());
++        assertInstanceOf(IllegalStateException.class, result.failure());
++    }
++
++    @Test
++    void strictAuthlibHttpLookupNormalizesEverySpellingAndPreservesReturnedName() throws Exception {
++        withHttpRepository(200, repository -> {
++            for (String spelling : List.of("smokelower", "SmokeLower", "SMOKELOWER")) {
++                var result = repository.tessera$findProfileByNameStrict(spelling).orElseThrow();
++                assertEquals(PROFILE.id(), result.id());
++                assertEquals("smokelower", result.name());
++            }
++        });
++    }
++
++    @Test
++    void strictAuthlibHttp404MeansMissingRatherThanServiceFailure() throws Exception {
++        withHttpRepository(404, repository -> assertTrue(repository.tessera$findProfileByNameStrict("smokelower").isEmpty()));
++    }
++
++    @Test
++    void strictAuthlibHttp503DoesNotTurnAnOutageIntoPlayerNotFound() throws Exception {
++        withHttpRepository(503, repository -> assertThrows(MinecraftClientException.class,
++            () -> repository.tessera$findProfileByNameStrict("smokelower")));
++    }
++
++    @Test
++    void strictAuthlibHttp429DoesNotTurnRateLimitingIntoPlayerNotFound() throws Exception {
++        withHttpRepository(429, repository -> assertThrows(MinecraftClientException.class,
++            () -> repository.tessera$findProfileByNameStrict("smokelower")));
++    }
++
++    private void withHttpRepository(int status, java.util.function.Consumer<MinecraftServicesProfileRepository> test) throws Exception {
++        HttpServer http = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
++        List<String> paths = new java.util.concurrent.CopyOnWriteArrayList<>();
++        http.createContext("/profiles/", exchange -> {
++            paths.add(exchange.getRequestURI().getPath());
++            byte[] response = (status == 200
++                ? "{\"id\":\"" + PROFILE.id().toString().replace("-", "") + "\",\"name\":\"smokelower\"}"
++                : "{\"error\":\"fixture\",\"errorMessage\":\"injected HTTP status\"}").getBytes(StandardCharsets.UTF_8);
++            exchange.getResponseHeaders().set("Content-Type", "application/json");
++            exchange.sendResponseHeaders(status, response.length);
++            try (var body = exchange.getResponseBody()) { body.write(response); }
++        });
++        http.start();
++        try {
++            var discovery = mock(MinecraftServicesDiscoveryService.class);
++            when(discovery.getUrl(Service.PROFILES, "getByName"))
++                .thenReturn("http://127.0.0.1:" + http.getAddress().getPort() + "/profiles/{name}");
++            test.accept(new MinecraftServicesProfileRepository(Proxy.NO_PROXY, discovery));
++            assertFalse(paths.isEmpty());
++            assertTrue(paths.stream().allMatch(path -> path.equals("/profiles/smokelower")));
++        } finally {
++            http.stop(0);
++        }
++    }
++
++    @Test
++    void expiredProfilesAreNotReusedByTheNonblockingCacheLookup() throws Exception {
++        Path file = directory.resolve("usercache.json");
++        Files.writeString(file, "[{\"name\":\"smokelower\",\"uuid\":\"" + PROFILE.id()
++            + "\",\"expiresOn\":\"2000-01-01 00:00:00 +0000\"}]");
++        var cache = new CachedUserNameToIdResolver(mock(com.mojang.authlib.GameProfileRepository.class), file.toFile());
++        assertNotNull(cache.getIfCached("SMOKELOWER"));
++        assertNull(cache.tessera$getValidCached("SmokeLower"));
++    }
++
++    @Test
++    void aValidCachedProfileWorksWithEverySpellingWithoutNetworkCalls() throws Exception {
++        Path file = directory.resolve("usercache.json");
++        Files.writeString(file, "[{\"name\":\"smokelower\",\"uuid\":\"" + PROFILE.id()
++            + "\",\"expiresOn\":\"2100-01-01 00:00:00 +0000\"}]");
++        var repository = mock(com.mojang.authlib.GameProfileRepository.class);
++        var cache = new CachedUserNameToIdResolver(repository, file.toFile());
++        assertEquals(PROFILE, cache.tessera$getValidCached("smokelower"));
++        assertEquals(PROFILE, cache.tessera$getValidCached("SmokeLower"));
++        assertEquals(PROFILE, cache.tessera$getValidCached("SMOKELOWER"));
++        verifyNoInteractions(repository);
++    }
++
++    @Test
++    void directWhitelistExecutionCannotPerformAnUnpreparedNetworkLookup() {
++        CommandSourceStack source = mock(CommandSourceStack.class);
++        MinecraftServer server = mock(MinecraftServer.class);
++        PlayerList players = mock(PlayerList.class);
++        UserWhiteList whitelist = mock(UserWhiteList.class);
++        when(source.getServer()).thenReturn(server);
++        when(server.getPlayerList()).thenReturn(players);
++        when(players.getWhiteList()).thenReturn(whitelist);
++        when(whitelist.getEntries()).thenReturn(List.of());
++        when(server.services()).thenReturn(mock(net.minecraft.server.Services.class));
++        var named = new GameProfileArgument.NameResult("smokelower");
++        assertTrue(assertThrows(CommandSyntaxException.class, () -> named.tessera$getWhitelistNames(source))
++            .getRawMessage().getString().contains("asynchronous command dispatch"));
++    }
++
++    @Test
++    void whitelistAdditionVetoDoesNotReportSuccess() throws Exception {
++        assertVeto("add", false);
++    }
++
++    @Test
++    void staleWhitelistNamesCanBeRemovedButDoNotDetermineANewAdditionIdentity() {
++        CommandSourceStack source = mock(CommandSourceStack.class);
++        MinecraftServer server = mock(MinecraftServer.class);
++        PlayerList players = mock(PlayerList.class);
++        UserWhiteList whitelist = mock(UserWhiteList.class);
++        net.minecraft.server.Services services = mock(net.minecraft.server.Services.class);
++        CachedUserNameToIdResolver cache = mock(CachedUserNameToIdResolver.class);
++        when(source.getServer()).thenReturn(server);
++        when(server.getPlayerList()).thenReturn(players);
++        when(players.getWhiteList()).thenReturn(whitelist);
++        when(server.services()).thenReturn(services);
++        when(services.nameToIdCache()).thenReturn(cache);
++        when(whitelist.getEntries()).thenReturn(List.of(new UserWhiteListEntry(PROFILE)));
++        assertEquals(PROFILE, WhitelistProfileLookup.findKnownForRemoval(source, "SmokeLower"));
++        assertNull(WhitelistProfileLookup.findKnown(source, "SmokeLower"));
++    }
++
++    @Test
++    void whitelistRemovalVetoDoesNotReportSuccessOrKickPlayers() throws Exception {
++        assertVeto("remove", true);
++    }
++
++    private void assertVeto(String operation, boolean alreadyListed) throws Exception {
++        CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
++        WhitelistCommand.register(dispatcher);
++        CommandSourceStack source = mock(CommandSourceStack.class);
++        MinecraftServer server = mock(MinecraftServer.class);
++        PlayerList players = mock(PlayerList.class);
++        UserWhiteList whitelist = mock(UserWhiteList.class);
++        when(source.getServer()).thenReturn(server);
++        when(server.getPlayerList()).thenReturn(players);
++        when(players.getWhiteList()).thenReturn(whitelist);
++        when(whitelist.isWhiteListed(PROFILE)).thenReturn(alreadyListed);
++        GameProfileArgument.NameResult target = new GameProfileArgument.NameResult("SmokeLower");
++        target.tessera$prepare(new WhitelistProfileLookup.Outcome(PROFILE, null));
++        var command = dispatcher.getRoot().getChild("whitelist").getChild(operation).getChild("targets").getCommand();
++        var context = new CommandContextBuilder<>(dispatcher, source, dispatcher.getRoot(), 0)
++            .withArgument("targets", new ParsedArgument<>(0, 10, target)).withCommand(command).build("whitelist " + operation + " SmokeLower");
++        var error = assertThrows(CommandSyntaxException.class, () -> command.run(context));
++        assertTrue(error.getRawMessage().getString().contains("cancelled or rejected"));
++        verify(source, never()).sendSuccess(any(), anyBoolean());
++        verify(server, never()).kickUnlistedPlayers();
++        if (alreadyListed) verify(whitelist).remove(any(UserWhiteListEntry.class));
++        else verify(whitelist).add(any(UserWhiteListEntry.class));
++    }
++}

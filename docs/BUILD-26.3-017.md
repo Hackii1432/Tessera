@@ -9,8 +9,11 @@ genannten Hash. Der [Nachtrag vom 07.10.2026](TPS-PREGEN-STATUS-2026-10-07.md)
 beschreibt die danach gebaute 017-JAR mit TPS-Kapazität, kompakter
 Pregen-Anzeige und deren eigener nativer Abnahme. Die damaligen NBT-/Restore-
 Nachweise sind historische Ergebnisse, keine erneuten Tests der neuen Datei.
-Die aktuelle 017-JAR mit korrigiertem Windows-Konsolenshutdown und ihrem eigenen
-Hash ist im [Shutdown-Nachtrag](CONSOLE-SHUTDOWN-2026-10-07.md) dokumentiert.
+Die danach geprüfte 017-JAR mit korrigiertem Windows-Konsolenshutdown und ihrem
+eigenen Hash ist im [Shutdown-Nachtrag](CONSOLE-SHUTDOWN-2026-10-07.md) dokumentiert.
+Die neueste Datei enthält zusätzlich den unten dokumentierten
+[Whitelist-Nachtrag](#whitelist-nachtrag-vom-07102026). Frühere native Abnahmen
+gelten jeweils für ihren eigenen Hash, nicht automatisch für diese neue Datei.
 
 ## Implementierter Umfang
 
@@ -182,3 +185,94 @@ Befehlsausbau nicht erneut ausgeführt. Pregen-/Sand-Duper-Gameplay wurde hier
 nicht nativ wiederholt; deren vorhandene Tests und Patches bleiben unverändert.
 Der Befehlsausbau benötigt keine neue MCC-Schnittstelle, ersetzt aber keine
 Abnahme mit dem tatsächlich eingesetzten Plugin-/Datapack-Stack.
+
+## Whitelist-Nachtrag vom 07.10.2026
+
+Der synchrone Profilabruf bei `whitelist add/remove` konnte den Global-Tick
+im HTTPS-Handshake blockieren. Fehlgeschlagene Dienstanfragen erschienen zudem
+als `That player does not exist`. Cache und Netzwerk normalisierten den Namen
+bereits vor diesem Fix; ein erfolgreicher Wiederholungsversuch mit anderem
+Anfangsbuchstaben beweist deshalb keinen schreibweisenabhängigen Mojang-Endpunkt.
+
+Unbekannte Namen werden jetzt durch zwei begrenzte Hintergrund-Worker mit
+zehn Sekunden Frist vorbereitet. Die eigentliche Befehlsausführung erfolgt
+anschließend im passenden Tick-Kontext, für Spieler auf dem aktuellen
+Entity-Besitzer. RCON wartet außerhalb des Global-Ticks auf die endgültige
+Antwort. Bekannte Namen sind case-insensitive; vorhandene Whitelist-Einträge
+reichen für `remove` auch ohne Netzwerk aus. Bei `add` bestimmt ein alter
+Whitelist-Name ohne gültigen Cache nicht ungeprüft eine neue Besitzer-UUID.
+404/fehlende Profile bleiben echte Vanilla-Not-found-Fälle; Dienstfehler,
+Rate-Limits und Timeout erhalten eine separate englische Fehlermeldung.
+Keine negativen Cache-Einträge, keine spätere Whitelist-Mutation nach Timeout,
+Disconnect oder abgewiesener Berechtigung. Paper-Profilhooks und
+Whitelist-Vetos werden berücksichtigt. Der genaue Dispatch-/Funktionsumfang
+steht in der [Befehlsreferenz](api/commands.md#whitelist-und-profilabfragen).
+
+### Patches und Build
+
+- Root-Basiscommit: `07c34c0257275c4dbc23c081d95e9538196c2916`, zusätzlich die
+  lokalen Whitelist-Patches, Dokumentation und Testfixtures. Kein Root-Commit/Push.
+- [Minecraft-Patch 0059](../folia-server/minecraft-patches/features/0059-Resolve-whitelist-profiles-off-tick-threads-with-acc.patch),
+  SHA-256 `5d657c089f37fa53fd48c31117b919a74d85268edebc644809ff1ffc971e232c`.
+- [Server-/Testpatch 0048](../folia-server/paper-patches/features/0048-Preserve-profile-hooks-and-test-nonblocking-whitelis.patch),
+  SHA-256 `84c0b9b8a5e0f3e873d02ad7a1f79647be050c68be1b032c8c98766e942610be`.
+- Nach erneuter Anwendung: Minecraft-HEAD `a44249c6b9c44b67f56301e0a0416a394e3b1a2e`,
+  Server-HEAD `752c7e85fb7fa82d716bf41ac8834aa3f23b9c91`.
+- Vollständiges `buildTessera`: **BUILD SUCCESSFUL**, 9 Minuten 26 Sekunden,
+  Java 25.0.3/Gradle 9.8.0. Alle Patches erneut angewendet, vorhandene
+  Qualitätsprüfungen aktiv. Server-Suite frisch: **10.285 Fälle**, 87 bestehende
+  Skips, 0 Fehler/Failures. API-Suite unverändert/up-to-date: 529 Fälle,
+  2 Skips, 0 Fehler; Checkstyle-Helfer: 3 Fälle, 0 Fehler.
+- Whitelist-Regressionen: **19 bestanden**, einschließlich echter lokaler
+  Authlib-HTTP-Abfragen mit mehreren Schreibweisen, 404/429/503, verzögerten
+  Antworten, Abbruch eines gemeinsamen Requests, Ablauf ohne spätes Ergebnis,
+  Cache-Expiry, falscher Antwortidentität, veraltetem Whitelist-Namen und Veto.
+- API-Dokumentation: 19 Artikel/52 Links gültig; 35 Validator-Tests bestanden.
+  Keine öffentliche Java-Signatur geändert, die vorhandenen Beispiele bleiben erhalten.
+
+### Neueste ausführbare Datei und native Prüfung
+
+`build/libs/tessera-server-26.3.build.017-beta.jar`, **55.630.688 Bytes**,
+SHA-256 `262768301132e194c35aeb4cfff9cb84a4c6d676f03a92934782dab0edaa7196`.
+
+Der [isolierte Runner](../smoke-tests/whitelist-command/run.mjs) startete genau
+diese JAR auf freien Loopback-Ports mit zwei verbundenen Protokollclients,
+vier Regions-Threads und einem lokalen HTTP-Profilserver. Der echte Authlib-
+Client, Cache, Brigadier, Whitelist-Datei, Events und Scheduler wurden verwendet;
+es wurde keine Produktwelt oder echte Spielerdatei als Fixture genutzt.
+
+```powershell
+node smoke-tests/whitelist-command/run.mjs 'C:/Program Files/Java/jdk-25.0.3/bin/java.exe' build/libs/tessera-server-26.3.build.017-beta.jar
+```
+
+**28 native Assertions und acht tatsächliche RCON-Socketantworten bestanden**:
+kleingeschriebenes uncached Add, andere Schreibweise desselben UUID-Ziels,
+namespaced Aliase/`execute`, case-insensitive Remove, echter HTTP 404/503,
+erneuter Versuch ohne negativen Cache, tatsächlicher Socket-Read-Timeout und
+ein verspäteter Plugin-Override nach abgelaufener Frist. Bei `tick freeze`
+liefen während fünf-/zehnsekündiger Wartephasen weiterhin mindestens 70/140
+Global-Ticks. Keine Watchdog-Warnung, Cross-Region-Ausnahme oder Command-Exception.
+Ein Spieler wechselte während der Abfrage tatsächlich in den Nether und erhielt
+die fortgesetzte Ausführung auf seinem aktuellen Besitzer. De-OP während einer
+Abfrage verhinderte das Add. Ein anderer Client wurde **absichtlich** getrennt:
+kein nachträglicher Eintrag; der verbleibende Client blieb verbunden.
+
+Native Bilanz: **2 Logins, 1 absichtlicher Kick/Disconnect, 0 unbeabsichtigte
+Verbindungsabbrüche**, normaler Shutdown mit Exitcode **0**. Auch echte stdin-
+Konsoleneingabe wurde geprüft. Die Profile stammen aus der kontrollierten lokalen
+HTTP-Fixture, nicht aus einer Verfügbarkeitsmessung des echten Mojang-Dienstes.
+MCSM, euer tatsächlicher Plugin-Stack, MCC/MVE und eine neue visuelle Vanilla-
+Client-/Windows-Terminal-Abnahme wurden auf dieser Datei nicht separat getestet.
+Ihre früheren Nachweise werden nicht auf den neuen Hash übertragen.
+
+Der [kompakte Nachweis](test-evidence/26.3-017/whitelist-command.json) verweist
+auf die archivierten Rohdaten unter
+`build/reports/native-fixtures/whitelist-command-20261007/` und die Buildlogs
+unter `build/reports/build-logs/`. Buildnummer/Channel bleiben **017/beta**;
+Minecraft/API, Java-Ziel, Sinopia, Abhängigkeiten und MCC-/MVE-Code unverändert.
+
+Nach hashgeprüfter Archivierung wurden ausschließlich die eigene wegwerfbare
+Testwelt, ihre Cache-/Plugin-Kopien und Spielerdaten entfernt: **181.830.534 Bytes**
+(rund 173 MiB). Rohlogs, Prüftexte, JUnit-XML, UUID-Listen und Ergebnis-JSON bleiben
+erhalten. Die gelöschte Fixture kann mit dem Runner neu erzeugt werden;
+produktive Daten wurden nicht berührt.

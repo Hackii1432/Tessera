@@ -5,6 +5,11 @@ Der Fehler `Terminal has been closed` beim normalen `stop` ist behoben.
 Konsoleneingabe, Farben und asynchrones Logging bleiben aktiviert. Die Buildnummer
 bleibt unverändert; Sinopia, Abhängigkeiten und öffentliche APIs sind unverändert.
 
+Dieser Bericht belegt die hier genannten Konsolentests auf seiner eigenen JAR.
+Die später gebaute Datei mit zusätzlicher Whitelist-Korrektur und deren Hash
+steht im [Whitelist-Nachtrag](BUILD-26.3-017.md#whitelist-nachtrag-vom-07102026).
+Die nativen Windows-Terminal-Tests dieses Berichts wurden dort nicht erneut ausgeführt.
+
 ## Ursache und Korrektur
 
 Der bisherige `DedicatedServer.onServerExit()` startete mit `System.exit()`

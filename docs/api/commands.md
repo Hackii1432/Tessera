@@ -33,6 +33,65 @@ Räumliche Cross-Region-Suchen oder ungeladene unzulässige Ziele werden abgewie
 nicht synchron vom Global-Thread gelesen. Eine passende globale Befehlsquelle
 macht fremde Block-/Entity-Operationen nicht threadsicher.
 
+## Whitelist und Profilabfragen
+
+Der geerbte Vanilla-Befehl `whitelist` behält seine Unterbefehle und die
+Berechtigung `minecraft.command.whitelist` (standardmäßig OP). Tessera bereitet
+unbekannte Namen für `add` und `remove` bei Konsolen-, RCON-, Spieler- und
+Bukkit-Dispatch außerhalb der Tickthreads vor; auch `minecraft:whitelist` und
+vorgeschaltete `execute`-Kontexte werden berücksichtigt. Das ist eine interne
+Befehlsanpassung, keine neue Plugin-API.
+
+```text
+whitelist add playername
+minecraft:whitelist add PlayerName
+whitelist remove PLAYERNAME
+```
+
+Gültige Cache-Einträge und bei `remove` bereits vorhandene Whitelist-Einträge
+werden ohne Beachtung der Groß-/Kleinschreibung gefunden. Ein veralteter Name
+in der Whitelist allein bestimmt bei `add` nicht die aktuelle Besitzer-UUID;
+umbenannte beziehungsweise erneut vergebene Namen werden frisch aufgelöst.
+Online-Profilanfragen und ihre gemeinsamen
+In-flight-Schlüssel verwenden `Locale.ROOT`; UUID und kanonische Schreibweise
+der Antwort bleiben erhalten. Die Vanilla-Ableitung bisher unbekannter
+Offline-UUIDs aus dem exakten Namen wird nicht geändert. Online-/Proxy-Modus
+und Login-Authentifizierung bleiben ebenfalls unverändert.
+
+Eine tatsächlich fehlende Profilantwort, einschließlich HTTP 404, liefert den
+Vanilla-Fehler für einen unbekannten Spieler. Dienstfehler, Rate-Limits,
+Netzwerkfehler, Timeout und volle Abfragekapazität liefern stattdessen einen
+englischen, erneut versuchbaren Dienstfehler. Fehlversuche werden nicht negativ
+gecached. Zwei Worker und höchstens 32 wartende Anfragen begrenzen die Last;
+die Profilvorbereitung hat eine Frist von zehn Sekunden. Nach einer verspäteten
+Antwort wird kein nachträglicher Whitelist-Eintrag angelegt.
+
+Nach der Abfrage läuft die Befehlsausführung auf dem ursprünglichen
+Quellkontext weiter: global für Konsole/RCON, auf dem aktuellen Entity-Besitzer
+für Spieler, auf dem zuständigen Regions-Thread für andere regionale Quellen.
+Die Vorbereitung und interne Fortsetzung laufen auch bei `tick freeze`;
+die normale Spielsimulation wird dafür nicht freigegeben. Berechtigungen werden
+erneut geprüft. Disconnect, Entity-Retirement und Serverstop verhindern eine
+später fortgesetzte Änderung. Selektoren behalten ihre bestehenden lokalen
+Ownership-Regeln und werden nicht auf dem Abfrage-Worker ausgewertet.
+
+`PreLookupProfileEvent` und die anschließende erfolgreiche Netzwerkbenachrichtigung
+`LookupProfileEvent` können hier asynchron laufen; ihr geerbter Vertrag
+garantiert keinen festen Thread. Regionsdaten erst über den passenden
+[Scheduler](scheduler.md) verwenden. `WhitelistStateUpdateEvent` läuft beim
+eigentlichen Add/Remove wieder auf einem Tickthread; sein Veto wird respektiert
+und nicht als erfolgreiche Änderung gemeldet. Bereits zuvor ausgeführte
+Änderungen einer Mehrziel-Abfrage werden durch ein späteres Veto nicht zurückgerollt.
+
+RCON wartet außerhalb des Global-Ticks bis zur endgültigen Antwort.
+Der synchrone Rückgabewert von `Bukkit.dispatchCommand` ist dagegen kein
+Nachweis, dass eine externe Abfrage und Whitelist-Änderung bereits beendet sind.
+Datapack-Funktionen und direkte interne Brigadier-Ausführung besitzen keinen
+solchen asynchronen Dispatch-Vertrag: bekannte Namen bleiben verwendbar,
+unbekannte Namen werden dort explizit abgewiesen, statt einen Tickthread mit
+einer Netzwerkabfrage aufzuhalten. Keine der internen Hilfsklassen ist eine
+öffentliche Erweiterung der Bukkit-/Paper-API.
+
 ## NBT-Befehle
 
 Seit Build 017 registriert Tessera folgenden Vanilla-Teilumfang unter `/data`
