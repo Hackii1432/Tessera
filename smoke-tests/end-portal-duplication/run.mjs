@@ -50,8 +50,9 @@ for (const enabled of flight ? [true] : [false, true]) {
   const completedCases = new Set(checks?.split('\n').map(line => line.split(':')[0]) ?? []);
   const expectedCases = flight ? ['sand', 'red_sand', 'gravel', 'white_concrete_powder', 'anvil'].flatMap(material => ['east', 'west', 'south', 'north'].map(direction => `${material}-${direction}`)) : [...Array.from({length: 20}, (_, i) => `landing-${i}`),
     'airborne', 'veto', 'placement-veto', 'redirect', 'retire', 'enter-veto', 'continuation-retire', 'drop', 'drop-veto',
-    ...Array.from({length: 5}, (_, i) => `return-${i}`)];
-  const passed = code === 0 && !timedOut && log.includes(flight ? 'END_PORTAL_FLIGHT_PASS cases=20' : `END_PORTAL_DUPLICATION_PASS enabled=${enabled} cases=34`)
+    ...Array.from({length: 5}, (_, i) => `return-${i}`),
+    ...['entry', 'return'].flatMap(direction => [0, 1].flatMap(region => ['landing', 'airborne', 'drop'].map(mode => `egg-${mode}-${direction}-${region}`)))];
+  const passed = code === 0 && !timedOut && log.includes(flight ? 'END_PORTAL_FLIGHT_PASS cases=20' : `END_PORTAL_DUPLICATION_PASS enabled=${enabled} cases=${expectedCases.length}`)
     && completedCases.size === expectedCases.length && expectedCases.every(id => completedCases.has(id))
     && !/END_PORTAL_(DUPLICATION|FLIGHT)_FAIL|failed to tick:|Thread failed main thread check|ConcurrentModificationException/.test(log);
   writeFileSync(path.join(work, 'runner.log'), log);

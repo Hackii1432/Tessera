@@ -3,13 +3,13 @@ title: "Tessera API für Pluginentwickler"
 description: "Öffentliche Erweiterungen und regionsichere Nutzung der integrierten Paper-/Folia-Basis unter Minecraft 26.3."
 navTitle: "Einstieg"
 order: 0
-updated: 2026-10-06
+updated: 2026-10-08
 minecraftVersion: "26.3"
 badge: "Referenz"
 ---
 
 Diese Referenz beschreibt den geprüften Quellstand von Tessera **26.3 Build
-017-beta**, Java **25**, auf `ver/26.3.x`. Sie ergänzt die geerbte Bukkit-,
+018-beta**, Java **25**, auf `ver/26.3.x`. Sie ergänzt die geerbte Bukkit-,
 Paper-, Folia- und Adventure-API, ersetzt aber nicht deren gesamte Javadoc.
 
 ## Herkunft der Schnittstellen

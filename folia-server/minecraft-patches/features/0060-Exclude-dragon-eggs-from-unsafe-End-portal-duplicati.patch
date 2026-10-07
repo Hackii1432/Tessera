@@ -1,0 +1,65 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Thu, 8 Oct 2026 00:28:31 +0200
+Subject: [PATCH] Exclude dragon eggs from unsafe End portal duplication
+
+Keep the ordinary Folia transfer/physics path for dragon eggs, reject source snapshots on capture and completion, and disable the legacy force-tick duplication flag. Leave all other falling blocks and End arrival geometry unchanged.
+
+diff --git a/net/minecraft/world/entity/item/FallingBlockEntity.java b/net/minecraft/world/entity/item/FallingBlockEntity.java
+index fc5c0a98cd5b2c618d6ac920a0f1fad6c4ef682a..872980b64321881678faf67bd688b5867eb126f8 100644
+--- a/net/minecraft/world/entity/item/FallingBlockEntity.java
++++ b/net/minecraft/world/entity/item/FallingBlockEntity.java
+@@ -306,6 +306,12 @@ public class FallingBlockEntity extends Entity {
+         return super.tessera$getEndPortalPlatformOrigin(origin, targetPosition);
+     }
+ 
++    private boolean tessera$canDuplicateThroughEndPortal() {
++        // Tessera - keep ordinary egg physics/transfers, but never create a source copy.
++        return io.papermc.paper.configuration.GlobalConfiguration.get().unsupportedSettings.allowUnsafeEndPortalTeleportation
++            && !this.blockState.is(Blocks.DRAGON_EGG);
++    }
++
+     private boolean tessera$runTickPrefix(final Block block) {
+         if (this.tessera$continuationOnly) {
+             return false;
+@@ -323,7 +329,7 @@ public class FallingBlockEntity extends Entity {
+             return true;
+         }
+         if (this.isAlive()
+-            && io.papermc.paper.configuration.GlobalConfiguration.get().unsupportedSettings.allowUnsafeEndPortalTeleportation
++            && this.tessera$canDuplicateThroughEndPortal()
+             && this.portalProcess != null
+             && this.portalProcess.isSamePortal((net.minecraft.world.level.block.Portal) Blocks.END_PORTAL)) {
+             this.tessera$insidePortalTick = true;
+@@ -357,10 +363,10 @@ public class FallingBlockEntity extends Entity {
+     protected void tessera$portalTransferQueued(final ServerLevel origin, final ServerLevel destination, final Entity.PortalType type) {
+         // No passenger trees, unrelated teleports, Nether portals or plugin redirection
+         // to a non-End dimension. The disabled setting follows Folia's existing path.
+-        if (!this.tessera$insidePortalTick || type != Entity.PortalType.END || origin == destination
++        if (!this.tessera$canDuplicateThroughEndPortal()
++            || !this.tessera$insidePortalTick || type != Entity.PortalType.END || origin == destination
+             || (origin.dimension() != Level.END && destination.dimension() != Level.END)
+-            || this.isPassenger() || this.isVehicle()
+-            || !io.papermc.paper.configuration.GlobalConfiguration.get().unsupportedSettings.allowUnsafeEndPortalTeleportation) {
++            || this.isPassenger() || this.isVehicle()) {
+             return;
+         }
+         ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this, "Cannot capture falling-block portal continuation off owner");
+@@ -397,7 +403,7 @@ public class FallingBlockEntity extends Entity {
+         final FallingBlockEntity continuation = this.tessera$portalContinuation;
+         this.tessera$portalContinuation = null;
+         if (continuation == null || !transferring
+-            || !io.papermc.paper.configuration.GlobalConfiguration.get().unsupportedSettings.allowUnsafeEndPortalTeleportation
++            || !this.tessera$canDuplicateThroughEndPortal() || continuation.blockState.is(Blocks.DRAGON_EGG)
+             || this.level() != continuation.level() || !this.position().equals(continuation.position())) {
+             return null;
+         }
+@@ -539,7 +545,7 @@ public class FallingBlockEntity extends Entity {
+         ResourceKey<Level> oldDimension = this.level().dimension();
+         boolean fromOrToEnd = (oldDimension == Level.END || newDimension == Level.END) && oldDimension != newDimension;
+         Entity newEntity = super.teleport(transition);
+-        this.forceTickAfterTeleportToDuplicate = newEntity != null && fromOrToEnd && io.papermc.paper.configuration.GlobalConfiguration.get().unsupportedSettings.allowUnsafeEndPortalTeleportation; // Paper
++        this.forceTickAfterTeleportToDuplicate = newEntity != null && fromOrToEnd && this.tessera$canDuplicateThroughEndPortal(); // Tessera - exclude dragon eggs from the legacy duplication flag too
+         return newEntity;
+     }
+ 

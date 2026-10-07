@@ -83,6 +83,17 @@ final class EndPortalDuplicationSmoke implements Listener {
                     reverseRuns.add(scenario("return-" + i, "landing", materials.get(i), 30008, 8 + i * 32, this.cases.size(), true));
                 }
                 await(CompletableFuture.allOf(reverseRuns.toArray(CompletableFuture[]::new)));
+                List<CompletableFuture<Void>> eggRuns = new java.util.ArrayList<>();
+                for (boolean reverse : List.of(false, true)) {
+                    for (int region = 0; region < 2; region++) {
+                        for (String mode : List.of("landing", "airborne", "drop")) {
+                            String id = "egg-" + mode + "-" + (reverse ? "return" : "entry") + "-" + region;
+                            eggRuns.add(scenario(id, mode, Material.DRAGON_EGG, (reverse ? 30008 : 8) + region * 2048,
+                                1800 + this.cases.size() * 32, this.cases.size(), reverse));
+                        }
+                    }
+                }
+                await(CompletableFuture.allOf(eggRuns.toArray(CompletableFuture[]::new)));
                 require(this.owners.size() >= 2, "multiple source region identities observed");
                 if (!this.failures.isEmpty()) throw new AssertionError("Event/ownership assertion", this.failures.getFirst());
                 Files.writeString(Path.of("end-portal-duplication-checks.txt"), String.join("\n", this.checks));
@@ -132,11 +143,12 @@ final class EndPortalDuplicationSmoke implements Listener {
         })).thenCompose(ignored -> region(at, 100, () -> {
             this.plugin.getLogger().info("Portal fixture " + id + " entries=" + scenario.entries + " transfers=" + scenario.portals + " source=" + scenario.sourcePlacements + " destination=" + scenario.targetPlacements);
             if (!this.failures.isEmpty()) throw new AssertionError("Event failure", this.failures.getFirst());
-            boolean transferred = mode.equals("airborne") || this.enabled && (mode.equals("landing") || mode.equals("placement-veto") || mode.equals("continuation-retire") || mode.startsWith("drop"));
-            int expectedSource = mode.startsWith("drop") || ((mode.equals("retire") || mode.equals("continuation-retire")) && this.enabled) ? 0 : mode.equals("airborne") || mode.equals("placement-veto") ? 0 : 1;
+            boolean duplicates = this.enabled && material != Material.DRAGON_EGG;
+            boolean transferred = mode.equals("airborne") || duplicates && (mode.equals("landing") || mode.equals("placement-veto") || mode.equals("continuation-retire") || mode.startsWith("drop"));
+            int expectedSource = mode.startsWith("drop") || ((mode.equals("retire") || mode.equals("continuation-retire")) && duplicates) ? 0 : mode.equals("airborne") || mode.equals("placement-veto") ? 0 : 1;
             require(scenario.sourcePlacements.get() == expectedSource, id + " source placements expected " + expectedSource + ", got " + scenario.sourcePlacements);
             require(scenario.targetPlacements.get() == (transferred ? 1 : 0), id + " target placements: " + scenario.targetPlacements);
-            require(scenario.portals.get() == (!mode.equals("enter-veto") && (this.enabled || mode.equals("airborne")) ? 1 : 0), id + " exactly one/no portal event: " + scenario.portals);
+            require(scenario.portals.get() == (!mode.equals("enter-veto") && (duplicates || mode.equals("airborne")) ? 1 : 0), id + " exactly one/no portal event: " + scenario.portals);
             require(scenario.entries.get() > 0, id + " real End portal collision observed");
             require(origin.getNearbyEntities(at, 3, 5, 3).stream().noneMatch(FallingBlock.class::isInstance), id + " no live continuation remains");
             List<Item> items = origin.getNearbyEntities(at, 3, 5, 3).stream().filter(Item.class::isInstance).map(Item.class::cast).toList();
@@ -148,7 +160,11 @@ final class EndPortalDuplicationSmoke implements Listener {
             }
             Material placedSource = origin.getBlockAt(at).getType();
             require(placedSource == (mode.startsWith("drop") ? Material.END_PORTAL : expectedSource == 1 ? material : Material.AIR), id + " actual source block: " + placedSource);
-            if (this.enabled && transferred && !mode.equals("airborne")) require(scenario.continuation != null, id + " independent source UUID");
+            if (duplicates && transferred && !mode.equals("airborne")) require(scenario.continuation != null, id + " independent source UUID");
+            if (material == Material.DRAGON_EGG) {
+                require(scenario.continuation == null, id + " no dragon egg source continuation");
+                require(scenario.sourcePlacements.get() + scenario.targetPlacements.get() + scenario.drops.get() == 1, id + " exactly one egg survives as a block or item");
+            }
             this.checks.add(id + ": " + material + ", source=" + scenario.sourcePlacements + ", target=" + scenario.targetPlacements + ", portalEvents=" + scenario.portals + ", dropEvents=" + scenario.drops + ", no leaked entities/items");
         })).thenCompose(ignored -> destination.getChunkAtAsync(target).thenCompose(chunk -> region(target, 1, () -> {
             require(destination.getNearbyEntities(target, 3, 5, 3).stream().noneMatch(FallingBlock.class::isInstance), id + " no leaked destination entity");
@@ -199,7 +215,7 @@ final class EndPortalDuplicationSmoke implements Listener {
             require(scenario.mode.startsWith("drop"), "no unexpected item drop");
             require(event.getItemDrop().getItemStack().getType() == scenario.material, "drop material unchanged");
             scenario.drops.incrementAndGet();
-            if (this.enabled) {
+            if (this.enabled && scenario.material != Material.DRAGON_EGG) {
                 require(block != scenario.original && !block.getUniqueId().equals(scenario.original.getUniqueId()), "drop continuation is independent");
                 require(scenario.continuation == null, "drop continuation runs once");
                 scenario.continuation = block.getUniqueId();

@@ -3,7 +3,7 @@ title: "Events bei Welt-Lifecycle, Portalen und Respawn"
 description: "Geerbte Events im tatsächlichen Tessera-Threadkontext und der operationsgebundene Restore-Teleport-Scope."
 navTitle: "Events"
 order: 100
-updated: 2026-09-29
+updated: 2026-10-08
 minecraftVersion: "26.3"
 badge: "Referenz"
 ---
@@ -63,6 +63,13 @@ Ab Tessera `013-beta` aktiviert die geerbte, standardmäßig ausgeschaltete Opti
 die quellseitige Landungs-/Drop-Nachbearbeitung für geeignete fallende Blöcke an
 Endportalen. Das ist ausdrücklich eine Duplizierungsoption, keine neue API und
 keine allgemeine Lockerung der Threadprüfungen.
+
+Ab `018-beta` ist `minecraft:dragon_egg` von der Duplizierung ausdrücklich ausgenommen, auch
+bei aktivierter Option und in beiden Transferrichtungen. Für Dracheneier gibt es
+keine zusätzliche Quell-Entity und keinen zusätzlichen Quellblock/-drop.
+Reguläre Fallphysik und Portaltransfers bleiben erlaubt; erreicht das Ei während
+der normalen Fallphysik schon den Boden, landet es wie im bisherigen Folia-Pfad
+im Ursprung. Andere fallende Blöcke behalten die optionale Nachbearbeitung.
 
 Ein zulässiger Transfer behält die UUID, den Bukkit-Wrapper und den Scheduler
 der ursprünglichen Entity. Die zusätzliche einmalige Quell-Nachbearbeitung

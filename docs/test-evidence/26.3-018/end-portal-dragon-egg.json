@@ -1,0 +1,135 @@
+{
+  "date": "2026-10-08",
+  "release": "26.3-018-beta",
+  "minecraftVersion": "26.3",
+  "javaVersion": "25.0.3",
+  "gradleVersion": "9.8.0",
+  "source": {
+    "branch": "ver/26.3.x",
+    "rootBaseCommit": "014c29a29d687c8d2c5b33e1ee2987f19234af3d",
+    "localChangesRequired": true,
+    "rootCommitOrPushPerformed": false,
+    "sinopiaSnapshot": "cebdb10d9418432a18b920f7f2e902a8d03a43f4",
+    "appliedMinecraftHead": "31e2dbdbc08282f3b84a4a9fd24ddf64bce8f2fa",
+    "appliedPaperServerHead": "9d995c79a55a9ef2cca991e6b5af5f9998478e3e",
+    "patches": [
+      {
+        "path": "folia-server/minecraft-patches/features/0060-Exclude-dragon-eggs-from-unsafe-End-portal-duplicati.patch",
+        "sha256": "eedacf44d913fa5265e6876ad381e735b5baa7fb61b3cca652e6ffeff567776d"
+      },
+      {
+        "path": "folia-server/paper-patches/features/0049-Test-dragon-egg-exclusion-from-End-portal-duplicatio.patch",
+        "sha256": "87fc845697a38756569adda78b12d4daddad93d88808a77b3074c26a22b47509"
+      }
+    ]
+  },
+  "artifact": {
+    "path": "build/libs/tessera-server-26.3.build.018-beta.jar",
+    "bytes": 55630386,
+    "sha256": "832b3557a8fc949db6ca71e7d0ef92f9df8a883b7fe10485558747c3dc1fc741"
+  },
+  "build": {
+    "standardBuildTesseraSucceeded": true,
+    "duration": "4m 24s",
+    "patchesReapplied": true,
+    "generatedSourceTreesClean": true,
+    "qualityChecksEnabled": true,
+    "serverSuiteExecution": "Fresh in the preceding compiled 018 build; unchanged and UP-TO-DATE in the final standard build.",
+    "apiAndCheckstyleHelperExecution": "Unchanged Gradle UP-TO-DATE results.",
+    "combinedBuildAndExampleInvocationFailed": true,
+    "combinedInvocationFailure": "Outer API compile implicit dependency on patch tasks; subsequent standard build and separate API example check succeeded.",
+    "log": "build/reports/build-logs/dragon-egg-build-018-final.log"
+  },
+  "tests": {
+    "server": { "cases": 10335, "skipped": 87, "failures": 0, "errors": 0 },
+    "api": { "cases": 529, "skipped": 2, "failures": 0, "errors": 0 },
+    "checkstyleHelper": { "cases": 3, "skipped": 0, "failures": 0, "errors": 0 },
+    "endPortalContinuation": {
+      "cases": 56,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "registeredFallingBlockTypes": 23,
+      "originalCasesPreserved": 6,
+      "evidence": "build/reports/native-fixtures/end-portal-continuation-018.xml"
+    },
+    "compiledApiExamples": 10,
+    "apiDocumentationValidatorTests": 35,
+    "combinedDocumentationValidatorTests": 57,
+    "newReleaseBuildReadmeLocalLinks": 44,
+    "apiDocumentationArticles": 19,
+    "apiDocumentationLinks": 52
+  },
+  "native": {
+    "totalPassedCases": 112,
+    "allRunsUsedFinalArtifactSha256": true,
+    "ordinaryPhysicsAndRealPortalBlocks": true,
+    "normalShutdownAllRuns": true,
+    "unexpectedOwnerRegionOrWatchdogErrors": 0,
+    "fixtures": [
+      {
+        "name": "end-portal-dupe-false-1791413796280",
+        "mode": "end-portal-duplication",
+        "enabled": false,
+        "port": 58485,
+        "passedCases": 46,
+        "originalNonEggCases": 34,
+        "dragonEggCases": 12,
+        "passed": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "archive": "build/reports/native-fixtures/end-portal-dupe-false-1791413796280"
+      },
+      {
+        "name": "end-portal-dupe-true-1791413885632",
+        "mode": "end-portal-duplication",
+        "enabled": true,
+        "port": 50634,
+        "passedCases": 46,
+        "originalNonEggCases": 34,
+        "dragonEggCases": 12,
+        "passed": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "archive": "build/reports/native-fixtures/end-portal-dupe-true-1791413885632"
+      },
+      {
+        "name": "end-portal-flight-true-1791413860538",
+        "mode": "end-portal-flight",
+        "enabled": true,
+        "port": 49901,
+        "passedCases": 20,
+        "materialCount": 5,
+        "cardinalVelocitiesPerMaterial": 4,
+        "passed": true,
+        "exitCode": 0,
+        "timedOut": false,
+        "archive": "build/reports/native-fixtures/end-portal-flight-true-1791413860538"
+      }
+    ],
+    "dragonEggChecks": [
+      "Overworld to End and End to Overworld, two distant source regions per direction.",
+      "Landing, ordinary airborne transfer and actual item drop with option false and true.",
+      "Exactly one egg block or item, no source continuation or leaked entity; ordinary transfer retains UUID and Bukkit wrapper."
+    ],
+    "flightChecks": [
+      "Default End arrival (100.5,50,0.5), obsidian floor Y=48 and surface Y=49.",
+      "Original identity and native velocity rotation, no synthetic boost or arrival correction.",
+      "Continued flight, real wall-button drops, exactly one hopper item, zero target blocks and no tagged leftovers."
+    ]
+  },
+  "cleanup": {
+    "disposableFixturesRemoved": 3,
+    "removedBytes": 666730866,
+    "evidenceArchivedAndHashVerified": true,
+    "productionWorldsOrUserSavesRemoved": false,
+    "fixtureWorldRecovery": "Regenerate using the checked-in runner; compact original results and logs retained."
+  },
+  "limits": [
+    "Existing OSHI Windows Perflib 009 counter error and JDK/Unsafe warnings remain visible.",
+    "No connected Vanilla-client rendering test and no complete piston/slime/honey duper timing test.",
+    "No MCC/MVE/TAB/LuckPerms integration rerun on this JAR.",
+    "Previous native restore, whitelist, TPS/pregen and native terminal stress evidence applies to its own historical JAR hashes.",
+    "Historical docs/builds/26.2/0.0.1.md still prevents the global changelog validator from passing; new release and links are checked separately."
+  ]
+}

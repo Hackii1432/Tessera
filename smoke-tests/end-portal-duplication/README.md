@@ -10,7 +10,7 @@ From the repository root, with an already patched/built workspace:
 ```powershell
 $env:JAVA_HOME = 'C:/Program Files/Java/jdk-25.0.3'
 .\gradlew.bat :test-plugin:jar
-node smoke-tests/end-portal-duplication/run.mjs "$env:JAVA_HOME/bin/java.exe" build/libs/tessera-server-26.3.build.014-beta.jar
+node smoke-tests/end-portal-duplication/run.mjs "$env:JAVA_HOME/bin/java.exe" build/libs/tessera-server-26.3.build.018-beta.jar
 ```
 
 The test plugin spawns native falling blocks beside real End portal blocks.
@@ -26,7 +26,12 @@ return direction from the End. Two further cases check an actual emitted item
 and `EntityDropItemEvent` cancellation. Only that emitted item's portal cooldown
 is increased so its subsequent ordinary item-portal transfer cannot interfere
 with the drop count; after checking its material and amount the fixture removes
-it. There are 34 cases per setting, 68 in total.
+it. Another twelve cases exercise dragon eggs in both directions, in two distant
+source regions: landing, ordinary airborne transfer and item drops. Even with
+the option enabled, each case must leave exactly one egg (block or item), no
+source continuation, and normal airborne transfer must retain the original
+wrapper/UUID. There are 46 cases per setting, 92 in total; the original 68
+non-egg assertions remain unchanged.
 
 The ordinary airborne control prepares its destination beforehand: the disabled
 Folia path keeps falling while portal preparation runs. A block reaching the
@@ -48,7 +53,7 @@ The separate flight mode runs one disposable server with the option enabled:
 
 ```powershell
 $env:TESSERA_SMOKE_MODE = 'end-portal-flight'
-node smoke-tests/end-portal-duplication/run.mjs "$env:JAVA_HOME/bin/java.exe" build/libs/tessera-server-26.3.build.014-beta.jar
+node smoke-tests/end-portal-duplication/run.mjs "$env:JAVA_HOME/bin/java.exe" build/libs/tessera-server-26.3.build.018-beta.jar
 Remove-Item Env:TESSERA_SMOKE_MODE
 ```
 

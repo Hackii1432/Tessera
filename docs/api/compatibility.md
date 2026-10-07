@@ -3,7 +3,7 @@ title: "Paper, Folia, Sinopia und Tessera unterscheiden"
 description: "Öffentliche Verträge, Plattformadapter und Grenzen von Binär- sowie Threadkompatibilität."
 navTitle: "Kompatibilität"
 order: 150
-updated: 2026-10-06
+updated: 2026-10-08
 minecraftVersion: "26.3"
 badge: "Hinweise"
 ---
@@ -28,7 +28,7 @@ ihren eigenen zulässigen Threadkontext. Die reine Existenz von Scheduler- oder
 
 ## Versionen und interne Zugriffe
 
-`api-version: '26.3'` ist die Metadatenversion, `26.3.build.017-beta` die aktuelle
+`api-version: '26.3'` ist die Metadatenversion, `26.3.build.018-beta` die aktuelle
 Tessera-Maven-Version. Beides ersetzt keine Laufzeit-Capability. Sinopia ist in
 demselben Server enthalten; es gibt keinen separaten Sinopia-Plugin-Lader.
 

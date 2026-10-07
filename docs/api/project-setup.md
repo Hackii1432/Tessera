@@ -3,7 +3,7 @@ title: "Plugin-Projekt für Tessera einrichten"
 description: "Java 25, die tatsächlich gebaute API-Version und Folia-Metadaten verwenden."
 navTitle: "Projekt-Setup"
 order: 10
-updated: 2026-10-06
+updated: 2026-10-08
 minecraftVersion: "26.3"
 badge: "Anleitung"
 ---
@@ -15,7 +15,7 @@ Tesseras zusätzliche Methoden.
 ## API beziehen
 
 Der aktuelle Root-Build verwendet `group=dev.folia`, Modul `folia-api` und
-Version `26.3.build.017-beta`. Diese Werte stammen aus `gradle.properties`,
+Version `26.3.build.018-beta`. Diese Werte stammen aus `gradle.properties`,
 `settings.gradle.kts` und dem API-Publishing. Eine Veröffentlichung dieses
 Tessera-Artefakts im PaperMC-Maven-Repository ist damit **nicht** belegt.
 
@@ -52,7 +52,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("dev.folia:folia-api:26.3.build.017-beta")
+    compileOnly("dev.folia:folia-api:26.3.build.018-beta")
 }
 ```
 

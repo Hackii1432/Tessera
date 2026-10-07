@@ -1,0 +1,112 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Thu, 8 Oct 2026 00:28:31 +0200
+Subject: [PATCH] Test dragon egg exclusion from End portal duplication
+
+Cover every registered falling block with the option on and off, reject dragon egg snapshots in both directions and after state changes, and preserve existing continuation safety tests.
+
+diff --git a/src/test/java/io/papermc/paper/porting/EndPortalContinuationTest.java b/src/test/java/io/papermc/paper/porting/EndPortalContinuationTest.java
+index 08f98aef6ac3a3db32bf2eb53fa9baa221598ced..13c4a276d98b163048048796e92d1c01f90c0ad0 100644
+--- a/src/test/java/io/papermc/paper/porting/EndPortalContinuationTest.java
++++ b/src/test/java/io/papermc/paper/porting/EndPortalContinuationTest.java
+@@ -1,12 +1,20 @@
+ package io.papermc.paper.porting;
+ 
+ import io.papermc.paper.configuration.GlobalConfiguration;
++import java.util.stream.Stream;
++import net.minecraft.core.registries.BuiltInRegistries;
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.world.entity.MoverType;
+ import net.minecraft.world.entity.item.FallingBlockEntity;
++import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.phys.Vec3;
+ import org.bukkit.support.environment.VanillaFeature;
+ import org.junit.jupiter.api.Test;
++import org.junit.jupiter.params.ParameterizedTest;
++import org.junit.jupiter.params.provider.Arguments;
++import org.junit.jupiter.params.provider.MethodSource;
++import org.junit.jupiter.params.provider.ValueSource;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
+ import static org.mockito.Mockito.*;
+@@ -30,6 +38,70 @@ class EndPortalContinuationTest {
+         return field.get(entity);
+     }
+ 
++    private static GlobalConfiguration configuration(boolean enabled) {
++        GlobalConfiguration config = new GlobalConfiguration();
++        config.unsupportedSettings = config.new UnsupportedSettings();
++        config.unsupportedSettings.allowUnsafeEndPortalTeleportation = enabled;
++        return config;
++    }
++
++    private static Stream<Arguments> fallingBlockStates() {
++        return BuiltInRegistries.BLOCK.stream()
++            .filter(block -> block instanceof net.minecraft.world.level.block.FallingBlock)
++            .flatMap(block -> Stream.of(Arguments.of(block.defaultBlockState(), false), Arguments.of(block.defaultBlockState(), true)));
++    }
++
++    @ParameterizedTest
++    @MethodSource("fallingBlockStates")
++    void onlyDragonEggIsExcludedFromConfiguredDuplication(BlockState state, boolean enabled) throws Exception {
++        FallingBlockEntity entity = mock(FallingBlockEntity.class, CALLS_REAL_METHODS);
++        field(entity, "blockState", state);
++        var method = FallingBlockEntity.class.getDeclaredMethod("tessera$canDuplicateThroughEndPortal");
++        method.setAccessible(true);
++        try (var settings = mockStatic(GlobalConfiguration.class)) {
++            settings.when(GlobalConfiguration::get).thenReturn(configuration(enabled));
++            assertEquals(enabled && !state.is(Blocks.DRAGON_EGG), method.invoke(entity));
++        }
++    }
++
++    @ParameterizedTest
++    @ValueSource(booleans = {false, true})
++    void dragonEggCannotCaptureASourceContinuationInEitherDirection(boolean reverse) throws Exception {
++        FallingBlockEntity entity = mock(FallingBlockEntity.class, CALLS_REAL_METHODS);
++        field(entity, "blockState", Blocks.DRAGON_EGG.defaultBlockState());
++        field(entity, "tessera$insidePortalTick", true);
++        ServerLevel source = mock(ServerLevel.class);
++        ServerLevel end = mock(ServerLevel.class);
++        Class<?> portalType = Class.forName("net.minecraft.world.entity.Entity$PortalType");
++        var endType = portalType.getDeclaredField("END");
++        endType.setAccessible(true);
++        var method = FallingBlockEntity.class.getDeclaredMethod("tessera$portalTransferQueued", ServerLevel.class, ServerLevel.class, portalType);
++        method.setAccessible(true);
++        try (var settings = mockStatic(GlobalConfiguration.class)) {
++            settings.when(GlobalConfiguration::get).thenReturn(configuration(true));
++            method.invoke(entity, reverse ? end : source, reverse ? source : end, endType.get(null));
++        }
++        assertNull(field(entity, "tessera$portalContinuation"));
++        verifyNoInteractions(source, end);
++    }
++
++    @ParameterizedTest
++    @ValueSource(booleans = {false, true})
++    void dragonEggInEitherPendingStateCannotPublishASourceCopy(boolean capturedEgg) throws Exception {
++        FallingBlockEntity entity = mock(FallingBlockEntity.class, CALLS_REAL_METHODS);
++        FallingBlockEntity continuation = mock(FallingBlockEntity.class);
++        field(entity, "blockState", (capturedEgg ? Blocks.SAND : Blocks.DRAGON_EGG).defaultBlockState());
++        field(continuation, "blockState", (capturedEgg ? Blocks.DRAGON_EGG : Blocks.SAND).defaultBlockState());
++        field(entity, "tessera$portalContinuation", continuation);
++        try (var settings = mockStatic(GlobalConfiguration.class)) {
++            settings.when(GlobalConfiguration::get).thenReturn(configuration(true));
++            assertNull(finish(entity, true));
++        }
++        assertNull(field(entity, "tessera$portalContinuation"));
++        verifyNoInteractions(continuation);
++        assertNull(finish(entity, true));
++    }
++
+     @Test
+     void preparationSuspendsMovementAndPreventsAnotherPortalAttempt() throws Exception {
+         var entity = mock(FallingBlockEntity.class, CALLS_REAL_METHODS);
+@@ -73,6 +145,8 @@ class EndPortalContinuationTest {
+     void pluginOrPistonMovementInvalidatesStaleSourceFrame() throws Exception {
+         var entity = mock(FallingBlockEntity.class, CALLS_REAL_METHODS);
+         var continuation = mock(FallingBlockEntity.class);
++        field(entity, "blockState", Blocks.SAND.defaultBlockState());
++        field(continuation, "blockState", Blocks.SAND.defaultBlockState());
+         var world = mock(ServerLevel.class);
+         doReturn(world).when(entity).level();
+         when(continuation.level()).thenReturn(world);
