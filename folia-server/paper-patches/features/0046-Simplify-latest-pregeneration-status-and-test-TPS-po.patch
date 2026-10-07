@@ -1,0 +1,564 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Wed, 7 Oct 2026 02:05:51 +0200
+Subject: [PATCH] Simplify latest pregeneration status and test TPS pool
+ capacity
+
+
+diff --git a/src/main/java/io/papermc/paper/pregeneration/PregenerationCommand.java b/src/main/java/io/papermc/paper/pregeneration/PregenerationCommand.java
+index a01df62d59ef399075ca190023ff41a08916e507..4547c769930b1ca002f3d0e214cac9a929f98f06 100644
+--- a/src/main/java/io/papermc/paper/pregeneration/PregenerationCommand.java
++++ b/src/main/java/io/papermc/paper/pregeneration/PregenerationCommand.java
+@@ -9,7 +9,6 @@ import java.util.WeakHashMap;
+ import java.util.concurrent.ConcurrentHashMap;
+ import java.util.concurrent.TimeUnit;
+ import net.kyori.adventure.text.Component;
+-import net.kyori.adventure.text.event.ClickEvent;
+ import net.kyori.adventure.text.format.NamedTextColor;
+ import net.minecraft.server.MinecraftServer;
+ import org.bukkit.Bukkit;
+@@ -184,8 +183,8 @@ public final class PregenerationCommand extends Command {
+                         if (args.length > 2) throw new IllegalArgumentException("Usage: /pregen status [job-id|all]");
+                         Long id = args.length == 2 && !args[1].equalsIgnoreCase("all") ? Long.valueOf(args[1]) : null;
+                         service.views().whenComplete((views, failure) -> complete(sender, failure, () -> {
+-                            List<WorldPregenerator.View> selected = views.stream().filter(view -> id == null || view.id() == id).toList();
+-                            if (selected.isEmpty()) reply(sender, "No matching pregeneration jobs");
++                            List<WorldPregenerator.View> selected = PregenerationStatusView.select(views, id);
++                            if (selected.isEmpty()) reply(sender, id == null ? "No pregeneration job yet" : "No matching current or unfinished pregeneration job");
+                             else selected.forEach(view -> show(sender, view));
+                         }));
+                     }
+@@ -250,25 +249,12 @@ public final class PregenerationCommand extends Command {
+         reply(sender, "/pregen corners <x1> <z1> <x2> <z2> | border | mode <balanced|fast>");
+         reply(sender, "/pregen plan | start [confirm] | status [job-id|all]");
+         reply(sender, "/pregen pause <id> | resume <id> | cancel <id> | mode <id> <balanced|fast>");
++        reply(sender, "Status shows the latest job. Explicit IDs can inspect older unfinished jobs; all is an alias for latest.");
+         reply(sender, "Each sender has a separate selection. /tick freeze does not stop pregeneration.");
+     }
+ 
+     private static void show(CommandSender sender, WorldPregenerator.View view) {
+-        reply(sender, Component.text("Pregeneration #" + view.id() + " — " + view.dimension(), NamedTextColor.AQUA)
+-            .clickEvent(ClickEvent.runCommand("/pregen status " + view.id())));
+-        reply(sender, "State: " + view.state() + " | Simulation: " + (view.frozen() ? "FROZEN" : "RUNNING") + " | Mode: " + view.mode());
+-        double percent = view.total() == 0 ? 0 : 100.0 * (view.generated() + view.existing()) / view.total();
+-        reply(sender, String.format(Locale.ROOT, "Progress: %.2f%% | Generated/finalized: %d | Already complete: %d | Total: %d",
+-            percent, view.generated(), view.existing(), view.total()));
+-        reply(sender, String.format(Locale.ROOT, "Rate: %.1f chunks/s | In flight: %d", view.rate(), view.inFlight()));
+-        if (view.rate() > 0 && view.state().equals("RUNNING")) {
+-            long seconds = (long) Math.ceil((view.total() - view.generated() - view.existing()) / view.rate());
+-            reply(sender, "Estimated remaining: " + seconds / 3600 + "h " + seconds / 60 % 60 + "m " + seconds % 60 + "s");
+-        }
+-        if (!view.detail().isBlank()) reply(sender, view.detail());
+-        reply(sender, Component.text("[Pause] ", NamedTextColor.YELLOW).clickEvent(ClickEvent.runCommand("/pregen pause " + view.id()))
+-            .append(Component.text("[Resume] ", NamedTextColor.GREEN).clickEvent(ClickEvent.runCommand("/pregen resume " + view.id())))
+-            .append(Component.text("[Cancel]", NamedTextColor.RED).clickEvent(ClickEvent.suggestCommand("/pregen cancel " + view.id()))));
++        for (Component line : PregenerationStatusView.lines(view)) reply(sender, line);
+     }
+ 
+     private static void complete(CommandSender sender, Throwable failure, Runnable success) {
+diff --git a/src/main/java/io/papermc/paper/pregeneration/PregenerationHistory.java b/src/main/java/io/papermc/paper/pregeneration/PregenerationHistory.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..407f596cf3073f7ec8cfacc95132858bd6abf37a
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/pregeneration/PregenerationHistory.java
+@@ -0,0 +1,50 @@
++package io.papermc.paper.pregeneration;
++
++import java.io.IOException;
++import java.nio.file.Files;
++import java.nio.file.LinkOption;
++import java.nio.file.Path;
++import java.util.HashSet;
++import java.util.Set;
++import java.util.TreeSet;
++
++/** Metadata-thread-only retention; never deletes world data or unfinished job checkpoints. */
++final class PregenerationHistory {
++    private long latestId;
++    private final Set<Long> finished = new HashSet<>();
++    private final TreeSet<Long> obsolete = new TreeSet<>();
++
++    boolean shouldWrite(long id, boolean terminal) {
++        return (!finished.contains(id) || terminal) && (!terminal || id >= latestId);
++    }
++
++    void published(long id, boolean terminal) {
++        if (id < 1) throw new IllegalArgumentException("Job ID must be positive");
++        if (id > latestId) {
++            if (finished.contains(latestId)) obsolete.add(latestId);
++            latestId = id;
++        }
++        if (terminal) {
++            finished.add(id);
++            if (id < latestId) obsolete.add(id);
++        }
++    }
++
++    void prune(Path directory) throws IOException {
++        if (obsolete.isEmpty()) return;
++        if (Files.isSymbolicLink(directory) || !Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS)) {
++            throw new IOException("Unsafe pregeneration history directory: " + directory);
++        }
++        for (var iterator = obsolete.iterator(); iterator.hasNext();) {
++            long id = iterator.next();
++            Path target = directory.resolve(id + ".json");
++            if (Files.isSymbolicLink(target) || (Files.exists(target, LinkOption.NOFOLLOW_LINKS)
++                && !Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS))) {
++                throw new IOException("Unsafe obsolete pregeneration checkpoint: " + target);
++            }
++            Files.deleteIfExists(target);
++            iterator.remove();
++        }
++        // Keep terminal identities to reject delayed pre-completion writes after pruning.
++    }
++}
+diff --git a/src/main/java/io/papermc/paper/pregeneration/PregenerationStatusView.java b/src/main/java/io/papermc/paper/pregeneration/PregenerationStatusView.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..32accfb2191c1d727b4f0cdf8dd04aed30da6c97
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/pregeneration/PregenerationStatusView.java
+@@ -0,0 +1,102 @@
++package io.papermc.paper.pregeneration;
++
++import java.util.ArrayList;
++import java.util.Comparator;
++import java.util.List;
++import java.util.Locale;
++import net.kyori.adventure.text.Component;
++import net.kyori.adventure.text.event.ClickEvent;
++import net.kyori.adventure.text.format.NamedTextColor;
++import net.kyori.adventure.text.format.TextDecoration;
++import org.jspecify.annotations.Nullable;
++
++/** Presentation of copied job state only; no world access or scheduler work. */
++final class PregenerationStatusView {
++    private static final String COMMAND = "/tessera:pregen";
++
++    private PregenerationStatusView() {
++    }
++
++    static List<WorldPregenerator.View> select(List<WorldPregenerator.View> views, @Nullable Long id) {
++        var latest = views.stream().max(Comparator.comparingLong(WorldPregenerator.View::id)).orElse(null);
++        if (latest == null) return List.of();
++        if (id == null) return List.of(latest);
++        // Explicit lookup remains available for older unfinished parallel/recoverable jobs.
++        return views.stream().filter(view -> view.id() == id && (view.id() == latest.id() || !finished(view.state()))).toList();
++    }
++
++    private static boolean finished(String state) {
++        return state.equals("COMPLETED") || state.equals("CANCELLED");
++    }
++
++    private static Component label(String value) {
++        return Component.text(value, NamedTextColor.GRAY);
++    }
++
++    private static Component value(String value) {
++        return Component.text(value, NamedTextColor.WHITE);
++    }
++
++    private static Component action(String title, String arguments, NamedTextColor colour, boolean suggest) {
++        return Component.text("[" + title + "]", colour)
++            .clickEvent(suggest ? ClickEvent.suggestCommand(COMMAND + arguments) : ClickEvent.runCommand(COMMAND + arguments));
++    }
++
++    private static String count(long value) {
++        return String.format(Locale.ROOT, "%,d", value);
++    }
++
++    private static String eta(WorldPregenerator.View view) {
++        if (view.state().equals("COMPLETED")) return "done";
++        if (!view.state().equals("RUNNING") || !Double.isFinite(view.rate()) || view.rate() <= 0) return "unavailable";
++        double seconds = Math.ceil(Math.max(0.0, (double) view.total() - view.generated() - view.existing()) / view.rate());
++        if (!Double.isFinite(seconds) || seconds >= Long.MAX_VALUE) return "unavailable";
++        long remaining = (long) seconds;
++        if (remaining >= 86400) return remaining / 86400 + "d " + remaining / 3600 % 24 + "h";
++        if (remaining >= 3600) return remaining / 3600 + "h " + remaining / 60 % 60 + "m";
++        if (remaining >= 60) return remaining / 60 + "m " + remaining % 60 + "s";
++        return remaining + "s";
++    }
++
++    static List<Component> lines(WorldPregenerator.View view) {
++        var output = new ArrayList<Component>();
++        NamedTextColor colour = switch (view.state()) {
++            case "RUNNING", "COMPLETED" -> NamedTextColor.GREEN;
++            case "FAILED" -> NamedTextColor.RED;
++            case "CANCELLED" -> NamedTextColor.GRAY;
++            case "STARTING", "COMPLETING" -> NamedTextColor.AQUA;
++            default -> NamedTextColor.YELLOW;
++        };
++        output.add(Component.text("Tessera · Pregeneration #" + view.id(), NamedTextColor.AQUA, TextDecoration.BOLD)
++            .append(label(" · " + view.dimension())));
++        output.add(Component.text("[" + view.state().replace('_', ' ') + "]", colour)
++            .append(label(" · Mode: ")).append(value(view.mode().name()))
++            .append(label(" · Simulation: ")).append(Component.text(view.frozen() ? "FROZEN" : "RUNNING",
++                view.frozen() ? NamedTextColor.AQUA : NamedTextColor.WHITE)));
++        double completed = (double) view.generated() + view.existing();
++        double percent = view.total() <= 0 ? 0.0 : Math.clamp(completed * 100.0 / view.total(), 0.0, 100.0);
++        int filled = (int) (percent / 5.0);
++        output.add(label("Progress: ").append(Component.text("[" + "█".repeat(filled) + "░".repeat(20 - filled) + "] ", colour))
++            .append(value(String.format(Locale.ROOT, "%.2f%%", percent)))
++            .append(label(" · ")).append(value(count(view.generated() + view.existing()) + " / " + count(view.total()) + " chunks"))
++            .hoverEvent(label("Generated/finalized: " + count(view.generated()) + " · Already complete: " + count(view.existing()))));
++        String rate = Double.isFinite(view.rate()) && view.rate() >= 0 ? String.format(Locale.ROOT, "%.1f chunks/s", view.rate()) : "unavailable";
++        output.add(label("Rate: ").append(value(rate)).append(label(" · ETA: ")).append(value(eta(view)))
++            .append(label(" · In flight: ")).append(value(Integer.toString(view.inFlight()))));
++        if (!view.detail().isBlank()) output.add(Component.text(view.detail(), view.state().equals("FAILED") ? NamedTextColor.RED : NamedTextColor.YELLOW));
++        Component controls = action("Refresh", " status", NamedTextColor.AQUA, false);
++        switch (view.state()) {
++            case "STARTING", "RUNNING", "WAITING_FOR_WORLD", "WAITING_FOR_MEMORY" -> controls = controls.append(label(" "))
++                .append(action("Pause", " pause " + view.id(), NamedTextColor.YELLOW, false)).append(label(" "))
++                .append(action("Cancel", " cancel " + view.id(), NamedTextColor.RED, true));
++            case "PAUSED", "FAILED" -> {
++                if (view.inFlight() == 0) controls = controls.append(label(" "))
++                    .append(action("Resume", " resume " + view.id(), NamedTextColor.GREEN, false));
++                controls = controls.append(label(" ")).append(action("Cancel", " cancel " + view.id(), NamedTextColor.RED, true));
++            }
++            default -> { }
++        }
++        output.add(controls);
++        return List.copyOf(output);
++    }
++}
+diff --git a/src/test/java/io/papermc/paper/pregeneration/PregenerationHistoryTest.java b/src/test/java/io/papermc/paper/pregeneration/PregenerationHistoryTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..396da4170e9325570ee3f7f369d374a72cca75e0
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/pregeneration/PregenerationHistoryTest.java
+@@ -0,0 +1,138 @@
++package io.papermc.paper.pregeneration;
++
++import java.io.IOException;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.api.io.TempDir;
++
++import static org.junit.jupiter.api.Assertions.*;
++
++class PregenerationHistoryTest {
++    @TempDir Path directory;
++
++    private void file(long id) throws IOException {
++        PregenerationCheckpoint.write(directory.resolve(id + ".json"), "{\"id\":" + id + "}");
++    }
++
++    @Test
++    void keepsOnlyNewestFinishedCheckpointAndDoesNotDeleteUnfinishedJobsOrOtherFiles() throws IOException {
++        var history = new PregenerationHistory();
++        for (long id = 1; id <= 4; ++id) file(id);
++        Path unrelated = Files.writeString(directory.resolve("keep.txt"), "world data is untouched");
++        history.published(1, true);
++        history.published(2, false);
++        history.published(3, true);
++        history.published(4, true);
++        history.prune(directory);
++        assertFalse(Files.exists(directory.resolve("1.json")));
++        assertFalse(Files.exists(directory.resolve("3.json")));
++        assertTrue(Files.exists(directory.resolve("2.json")));
++        assertTrue(Files.exists(directory.resolve("4.json")));
++        assertEquals("world data is untouched", Files.readString(unrelated));
++    }
++
++    @Test
++    void newestUnfinishedJobReplacesFinishedHistoryAndOlderWorkCanStillPublish() throws IOException {
++        var history = new PregenerationHistory();
++        file(1);
++        file(2);
++        history.published(1, true);
++        history.published(2, false);
++        history.prune(directory);
++        assertFalse(Files.exists(directory.resolve("1.json")));
++        assertTrue(Files.exists(directory.resolve("2.json")));
++        assertFalse(history.shouldWrite(1, true));
++        assertFalse(history.shouldWrite(1, false));
++        assertTrue(history.shouldWrite(2, false));
++        assertTrue(history.shouldWrite(2, true));
++    }
++
++    @Test
++    void removesAnOlderParallelJobOnlyWhenItFinishesAndRejectsLateStaleWrites() throws IOException {
++        var history = new PregenerationHistory();
++        file(1);
++        file(2);
++        history.published(1, false);
++        history.published(2, false);
++        history.prune(directory);
++        assertTrue(Files.exists(directory.resolve("1.json")));
++        assertTrue(history.shouldWrite(1, false));
++        assertFalse(history.shouldWrite(1, true));
++        history.published(1, true);
++        history.prune(directory);
++        assertFalse(Files.exists(directory.resolve("1.json")));
++        assertTrue(Files.exists(directory.resolve("2.json")));
++        assertFalse(history.shouldWrite(1, false));
++        assertFalse(history.shouldWrite(1, true));
++        history.prune(directory);
++    }
++
++    @Test
++    void doesNotDowngradeTheNewestCompletedCheckpointWithAnOldRunningSnapshot() throws IOException {
++        var history = new PregenerationHistory();
++        file(7);
++        history.published(7, true);
++        assertFalse(history.shouldWrite(7, false));
++        assertTrue(history.shouldWrite(7, true));
++        history.prune(directory);
++        assertTrue(Files.exists(directory.resolve("7.json")));
++    }
++
++    @Test
++    void cancellationMustDrainBeforeAnOlderCheckpointBecomesObsolete() throws IOException {
++        var history = new PregenerationHistory();
++        file(1);
++        file(2);
++        history.published(1, false);
++        history.published(2, false);
++        // A CANCELLING job is still unfinished, even if its intended state is CANCELLED.
++        history.published(1, false);
++        history.prune(directory);
++        assertTrue(Files.exists(directory.resolve("1.json")));
++        assertTrue(history.shouldWrite(1, false));
++        history.published(1, true);
++        history.prune(directory);
++        assertFalse(Files.exists(directory.resolve("1.json")));
++    }
++
++    @Test
++    void recoverySelectsNewestIdRegardlessOfDirectoryOrder() throws IOException {
++        var history = new PregenerationHistory();
++        file(9);
++        file(4);
++        file(6);
++        history.published(9, true);
++        history.published(4, true);
++        history.published(6, false);
++        history.prune(directory);
++        assertTrue(Files.exists(directory.resolve("9.json")));
++        assertFalse(Files.exists(directory.resolve("4.json")));
++        assertTrue(Files.exists(directory.resolve("6.json")));
++    }
++
++    @Test
++    void failedDeletionPreservesUnexpectedContentsAndCanBeRetried() throws IOException {
++        var history = new PregenerationHistory();
++        Path old = Files.createDirectory(directory.resolve("1.json"));
++        Path keep = Files.writeString(old.resolve("keep"), "untouched");
++        file(2);
++        history.published(1, true);
++        history.published(2, true);
++        assertThrows(IOException.class, () -> history.prune(directory));
++        assertEquals("untouched", Files.readString(keep));
++        assertTrue(Files.exists(directory.resolve("2.json")));
++        Files.delete(keep);
++        Files.delete(old);
++        history.prune(directory);
++        assertFalse(Files.exists(old));
++        assertTrue(Files.exists(directory.resolve("2.json")));
++    }
++
++    @Test
++    void rejectsInvalidIdsBeforeTheyCanBecomeDeletionTargets() {
++        var history = new PregenerationHistory();
++        assertThrows(IllegalArgumentException.class, () -> history.published(0, true));
++        assertThrows(IllegalArgumentException.class, () -> history.published(-1, true));
++    }
++}
+diff --git a/src/test/java/io/papermc/paper/pregeneration/PregenerationStatusViewTest.java b/src/test/java/io/papermc/paper/pregeneration/PregenerationStatusViewTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..bcb4e69a6bdd5a3eb7a29fd38004abebd9bca647
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/pregeneration/PregenerationStatusViewTest.java
+@@ -0,0 +1,101 @@
++package io.papermc.paper.pregeneration;
++
++import java.util.ArrayList;
++import java.util.List;
++import net.kyori.adventure.text.Component;
++import net.kyori.adventure.text.event.ClickEvent;
++import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.*;
++
++class PregenerationStatusViewTest {
++    private static WorldPregenerator.View view(long id, String state, int inFlight) {
++        return new WorldPregenerator.View(id, "world", "minecraft:overworld", state, WorldPregenerator.Mode.BALANCED,
++            1000, 200, 50, inFlight, 10.0, true, "");
++    }
++
++    private static String plain(WorldPregenerator.View view) {
++        return String.join("\n", PregenerationStatusView.lines(view).stream()
++            .map(PlainTextComponentSerializer.plainText()::serialize).toList());
++    }
++
++    private static List<ClickEvent> clicks(Component component) {
++        var result = new ArrayList<ClickEvent>();
++        if (component.clickEvent() != null) result.add(component.clickEvent());
++        for (Component child : component.children()) result.addAll(clicks(child));
++        return result;
++    }
++
++    @Test
++    void defaultStatusAlwaysSelectsTheNewestJobRegardlessOfItsState() {
++        for (String state : List.of("STARTING", "RUNNING", "PAUSED", "CANCELLED", "COMPLETING", "COMPLETED", "FAILED")) {
++            var latest = view(3, state, 0);
++            var views = List.of(latest, view(1, "COMPLETED", 0), view(2, "CANCELLED", 0));
++            assertEquals(List.of(latest), PregenerationStatusView.select(views, null));
++            assertEquals(List.of(latest), PregenerationStatusView.select(views, 3L));
++            assertTrue(PregenerationStatusView.select(views, 1L).isEmpty());
++            assertTrue(PregenerationStatusView.select(views, 2L).isEmpty());
++        }
++        assertTrue(PregenerationStatusView.select(List.of(), null).isEmpty());
++    }
++
++    @Test
++    void explicitIdsKeepOlderParallelAndRecoverableJobsAccessible() {
++        for (String state : List.of("STARTING", "RUNNING", "PAUSED", "FAILED", "WAITING_FOR_WORLD", "WAITING_FOR_MEMORY", "CANCELLING")) {
++            var older = view(1, state, 1);
++            var latest = view(2, "CANCELLED", 0);
++            assertEquals(List.of(latest), PregenerationStatusView.select(List.of(older, latest), null));
++            assertEquals(List.of(older), PregenerationStatusView.select(List.of(older, latest), 1L));
++        }
++    }
++
++    @Test
++    void compactStatusShowsProgressDimensionRateEtaAndFreezeInEnglish() {
++        var output = PregenerationStatusView.lines(view(9, "RUNNING", 4));
++        assertEquals(5, output.size());
++        String text = plain(view(9, "RUNNING", 4));
++        assertTrue(text.contains("Tessera · Pregeneration #9 · minecraft:overworld"));
++        assertTrue(text.contains("[RUNNING] · Mode: BALANCED · Simulation: FROZEN"));
++        assertTrue(text.contains("25.00% · 250 / 1,000 chunks"));
++        assertTrue(text.contains("Rate: 10.0 chunks/s · ETA: 1m 15s · In flight: 4"));
++        assertTrue(text.contains("[Refresh] [Pause] [Cancel]"));
++        assertFalse(text.contains("[Resume]"));
++        assertNotNull(output.get(2).hoverEvent());
++    }
++
++    @Test
++    void finishedAndDrainingJobsNeverOfferImpossibleControls() {
++        for (String state : List.of("COMPLETED", "CANCELLED", "COMPLETING", "PAUSING", "CANCELLING")) {
++            String text = plain(view(1, state, 0));
++            assertTrue(text.endsWith("[Refresh]"));
++            assertFalse(text.contains("[Resume]"));
++            assertFalse(text.contains("[Pause]"));
++            assertFalse(text.contains("[Cancel]"));
++        }
++        assertTrue(plain(view(1, "PAUSED", 0)).endsWith("[Refresh] [Resume] [Cancel]"));
++        assertTrue(plain(view(1, "FAILED", 0)).endsWith("[Refresh] [Resume] [Cancel]"));
++        assertTrue(plain(view(1, "FAILED", 2)).endsWith("[Refresh] [Cancel]"));
++        assertTrue(plain(view(1, "COMPLETED", 0)).contains("ETA: done"));
++    }
++
++    @Test
++    void clicksUseTheNamespacedCommandAndCancelOnlySuggestsTheAction() {
++        var events = PregenerationStatusView.lines(view(9, "RUNNING", 1)).stream().flatMap(line -> clicks(line).stream()).toList();
++        assertEquals(List.of(ClickEvent.runCommand("/tessera:pregen status"), ClickEvent.runCommand("/tessera:pregen pause 9"),
++            ClickEvent.suggestCommand("/tessera:pregen cancel 9")), events);
++    }
++
++    @Test
++    void missingOrInvalidRatesNeverProduceInventedEtaOrNonFiniteNumbers() {
++        for (double rate : List.of(0.0, Double.NaN, Double.POSITIVE_INFINITY, Double.MIN_VALUE)) {
++            var job = new WorldPregenerator.View(1, "world", "minecraft:the_end", "RUNNING", WorldPregenerator.Mode.FAST,
++                1000, 0, 0, 1, rate, false, "");
++            String text = plain(job);
++            assertTrue(text.contains("ETA: unavailable"));
++            assertFalse(text.contains("NaN"));
++            assertFalse(text.contains("Infinity"));
++            assertTrue(text.contains("Simulation: RUNNING"));
++        }
++    }
++}
+diff --git a/src/test/java/io/papermc/paper/pregeneration/PregenerationTestSuite.java b/src/test/java/io/papermc/paper/pregeneration/PregenerationTestSuite.java
+index 53f05de6626a756c6f97798451a190422e09fbe8..ee6283565064ea5f593babaf99511432da4f6d11 100644
+--- a/src/test/java/io/papermc/paper/pregeneration/PregenerationTestSuite.java
++++ b/src/test/java/io/papermc/paper/pregeneration/PregenerationTestSuite.java
+@@ -4,6 +4,7 @@ import org.junit.platform.suite.api.SelectClasses;
+ import org.junit.platform.suite.api.Suite;
+ 
+ @Suite
+-@SelectClasses({PregenerationAreaTest.class, PregenerationCheckpointTest.class, PregenerationDimensionsTest.class})
++@SelectClasses({PregenerationAreaTest.class, PregenerationCheckpointTest.class, PregenerationDimensionsTest.class,
++    PregenerationHistoryTest.class, PregenerationStatusViewTest.class})
+ public class PregenerationTestSuite {
+ }
+diff --git a/src/test/java/io/papermc/paper/threadedregions/commands/RegionHealthCommandTest.java b/src/test/java/io/papermc/paper/threadedregions/commands/RegionHealthCommandTest.java
+index 5f0a0bb49d404c3a19fdbc7fb655e2e039038408..4f0126d17f45924d463ad4bebde7453d8ba8545f 100644
+--- a/src/test/java/io/papermc/paper/threadedregions/commands/RegionHealthCommandTest.java
++++ b/src/test/java/io/papermc/paper/threadedregions/commands/RegionHealthCommandTest.java
+@@ -82,6 +82,73 @@ class RegionHealthCommandTest {
+         assertFalse(output.contains("NaN"));
+     }
+ 
++    @Test
++    void overviewShowsRegionalAndGlobalUtilisationAgainstTickThreadCapacity() {
++        var view = new RegionHealthView(snapshot(7L, 9L));
++        String utilisation = "Utilisation (15 s): 180.00% / 400.00% max · Tick threads: 4 · Partial samples";
++        assertTrue(plain(view.overview(Integer.MAX_VALUE)).contains(utilisation));
++        // Limiting displayed regions must not change the server-wide total or capacity.
++        assertTrue(plain(view.overview(1)).contains(utilisation));
++        assertFalse(plain(view.overview(1)).contains("Region #9"));
++    }
++
++    @Test
++    void utilisationCapacityUsesTickThreadsNotRegionCountAndDoesNotDivideByZero() {
++        var base = snapshot(7L, 9L);
++        for (int threads : List.of(1, 8, 0)) {
++            var state = new RegionHealthSnapshot(base.regions(), base.players(), SELF, NORMAL, base.global(), threads, 0, 0);
++            String output = plain(new RegionHealthView(state).overview(Integer.MAX_VALUE));
++            assertTrue(output.contains(String.format(java.util.Locale.ROOT, " / %.2f%% max · Tick threads: %d", threads * 100.0, threads)));
++            assertFalse(output.contains("NaN"));
++            assertFalse(output.contains("Infinity"));
++        }
++    }
++
++    @Test
++    void utilisationKeepsKnownCapacityWithoutInventingMeasurements() {
++        var state = new RegionHealthSnapshot(List.of(), List.of(), null, NORMAL, null, 2, 0, 0);
++        String output = plain(new RegionHealthView(state).overview(Integer.MAX_VALUE));
++        assertTrue(output.contains("Utilisation (15 s): No measurements yet / 200.00% max · Tick threads: 2"));
++        assertFalse(output.contains("Partial samples"));
++        state = new RegionHealthSnapshot(List.of(), List.of(), null, NORMAL, metrics(20, 2), 2, 0, 0);
++        output = plain(new RegionHealthView(state).overview(Integer.MAX_VALUE));
++        assertTrue(output.contains("Utilisation (15 s): 4.00% / 200.00% max · Tick threads: 2"));
++        assertFalse(output.contains("Partial samples"));
++    }
++
++    @Test
++    void utilisationIgnoresInvalidAndHistoricalSamplesAndLabelsPartialReports() {
++        var invalid = new RegionHealthSnapshot.Metrics(20, 8, Double.NaN, 1, 8, 13, 300);
++        var region = new RegionHealthSnapshot.Region(1, "world", 1, 1, List.of(), Map.of("15 s", invalid, "1 min", metrics(20, 40)));
++        var state = new RegionHealthSnapshot(List.of(region), List.of(), null, NORMAL, metrics(20, 2), 3, 0, 0);
++        String output = plain(new RegionHealthView(state).overview(Integer.MAX_VALUE));
++        assertTrue(output.contains("Utilisation (15 s): 4.00% / 300.00% max · Tick threads: 3 · Partial samples"));
++        assertFalse(output.contains("NaN"));
++        state = new RegionHealthSnapshot(List.of(region), List.of(), null, NORMAL, invalid, 3, 0, 0);
++        output = plain(new RegionHealthView(state).overview(Integer.MAX_VALUE));
++        assertTrue(output.contains("Utilisation (15 s): No measurements yet / 300.00% max"));
++    }
++
++    @Test
++    void utilisationDoesNotMarkCompleteSamplesAsPartialOrClampMeasuredTotals() {
++        var region = new RegionHealthSnapshot.Region(1, "world", 1, 1, List.of(), Map.of("15 s", metrics(20, 80)));
++        var state = new RegionHealthSnapshot(List.of(region), List.of(), null, NORMAL, metrics(20, 2), 1, 0, 0);
++        String output = plain(new RegionHealthView(state).overview(Integer.MAX_VALUE));
++        assertTrue(output.contains("Utilisation (15 s): 164.00% / 100.00% max · Tick threads: 1"));
++        assertFalse(output.contains("Partial samples"));
++    }
++
++    @Test
++    void utilisationCapacityRemainsAvailableDuringFreezeAndSprint() {
++        var base = snapshot(7L, 9L);
++        for (var mode : List.of(new RegionHealthSnapshot.TickMode(20, true, false), new RegionHealthSnapshot.TickMode(20, false, true))) {
++            var state = new RegionHealthSnapshot(base.regions(), base.players(), SELF, mode, base.global(), 4, 0, 0);
++            String output = plain(new RegionHealthView(state).overview(Integer.MAX_VALUE));
++            assertTrue(output.contains("Utilisation (15 s): 180.00% / 400.00% max · Tick threads: 4 · Partial samples"));
++            assertTrue(output.contains(mode.frozen() ? "Simulation frozen" : "Tick sprint active"));
++        }
++    }
++
+     @Test
+     void playerLookupIsCaseInsensitiveAndComparesRegionsNotPlayerCost() {
+         String different = plain(new RegionHealthView(snapshot(7L, 9L)).player("bOB"));

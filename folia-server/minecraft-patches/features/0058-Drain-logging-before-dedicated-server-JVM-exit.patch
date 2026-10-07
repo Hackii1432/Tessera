@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Wed, 7 Oct 2026 06:44:46 +0200
+Subject: [PATCH] Drain logging before dedicated server JVM exit
+
+Finish async console output before System.exit starts JLine shutdown hooks. Preserve the existing exit code and complete normal region/storage shutdown first.
+
+diff --git a/net/minecraft/server/dedicated/DedicatedServer.java b/net/minecraft/server/dedicated/DedicatedServer.java
+index d610cb1be84a92b1b574309f0037a544db832b65..47d1314edd02943d73561225cdfd1982c62638c9 100644
+--- a/net/minecraft/server/dedicated/DedicatedServer.java
++++ b/net/minecraft/server/dedicated/DedicatedServer.java
+@@ -524,7 +524,13 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+         }
+ 
+         this.hasFullyShutdown = true; // Paper - Improved watchdog support
+-        System.exit(this.abnormalExit ? 70 : 0); // CraftBukkit // Paper - Improved watchdog support
++        // Tessera start - drain async console output before JLine's JVM shutdown hook closes the terminal
++        try {
++            io.papermc.paper.log.LoggerShutdown.shutdownLogging();
++        } finally {
++            System.exit(this.abnormalExit ? 70 : 0); // CraftBukkit // Paper - Improved watchdog support
++        }
++        // Tessera end - drain async console output before JLine's JVM shutdown hook closes the terminal
+     }
+ 
+     @Override

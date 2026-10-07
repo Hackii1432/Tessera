@@ -171,7 +171,7 @@ final class NativePregenerationSmoke implements Listener {
             .thenCompose(view -> {
                 require(text(view, "state").equals("CANCELLED") && number(view, "inFlight") == 0, "cancel drains native work without deleting chunks");
                 checks.add("mode-pause-resume-cancel: passed");
-                return createCustomWorld();
+                return assertStatusAndHistory(number(view, "id")).thenCompose(ignored -> createCustomWorld());
             }).thenCompose(custom -> owner(one, () -> {
                     one.performCommand("pregen dimension " + custom.getKey());
                     require(selectedDimension(one).equals(custom.getKey()), "custom dimension key selects its exact runtime world");
@@ -420,6 +420,51 @@ final class NativePregenerationSmoke implements Listener {
     }
     private static org.bukkit.command.Command pregenerationCommand() {
         return java.util.Objects.requireNonNull(Bukkit.getCommandMap().getCommand("tessera:pregen"));
+    }
+
+    private CompletableFuture<Void> assertStatusAndHistory(long id) {
+        return capture("tessera:pregen status", 5).thenCompose(lines -> {
+            require(lines.getFirst().contains("Pregeneration #" + id), "status selects newest cancelled job");
+            require(lines.get(1).contains("[CANCELLED]") && lines.get(1).contains("FROZEN"), "cancelled status and freeze are explicit");
+            require(lines.get(2).contains("Progress:") && lines.get(2).contains(" chunks"), "compact progress line");
+            require(lines.get(3).contains("ETA: unavailable"), "cancelled job has no invented ETA");
+            require(lines.getLast().equals("[Refresh]"), "finished job has no invalid pause/resume/cancel controls");
+            return capture("tessera:pregen status all", 5);
+        }).thenCompose(lines -> {
+            require(lines.getFirst().contains("Pregeneration #" + id), "status all aliases the newest job, not history");
+            return capture("tessera:pregen status 1", 1);
+        }).thenCompose(lines -> {
+            require(lines.getFirst().contains("No matching current or unfinished"), "older completed history is not displayed");
+            checks.add("status-latest-compact: passed; id=" + id + " cancelled; status/all/old-id; 5 lines; applicable controls only");
+            return CompletableFuture.runAsync(() -> {
+                try (var files = Files.list(Path.of(".tessera", "pregeneration"))) {
+                    List<String> checkpoints = files.filter(path -> path.getFileName().toString().endsWith(".json"))
+                        .map(path -> path.getFileName().toString()).sorted().toList();
+                    require(checkpoints.equals(List.of(id + ".json")), "only newest finished checkpoint remains: " + checkpoints);
+                    checks.add("history-retention: passed; only " + id + ".json; generated world chunks preserved");
+                } catch (Exception failure) { throw new RuntimeException(failure); }
+            });
+        }).thenCompose(ignored -> capture("paper:tps server 1", 4)).thenAccept(lines -> {
+            require(lines.stream().anyMatch(line -> line.contains("Simulation frozen")), "actual TPS overview preserves freeze label");
+            require(lines.stream().anyMatch(line -> line.contains("Utilisation (15 s):") && line.contains(" / 400.00% max")
+                && line.contains("Tick threads: 4")), "actual overview exposes the scheduler's four-thread capacity");
+            require(lines.stream().noneMatch(line -> line.contains("NaN") || line.contains("Infinity")), "actual TPS totals are finite");
+            checks.add("tps-utilisation-capacity: passed; actual command/collector; 400% for four scheduler threads during freeze");
+        });
+    }
+
+    private CompletableFuture<List<String>> capture(String command, int expectedLines) {
+        List<String> lines = new CopyOnWriteArrayList<>();
+        CompletableFuture<List<String>> response = new CompletableFuture<>();
+        // The real Folia dispatcher accepts this native feedback sender on the global owner.
+        var sender = new io.papermc.paper.commands.FeedbackForwardingSender(component -> {
+            lines.add(net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(component));
+            if (lines.size() >= expectedLines) response.complete(List.copyOf(lines));
+        }, (org.bukkit.craftbukkit.CraftServer) Bukkit.getServer());
+        return global(() -> {
+            require(Bukkit.dispatchCommand(sender, command), "dispatch " + command);
+            return null;
+        }).thenCompose(ignored -> response.orTimeout(15, TimeUnit.SECONDS));
     }
 
     private static NamespacedKey selectedDimension(Player player) {

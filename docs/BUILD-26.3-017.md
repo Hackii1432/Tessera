@@ -4,6 +4,14 @@ Stand: 06.10.2026. Tessera `26.3-017-beta`, Minecraft/API `26.3`, Java 25.
 Der empfohlene Teilumfang von `/data` ist implementiert und nativ geprüft.
 MCC-/MVE-Produktcode, Sinopia-Basis und Abhängigkeitsversionen wurden nicht geändert.
 
+Dieser Bericht dokumentiert die ursprüngliche Datei vom 06.10.2026 mit dem unten
+genannten Hash. Der [Nachtrag vom 07.10.2026](TPS-PREGEN-STATUS-2026-10-07.md)
+beschreibt die danach gebaute 017-JAR mit TPS-Kapazität, kompakter
+Pregen-Anzeige und deren eigener nativer Abnahme. Die damaligen NBT-/Restore-
+Nachweise sind historische Ergebnisse, keine erneuten Tests der neuen Datei.
+Die aktuelle 017-JAR mit korrigiertem Windows-Konsolenshutdown und ihrem eigenen
+Hash ist im [Shutdown-Nachtrag](CONSOLE-SHUTDOWN-2026-10-07.md) dokumentiert.
+
 ## Implementierter Umfang
 
 - `get` für Blockentities, Entities einschließlich Spieler und gemeinsamen Storage,

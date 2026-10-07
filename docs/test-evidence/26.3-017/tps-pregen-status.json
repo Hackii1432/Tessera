@@ -1,0 +1,94 @@
+{
+  "date": "2026-10-07",
+  "version": "26.3-017-beta",
+  "jar": "build/libs/tessera-server-26.3.build.017-beta.jar",
+  "bytes": 55618208,
+  "sha256": "037a380de916b2c82d1a4c701fe4d679661e74ccc0550e42a003fa9b2eb223c9",
+  "rootBaseCommit": "752dced66a794e6617406c7eca131ae86bef658d",
+  "additionalLocalChanges": true,
+  "sinopiaSnapshot": "cebdb10d9418432a18b920f7f2e902a8d03a43f4",
+  "appliedMinecraftHead": "cb379cdc540fbf17e6268d6f90d3c374d9daa48e",
+  "appliedServerHead": "df3f72d618cd2a555e5f0006c9a7d3506de5bbd9",
+  "patches": {
+    "minecraft0057Sha256": "671d6f19954deeba5e7df9fbcca8c4d3380abe888a30ec18557045cd60d94f27",
+    "server0046Sha256": "91d54029869f07e557e46f54662a001450cd31fffe253b6964f743114d7e0134"
+  },
+  "build": {
+    "successful": true,
+    "duration": "8m 18s",
+    "serverCases": 10261,
+    "serverSkips": 87,
+    "apiCases": 529,
+    "apiSkips": 2,
+    "failures": 0,
+    "errors": 0,
+    "newRegressionCases": 20,
+    "apiExamples": 10,
+    "apiDocumentationArticles": 19,
+    "apiDocumentationLinks": 51,
+    "apiValidatorTests": 35
+  },
+  "native": {
+    "fixture": "native-pregeneration-1791332255715",
+    "result": "build/reports/native-fixtures/native-pregeneration-1791332255715/result.json",
+    "testPluginSha256": "7af922e4cf05a564b6f1d8038a5ae4d96fe4243999bda780115c72cc8d6b7da2",
+    "port": 59665,
+    "tickThreads": 4,
+    "verifiedCapacityPercent": 400,
+    "phases": [
+      {
+        "mode": "native-pregeneration",
+        "passed": true,
+        "exitCode": 0,
+        "logins": 2,
+        "kicks": 0,
+        "quitsBeforeResult": 0,
+        "timedOut": false,
+        "latestStatusJob": 5,
+        "latestStatusState": "CANCELLED",
+        "statusLines": 5,
+        "statusAllIsLatestAlias": true,
+        "olderFinishedStatusRejected": true,
+        "checkpointsAfterStatusTest": [5],
+        "checkpointsAfterShutdown": [10, 11],
+        "intentionalSaveFailureJob": 7,
+        "intentionalCheckpointFailureJob": 8,
+        "failureRecoveryPassed": true,
+        "parallelFrozenDimensionsPassed": true,
+        "runtimeUnloadAndSnapshotPassed": true
+      },
+      {
+        "mode": "native-pregeneration-recovery",
+        "passed": true,
+        "exitCode": 0,
+        "logins": 2,
+        "kicks": 0,
+        "quitsBeforeResult": 0,
+        "timedOut": false,
+        "shutdownDrainSavedChunks": 2,
+        "resumedJob": 10,
+        "resumedJobTotalChunks": 1089,
+        "resumedJobExistingChunks": 2,
+        "finalCheckpointIds": [11],
+        "finalCheckpointState": "CANCELLED"
+      }
+    ],
+    "unexpectedRegionOrOwnershipErrors": false,
+    "visualVanillaClientAcceptance": false,
+    "productionPluginIntegrationRerun": false
+  },
+  "initialFixtureFailure": {
+    "fixture": "native-pregeneration-1791332149789",
+    "successful": false,
+    "evidence": "build/reports/native-fixtures/native-pregeneration-1791332149789/result.json",
+    "cause": "Unsupported generic test CommandSender in Folia dispatcher",
+    "correction": "Existing FeedbackForwardingSender; test plugin rebuilt separately; assertions and product JAR unchanged"
+  },
+  "fixtureCleanup": {
+    "removedIsolatedTestServers": 2,
+    "removedBytes": 433835633,
+    "evidenceArchivedAndHashVerified": true,
+    "productionDataRemoved": false,
+    "fixturesReproducibleThroughRunner": true
+  }
+}

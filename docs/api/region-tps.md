@@ -3,7 +3,7 @@ title: "Regionale TPS abfragen"
 description: "TPS-Abfragen, Messfenster und Grenzen öffentlicher Regionsdiagnostik."
 navTitle: "Regionale TPS"
 order: 110
-updated: 2026-09-28
+updated: 2026-10-07
 minecraftVersion: "26.3"
 badge: "Referenz"
 ---
@@ -61,3 +61,28 @@ auf dem Entity-Owner erfasste Werte verwenden; eine veränderliche `Location`
 nicht gleichzeitig auf einem anderen Thread umschreiben.
 
 Das Array enthält TPS, keine MSPT oder individuelle Spielerlast. Der reichhaltigere `/tps`-Befehl verwendet interne Strukturen, die keine öffentliche Region-ID-/MSPT-/Spielerzuordnungs-API sind. Fehlende Werte nicht mit erfundenen 20 TPS ersetzen; keine zusätzliche Plugin-Tickmessung ist nötig.
+
+## Utilisation in der Befehlsübersicht
+
+`/tps`, `/tps list` und `/tps server [count]` zeigen die vorhandenen
+15-Sekunden-Auslastungswerte aller aktuellen Regionen plus Global-Tick als Summe
+und die maximal verfügbare Kapazität des Tick-Threadpools. Beispielwerte:
+
+```text
+Utilisation (15 s): 180.00% / 400.00% max · Tick threads: 4 · Partial samples
+```
+
+100 % entsprechen einem vollständig belegten Tick-Thread; vier verfügbare
+Tick-Threads ergeben 400 % Kapazität. Dafür zählt der Scheduler seine aktuell
+lebenden Tick-Threads, nicht die CPU-Kerne, die Anzahl der Regionen oder die
+Chunk-Worker. Dies ist eine zeitbasierte Tick-Diagnose, keine Prozess-CPU-Messung
+und keine Garantie, dass eine einzelne Region freie Kapazität anderer Threads
+nutzen kann.
+
+`Partial samples` bedeutet, dass mindestens ein Regions- oder Global-Report fehlt
+oder ungültig ist. Ohne verwertbare Reports steht `No measurements yet` statt
+einer erfundenen Nullauslastung; die bekannte Poolkapazität bleibt sichtbar.
+Die angezeigte Regionsanzahl zu begrenzen ändert weder Summe noch Kapazität.
+Freeze und Sprint behalten die vorhandenen Messwerte und ihre bisherigen
+Statushinweise. Die Anzeige verwendet nur den bestehenden Befehls-Snapshot,
+ohne zusätzliche Tasks, Tickmessungen oder fremde Entity-/Chunk-Zugriffe.

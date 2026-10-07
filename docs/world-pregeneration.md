@@ -61,7 +61,8 @@ Tessera's `/tick` command.
 | `/pregen plan` | Count target chunks without generating them |
 | `/pregen start` | Start a job using your captured selection |
 | `/pregen start confirm` | Confirm a job above 10 million target chunks within 60 seconds |
-| `/pregen status [id\|all]` | Inspect jobs, progress, rate, estimated remaining time and simulation state |
+| `/pregen status` / `status all` | Compact status of the newest job, regardless of its state |
+| `/pregen status <id>` | Inspect the newest job or an older unfinished/recoverable job |
 | `/pregen pause <id>` | Stop new admission and drain admitted generation, writes and owner cleanup |
 | `/pregen resume <id>` | Validate world identity and resume a paused/failed job |
 | `/pregen cancel <id>` | Drain and cancel; generated world data is **not deleted** |
@@ -85,7 +86,24 @@ disk capacity, nor a guarantee against external plugin memory leaks.
 Currently the global in-flight ceiling is at most 64 requests; it is **not** a
 limit on the job size. Generation/serialization/I/O completion retains an
 in-flight slot, so slow disk writes throttle new requests too.
-Job history keeps selection/progress metadata, not strong references to completed
+As of the 2026-10-07 follow-up, the normal status view shows only the newest
+job, including when it is completed, cancelled or failed. It uses a coloured
+state, a progress bar with completed/total chunks, rate, ETA, in-flight work and
+simulation/mode labels. Hover the progress line for generated versus existing
+chunks. Only applicable controls are shown; completed/cancelled jobs do not
+offer Pause/Resume/Cancel. Refresh uses the namespaced command and resolves the
+newest job again. `status all` remains accepted as an alias for that same view.
+
+Older completed/cancelled checkpoint files are removed on the metadata worker
+after the newer job is durably published, and when old checkpoints are loaded.
+The newest job is retained regardless of state. Older unfinished, paused or
+failed checkpoints remain available for explicit ID lookup/control and restart
+recovery; parallel work is not silently cancelled. No generated chunks, region
+files, player stores or worlds are deleted. Late pre-completion metadata writes
+cannot downgrade a finished checkpoint or recreate its pruned history. Cleanup
+failures are reported with throttling and do not fail an already durable job.
+
+Job bookkeeping keeps selection/progress metadata, not strong references to completed
 or unloaded world instances. Unfinished jobs in an unloaded/replaced world must
 be cancelled and replanned before using a replacement in the same process.
 
@@ -168,4 +186,6 @@ Chunky checkpoints are not imported automatically.
 The geometry/checkpoint/dimension-selection suite is `io.papermc.paper.pregeneration.PregenerationTestSuite`.
 The connected-client, freeze, persistence and runtime-world fixture is documented
 in [the native smoke runner](../smoke-tests/native-pregeneration/README.md).
-Actual final-JAR results and limits belong in [Build 015's report](BUILD-26.3-015.md).
+The original native acceptance is recorded in [Build 015's report](BUILD-26.3-015.md).
+The latest status/retention changes, final-JAR hash and repeated full native fixture
+are recorded in [the 2026-10-07 follow-up](TPS-PREGEN-STATUS-2026-10-07.md).

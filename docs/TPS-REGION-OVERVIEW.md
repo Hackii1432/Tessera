@@ -32,6 +32,7 @@ Tessera · Your region & overview
 Target: 20.00 TPS
 Your region is running normally.
 3 regions · 15 s averages
+Utilisation (15 s): 180.00% / 400.00% max · Tick threads: 4 · Partial samples
 
 ▶ Region #7 · world · YOUR REGION
 [OK] 20.00 TPS · 8.00 ms/tick · 1 visible player
@@ -73,6 +74,15 @@ change can temporarily affect the classification until old samples age out.
 Utilisation is the scheduler's existing time-based metric, not process CPU usage.
 Regional values do not measure the cost of an individual player or identify who
 caused lag. Global tick and chunk load/generation rates are labelled separately.
+
+Follow-up on 2026-10-07 (build 017): the overview restores the sum of available
+15-second region and global utilisation reports against the tick pool's maximum
+capacity (100% per currently alive tick thread). The displayed region limit does
+not limit that total. Missing or invalid reports are labelled `Partial samples`;
+no reports produces `No measurements yet`, without hiding the known capacity.
+The capacity is not the CPU/core count or spare parallelism for one busy region.
+It is derived solely from the existing immutable snapshot, including during
+freeze/sprint. See the [current reference](api/region-tps.md#utilisation-in-der-befehlsübersicht).
 
 ## Region safety and privacy
 
@@ -123,3 +133,8 @@ missing data, custom tick rates, freeze/sprint, scheduling, published region
 replacement and stale-region filtering. These are controlled automated tests;
 a multiplayer live test with real region splits and a vanish plugin remains a
 separate deployment check, not an implied result of unit tests.
+
+The [2026-10-07 follow-up](TPS-PREGEN-STATUS-2026-10-07.md) records the restored
+overview utilisation/capacity line, durable patches, current 017 JAR and actual
+command/collector acceptance during freeze. It does not claim new vanish-plugin
+or visually rendered client tests.

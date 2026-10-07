@@ -1,9 +1,9 @@
 # Native pregeneration acceptance fixture
 
-Run from the repository root after building the server and `:test-plugin:jar`:
+Run from the repository root after `buildTessera` has built the server and test plugin:
 
 ```powershell
-node smoke-tests/native-pregeneration/run.mjs 'C:\Program Files\Java\jdk-25.0.3\bin\java.exe' build/libs/tessera-server-26.3.build.015-beta.jar
+node smoke-tests/native-pregeneration/run.mjs 'C:\Program Files\Java\jdk-25.0.3\bin\java.exe' build/libs/tessera-server-26.3.build.017-beta.jar
 ```
 
 The runner creates its own marked disposable directory under `build/`, selects a
@@ -25,6 +25,14 @@ the higher `fast` admission budget. A separately blocked checkpoint path must
 reject resume without admitting any new chunks, then allow successful recovery.
 Only these specifically asserted injected failures are allowed; unexpected job
 failures still fail the runner.
+The 2026-10-07 assertions also dispatch the real pregeneration status commands
+against the native job store: latest cancelled job, `status all` alias, compact
+formatting, applicable controls and rejection of older completed history.
+They verify that only the newest finished JSON checkpoint remains, without
+discarding generated world data. The real `/paper:tps server 1` command and
+collector must expose 400% capacity for the four configured live tick threads
+while simulation is frozen. Unit tests separately cover partial/missing reports,
+unfinished checkpoint retention, delayed writes and failed cleanup retries.
 Assertions inspect the native service's immutable results through reflection,
 not a newly advertised plugin API. The second run loads saved chunks with
 generation disabled. Both phases require two logins and zero pre-result quits/kicks.

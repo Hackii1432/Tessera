@@ -3,7 +3,7 @@ title: "Konsole, RCON und Befehlsgrenzen"
 description: "Serverseitiger Weltkontext, regionsichere NBT-Befehle und Grenzen für Pluginbefehle."
 navTitle: "Befehle"
 order: 140
-updated: 2026-10-06
+updated: 2026-10-07
 minecraftVersion: "26.3"
 badge: "Referenz"
 ---
@@ -173,3 +173,17 @@ Antwortkoordination ist kein öffentliches Plugin-Warteprimitive.
 nicht. `/tps` nutzt `bukkit.command.tps` und englische, klickbare Regions-/Spieler-
 Ansichten. Der Befehl ist keine zusätzliche öffentliche Regions-API; für Plugins
 die [dokumentierten TPS-Overloads](region-tps.md) verwenden.
+
+## Native Pregeneration
+
+`/pregen` und `/tessera:pregen` verwenden `tessera.command.pregen` (Standard: OP).
+`/pregen status` zeigt ausschließlich den neuesten Auftrag, unabhängig von
+seinem Status; `status all` ist ein kompatibler Alias dieser Ansicht. Fortschritt,
+Dimension, Modus, Simulation, Rate und ETA bleiben englisch und farblich gegliedert.
+Die Schaltflächen bieten nur zum aktuellen Zustand passende Aktionen an.
+
+Ältere abgeschlossene/abgebrochene Checkpoints werden nach dauerhafter Veröffentlichung
+eines neueren Auftrags entfernt. Ältere fortsetzbare Aufträge bleiben für explizite
+ID-Abfragen und Wiederaufnahme erhalten; parallele Arbeiten und erzeugte Weltdaten
+werden nicht verworfen. Neustart-Recovery und `/tick freeze` bleiben unverändert.
+Dies ist ein administrativer Serverbefehl, keine öffentliche Bukkit-Pregeneration-API.

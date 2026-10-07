@@ -1,0 +1,261 @@
+{
+  "date": "2026-10-07",
+  "rootBaseCommit": "752dced66a794e6617406c7eca131ae86bef658d",
+  "branch": "ver/26.3.x",
+  "sinopiaCommit": "cebdb10d9418432a18b920f7f2e902a8d03a43f4",
+  "minecraftPatch": "folia-server/minecraft-patches/features/0058-Drain-logging-before-dedicated-server-JVM-exit.patch",
+  "minecraftPatchSha256": "aa9a46b0a4d40535720d2cc76ae9f50cdb40270fac8d024c4fe2650a9fd21100",
+  "serverPatch": "folia-server/paper-patches/features/0047-Serialize-logging-shutdown-and-test-terminal-close-o.patch",
+  "serverPatchSha256": "4985490c96e37fd45a11365cb8c073724ddb51b1730d6747770e77ca8fd0137f",
+  "testPluginSha256": "d0b57f0c8bc00506252360ea974323c640f1b2eb016895c54f0725156a72b9db",
+  "negativeControl": {
+    "sha256": "037a380de916b2c82d1a4c701fe4d679661e74ccc0550e42a003fa9b2eb223c9",
+    "exitCode": 0,
+    "nativeWindows": true,
+    "reader": true,
+    "normalDisable": true,
+    "burstCount": 512,
+    "completeBurst": true,
+    "saved": true,
+    "terminalErrors": 4,
+    "reproduced": true,
+    "logs": "build/reports/native-fixtures/console-shutdown-20261007/baseline-windows"
+  },
+  "intermediateRun": {
+    "sha256": "4bdb7058d73b08f2e6819b32b9b7988b27e4a8454dfa09e17927307401ea5c36",
+    "exitCode": 0,
+    "nativeWindows": true,
+    "reader": true,
+    "normalDisable": true,
+    "burstCount": 512,
+    "completeBurst": true,
+    "saved": true,
+    "terminalErrors": 0,
+    "passed": true,
+    "logs": "build/reports/native-fixtures/console-shutdown-20261007/fixed-windows-1"
+  },
+  "preliminaryBuild": {
+    "successful": true,
+    "duration": "8m34s",
+    "server": {
+      "tests": 10261,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 87
+    },
+    "api": {
+      "tests": 529,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 2
+    },
+    "note": "The five new tests required the existing Normal suite tag; exported afterward. This is not the final acceptance count."
+  },
+  "verifierChecks": [
+    "parses-without-errors",
+    "rejects-old-executable-without-negative-control",
+    "requires-actual-reproduced-error-for-negative-control"
+  ],
+  "limits": [
+    "No force-kill, power-loss or premature external terminal closure guarantee.",
+    "No MCSM instance used; normal stop reproduced directly in Windows ConPTY.",
+    "MCC/MVE/product plugins unchanged and not reintegrated in this console-only task.",
+    "DumbTerminal starts recorded for setup diagnosis, not native Windows acceptance."
+  ],
+  "archiveRoot": "build/reports/native-fixtures/console-shutdown-20261007",
+  "testResults": {
+    "counts": [
+      {
+        "module": "folia-server",
+        "tests": 10266,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 87
+      },
+      {
+        "module": "folia-api",
+        "tests": 529,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 2
+      },
+      {
+        "module": "paper-checkstyle",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ],
+    "logger": {
+      "failures": 0,
+      "path": "folia-server/build/test-results/test/TEST-io.papermc.paper.log.LoggerShutdownTest.xml",
+      "errors": 0,
+      "names": [
+        "dedicatedServerDrainsLoggingBeforeEveryJvmExitInstruction()",
+        "concurrentCallersCannotCloseWhileTheOtherCallerIsFlushing()",
+        "closingFailureDoesNotRepeatAnAlreadyFlushedShutdown()",
+        "flushesBeforeClosingTheTerminalAndDoesNotRepeatCleanup()",
+        "aFailedFlushDoesNotCloseTheTerminalOrPreventRetry()"
+      ],
+      "tests": 5
+    }
+  },
+  "finalBuild": {
+    "jar": "build/libs/tessera-server-26.3.build.017-beta.jar",
+    "sha256": "99c167a1e3b6a44590479d8b9d3206db4e11239a3c3ade825b31abfd0855be79",
+    "bytes": 55618118,
+    "mcHead": "6a4ffb33e3fa62a2f6bd5bfc8dc563ca4368aa47",
+    "paperHead": "26de4bd4d131dc8878a3493a487c1823cabd3051",
+    "build": "BUILD SUCCESSFUL",
+    "duration": "8m3s",
+    "command": ".\\gradlew.bat buildTessera --console=plain --no-configuration-cache --max-workers=2 --no-parallel",
+    "java": "25.0.3",
+    "gradle": "9.8.0",
+    "minecraftVersion": "26.3",
+    "buildVersion": "017",
+    "channel": "beta",
+    "rootCommitted": false,
+    "apiTests": "unchanged, UP-TO-DATE",
+    "serverTests": "executed with all five new Normal suite tests",
+    "checkstyleTests": "unchanged, FROM-CACHE"
+  },
+  "nativeRuns": [
+    {
+      "passed": true,
+      "negativeControl": false,
+      "fixture": "build/console-shutdown-20261007-fixed",
+      "jar": "build/console-shutdown-20261007-fixed/fixed.jar",
+      "sha256": "99c167a1e3b6a44590479d8b9d3206db4e11239a3c3ade825b31abfd0855be79",
+      "exitCode": 0,
+      "nativeWindows": true,
+      "normalDisable": true,
+      "terminalChecks": "burst=512\nterminal=org.jline.terminal.impl.ffm.NativeWinSysTerminal\nwindows=true\nreader=true\nnormal-disable=true",
+      "burstCount": 512,
+      "completeBurst": true,
+      "saved": true,
+      "terminalErrors": 0,
+      "knownRace": false,
+      "noNativeFaults": true,
+      "archive": "build/reports/native-fixtures/console-shutdown-20261007/final-windows-1",
+      "frozen": false,
+      "nativeAccessFlag": true
+    },
+    {
+      "passed": true,
+      "negativeControl": false,
+      "fixture": "build/console-shutdown-20261007-fixed",
+      "jar": "build/console-shutdown-20261007-fixed/fixed.jar",
+      "sha256": "99c167a1e3b6a44590479d8b9d3206db4e11239a3c3ade825b31abfd0855be79",
+      "exitCode": 0,
+      "nativeWindows": true,
+      "normalDisable": true,
+      "terminalChecks": "burst=512\nterminal=org.jline.terminal.impl.ffm.NativeWinSysTerminal\nwindows=true\nreader=true\nnormal-disable=true",
+      "burstCount": 512,
+      "completeBurst": true,
+      "saved": true,
+      "terminalErrors": 0,
+      "knownRace": false,
+      "noNativeFaults": true,
+      "archive": "build/reports/native-fixtures/console-shutdown-20261007/final-windows-2-frozen",
+      "frozen": true,
+      "nativeAccessFlag": false
+    }
+  ],
+  "archivedFiles": [
+    {
+      "path": "build/reports/native-fixtures/console-shutdown-20261007/baseline-dumb/latest.log",
+      "sha256": "6e45ec9884844af7613964cc27977e6f83b5e68df012d803b68593709c1bd6b8"
+    },
+    {
+      "path": "build/reports/native-fixtures/console-shutdown-20261007/baseline-dumb/checks.txt",
+      "sha256": "e916aeae1e05d4f7d085045c69547799523a482e4f757b9954824b4af90b7262"
+    },
+    {
+      "path": "build/reports/native-fixtures/console-shutdown-20261007/baseline-dumb/status.txt",
+      "sha256": "7ef2f3823e17a7ec4e059824168df6bdcb9b223e33f1f7373771ba623e0bf789"
+    },
+    {
+      "path": "build/reports/native-fixtures/console-shutdown-20261007/baseline-dumb-cmd/latest.log",
+      "sha256": "de2db95eed689de8de475f178f909d7b77c0a1d03bf43eeb3f6dd11686483f4d"
+    },
+    {
+      "path": "build/reports/native-fixtures/console-shutdown-20261007/baseline-dumb-cmd/checks.txt",
+      "sha256": "e916aeae1e05d4f7d085045c69547799523a482e4f757b9954824b4af90b7262"
+    },
+    {
+      "path": "build/reports/native-fixtures/console-shutdown-20261007/baseline-dumb-cmd/status.txt",
+      "sha256": "7ef2f3823e17a7ec4e059824168df6bdcb9b223e33f1f7373771ba623e0bf789"
+    },
+    {
+      "path": "build/reports/native-fixtures/console-shutdown-20261007/baseline-windows/latest.log",
+      "sha256": "8f2039ef494bd3d4fdd621179b37665ebcd2cba9b12779a598dd2a95d207ba14"
+    },
+    {
+      "path": "build/reports/native-fixtures/console-shutdown-20261007/baseline-windows/checks.txt",
+      "sha256": "f66d2bb11afe315366eee69e39f4bcff77b40438af677d2b316ebc96d7386aef"
+    },
+    {
+      "path": "build/reports/native-fixtures/console-shutdown-20261007/baseline-windows/status.txt",
+      "sha256": "4971b9c59cfb644ecad7cbf161b0d320ab12ab0e1c4c96092ca0aee9f7f267f3"
+    },
+    {
+      "path": "build/reports/native-fixtures/console-shutdown-20261007/fixed-windows-1/latest.log",
+      "sha256": "f4eb01f8b55c7fa893d24c58ce42ef11f460fc098a4fd79f686158dbabf65df0"
+    },
+    {
+      "path": "build/reports/native-fixtures/console-shutdown-20261007/fixed-windows-1/checks.txt",
+      "sha256": "f66d2bb11afe315366eee69e39f4bcff77b40438af677d2b316ebc96d7386aef"
+    },
+    {
+      "path": "build/reports/native-fixtures/console-shutdown-20261007/fixed-windows-1/status.txt",
+      "sha256": "7ef2f3823e17a7ec4e059824168df6bdcb9b223e33f1f7373771ba623e0bf789"
+    },
+    {
+      "path": "build/reports/native-fixtures/console-shutdown-20261007/final-windows-1/latest.log",
+      "sha256": "6e62da45eaf4fbe1085a69612ad7291b85f4dfbfb8b0f569bce9357349b3b2b1"
+    },
+    {
+      "path": "build/reports/native-fixtures/console-shutdown-20261007/final-windows-1/checks.txt",
+      "sha256": "f66d2bb11afe315366eee69e39f4bcff77b40438af677d2b316ebc96d7386aef"
+    },
+    {
+      "path": "build/reports/native-fixtures/console-shutdown-20261007/final-windows-1/status.txt",
+      "sha256": "7ef2f3823e17a7ec4e059824168df6bdcb9b223e33f1f7373771ba623e0bf789"
+    },
+    {
+      "path": "build/reports/native-fixtures/console-shutdown-20261007/final-windows-2-frozen/latest.log",
+      "sha256": "3b3b411b07c95d4444ef5933dbe33825c02e7d6edc2afe8b0bb94e7538e73eeb"
+    },
+    {
+      "path": "build/reports/native-fixtures/console-shutdown-20261007/final-windows-2-frozen/checks.txt",
+      "sha256": "f66d2bb11afe315366eee69e39f4bcff77b40438af677d2b316ebc96d7386aef"
+    },
+    {
+      "path": "build/reports/native-fixtures/console-shutdown-20261007/final-windows-2-frozen/status.txt",
+      "sha256": "7ef2f3823e17a7ec4e059824168df6bdcb9b223e33f1f7373771ba623e0bf789"
+    },
+    {
+      "path": "build/reports/native-fixtures/console-shutdown-20261007/unit-tests/LoggerShutdownTest.xml",
+      "sha256": "805321ed75c13e45d4058fa06d416678f8eb77ee6f5c8737a4ad285a3d13402d"
+    }
+  ],
+  "cleanup": {
+    "fixtures": [
+      {
+        "path": "build/console-shutdown-20261007-baseline",
+        "bytes": 232565362,
+        "removed": true
+      },
+      {
+        "path": "build/console-shutdown-20261007-fixed",
+        "bytes": 232562323,
+        "removed": true
+      }
+    ],
+    "archiveHashesVerified": true,
+    "markerAndReparseChecksVerified": true,
+    "finalJarPreserved": true,
+    "bytes": 465127685
+  }
+}

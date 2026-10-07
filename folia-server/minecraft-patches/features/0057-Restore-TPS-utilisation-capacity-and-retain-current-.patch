@@ -1,0 +1,148 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Wed, 7 Oct 2026 02:05:51 +0200
+Subject: [PATCH] Restore TPS utilisation capacity and retain current
+ pregeneration history
+
+
+diff --git a/io/papermc/paper/pregeneration/WorldPregenerator.java b/io/papermc/paper/pregeneration/WorldPregenerator.java
+index ace38d0d9fbe1de3123568f72994e76cd0521b98..d20c8f8211af3ab5f87268befe0e1c6796644d41 100644
+--- a/io/papermc/paper/pregeneration/WorldPregenerator.java
++++ b/io/papermc/paper/pregeneration/WorldPregenerator.java
+@@ -68,6 +68,7 @@ public final class WorldPregenerator {
+         return thread;
+     });
+     private final Map<Long, Job> jobs = new LinkedHashMap<>();
++    private final PregenerationHistory history = new PregenerationHistory(); // Tessera - metadata executor owns retention
+     private final Map<ServerLevel, Integer> blockedWorlds = new HashMap<>();
+     private final List<Drain> drains = new ArrayList<>();
+     private final CompletableFuture<Void> ready = new CompletableFuture<>();
+@@ -75,6 +76,8 @@ public final class WorldPregenerator {
+     private long nextId = 1;
+     private long lastCheckpoint;
+     private long lastPressureSample;
++    private long lastHistoryWarning;
++    private boolean warnedHistory;
+     private int fairStart;
+     private boolean pressure;
+     private boolean memoryCritical;
+@@ -88,7 +91,7 @@ public final class WorldPregenerator {
+     public record View(long id, String world, String dimension, String state, Mode mode, long total, long generated,
+                        long existing, int inFlight, double rate, boolean frozen, String detail) {}
+     private record Checkpoint(int format, long id, Plan plan, State state, long cursor,
+-                              long generated, long existing, String detail) {}
++                              long generated, long existing, String detail, boolean drained) {}
+     private record Resolved(Plan plan, ServerLevel world) {}
+     private record Drain(List<ServerLevel> worlds, CompletableFuture<LifecycleLease> result) {}
+ 
+@@ -123,7 +126,7 @@ public final class WorldPregenerator {
+             this.scan = plan.area().cursor(0);
+         }
+         Checkpoint checkpoint() {
+-            return new Checkpoint(1, id, plan, state, cursor, generated, existing, detail);
++            return new Checkpoint(1, id, plan, state, cursor, generated, existing, detail, slots.isEmpty());
+         }
+     }
+ 
+@@ -456,7 +459,7 @@ public final class WorldPregenerator {
+                     job.cursor = job.plan.area().scanLimit();
+                     job.state = State.COMPLETING;
+                     final Checkpoint complete = new Checkpoint(1, job.id, job.plan, State.COMPLETED,
+-                        job.cursor, job.generated, job.existing, "");
++                        job.cursor, job.generated, job.existing, "", true);
+                     persist(complete).whenComplete((ignored, failure) -> controller.execute(() -> {
+                         if (failure != null) fail(job, failure);
+                         else {
+@@ -692,13 +695,35 @@ public final class WorldPregenerator {
+     private CompletableFuture<Void> persist(final Checkpoint checkpoint) {
+         return CompletableFuture.runAsync(() -> {
+             try {
+-                PregenerationCheckpoint.write(directory.resolve(checkpoint.id() + ".json"), JSON.toJson(checkpoint));
++                // CANCELLING checkpoints can still precede a native failure. Do not prune
++                // or reject further writes until all admitted slots have actually drained.
++                final boolean finished = terminal(checkpoint.state()) && checkpoint.drained();
++                if (history.shouldWrite(checkpoint.id(), finished)) {
++                    PregenerationCheckpoint.write(directory.resolve(checkpoint.id() + ".json"), JSON.toJson(checkpoint));
++                }
++                history.published(checkpoint.id(), finished);
++                pruneHistory();
+             } catch (final IOException failure) {
+                 throw new java.io.UncheckedIOException(failure);
+             }
+         }, storage);
+     }
+ 
++    private void pruneHistory() {
++        try {
++            history.prune(directory);
++            warnedHistory = false;
++        } catch (final IOException failure) {
++            // A cleanup failure must not turn an already durable job into a failed generation.
++            final long now = System.nanoTime();
++            if (!warnedHistory || now - lastHistoryWarning >= TimeUnit.SECONDS.toNanos(30)) {
++                LOGGER.warn("Could not remove obsolete finished pregeneration checkpoints", failure);
++                lastHistoryWarning = now;
++                warnedHistory = true;
++            }
++        }
++    }
++
+     public static void finishShutdown() {
+         final WorldPregenerator service = instance;
+         if (service != null) {
+@@ -742,6 +767,10 @@ public final class WorldPregenerator {
+             throw new IllegalStateException("Could not recover pregeneration jobs", failure);
+         }
+         result.sort(java.util.Comparator.comparingLong(job -> job.id));
++        // A recovered terminal job has no surviving native work; legacy checkpoints
++        // without the optional drained field are therefore terminal here as well.
++        for (final Job job : result) history.published(job.id, terminal(job.state));
++        pruneHistory();
+         return result;
+     }
+ 
+diff --git a/io/papermc/paper/threadedregions/commands/RegionHealthView.java b/io/papermc/paper/threadedregions/commands/RegionHealthView.java
+index 4e6eeec39b091012939613902bbb93bf83e08587..fc3ed12a691344aba0268c00add044118bf17e7c 100644
+--- a/io/papermc/paper/threadedregions/commands/RegionHealthView.java
++++ b/io/papermc/paper/threadedregions/commands/RegionHealthView.java
+@@ -170,6 +170,32 @@ final class RegionHealthView {
+             .append(Component.newline()).append(players(region));
+     }
+ 
++    private Component utilisation() {
++        double total = 0.0;
++        int samples = 0;
++        final RegionHealthSnapshot.Metrics global = snapshot.global();
++        if (global != null && global.valid()) {
++            total += global.utilisation();
++            ++samples;
++        }
++        for (final RegionHealthSnapshot.Region region : snapshot.regions()) {
++            final RegionHealthSnapshot.Metrics recent = region.recent();
++            if (recent != null && recent.valid()) {
++                total += recent.utilisation();
++                ++samples;
++            }
++        }
++        final int threads = Math.max(0, snapshot.threads());
++        final boolean measured = samples > 0 && Double.isFinite(total * 100.0);
++        return text("Utilisation (15 s): ")
++            .append(measured ? Component.text(number(total * 100.0) + "%", threads == 0
++                ? NamedTextColor.GRAY : CommandUtil.getUtilisationColourRegion(total / threads)) : hint("No measurements yet"))
++            .append(hint(" / ")).append(text(number(threads * 100.0) + "% max"))
++            .append(hint(" · Tick threads: " + threads))
++            .append(measured && samples < snapshot.regions().size() + 1 ? hint(" · Partial samples") : Component.empty())
++            .hoverEvent(hint("100% per tick thread; region plus global tick time, not CPU usage. Available samples only."));
++    }
++
+     Component overview(final int limit) {
+         final TextComponent.Builder out = Component.text().append(heading("Your region & overview"));
+         final RegionHealthSnapshot.Region own = snapshot.ownRegion();
+@@ -189,6 +215,7 @@ final class RegionHealthView {
+             }
+         }
+         out.append(hint(snapshot.regions().size() + " regions · 15 s averages")).append(Component.newline());
++        out.append(utilisation()).append(Component.newline());
+         int shown = 0;
+         for (final RegionHealthSnapshot.Region region : snapshot.orderedRegions()) {
+             if (shown++ >= limit) {

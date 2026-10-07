@@ -1,0 +1,208 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Wed, 7 Oct 2026 06:44:47 +0200
+Subject: [PATCH] Serialize logging shutdown and test terminal close ordering
+
+Keep normal exit and the JVM hook from repeating or racing cleanup. Verify drain-before-close, retry semantics, concurrent callers and every dedicated server System.exit path.
+
+diff --git a/src/main/java/io/papermc/paper/log/LoggerShutdown.java b/src/main/java/io/papermc/paper/log/LoggerShutdown.java
+index fefdcd453a7927da89b20da2ddf8d2e2ea058e54..eca0c62159d7d3610055a18eed27bb4f6ae6f058 100644
+--- a/src/main/java/io/papermc/paper/log/LoggerShutdown.java
++++ b/src/main/java/io/papermc/paper/log/LoggerShutdown.java
+@@ -3,15 +3,20 @@ package io.papermc.paper.log;
+ import org.apache.logging.log4j.LogManager;
+ 
+ public final class LoggerShutdown {
++    private static boolean shutdown;
++
+     private LoggerShutdown() {
+     }
+ 
+-    public static void shutdownLogging() {
++    public static synchronized void shutdownLogging() {
++        // Tessera - the normal exit path and JVM hook may both request this cleanup.
++        if (shutdown) return;
+         io.papermc.paper.log.CustomLogManager.forceReset(); // Reset loggers after shutdown
+         LogManager.shutdown(); // Flushes the async appender
+         try {
+             net.minecrell.terminalconsole.TerminalConsoleAppender.close(); // Use TerminalConsoleAppender
+         } catch (final Exception ignored) {
+         }
++        shutdown = true;
+     }
+ }
+diff --git a/src/test/java/io/papermc/paper/log/LoggerShutdownTest.java b/src/test/java/io/papermc/paper/log/LoggerShutdownTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..0398695c55168dafe372a15c4d96f64fe2f81949
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/log/LoggerShutdownTest.java
+@@ -0,0 +1,169 @@
++package io.papermc.paper.log;
++
++import java.io.IOException;
++import java.io.InputStream;
++import java.lang.reflect.Field;
++import java.util.ArrayList;
++import java.util.List;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.CountDownLatch;
++import java.util.concurrent.TimeUnit;
++import net.minecrell.terminalconsole.TerminalConsoleAppender;
++import org.apache.logging.log4j.LogManager;
++import org.bukkit.support.environment.Normal;
++import org.junit.jupiter.api.AfterEach;
++import org.junit.jupiter.api.BeforeEach;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.api.parallel.ResourceLock;
++import org.mockito.MockedStatic;
++import org.objectweb.asm.ClassReader;
++import org.objectweb.asm.tree.AbstractInsnNode;
++import org.objectweb.asm.tree.ClassNode;
++import org.objectweb.asm.tree.MethodInsnNode;
++import org.objectweb.asm.tree.MethodNode;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.Mockito.*;
++
++@ResourceLock("Tessera logging shutdown")
++@Normal
++class LoggerShutdownTest {
++    private Field state;
++    private boolean previous;
++
++    @BeforeEach
++    void isolateState() throws ReflectiveOperationException {
++        this.state = LoggerShutdown.class.getDeclaredField("shutdown");
++        this.state.setAccessible(true);
++        this.previous = this.state.getBoolean(null);
++        this.state.setBoolean(null, false);
++    }
++
++    @AfterEach
++    void restoreState() throws IllegalAccessException {
++        this.state.setBoolean(null, this.previous);
++    }
++
++    @Test
++    void flushesBeforeClosingTheTerminalAndDoesNotRepeatCleanup() {
++        List<String> order = new ArrayList<>();
++        try (MockedStatic<CustomLogManager> jul = mockStatic(CustomLogManager.class);
++             MockedStatic<LogManager> log4j = mockStatic(LogManager.class);
++             MockedStatic<TerminalConsoleAppender> terminal = mockStatic(TerminalConsoleAppender.class)) {
++            jul.when(CustomLogManager::forceReset).thenAnswer(call -> { order.add("reset"); return null; });
++            log4j.when(LogManager::shutdown).thenAnswer(call -> { order.add("flush"); return null; });
++            terminal.when(TerminalConsoleAppender::close).thenAnswer(call -> { order.add("close"); return null; });
++            LoggerShutdown.shutdownLogging();
++            LoggerShutdown.shutdownLogging();
++            assertEquals(List.of("reset", "flush", "close"), order);
++        }
++    }
++
++    @Test
++    void closingFailureDoesNotRepeatAnAlreadyFlushedShutdown() {
++        try (MockedStatic<CustomLogManager> jul = mockStatic(CustomLogManager.class);
++             MockedStatic<LogManager> log4j = mockStatic(LogManager.class);
++             MockedStatic<TerminalConsoleAppender> terminal = mockStatic(TerminalConsoleAppender.class)) {
++            terminal.when(TerminalConsoleAppender::close).thenThrow(new IOException("injected terminal close failure"));
++            assertDoesNotThrow(LoggerShutdown::shutdownLogging);
++            assertDoesNotThrow(LoggerShutdown::shutdownLogging);
++            jul.verify(CustomLogManager::forceReset, times(1));
++            log4j.verify(LogManager::shutdown, times(1));
++            terminal.verify(TerminalConsoleAppender::close, times(1));
++        }
++    }
++
++    @Test
++    void aFailedFlushDoesNotCloseTheTerminalOrPreventRetry() {
++        try (MockedStatic<CustomLogManager> jul = mockStatic(CustomLogManager.class);
++             MockedStatic<LogManager> log4j = mockStatic(LogManager.class);
++             MockedStatic<TerminalConsoleAppender> terminal = mockStatic(TerminalConsoleAppender.class)) {
++            log4j.when(LogManager::shutdown).thenThrow(new IllegalStateException("injected flush failure"));
++            assertThrows(IllegalStateException.class, LoggerShutdown::shutdownLogging);
++            terminal.verifyNoInteractions();
++            log4j.when(LogManager::shutdown).thenAnswer(call -> null);
++            assertDoesNotThrow(LoggerShutdown::shutdownLogging);
++            log4j.verify(LogManager::shutdown, times(2));
++            terminal.verify(TerminalConsoleAppender::close, times(1));
++        }
++    }
++
++    @Test
++    void concurrentCallersCannotCloseWhileTheOtherCallerIsFlushing() throws Exception {
++        CountDownLatch flushing = new CountDownLatch(1);
++        CountDownLatch release = new CountDownLatch(1);
++        CountDownLatch secondReady = new CountDownLatch(1);
++        List<String> order = new java.util.concurrent.CopyOnWriteArrayList<>();
++        CompletableFuture<Void> first = new CompletableFuture<>();
++        CompletableFuture<Void> second = new CompletableFuture<>();
++        Thread one = Thread.ofPlatform().daemon().unstarted(() -> isolatedShutdown(order, flushing, release, null, first));
++        Thread two = Thread.ofPlatform().daemon().unstarted(() -> isolatedShutdown(order, null, null, secondReady, second));
++        try {
++            one.start();
++            assertTrue(flushing.await(10, TimeUnit.SECONDS));
++            two.start();
++            assertTrue(secondReady.await(10, TimeUnit.SECONDS));
++            assertEquals(List.of("reset", "flush"), order);
++            assertFalse(first.isDone());
++            release.countDown();
++            first.get(10, TimeUnit.SECONDS);
++            second.get(10, TimeUnit.SECONDS);
++            assertEquals(List.of("reset", "flush", "close"), order);
++        } finally {
++            release.countDown();
++            one.join(10000);
++            if (two.isAlive()) two.join(10000);
++            assertFalse(one.isAlive());
++            assertFalse(two.isAlive());
++        }
++    }
++
++    private static void isolatedShutdown(List<String> order, CountDownLatch flushing, CountDownLatch release,
++                                         CountDownLatch ready, CompletableFuture<Void> result) {
++        // Static Mockito scopes are thread-local: install all three scopes on each caller.
++        try (MockedStatic<CustomLogManager> jul = mockStatic(CustomLogManager.class);
++             MockedStatic<LogManager> log4j = mockStatic(LogManager.class);
++             MockedStatic<TerminalConsoleAppender> terminal = mockStatic(TerminalConsoleAppender.class)) {
++            jul.when(CustomLogManager::forceReset).thenAnswer(call -> { order.add("reset"); return null; });
++            log4j.when(LogManager::shutdown).thenAnswer(call -> {
++                assertTrue(Thread.holdsLock(LoggerShutdown.class));
++                order.add("flush");
++                if (flushing != null) {
++                    flushing.countDown();
++                    assertTrue(release.await(10, TimeUnit.SECONDS));
++                }
++                return null;
++            });
++            terminal.when(TerminalConsoleAppender::close).thenAnswer(call -> { order.add("close"); return null; });
++            if (ready != null) ready.countDown();
++            LoggerShutdown.shutdownLogging();
++            result.complete(null);
++        } catch (Throwable failure) {
++            result.completeExceptionally(failure);
++            if (flushing != null) flushing.countDown();
++            if (ready != null) ready.countDown();
++        }
++    }
++
++    @Test
++    void dedicatedServerDrainsLoggingBeforeEveryJvmExitInstruction() throws IOException {
++        ClassNode node = new ClassNode();
++        try (InputStream source = getClass().getClassLoader().getResourceAsStream("net/minecraft/server/dedicated/DedicatedServer.class")) {
++            assertNotNull(source);
++            new ClassReader(source).accept(node, 0);
++        }
++        MethodNode method = node.methods.stream().filter(candidate -> candidate.name.equals("onServerExit")).findFirst().orElseThrow();
++        boolean flushed = false;
++        int exits = 0;
++        for (AbstractInsnNode instruction : method.instructions) {
++            if (!(instruction instanceof MethodInsnNode call)) continue;
++            if (call.owner.equals("io/papermc/paper/log/LoggerShutdown") && call.name.equals("shutdownLogging")) flushed = true;
++            if (call.owner.equals("java/lang/System") && call.name.equals("exit")) {
++                assertTrue(flushed, "System.exit must not start JLine's hook before flushing queued logs");
++                ++exits;
++            }
++        }
++        assertTrue(flushed);
++        assertTrue(exits > 0);
++    }
++}

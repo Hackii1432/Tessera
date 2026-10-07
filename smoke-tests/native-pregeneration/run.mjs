@@ -68,6 +68,7 @@ for (const mode of ['native-pregeneration', 'native-pregeneration-recovery']) {
   const kicks = observations.filter(event => event.type === 'kicked').length;
   const expected = recovery ? ['shutdown-active-drain:', 'restart-paused:', 'restart-resume-revalidate:', 'saved-full:', 'clients:']
     : ['command-permission-selection:', 'freeze-parallel-dimensions:', 'freeze-ticket-retirement:', 'existing-full-skip:', 'mode-pause-resume-cancel:',
+      'status-latest-compact:', 'history-retention:', 'tps-utilisation-capacity:',
       'custom-world-generator:', 'expected-save-failure:', 'save-failure-resume:', 'expected-checkpoint-failure:',
       'checkpoint-failure-resume:', 'runtime-unload-with-active-job:',
       'snapshot-with-active-job:', 'restart-checkpoint-prepared:', 'shutdown-with-active-job:', 'clients:'];
