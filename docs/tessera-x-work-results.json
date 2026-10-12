@@ -1,0 +1,491 @@
+{
+  "scope": "Local experimental work pilots on i9-12900K; not production or Xeon validation",
+  "source_branch": "ver/tessera-Xperimental",
+  "production_server_contacted": false,
+  "performance_rows": [
+    {
+      "workload": "mixed-native-ai",
+      "variant": "tessera",
+      "runs": 2,
+      "region_mean_ms": 5.452727450980392,
+      "region_p95_ms": 7.5618,
+      "region_run_means_ms": [
+        5.110590196078432,
+        5.794864705882353
+      ],
+      "kernel_mean_ms": null,
+      "owner_kernel_kib": null,
+      "worker_kib_per_tick": 0.0,
+      "worker_cpu_ms_per_tick": 0.0,
+      "max_active_workers": 0,
+      "submitted": 0,
+      "applied": 0,
+      "stale": 0,
+      "notReady": 0,
+      "unusedJobs": 0,
+      "unobservedSkips": 0,
+      "cooldownSkips": 0,
+      "backoffs": 0
+    },
+    {
+      "workload": "mixed-native-ai",
+      "variant": "work-control",
+      "runs": 2,
+      "region_mean_ms": 5.539120098039216,
+      "region_p95_ms": 7.39935,
+      "region_run_means_ms": [
+        5.5542598039215685,
+        5.523980392156863
+      ],
+      "kernel_mean_ms": null,
+      "owner_kernel_kib": null,
+      "worker_kib_per_tick": 9.66890625,
+      "worker_cpu_ms_per_tick": 0.078125,
+      "max_active_workers": 2,
+      "submitted": 1920,
+      "applied": 1920,
+      "stale": 0,
+      "notReady": 0,
+      "unusedJobs": 0,
+      "unobservedSkips": 0,
+      "cooldownSkips": 0,
+      "backoffs": 0
+    },
+    {
+      "workload": "mixed-native-ai",
+      "variant": "work-optimized",
+      "runs": 2,
+      "region_mean_ms": 5.612575980392156,
+      "region_p95_ms": 7.29035,
+      "region_run_means_ms": [
+        5.287883333333333,
+        5.9372686274509805
+      ],
+      "kernel_mean_ms": null,
+      "owner_kernel_kib": null,
+      "worker_kib_per_tick": 0.227421875,
+      "worker_cpu_ms_per_tick": 0.0,
+      "max_active_workers": 2,
+      "submitted": 85,
+      "applied": 79,
+      "stale": 6,
+      "notReady": 0,
+      "unusedJobs": 0,
+      "unobservedSkips": 0,
+      "cooldownSkips": 1835,
+      "backoffs": 4
+    },
+    {
+      "workload": "mixed-native-ai",
+      "variant": "work-previous",
+      "runs": 2,
+      "region_mean_ms": 5.5307514705882355,
+      "region_p95_ms": 8.18725,
+      "region_run_means_ms": [
+        5.9097333333333335,
+        5.151769607843137
+      ],
+      "kernel_mean_ms": null,
+      "owner_kernel_kib": null,
+      "worker_kib_per_tick": 9.68484375,
+      "worker_cpu_ms_per_tick": 0.15625,
+      "max_active_workers": 2,
+      "submitted": 1920,
+      "applied": 1920,
+      "stale": 0,
+      "notReady": 0,
+      "unusedJobs": 0,
+      "unobservedSkips": 0,
+      "cooldownSkips": 0,
+      "backoffs": 0
+    },
+    {
+      "workload": "sensor-dense",
+      "variant": "tessera",
+      "runs": 2,
+      "region_mean_ms": 32.50636078431373,
+      "region_p95_ms": 37.519999999999996,
+      "region_run_means_ms": [
+        32.00191274509804,
+        33.01080882352941
+      ],
+      "kernel_mean_ms": 28.889957250000002,
+      "owner_kernel_kib": 3564.7490234375,
+      "worker_kib_per_tick": 0.0,
+      "worker_cpu_ms_per_tick": 0.0,
+      "max_active_workers": 0,
+      "submitted": 0,
+      "applied": 0,
+      "stale": 0,
+      "notReady": 0,
+      "unusedJobs": 0,
+      "unobservedSkips": 0,
+      "cooldownSkips": 0,
+      "backoffs": 0
+    },
+    {
+      "workload": "sensor-dense",
+      "variant": "work-control",
+      "runs": 2,
+      "region_mean_ms": 13.258567647058822,
+      "region_p95_ms": 19.3275,
+      "region_run_means_ms": [
+        13.337856862745097,
+        13.179278431372548
+      ],
+      "kernel_mean_ms": 8.95871675,
+      "owner_kernel_kib": 8178.7557421875,
+      "worker_kib_per_tick": 1028.88078125,
+      "worker_cpu_ms_per_tick": 7.890625,
+      "max_active_workers": 2,
+      "submitted": 51200,
+      "applied": 51200,
+      "stale": 0,
+      "notReady": 0,
+      "unusedJobs": 0,
+      "unobservedSkips": 0,
+      "cooldownSkips": 0,
+      "backoffs": 0
+    },
+    {
+      "workload": "sensor-dense",
+      "variant": "work-optimized",
+      "runs": 2,
+      "region_mean_ms": 12.399554411764706,
+      "region_p95_ms": 16.03265,
+      "region_run_means_ms": [
+        12.87194705882353,
+        11.927161764705883
+      ],
+      "kernel_mean_ms": 8.379908499999999,
+      "owner_kernel_kib": 7662.7551953125,
+      "worker_kib_per_tick": 514.88505859375,
+      "worker_cpu_ms_per_tick": 7.5390625,
+      "max_active_workers": 2,
+      "submitted": 51200,
+      "applied": 51200,
+      "stale": 0,
+      "notReady": 0,
+      "unusedJobs": 0,
+      "unobservedSkips": 0,
+      "cooldownSkips": 0,
+      "backoffs": 0
+    },
+    {
+      "workload": "sensor-dense",
+      "variant": "work-previous",
+      "runs": 2,
+      "region_mean_ms": 13.320287745098039,
+      "region_p95_ms": 17.3124,
+      "region_run_means_ms": [
+        13.702863725490197,
+        12.937711764705883
+      ],
+      "kernel_mean_ms": 8.53457375,
+      "owner_kernel_kib": 8178.7473828125,
+      "worker_kib_per_tick": 1028.8018945312501,
+      "worker_cpu_ms_per_tick": 7.8515625,
+      "max_active_workers": 2,
+      "submitted": 51200,
+      "applied": 51200,
+      "stale": 0,
+      "notReady": 0,
+      "unusedJobs": 0,
+      "unobservedSkips": 0,
+      "cooldownSkips": 0,
+      "backoffs": 0
+    },
+    {
+      "workload": "sensor-moving",
+      "variant": "tessera",
+      "runs": 2,
+      "region_mean_ms": 32.56647009803922,
+      "region_p95_ms": 38.158100000000005,
+      "region_run_means_ms": [
+        33.40614705882353,
+        31.7267931372549
+      ],
+      "kernel_mean_ms": 29.5505225,
+      "owner_kernel_kib": 3564.8865625,
+      "worker_kib_per_tick": 0.0,
+      "worker_cpu_ms_per_tick": 0.0,
+      "max_active_workers": 0,
+      "submitted": 0,
+      "applied": 0,
+      "stale": 0,
+      "notReady": 0,
+      "unusedJobs": 0,
+      "unobservedSkips": 0,
+      "cooldownSkips": 0,
+      "backoffs": 0
+    },
+    {
+      "workload": "sensor-moving",
+      "variant": "work-control",
+      "runs": 2,
+      "region_mean_ms": 20.752370588235294,
+      "region_p95_ms": 26.2626,
+      "region_run_means_ms": [
+        20.977116666666667,
+        20.52762450980392
+      ],
+      "kernel_mean_ms": 16.27839625,
+      "owner_kernel_kib": 9206.574140625,
+      "worker_kib_per_tick": 1029.145625,
+      "worker_cpu_ms_per_tick": 8.5546875,
+      "max_active_workers": 2,
+      "submitted": 51200,
+      "applied": 0,
+      "stale": 51200,
+      "notReady": 0,
+      "unusedJobs": 0,
+      "unobservedSkips": 0,
+      "cooldownSkips": 0,
+      "backoffs": 0
+    },
+    {
+      "workload": "sensor-moving",
+      "variant": "work-optimized",
+      "runs": 2,
+      "region_mean_ms": 17.268337254901958,
+      "region_p95_ms": 22.5907,
+      "region_run_means_ms": [
+        17.40680588235294,
+        17.12986862745098
+      ],
+      "kernel_mean_ms": 13.2151375,
+      "owner_kernel_kib": 5767.260625000001,
+      "worker_kib_per_tick": 77.285,
+      "worker_cpu_ms_per_tick": 1.015625,
+      "max_active_workers": 2,
+      "submitted": 7680,
+      "applied": 0,
+      "stale": 7680,
+      "notReady": 0,
+      "unusedJobs": 0,
+      "unobservedSkips": 0,
+      "cooldownSkips": 43520,
+      "backoffs": 2560
+    },
+    {
+      "workload": "sensor-moving",
+      "variant": "work-previous",
+      "runs": 2,
+      "region_mean_ms": 20.21930588235294,
+      "region_p95_ms": 24.716900000000003,
+      "region_run_means_ms": [
+        20.106656862745098,
+        20.33195490196078
+      ],
+      "kernel_mean_ms": 16.0119695,
+      "owner_kernel_kib": 9206.5696875,
+      "worker_kib_per_tick": 1029.073046875,
+      "worker_cpu_ms_per_tick": 7.890625,
+      "max_active_workers": 2,
+      "submitted": 51200,
+      "applied": 0,
+      "stale": 51200,
+      "notReady": 0,
+      "unusedJobs": 0,
+      "unobservedSkips": 0,
+      "cooldownSkips": 0,
+      "backoffs": 0
+    },
+    {
+      "workload": "sensor-unused",
+      "variant": "tessera",
+      "runs": 2,
+      "region_mean_ms": 4.857891176470588,
+      "region_p95_ms": 5.8281,
+      "region_run_means_ms": [
+        4.612555882352941,
+        5.103226470588235
+      ],
+      "kernel_mean_ms": null,
+      "owner_kernel_kib": null,
+      "worker_kib_per_tick": 0.0,
+      "worker_cpu_ms_per_tick": 0.0,
+      "max_active_workers": 0,
+      "submitted": 0,
+      "applied": 0,
+      "stale": 0,
+      "notReady": 0,
+      "unusedJobs": 0,
+      "unobservedSkips": 0,
+      "cooldownSkips": 0,
+      "backoffs": 0
+    },
+    {
+      "workload": "sensor-unused",
+      "variant": "work-control",
+      "runs": 2,
+      "region_mean_ms": 9.243716176470588,
+      "region_p95_ms": 13.66865,
+      "region_run_means_ms": [
+        8.933230392156862,
+        9.554201960784313
+      ],
+      "kernel_mean_ms": null,
+      "owner_kernel_kib": null,
+      "worker_kib_per_tick": 1029.00953125,
+      "worker_cpu_ms_per_tick": 8.1640625,
+      "max_active_workers": 2,
+      "submitted": 51199,
+      "applied": 0,
+      "stale": 0,
+      "notReady": 0,
+      "unusedJobs": 51199,
+      "unobservedSkips": 0,
+      "cooldownSkips": 0,
+      "backoffs": 0
+    },
+    {
+      "workload": "sensor-unused",
+      "variant": "work-optimized",
+      "runs": 2,
+      "region_mean_ms": 5.092619117647058,
+      "region_p95_ms": 6.4384,
+      "region_run_means_ms": [
+        4.956154901960784,
+        5.229083333333333
+      ],
+      "kernel_mean_ms": null,
+      "owner_kernel_kib": null,
+      "worker_kib_per_tick": 0.0,
+      "worker_cpu_ms_per_tick": 0.0,
+      "max_active_workers": 2,
+      "submitted": 0,
+      "applied": 0,
+      "stale": 0,
+      "notReady": 0,
+      "unusedJobs": 0,
+      "unobservedSkips": 51200,
+      "cooldownSkips": 0,
+      "backoffs": 0
+    },
+    {
+      "workload": "sensor-unused",
+      "variant": "work-previous",
+      "runs": 2,
+      "region_mean_ms": 8.832749019607844,
+      "region_p95_ms": 11.342,
+      "region_run_means_ms": [
+        8.684195098039217,
+        8.981302941176471
+      ],
+      "kernel_mean_ms": null,
+      "owner_kernel_kib": null,
+      "worker_kib_per_tick": 1029.238046875,
+      "worker_cpu_ms_per_tick": 7.03125,
+      "max_active_workers": 2,
+      "submitted": 51200,
+      "applied": 0,
+      "stale": 0,
+      "notReady": 0,
+      "unusedJobs": 0,
+      "unobservedSkips": 0,
+      "cooldownSkips": 0,
+      "backoffs": 0
+    }
+  ],
+  "poi_diagnostic_rows": [
+    {
+      "variant": "poi-profile-control",
+      "queries": 1963,
+      "ticks": 200,
+      "query_ms": 0.19224248599083038,
+      "query_allocated_bytes": 72544.0,
+      "entity_allocated_bytes_per_tick": 1869735.72,
+      "entity_phase_ms": 5.921257000000001,
+      "region_mean_ms": 6.162820588235294
+    },
+    {
+      "variant": "poi-profile-enabled",
+      "queries": 1949,
+      "ticks": 200,
+      "query_ms": 0.129322421754746,
+      "query_allocated_bytes": 6856.0,
+      "entity_allocated_bytes_per_tick": 1151152.16,
+      "entity_phase_ms": 5.5280075,
+      "region_mean_ms": 5.478169607843137
+    }
+  ],
+  "final_junit": {
+    "tests": 10369,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 87,
+    "status": "PASS",
+    "sourceFeatures": "0066-0074",
+    "scope": "Existing server JUnit suites, experimental switches default false",
+    "log": "work/build-tessera-x-final.log"
+  },
+  "source_revision_notes": "Main performance matrix uses candidate through feature 0072; POI native and diagnostic pair and final JUnit use candidate through 0074. Diagnostic runs are not an uninstrumented performance comparison.",
+  "final_build": {
+    "bundler": "work/build-tessera-x-final/artifacts/tessera-x-bundler-019-final.jar",
+    "sha256": "5d16446bbb7de92f370d922dd967747540eac6c12dc5c3616e0426a1eee1d7a3",
+    "source_features": "0066-0074",
+    "paperclip": "work/build-tessera-x-final/artifacts/tessera-x-server-019-final.jar",
+    "paperclip_sha256": "ad0cdbd68814ca523a2381637c622d5c5ca64099bd3ba989536c44de2bcd30f1"
+  },
+  "feature_patches": [
+    {
+      "file": "folia-server/minecraft-patches/features/0066-Add-opt-in-Tessera-X-sensor-sorting-pilot-with-owner.patch",
+      "sha256": "d6eef4dab2eb11074c9ffa0f6b6d217a1cd0d60ff24f2bc31aa150eb4884841f"
+    },
+    {
+      "file": "folia-server/minecraft-patches/features/0067-Add-opt-in-deadline-for-safe-dead-section-region-rec.patch",
+      "sha256": "03de8f3f1d154aabadcc0bf171ecfea79ef69629f79a22b7d778fb7b6cd941a4"
+    },
+    {
+      "file": "folia-server/minecraft-patches/features/0068-Add-adaptive-sensor-preparation-and-bounded-sorting-.patch",
+      "sha256": "3b8edda756dd16e2614904a61090736b7ac37f1a7aa6007906ae77d8bdddc689"
+    },
+    {
+      "file": "folia-server/minecraft-patches/features/0069-Add-opt-in-inclusive-work-phase-and-entity-allocatio.patch",
+      "sha256": "db8f12c9df3f84c6d56e2d3307ec4a093dcb7daba4cda40f22a1a5bb6a05f844"
+    },
+    {
+      "file": "folia-server/minecraft-patches/features/0070-Add-opt-in-bounded-running-behavior-scratch-with-sna.patch",
+      "sha256": "c1b1b6f670f3af9f0c88418b19b3c719ba4efc5fcaf08f4c9e72487984f8716b"
+    },
+    {
+      "file": "folia-server/minecraft-patches/features/0071-Add-opt-in-covered-row-connectivity-search-preservin.patch",
+      "sha256": "ea5e7445f77876c3cba6185e9177b4f82df0440bcfbfeb45c19ceb14560361e9"
+    },
+    {
+      "file": "folia-server/minecraft-patches/features/0072-Add-opt-in-owner-local-sensor-targeting-conditions-w.patch",
+      "sha256": "ecae23f857465963db73f3bf61cf86c64ef02f889cc08129dad946bffd465272"
+    },
+    {
+      "file": "folia-server/minecraft-patches/features/0073-Reuse-bounded-primitive-POI-search-buffers-without-c.patch",
+      "sha256": "4ae00512e9105801b75c9319fcd7c3719a79a4c2a0727b206f4e474069038f7b"
+    },
+    {
+      "file": "folia-server/minecraft-patches/features/0074-Guard-POI-memory-assignment-after-failed-reentrant-r.patch",
+      "sha256": "df26c0cc91b2a358407192da42ea649abe9d80a86c4150ee5ac2345ea5e46a93"
+    }
+  ],
+  "poi_trace_equivalence": true,
+  "poi_empty_query_allocated_bytes": {
+    "control": 72669.088,
+    "enabled": 6980.944
+  },
+  "native_validation": {
+    "poi_control_assertions": 485,
+    "poi_enabled_assertions": 486,
+    "brain_safety": "Matching callback traces, legacy range bug reproduced, fixed cross-region and same-thread ranges",
+    "region_connectivity_assertions": 9063,
+    "regionizer_assertions": 4507,
+    "ticket_redstone_assertions_per_run": 3008
+  },
+  "artifact_storage": "Recorded JARs are local lab artifacts, not committed binaries; use the recorded hashes to identify the tested builds.",
+  "fixture_sha256_at_test_time": {
+    "experiments/tessera-x/brain-safety/BrainSafety.java": "232240e89336464b2b912007c821b081db5750a5e7bc5e40ea63da3d633d1411",
+    "experiments/tessera-x/poi-safety/PoiSafety.java": "23512fb6aff76b8c1c57d17b2fafa834ecc60c29759c9cb41e91e0ac6f12f99c",
+    "experiments/tessera-x/region-split/RegionConnectivityComparison.java": "a3ccc8873696a8695f13d093ac5c8001fea6514ef7ded3f19e5a18a07aa79df5",
+    "experiments/tessera-x/region-split/RegionSplitComparison.java": "0521bf16419fb6dd81cf44ad8a4942d8a16c860b256920f9c47ebbc2d3c74fee",
+    "experiments/tessera-x/region-split/RegionSplitNative.java": "ac0349c628ffb328b87853f5a88ed92894ae7eba13d5f378a0ce356601ac0788",
+    "experiments/tessera-x/sensor-pilot/SensorComparison.java": "0a3e6b797de7e7478f61f0de42995813757cdb94e9f58510929af9ca6d9b7f31"
+  }
+}

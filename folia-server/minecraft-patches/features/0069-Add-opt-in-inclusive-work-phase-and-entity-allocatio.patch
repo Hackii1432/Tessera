@@ -1,0 +1,360 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Codex <codex@localhost>
+Date: Mon, 12 Oct 2026 21:33:26 +0200
+Subject: [PATCH] Add opt-in inclusive work phase and entity allocation
+ diagnostics
+
+
+diff --git a/dev/tessera/x/WorkTimings.java b/dev/tessera/x/WorkTimings.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..eaa273214ec19c466d5cf242e7a48afaf3285c3f
+--- /dev/null
++++ b/dev/tessera/x/WorkTimings.java
+@@ -0,0 +1,44 @@
++package dev.tessera.x;
++
++import java.util.LinkedHashMap;
++import java.util.Map;
++import java.util.concurrent.ConcurrentHashMap;
++import java.util.concurrent.atomic.LongAdder;
++import java.lang.management.ManagementFactory;
++
++/** Opt-in, process-wide inclusive wall-time diagnostics; disabled code performs no clock reads. */
++public final class WorkTimings {
++    public static final boolean ENABLED = Boolean.getBoolean("tessera-x.work-timings");
++    private static final ConcurrentHashMap<String, Counter> COUNTERS = new ConcurrentHashMap<>();
++    private static final com.sun.management.ThreadMXBean ALLOCATIONS = ENABLED
++        && ManagementFactory.getThreadMXBean() instanceof com.sun.management.ThreadMXBean bean ? bean : null;
++    private record Counter(LongAdder calls, LongAdder nanos, LongAdder allocated) {
++        Counter() { this(new LongAdder(), new LongAdder(), new LongAdder()); }
++    }
++    private WorkTimings() {}
++    public static long start() { return ENABLED ? System.nanoTime() : 0L; }
++    public static void stop(String name, long start) {
++        if (!ENABLED) return;
++        long elapsed = System.nanoTime() - start;
++        Counter counter = COUNTERS.computeIfAbsent(name, ignored -> new Counter());
++        counter.calls.increment(); counter.nanos.add(elapsed);
++    }
++    public static long allocatedStart() {
++        return ALLOCATIONS != null && ALLOCATIONS.isThreadAllocatedMemorySupported() && ALLOCATIONS.isThreadAllocatedMemoryEnabled()
++            ? ALLOCATIONS.getThreadAllocatedBytes(Thread.currentThread().threadId()) : -1L;
++    }
++    public static void allocatedStop(String name, long start) {
++        if (start < 0L) return;
++        long after = allocatedStart();
++        if (after >= start) COUNTERS.computeIfAbsent(name, ignored -> new Counter()).allocated.add(after - start);
++    }
++    public static Map<String, Long> metrics() {
++        Map<String, Long> result = new LinkedHashMap<>();
++        COUNTERS.forEach((name, counter) -> {
++            result.put("profile." + name + ".calls", counter.calls.sum());
++            result.put("profile." + name + ".nanos", counter.nanos.sum());
++            result.put("profile." + name + ".allocatedBytes", counter.allocated.sum());
++        });
++        return result;
++    }
++}
+diff --git a/net/minecraft/server/level/ChunkMap.java b/net/minecraft/server/level/ChunkMap.java
+index 56431de6004b4edaa2bf09a3f02bb7e45384cda7..8f6cde5c9f73b08856c46b31c89247eb6845700e 100644
+--- a/net/minecraft/server/level/ChunkMap.java
++++ b/net/minecraft/server/level/ChunkMap.java
+@@ -1120,6 +1120,8 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
+     // Paper end - optimise entity tracker
+ 
+     protected void tick() {
++        final long tesseraXTiming = dev.tessera.x.WorkTimings.start();
++        try {
+         // Paper start - optimise entity tracker
+         if (true) {
+             this.newTrackerTick();
+@@ -1129,6 +1131,7 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
+         // Paper - rewrite chunk system
+ 
+         // Folia - region threading
++            } finally { dev.tessera.x.WorkTimings.stop("tracking", tesseraXTiming); }
+     }
+ 
+     public void sendToTrackingPlayers(final Entity entity, final Packet<? super ClientGamePacketListener> packet) {
+diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
+index b28bbae01051d624ca0b545dadc775514a1245fd..1102e52d5230bf8f81c04eb57bfd02d9f5250803 100644
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -995,6 +995,8 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+             io.papermc.paper.entity.activation.ActivationRange.activateEntities(this); // Paper - EAR
+             } finally { foliaProfiler.stopTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.ACTIVATE_ENTITIES); } // Folia - profiler
+             foliaProfiler.startTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.ENTITY_TICK); try { // Folia - profiler
++            long tesseraXEntityWall = dev.tessera.x.WorkTimings.start();
++            long tesseraXEntityAllocated = dev.tessera.x.WorkTimings.allocatedStart();
+             if (dev.tessera.x.SensorWork.ENABLED) dev.tessera.x.SensorWork.begin(this, regionizedWorldData);
+             try {
+             regionizedWorldData // Folia - regionised ticking
+@@ -1026,6 +1028,8 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+                 );
+             } finally {
+                 if (dev.tessera.x.SensorWork.ENABLED) dev.tessera.x.SensorWork.end();
++                dev.tessera.x.WorkTimings.stop("entities", tesseraXEntityWall);
++                dev.tessera.x.WorkTimings.allocatedStop("entities", tesseraXEntityAllocated);
+             }
+             } finally { foliaProfiler.stopTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.ENTITY_TICK); } // Folia - profiler
+             if (this.paperConfig().unsupportedSettings.ticking.blockEntities) { // Paper - option to disable ticking
+diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
+index 9e9e7c074f64423f73f159a1524f9d2ba5fc4796..e82a4cadd21e0d60f21afa7bc11dc9ccf8cc04ea 100644
+--- a/net/minecraft/world/entity/LivingEntity.java
++++ b/net/minecraft/world/entity/LivingEntity.java
+@@ -4065,6 +4065,8 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+     public boolean hasLineOfSight(
+         final Entity target, final ClipContext.Block blockCollidingContext, final ClipContext.Fluid fluidCollidingContext, final double eyeHeight
+     ) {
++        final long tesseraXTiming = dev.tessera.x.WorkTimings.start();
++        try {
+         if (target.level() != this.level()) {
+             return false;
+         }
+@@ -4074,6 +4076,7 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+         // Paper - diff on change - used in CraftLivingEntity#hasLineOfSight(Location) and CraftWorld#lineOfSightExists
+         return !(to.distanceToSqr(from) > Mth.square(128.0)) // Paper - Perf: Use distance squared
+             && this.level().clip(new ClipContext(from, to, blockCollidingContext, fluidCollidingContext, this)).getType() == HitResult.Type.MISS;
++            } finally { dev.tessera.x.WorkTimings.stop("visibility", tesseraXTiming); }
+     }
+ 
+     @Override
+diff --git a/net/minecraft/world/entity/ai/Brain.java b/net/minecraft/world/entity/ai/Brain.java
+index e149f35a5620f57fde5bada4746602ad7cf58162..0f0561347601f38963540dac3c6dc861350603ed 100644
+--- a/net/minecraft/world/entity/ai/Brain.java
++++ b/net/minecraft/world/entity/ai/Brain.java
+@@ -266,6 +266,8 @@ public class Brain<E extends LivingEntity> {
+     @Deprecated
+     @VisibleForDebug
+     public List<BehaviorControl<? super E>> getRunningBehaviors() {
++        final long tesseraXTiming = dev.tessera.x.WorkTimings.start();
++        try {
+         List<BehaviorControl<? super E>> runningBehaviours = new ObjectArrayList<>();
+ 
+         for (Map<Activity, Set<BehaviorControl<? super E>>> behavioursByActivities : this.availableBehaviorsByPriority.values()) {
+@@ -279,6 +281,7 @@ public class Brain<E extends LivingEntity> {
+         }
+ 
+         return runningBehaviours;
++            } finally { dev.tessera.x.WorkTimings.stop("brain.snapshot", tesseraXTiming); }
+     }
+ 
+     public void useDefaultActivity() {
+@@ -383,10 +386,22 @@ public class Brain<E extends LivingEntity> {
+     }
+ 
+     public void tick(final ServerLevel level, final E body) {
++        long timing = dev.tessera.x.WorkTimings.start();
++        try {
+         this.forgetOutdatedMemories();
++        } finally { dev.tessera.x.WorkTimings.stop("brain.memories", timing); }
++        timing = dev.tessera.x.WorkTimings.start();
++        try {
+         this.tickSensors(level, body);
++        } finally { dev.tessera.x.WorkTimings.stop("brain.sensors", timing); }
++        timing = dev.tessera.x.WorkTimings.start();
++        try {
+         this.startEachNonRunningBehavior(level, body);
++        } finally { dev.tessera.x.WorkTimings.stop("brain.start", timing); }
++        timing = dev.tessera.x.WorkTimings.start();
++        try {
+         this.tickEachRunningBehavior(level, body);
++        } finally { dev.tessera.x.WorkTimings.stop("brain.running", timing); }
+     }
+ 
+     public boolean tesseraX$nearestSensorDue() {
+diff --git a/net/minecraft/world/entity/ai/behavior/AcquirePoi.java b/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
+index e2eb02d8a0a9481be2308c9052582591bc4f9850..36add8bf5e2a0c4a68ef426be86416037d81778f 100644
+--- a/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
++++ b/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
+@@ -96,7 +96,10 @@ public class AcquirePoi {
+                         };
+                         // Paper start - optimise POI searches
+                         java.util.List<Pair<Holder<PoiType>, BlockPos>> poiPositionsRaw = new java.util.ArrayList<>();
+-                        ca.spottedleaf.moonrise.patches.poi_lookup.PoiAccess.findNearestPoiPositions(poiManager, poiType, cacheTest, body.blockPosition(), SCAN_RANGE, Double.MAX_VALUE, PoiManager.Occupancy.HAS_SPACE, ca.spottedleaf.moonrise.patches.poi_lookup.PoiAccess.LOAD_FOR_SEARCHING, 5, poiPositionsRaw);
++                        long tesseraXTiming = dev.tessera.x.WorkTimings.start();
++                        try {
++                            ca.spottedleaf.moonrise.patches.poi_lookup.PoiAccess.findNearestPoiPositions(poiManager, poiType, cacheTest, body.blockPosition(), SCAN_RANGE, Double.MAX_VALUE, PoiManager.Occupancy.HAS_SPACE, ca.spottedleaf.moonrise.patches.poi_lookup.PoiAccess.LOAD_FOR_SEARCHING, 5, poiPositionsRaw);
++                        } finally { dev.tessera.x.WorkTimings.stop("poi.query", tesseraXTiming); }
+                         Set<Pair<Holder<PoiType>, BlockPos>> poiPositions = new java.util.HashSet<>(poiPositionsRaw.size());
+                         for (Pair<Holder<PoiType>, BlockPos> pair : poiPositionsRaw) {
+                             if (validPoi.test(level, pair.getSecond())) {
+diff --git a/net/minecraft/world/entity/ai/goal/GoalSelector.java b/net/minecraft/world/entity/ai/goal/GoalSelector.java
+index 0439543fbb25ddb974550fe9dbdaa479e330937d..086e9b6888b8e641b55f755f5ed58ee97b72e271 100644
+--- a/net/minecraft/world/entity/ai/goal/GoalSelector.java
++++ b/net/minecraft/world/entity/ai/goal/GoalSelector.java
+@@ -82,6 +82,8 @@ public class GoalSelector {
+     }
+ 
+     public void tick() {
++        final long tesseraXTiming = dev.tessera.x.WorkTimings.start();
++        try {
+         ProfilerFiller profiler = Profiler.get();
+         profiler.push("goalCleanup");
+ 
+@@ -115,9 +117,12 @@ public class GoalSelector {
+ 
+         profiler.pop();
+         this.tickRunningGoals(true);
++            } finally { dev.tessera.x.WorkTimings.stop("goals.select", tesseraXTiming); }
+     }
+ 
+     public void tickRunningGoals(final boolean forceTickAllRunningGoals) {
++        final long tesseraXTiming = dev.tessera.x.WorkTimings.start();
++        try {
+         ProfilerFiller profiler = Profiler.get();
+         profiler.push("goalTick");
+ 
+@@ -128,6 +133,7 @@ public class GoalSelector {
+         }
+ 
+         profiler.pop();
++            } finally { dev.tessera.x.WorkTimings.stop("goals.running", tesseraXTiming); }
+     }
+ 
+     public Set<WrappedGoal> getAvailableGoals() {
+diff --git a/net/minecraft/world/entity/ai/navigation/PathNavigation.java b/net/minecraft/world/entity/ai/navigation/PathNavigation.java
+index 34b71f5276a00dbbc375728246ae544953a54146..7ace3551873d8e1bff6ce1b9a693e87609c67128 100644
+--- a/net/minecraft/world/entity/ai/navigation/PathNavigation.java
++++ b/net/minecraft/world/entity/ai/navigation/PathNavigation.java
+@@ -272,6 +272,8 @@ public abstract class PathNavigation {
+     }
+ 
+     public void tick() {
++        final long tesseraXTiming = dev.tessera.x.WorkTimings.start();
++        try {
+         this.tick++;
+         if (this.hasDelayedRecomputation) {
+             this.recomputePath();
+@@ -293,6 +295,7 @@ public abstract class PathNavigation {
+                 this.mob.getMoveControl().setWantedPosition(target.x, this.getGroundY(target), target.z, this.speedModifier);
+             }
+         }
++            } finally { dev.tessera.x.WorkTimings.stop("navigation", tesseraXTiming); }
+     }
+ 
+     protected double getGroundY(final Vec3 target) {
+diff --git a/net/minecraft/world/entity/ai/sensing/NearestLivingEntitySensor.java b/net/minecraft/world/entity/ai/sensing/NearestLivingEntitySensor.java
+index 74f1186a1c31667a4dfdd1254559ebd42131aa7a..81a9e3fe630380d97e425217f3b6611cde6b9fb2 100644
+--- a/net/minecraft/world/entity/ai/sensing/NearestLivingEntitySensor.java
++++ b/net/minecraft/world/entity/ai/sensing/NearestLivingEntitySensor.java
+@@ -17,12 +17,19 @@ public class NearestLivingEntitySensor<T extends LivingEntity> extends Sensor<T>
+     protected void doTick(final ServerLevel level, final T body) {
+         double followRange = body.getAttributeValue(Attributes.FOLLOW_RANGE);
+         AABB boundingBox = body.getBoundingBox().inflate(followRange, followRange, followRange);
+-        List<LivingEntity> livingEntities = level.getEntitiesOfClass(LivingEntity.class, boundingBox, mob -> mob != body && mob.isAlive());
++        List<LivingEntity> livingEntities;
++        long tesseraXTiming = dev.tessera.x.WorkTimings.start();
++        try {
++            livingEntities = level.getEntitiesOfClass(LivingEntity.class, boundingBox, mob -> mob != body && mob.isAlive());
++        } finally { dev.tessera.x.WorkTimings.stop("sensor.nearest.query", tesseraXTiming); }
++        tesseraXTiming = dev.tessera.x.WorkTimings.start();
++        try {
+         if (dev.tessera.x.SensorWork.ENABLED) {
+             dev.tessera.x.SensorWork.sort(level, body, livingEntities);
+         } else {
+             livingEntities.sort(Comparator.comparingDouble(body::distanceToSqr));
+         }
++        } finally { dev.tessera.x.WorkTimings.stop("sensor.nearest.sort", tesseraXTiming); }
+         Brain<?> brain = body.getBrain();
+         brain.setMemory(MemoryModuleType.NEAREST_LIVING_ENTITIES, livingEntities);
+         brain.setMemory(MemoryModuleType.NEAREST_VISIBLE_LIVING_ENTITIES, new NearestVisibleLivingEntities(level, body, livingEntities));
+diff --git a/net/minecraft/world/entity/ai/sensing/Sensor.java b/net/minecraft/world/entity/ai/sensing/Sensor.java
+index 1641bb5971df33553ef351583a98f07f528192a5..dd3116b5087ea71243288a9d7349346886bd76e0 100644
+--- a/net/minecraft/world/entity/ai/sensing/Sensor.java
++++ b/net/minecraft/world/entity/ai/sensing/Sensor.java
+@@ -54,7 +54,12 @@ public abstract class Sensor<E extends LivingEntity> {
+         if (--this.timeToTick <= 0L) {
+             this.timeToTick = java.util.Objects.requireNonNullElse(level.paperConfig().tickRates.sensor.get(body.getType(), this.configKey), this.scanRate); // Paper - configurable sensor tick rate and timings
+             this.updateTargetingConditionRanges(body);
++            long tesseraXTiming = dev.tessera.x.WorkTimings.start();
++            try {
+             this.doTick(level, body);
++            } finally {
++                if (dev.tessera.x.WorkTimings.ENABLED) dev.tessera.x.WorkTimings.stop("sensor." + this.getClass().getSimpleName(), tesseraXTiming);
++            }
+         }
+     }
+ 
+diff --git a/net/minecraft/world/level/NaturalSpawner.java b/net/minecraft/world/level/NaturalSpawner.java
+index 9657f11b23ae6687beb9ca44b0314df8936e6f39..54f27c6b385fa0bdd33846b01a2795f89b50dfd3 100644
+--- a/net/minecraft/world/level/NaturalSpawner.java
++++ b/net/minecraft/world/level/NaturalSpawner.java
+@@ -150,6 +150,8 @@ public final class NaturalSpawner {
+     public static void spawnForChunk(
+         final ServerLevel level, final LevelChunk chunk, final NaturalSpawner.SpawnState state, final List<MobCategory> spawningCategories
+     ) {
++        final long tesseraXTiming = dev.tessera.x.WorkTimings.start();
++        try {
+         ProfilerFiller profiler = Profiler.get();
+         profiler.push("spawner");
+ 
+@@ -189,6 +191,7 @@ public final class NaturalSpawner {
+         }
+ 
+         profiler.pop();
++            } finally { dev.tessera.x.WorkTimings.stop("spawning", tesseraXTiming); }
+     }
+ 
+     // Paper start - Add mobcaps commands
+diff --git a/net/minecraft/world/level/block/RedstoneWireBlock.java b/net/minecraft/world/level/block/RedstoneWireBlock.java
+index 92a174eb11521a68a1d2d65f6786ea4eea7438e5..a444b3ffb37cd47643932f19f8ab8aea028fa234 100644
+--- a/net/minecraft/world/level/block/RedstoneWireBlock.java
++++ b/net/minecraft/world/level/block/RedstoneWireBlock.java
+@@ -325,11 +325,14 @@ public class RedstoneWireBlock extends Block {
+         final @Nullable Orientation orientation,
+         final boolean shapeUpdateWiresAroundInitialPosition
+     ) {
++        final long tesseraXTiming = dev.tessera.x.WorkTimings.start();
++        try {
+         if (useExperimentalEvaluator(level)) {
+             new ExperimentalRedstoneWireEvaluator(this).updatePowerStrength(level, pos, state, orientation, shapeUpdateWiresAroundInitialPosition);
+         } else {
+             this.evaluator.updatePowerStrength(level, pos, state, orientation, shapeUpdateWiresAroundInitialPosition);
+         }
++            } finally { dev.tessera.x.WorkTimings.stop("redstone.wire", tesseraXTiming); }
+     }
+ 
+     public int getBlockSignal(final Level level, final BlockPos pos) {
+diff --git a/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+index 4ba408d46ba6d6eecd47196b17f91539291cc3ed..b263634a436e06014ad5df2d943a273e764bea8e 100644
+--- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+@@ -139,6 +139,8 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+     }
+ 
+     public static void pushItemsTick(final Level level, final BlockPos pos, final BlockState state, final HopperBlockEntity entity) {
++        final long tesseraXTiming = dev.tessera.x.WorkTimings.start();
++        try {
+         entity.cooldownTime--;
+         entity.tickedGameTime = level.getRedstoneGameTime(); // Folia - region threading
+         if (!entity.isOnCooldown()) {
+@@ -150,6 +152,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+             }
+             // Spigot end
+         }
++            } finally { dev.tessera.x.WorkTimings.stop("hopper", tesseraXTiming); }
+     }
+ 
+     // Paper start - Perf: Optimize Hoppers
+diff --git a/net/minecraft/world/level/pathfinder/PathFinder.java b/net/minecraft/world/level/pathfinder/PathFinder.java
+index 989ef3dacc6692a47ff777a77e4d88408bc5125e..6bf6a2ce85dc0fea62bdb56ab2d5ad30f868ccb8 100644
+--- a/net/minecraft/world/level/pathfinder/PathFinder.java
++++ b/net/minecraft/world/level/pathfinder/PathFinder.java
+@@ -48,6 +48,8 @@ public class PathFinder {
+         final int reachRange,
+         final float maxVisitedNodesMultiplier
+     ) {
++        final long tesseraXTiming = dev.tessera.x.WorkTimings.start();
++        try {
+         this.openSet.clear();
+         this.nodeEvaluator.prepare(level, entity);
+         Node from = this.nodeEvaluator.getStart();
+@@ -64,6 +66,7 @@ public class PathFinder {
+         Path path = this.findPath(from, tos, maxPathLength, reachRange, maxVisitedNodesMultiplier);
+         this.nodeEvaluator.done();
+         return path;
++            } finally { dev.tessera.x.WorkTimings.stop("pathfinding", tesseraXTiming); }
+     }
+ 
+     private @Nullable Path findPath(

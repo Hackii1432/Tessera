@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: DOMasters <dominik.wesser@live.de>
+Date: Mon, 12 Oct 2026 22:47:37 +0200
+Subject: [PATCH] Guard POI memory assignment after failed reentrant
+ reservation
+
+
+diff --git a/net/minecraft/world/entity/ai/behavior/AcquirePoi.java b/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
+index 70dbe158db68a349e743dace86a04a64c27f6625..2402375728d347a2d00d1bad8852827900473ddd 100644
+--- a/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
++++ b/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
+@@ -26,6 +26,7 @@ import org.jspecify.annotations.Nullable;
+ 
+ public class AcquirePoi {
+     public static final int SCAN_RANGE = 48;
++    private static final boolean TESSERA_X_RESERVATION_CHECK = Boolean.getBoolean("tessera-x.poi-reservation-check");
+ 
+     public static BehaviorControl<PathfinderMob> create(
+         final Predicate<Holder<PoiType>> poiType,
+@@ -115,7 +116,8 @@ public class AcquirePoi {
+                         if (path != null && path.canReach()) {
+                             BlockPos targetPos = path.getTarget();
+                             poiManager.getType(targetPos).ifPresent(type -> {
+-                                poiManager.take(poiType, (t, poiPos) -> poiPos.equals(targetPos), targetPos, 1);
++                                Optional<BlockPos> reserved = poiManager.take(poiType, (t, poiPos) -> poiPos.equals(targetPos), targetPos, 1);
++                                if (TESSERA_X_RESERVATION_CHECK && reserved.isEmpty()) return;
+                                 toAcquire.set(GlobalPos.of(level.dimension(), targetPos));
+                                 onPoiAcquisitionEvent.ifPresent(event -> level.broadcastEntityEvent(body, event));
+                                 batchCache.clear();

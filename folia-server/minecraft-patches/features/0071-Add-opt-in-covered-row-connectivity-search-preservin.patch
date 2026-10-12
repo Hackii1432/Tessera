@@ -1,0 +1,159 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Codex <codex@localhost>
+Date: Mon, 12 Oct 2026 21:41:56 +0200
+Subject: [PATCH] Add opt-in covered-row connectivity search preserving native
+ BFS order
+
+
+diff --git a/dev/tessera/x/RegionConnectivity.java b/dev/tessera/x/RegionConnectivity.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..09281ee0768c58424cac87fd9e78f1d30d8aad1b
+--- /dev/null
++++ b/dev/tessera/x/RegionConnectivity.java
+@@ -0,0 +1,121 @@
++package dev.tessera.x;
++
++import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
++import it.unimi.dsi.fastutil.ints.IntArrayList;
++import it.unimi.dsi.fastutil.longs.Long2ReferenceOpenHashMap;
++import java.util.ArrayList;
++import java.util.Iterator;
++import java.util.List;
++import java.util.function.ToLongFunction;
++
++/** Same BFS discovery order; compressed rows avoid repeatedly querying already searched coordinates. */
++public final class RegionConnectivity {
++    public static final boolean ENABLED = Boolean.getBoolean("tessera-x.region-covered-search");
++    private RegionConnectivity() {}
++
++    public static <T> List<List<T>> find(Long2ReferenceOpenHashMap<T> remaining, int radius, ToLongFunction<T> key) {
++        if (radius < 1 || radius > 1024) throw new IllegalArgumentException("Unsupported search radius");
++        List<List<T>> groups = new ArrayList<>();
++        while (!remaining.isEmpty()) {
++            List<T> group = new ArrayList<>();
++            Iterator<T> first = remaining.values().iterator();
++            group.add(first.next()); first.remove();
++            Int2ObjectOpenHashMap<IntArrayList> covered = null;
++            search:
++            for (int index = 0; index < group.size(); index++) {
++                // Tiny components and radius-one grids keep the simpler native loop.
++                if (covered == null && radius > 1 && group.size() >= 64) {
++                    covered = new Int2ObjectOpenHashMap<>();
++                    for (int previous = 0; previous < index; previous++) {
++                        long pos = key.applyAsLong(group.get(previous));
++                        coverSquare(covered, (int)pos, (int)(pos >> 32), radius);
++                    }
++                }
++                long pos = key.applyAsLong(group.get(index));
++                int x = (int)pos, z = (int)(pos >> 32);
++                for (int dz = -radius; dz <= radius; dz++) {
++                    int rowZ = z + dz;
++                    if (covered == null) {
++                        for (int dx = -radius; dx <= radius; dx++) {
++                            if ((dx | dz) == 0) continue;
++                            T next = remaining.remove(pack(x + dx, rowZ));
++                            if (next != null) { group.add(next); if (remaining.isEmpty()) break search; }
++                        }
++                    } else {
++                        IntArrayList row = covered.computeIfAbsent(rowZ, ignored -> new IntArrayList());
++                        int left = x - radius, right = x + radius;
++                        if (left <= right) {
++                            if (searchRow(row, left, right, rowZ, remaining, group)) break search;
++                        } else {
++                            // Preserve native int-wrap traversal even for artificial extreme-coordinate fixtures.
++                            if (searchRow(row, left, Integer.MAX_VALUE, rowZ, remaining, group)
++                                || searchRow(row, Integer.MIN_VALUE, right, rowZ, remaining, group)) break search;
++                        }
++                    }
++                }
++            }
++            groups.add(group);
++        }
++        return groups;
++    }
++
++    private static long pack(int x, int z) { return (x & 0xffffffffL) | ((long)z << 32); }
++
++    // Find the first interval whose end is not below the requested coordinate.
++    private static int firstEndAtLeast(IntArrayList row, long value) {
++        int low = 0, high = row.size() / 2;
++        while (low < high) {
++            int middle = (low + high) >>> 1;
++            if (row.getInt(middle * 2 + 1) < value) low = middle + 1; else high = middle;
++        }
++        return low * 2;
++    }
++
++    private static <T> boolean searchRow(IntArrayList row, int left, int right, int z,
++                                          Long2ReferenceOpenHashMap<T> remaining, List<T> group) {
++        long cursor = left;
++        for (int i = firstEndAtLeast(row, left); i < row.size(); i += 2) {
++            int start = row.getInt(i), end = row.getInt(i + 1);
++            if (start > right) break;
++            if (cursor < start && drain(cursor, Math.min((long)right, (long)start - 1), z, remaining, group)) return true;
++            cursor = Math.max(cursor, (long)end + 1);
++            if (cursor > right) break;
++        }
++        if (cursor <= right && drain(cursor, right, z, remaining, group)) return true;
++        cover(row, left, right);
++        return false;
++    }
++
++    private static <T> boolean drain(long left, long right, int z, Long2ReferenceOpenHashMap<T> remaining, List<T> group) {
++        for (long x = left; x <= right; x++) {
++            T next = remaining.remove(pack((int)x, z));
++            if (next != null) { group.add(next); if (remaining.isEmpty()) return true; }
++        }
++        return false;
++    }
++
++    private static void coverSquare(Int2ObjectOpenHashMap<IntArrayList> rows, int x, int z, int radius) {
++        for (int dz = -radius; dz <= radius; dz++) {
++            IntArrayList row = rows.computeIfAbsent(z + dz, ignored -> new IntArrayList());
++            int left = x - radius, right = x + radius;
++            if (left <= right) cover(row, left, right);
++            else { cover(row, left, Integer.MAX_VALUE); cover(row, Integer.MIN_VALUE, right); }
++        }
++    }
++
++    private static void cover(IntArrayList row, int left, int right) {
++        int first = firstEndAtLeast(row, (long)left - 1), after = first;
++        int mergedLeft = left, mergedRight = right;
++        while (after < row.size() && row.getInt(after) <= (long)mergedRight + 1) {
++            mergedLeft = Math.min(mergedLeft, row.getInt(after));
++            mergedRight = Math.max(mergedRight, row.getInt(after + 1));
++            after += 2;
++        }
++        if (after == first) {
++            row.add(first, mergedLeft); row.add(first + 1, mergedRight);
++        } else {
++            row.set(first, mergedLeft); row.set(first + 1, mergedRight);
++            if (after > first + 2) row.removeElements(first + 2, after);
++        }
++    }
++}
+diff --git a/io/papermc/paper/threadedregions/ThreadedRegionizer.java b/io/papermc/paper/threadedregions/ThreadedRegionizer.java
+index d586decdf39b0e24c7a714612770d0b231f50a8b..bca6a4ec97a9101001abe3fca1510111cd0c0b6d 100644
+--- a/io/papermc/paper/threadedregions/ThreadedRegionizer.java
++++ b/io/papermc/paper/threadedregions/ThreadedRegionizer.java
+@@ -587,7 +587,11 @@ public final class ThreadedRegionizer<R extends ThreadedRegionizer.ThreadedRegio
+         // merge radius is max, since recalculateSections includes the dead or empty sections
+         final int mergeRadius = Math.max(this.regionSectionMergeRadius, this.emptySectionCreateRadius);
+ 
+-        final List<List<ThreadedRegionSection<R, S>>> newRegions = new ArrayList<>();
++        final List<List<ThreadedRegionSection<R, S>>> newRegions;
++        if (dev.tessera.x.RegionConnectivity.ENABLED && mergeRadius > 1 && mergeRadius <= 1024) {
++            newRegions = dev.tessera.x.RegionConnectivity.find(recalculateSections, mergeRadius, section -> section.sectionKey);
++        } else {
++        newRegions = new ArrayList<>();
+         while (!recalculateSections.isEmpty()) {
+             // select any section, then BFS around it to find all of its neighbours to form a region
+             // once no more neighbours are found, the region is complete
+@@ -626,6 +630,7 @@ public final class ThreadedRegionizer<R extends ThreadedRegionizer.ThreadedRegio
+ 
+             newRegions.add(currRegion);
+         }
++        }
+ 
+         dev.tessera.x.RegionRecalculation.record(analysisStart, examinedSections, removedSections, newRegions.size(), deadlineCleanup);
+ 

@@ -1,0 +1,164 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Codex <codex@localhost>
+Date: Mon, 12 Oct 2026 21:33:22 +0200
+Subject: [PATCH] Add adaptive sensor preparation and bounded sorting buffer
+ reuse
+
+
+diff --git a/dev/tessera/x/SensorWork.java b/dev/tessera/x/SensorWork.java
+index 4c34a08f198602e0296b027a681732f551b8062b..8ea2f759e75bf512a904eee86ebc919dceb091db 100644
+--- a/dev/tessera/x/SensorWork.java
++++ b/dev/tessera/x/SensorWork.java
+@@ -25,6 +25,10 @@ public final class SensorWork {
+     public static final boolean ENABLED = Boolean.getBoolean("tessera-x.sensors");
+     private static final int WORKERS = Math.clamp(Integer.getInteger("tessera-x.sensor-workers", 4), 0, 8);
+     private static final boolean VERIFY = Boolean.getBoolean("tessera-x.verify-sensors");
++    private static final boolean ADAPTIVE = Boolean.getBoolean("tessera-x.sensor-adaptive");
++    private static final boolean REUSE = Boolean.getBoolean("tessera-x.sensor-reuse");
++    private static final int MAX_RETAINED_SCRATCH = 8192;
++    private static final ThreadLocal<int[]> SCRATCH = ThreadLocal.withInitial(() -> new int[0]);
+     private static final int MIN_CANDIDATES = 64;
+     private static final int MAX_JOBS_PER_PHASE = 128;
+     private static final int MAX_VALUES_PER_PHASE = 262144;
+@@ -43,10 +47,21 @@ public final class SensorWork {
+     private static final LongAdder WORKER_WALL = new LongAdder();
+     private static final LongAdder PREPARE_WALL = new LongAdder();
+     private static final LongAdder VALIDATE_WALL = new LongAdder();
++    private static final LongAdder UNOBSERVED = new LongAdder();
++    private static final LongAdder COOLDOWN_SKIPS = new LongAdder();
++    private static final LongAdder UNUSED = new LongAdder();
++    private static final LongAdder BACKOFFS = new LongAdder();
+     private static final ThreadPoolExecutor POOL = createPool();
+ 
+     private SensorWork() {}
+ 
++    /** Owned by the entity's current region; contains no world references or worker state. */
++    public static final class History {
++        private boolean observed;
++        private int consecutiveFailures;
++        private int cooldownCalls;
++    }
++
+     private static ThreadPoolExecutor createPool() {
+         if (!ENABLED || WORKERS == 0) return null;
+         AtomicInteger ids = new AtomicInteger();
+@@ -86,6 +101,11 @@ public final class SensorWork {
+                 if (phase.jobs.size() >= MAX_JOBS_PER_PHASE || phase.values >= MAX_VALUES_PER_PHASE) return;
+                 if (!(entity instanceof LivingEntity body) || !body.isAlive()
+                     || !body.getBrain().tesseraX$nearestSensorDue()) return;
++                if (ADAPTIVE) {
++                    History history = body.tesseraX$sensorHistory(false);
++                    if (history == null || !history.observed) { UNOBSERVED.increment(); return; }
++                    if (history.cooldownCalls > 0) { COOLDOWN_SKIPS.increment(); return; }
++                }
+                 double range = body.getAttributeValue(Attributes.FOLLOW_RANGE);
+                 List<LivingEntity> candidates = level.getEntitiesOfClass(LivingEntity.class,
+                     body.getBoundingBox().inflate(range, range, range), other -> other != body && other.isAlive());
+@@ -114,11 +134,24 @@ public final class SensorWork {
+         Phase phase = CURRENT.get();
+         if (phase == null) return;
+         CURRENT.remove();
+-        for (Prepared job : phase.jobs.values()) if (!job.result().isDone()) job.result().cancel(false);
++        for (var entry : phase.jobs.entrySet()) {
++            Prepared job = entry.getValue();
++            UNUSED.increment();
++            if (ADAPTIVE) {
++                History history = entry.getKey().tesseraX$sensorHistory(false);
++                if (history != null) history.observed = false;
++            }
++            if (!job.result().isDone()) job.result().cancel(false);
++        }
+     }
+ 
+     public static void sort(ServerLevel level, LivingEntity body, List<LivingEntity> candidates) {
+         SORTS.increment();
++        History history = ADAPTIVE ? body.tesseraX$sensorHistory(true) : null;
++        if (history != null) {
++            history.observed = true;
++            if (history.cooldownCalls > 0) --history.cooldownCalls;
++        }
+         if (candidates.size() < MIN_CANDIDATES) {
+             candidates.sort(Comparator.comparingDouble(body::distanceToSqr));
+             return;
+@@ -130,6 +163,7 @@ public final class SensorWork {
+             ? phase.jobs.remove(body) : null;
+         double[] current = distances(body, candidates);
+         int[] order = null;
++        LivingEntity[] references = null;
+         if (job != null) {
+             long start = System.nanoTime();
+             boolean valid = candidates.size() == job.entities().length;
+@@ -137,6 +171,7 @@ public final class SensorWork {
+                 valid = candidates.get(i) == job.entities()[i]
+                     && Double.doubleToLongBits(current[i]) == Double.doubleToLongBits(job.distances()[i]);
+             }
++            if (valid && REUSE) references = job.entities();
+             if (!valid) {
+                 STALE.increment();
+                 job.result().cancel(false);
+@@ -151,10 +186,19 @@ public final class SensorWork {
+                     NOT_READY.increment();
+                 }
+             }
++            if (history != null) {
++                if (order != null) {
++                    history.consecutiveFailures = 0;
++                } else if (++history.consecutiveFailures >= 3) {
++                    history.consecutiveFailures = 0;
++                    history.cooldownCalls = 16;
++                    BACKOFFS.increment();
++                }
++            }
+             VALIDATE_WALL.add(System.nanoTime() - start);
+         }
+         if (order == null) order = stableOrder(current);
+-        LivingEntity[] references = candidates.toArray(LivingEntity[]::new);
++        if (references == null) references = candidates.toArray(LivingEntity[]::new);
+         for (int i = 0; i < order.length; i++) candidates.set(i, references[order[i]]);
+         if (oracle != null) {
+             for (int i = 0; i < oracle.size(); i++) {
+@@ -192,7 +236,16 @@ public final class SensorWork {
+     /** Stable ordering uses the same Double.compare rule and original tie order as List.sort. */
+     public static int[] stableOrder(double[] values) {
+         int[] order = new int[values.length];
+-        int[] scratch = new int[values.length];
++        int[] scratch;
++        if (REUSE && values.length <= MAX_RETAINED_SCRATCH) {
++            scratch = SCRATCH.get();
++            if (scratch.length < values.length) {
++                scratch = new int[Math.max(1, Math.min(MAX_RETAINED_SCRATCH, Integer.highestOneBit(values.length - 1) << 1))];
++                SCRATCH.set(scratch);
++            }
++        } else {
++            scratch = new int[values.length];
++        }
+         for (int i = 0; i < order.length; i++) order[i] = i;
+         mergeSort(values, order, scratch, 0, order.length);
+         return order;
+@@ -221,6 +274,8 @@ public final class SensorWork {
+         data.put("verified", VERIFIED.sum()); data.put("workerCpuNanos", WORKER_CPU.sum());
+         data.put("workerWallNanos", WORKER_WALL.sum()); data.put("prepareWallNanos", PREPARE_WALL.sum());
+         data.put("validateWallNanos", VALIDATE_WALL.sum()); data.put("maxActiveWorkers", (long)MAX_ACTIVE.get());
++        data.put("unobservedSkips", UNOBSERVED.sum()); data.put("cooldownSkips", COOLDOWN_SKIPS.sum());
++        data.put("unusedJobs", UNUSED.sum()); data.put("backoffs", BACKOFFS.sum());
+         return data;
+     }
+ }
+diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
+index 966baafef48422bfcd854b5bb1103b3928e56f38..9e9e7c074f64423f73f159a1524f9d2ba5fc4796 100644
+--- a/net/minecraft/world/entity/LivingEntity.java
++++ b/net/minecraft/world/entity/LivingEntity.java
+@@ -155,6 +155,13 @@ import org.bukkit.event.entity.EntityResurrectEvent;
+ // CraftBukkit end
+ 
+ public abstract class LivingEntity extends Entity implements Attackable, WaypointTransmitter {
++    private dev.tessera.x.SensorWork.@Nullable History tesseraXSensorHistory;
++
++    /** Internal owner-thread sensor preparation history, allocated only after actual consumption. */
++    public dev.tessera.x.SensorWork.@Nullable History tesseraX$sensorHistory(boolean create) {
++        if (create && this.tesseraXSensorHistory == null) this.tesseraXSensorHistory = new dev.tessera.x.SensorWork.History();
++        return this.tesseraXSensorHistory;
++    }
+     private static final Logger LOGGER = LogUtils.getLogger();
+     private static final String TAG_ACTIVE_EFFECTS = "active_effects";
+     public static final String TAG_ATTRIBUTES = "attributes";

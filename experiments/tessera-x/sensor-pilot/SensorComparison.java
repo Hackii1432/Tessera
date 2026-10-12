@@ -53,7 +53,7 @@ public final class SensorComparison extends JavaPlugin {
     private long started;
     private final int warmup = Integer.getInteger("lab.warmup-ticks", 120);
     private final int measured = Integer.getInteger("lab.measured-ticks", 200);
-    private final String[] names = {"sensor-dense", "sensor-moving", "mixed-native-ai"};
+    private final String[] names = {"sensor-dense", "sensor-moving", "mixed-native-ai", "sensor-unused"};
 
     @Override
     public void onEnable() {
@@ -130,7 +130,7 @@ public final class SensorComparison extends JavaPlugin {
                     if (stage == 2) {
                         // Actual entity/brain/goal/physics work is done by the native ServerLevel entity phase.
                         for (LivingEntity entity : entities) entity.activatedTick = Long.MAX_VALUE;
-                    } else {
+                    } else if (stage < 2) {
                         long wall = System.nanoTime(); long cpuStart = cpu.getCurrentThreadCpuTime(); long allocated = allocated();
                         runSensorPhase(stage == 1, frame < 10);
                         if (frame >= warmup) {
@@ -138,6 +138,9 @@ public final class SensorComparison extends JavaPlugin {
                             cpuSamples.add((cpu.getCurrentThreadCpuTime() - cpuStart) / 1e6);
                             allocatedSamples.add((allocated() - allocated) / 1024.0);
                         }
+                    } else {
+                        // These native NoAI entities never consume their due brain sensors.
+                        for (LivingEntity body : bodies) sensorCountdown.setLong(sensor(body), 1L);
                     }
                     frame++;
                 } catch (Throwable failure) { task.cancel(); finish(failure); }
@@ -192,6 +195,11 @@ public final class SensorComparison extends JavaPlugin {
     private Map<String, Long> metrics() throws Exception {
         Map<String, Long> result = new LinkedHashMap<>(work == null ? Map.of()
             : (Map<String, Long>)work.getMethod("metrics").invoke(null));
+        try {
+            result.putAll((Map<String, Long>)Class.forName("dev.tessera.x.WorkTimings").getMethod("metrics").invoke(null));
+        } catch (ClassNotFoundException oldBuild) {
+            // The same fixture also supports the preserved reference and first X pilot.
+        }
         long workerCpu = 0, workerAllocated = 0;
         for (Thread thread : Thread.getAllStackTraces().keySet()) {
             if (thread.getName().startsWith("Tessera-X Sensor Compute ")) {

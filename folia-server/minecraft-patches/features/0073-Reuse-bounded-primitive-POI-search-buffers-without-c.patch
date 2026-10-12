@@ -1,0 +1,79 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: DOMasters <dominik.wesser@live.de>
+Date: Mon, 12 Oct 2026 22:35:01 +0200
+Subject: [PATCH] Reuse bounded primitive POI search buffers without caching
+ results
+
+
+diff --git a/ca/spottedleaf/moonrise/patches/poi_lookup/PoiAccess.java b/ca/spottedleaf/moonrise/patches/poi_lookup/PoiAccess.java
+index 85d80b3952a76b0ca7f67401a659cf35dd55b082..15b3c78a6a91939e72eb9e33b2fda73d6f7746bb 100644
+--- a/ca/spottedleaf/moonrise/patches/poi_lookup/PoiAccess.java
++++ b/ca/spottedleaf/moonrise/patches/poi_lookup/PoiAccess.java
+@@ -29,6 +29,27 @@ import java.util.function.Predicate;
+  */
+ public final class PoiAccess {
+ 
++    private static final boolean TESSERA_X_SCRATCH = Boolean.getBoolean("tessera-x.poi-scratch");
++    private static final ThreadLocal<SearchScratch> TESSERA_X_SEARCH = new ThreadLocal<>();
++    private static final class SearchScratch {
++        final LongArrayFIFOQueue queue = new LongArrayFIFOQueue();
++        final LongOpenHashSet seen = new LongOpenHashSet();
++        boolean busy;
++    }
++    private static SearchScratch acquireScratch() {
++        SearchScratch scratch = TESSERA_X_SEARCH.get();
++        if (scratch == null) { scratch = new SearchScratch(); TESSERA_X_SEARCH.set(scratch); }
++        else if (scratch.busy) scratch = new SearchScratch();
++        scratch.busy = true;
++        return scratch;
++    }
++    private static void releaseScratch(SearchScratch scratch) {
++        int visited = scratch.seen.size();
++        scratch.queue.clear(); scratch.seen.clear(); scratch.busy = false;
++        // Only primitive coordinates survive a call. Bound retained capacity on unusually broad searches.
++        if (visited > 8192 && TESSERA_X_SEARCH.get() == scratch) TESSERA_X_SEARCH.remove();
++    }
++
+     public static final boolean LOAD_FOR_SEARCHING = true;
+ 
+     public static int compareDistances(final double d1, final double d2) {
+@@ -359,8 +380,10 @@ public final class PoiAccess {
+         final int centerZ = sourcePosition.getZ() >> 4;
+         final long centerKey = CoordinateUtils.getChunkSectionKey(centerX, centerY, centerZ);
+ 
+-        final LongArrayFIFOQueue queue = new LongArrayFIFOQueue();
+-        final LongOpenHashSet seen = new LongOpenHashSet();
++        final SearchScratch scratch = TESSERA_X_SCRATCH ? acquireScratch() : null;
++        final LongArrayFIFOQueue queue = scratch == null ? new LongArrayFIFOQueue() : scratch.queue;
++        final LongOpenHashSet seen = scratch == null ? new LongOpenHashSet() : scratch.seen;
++        try {
+         seen.add(centerKey);
+         queue.enqueue(centerKey);
+ 
+@@ -550,6 +573,7 @@ public final class PoiAccess {
+ 
+         // now we match perfectly what vanilla would have outputted, without having to search the whole radius (hopefully).
+         ret.addAll(closestRecordsUnsorted);
++        } finally { if (scratch != null) releaseScratch(scratch); }
+     }
+ 
+     public static BlockPos findAnyPoiPosition(final PoiManager poiStorage,
+diff --git a/net/minecraft/world/entity/ai/behavior/AcquirePoi.java b/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
+index 36add8bf5e2a0c4a68ef426be86416037d81778f..70dbe158db68a349e743dace86a04a64c27f6625 100644
+--- a/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
++++ b/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
+@@ -97,9 +97,13 @@ public class AcquirePoi {
+                         // Paper start - optimise POI searches
+                         java.util.List<Pair<Holder<PoiType>, BlockPos>> poiPositionsRaw = new java.util.ArrayList<>();
+                         long tesseraXTiming = dev.tessera.x.WorkTimings.start();
++                        long tesseraXPoiAllocated = dev.tessera.x.WorkTimings.allocatedStart();
+                         try {
+                             ca.spottedleaf.moonrise.patches.poi_lookup.PoiAccess.findNearestPoiPositions(poiManager, poiType, cacheTest, body.blockPosition(), SCAN_RANGE, Double.MAX_VALUE, PoiManager.Occupancy.HAS_SPACE, ca.spottedleaf.moonrise.patches.poi_lookup.PoiAccess.LOAD_FOR_SEARCHING, 5, poiPositionsRaw);
+-                        } finally { dev.tessera.x.WorkTimings.stop("poi.query", tesseraXTiming); }
++                        } finally {
++                            dev.tessera.x.WorkTimings.stop("poi.query", tesseraXTiming);
++                            dev.tessera.x.WorkTimings.allocatedStop("poi.query", tesseraXPoiAllocated);
++                        }
+                         Set<Pair<Holder<PoiType>, BlockPos>> poiPositions = new java.util.HashSet<>(poiPositionsRaw.size());
+                         for (Pair<Holder<PoiType>, BlockPos> pair : poiPositionsRaw) {
+                             if (validPoi.test(level, pair.getSecond())) {

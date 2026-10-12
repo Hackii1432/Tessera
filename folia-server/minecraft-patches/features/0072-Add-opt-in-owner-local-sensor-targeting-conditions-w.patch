@@ -1,0 +1,94 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Codex <codex@localhost>
+Date: Mon, 12 Oct 2026 22:03:38 +0200
+Subject: [PATCH] Add opt-in owner-local sensor targeting conditions with
+ body-specific range
+
+
+diff --git a/net/minecraft/world/entity/ai/sensing/Sensor.java b/net/minecraft/world/entity/ai/sensing/Sensor.java
+index dd3116b5087ea71243288a9d7349346886bd76e0..1ba8640fd1f91501c1582483de57d00d4f483025 100644
+--- a/net/minecraft/world/entity/ai/sensing/Sensor.java
++++ b/net/minecraft/world/entity/ai/sensing/Sensor.java
+@@ -27,6 +27,36 @@ public abstract class Sensor<E extends LivingEntity> {
+         .ignoreLineOfSight()
+         .ignoreInvisibilityTesting();
+     private final int scanRate;
++    private static final boolean TESSERA_X_LOCAL_CONDITIONS = Boolean.getBoolean("tessera-x.sensor-local-conditions");
++    private static final ConditionSet LEGACY_CONDITIONS = new ConditionSet(false);
++    private static final ThreadLocal<ConditionSet> LOCAL_CONDITIONS = ThreadLocal.withInitial(() -> new ConditionSet(true));
++
++    private static final class ConditionSet {
++        final TargetingConditions target, targetInvisible, attack, attackInvisible, attackNoSight, attackInvisibleNoSight;
++        double lastRange = Double.NaN;
++        ConditionSet(boolean copy) {
++            target = copy ? TARGET_CONDITIONS.copy() : TARGET_CONDITIONS;
++            targetInvisible = copy ? TARGET_CONDITIONS_IGNORE_INVISIBILITY_TESTING.copy() : TARGET_CONDITIONS_IGNORE_INVISIBILITY_TESTING;
++            attack = copy ? ATTACK_TARGET_CONDITIONS.copy() : ATTACK_TARGET_CONDITIONS;
++            attackInvisible = copy ? ATTACK_TARGET_CONDITIONS_IGNORE_INVISIBILITY_TESTING.copy() : ATTACK_TARGET_CONDITIONS_IGNORE_INVISIBILITY_TESTING;
++            attackNoSight = copy ? ATTACK_TARGET_CONDITIONS_IGNORE_LINE_OF_SIGHT.copy() : ATTACK_TARGET_CONDITIONS_IGNORE_LINE_OF_SIGHT;
++            attackInvisibleNoSight = copy ? ATTACK_TARGET_CONDITIONS_IGNORE_INVISIBILITY_AND_LINE_OF_SIGHT.copy() : ATTACK_TARGET_CONDITIONS_IGNORE_INVISIBILITY_AND_LINE_OF_SIGHT;
++        }
++        void range(double range) {
++            if (this.lastRange == range) return;
++            this.lastRange = range;
++            target.range(range); targetInvisible.range(range); attack.range(range);
++            attackInvisible.range(range); attackNoSight.range(range); attackInvisibleNoSight.range(range);
++        }
++    }
++
++    private static ConditionSet conditionsFor(LivingEntity body) {
++        if (!TESSERA_X_LOCAL_CONDITIONS) return LEGACY_CONDITIONS;
++        ConditionSet conditions = LOCAL_CONDITIONS.get();
++        var attribute = body.getAttribute(Attributes.FOLLOW_RANGE);
++        conditions.range(attribute == null ? DEFAULT_TARGETING_RANGE : attribute.getValue());
++        return conditions;
++    }
+     private long timeToTick;
+     private final String configKey; // Paper - configurable sensor tick rate and timings
+ 
+@@ -64,6 +94,10 @@ public abstract class Sensor<E extends LivingEntity> {
+     }
+ 
+     private void updateTargetingConditionRanges(final E body) {
++        if (TESSERA_X_LOCAL_CONDITIONS) {
++            conditionsFor(body);
++            return;
++        }
+         double followRange = body.getAttributeValue(Attributes.FOLLOW_RANGE);
+         TARGET_CONDITIONS.range(followRange);
+         TARGET_CONDITIONS_IGNORE_INVISIBILITY_TESTING.range(followRange);
+@@ -82,15 +116,17 @@ public abstract class Sensor<E extends LivingEntity> {
+     public abstract Set<MemoryModuleType<?>> requires();
+ 
+     public static boolean isEntityTargetable(final ServerLevel level, final LivingEntity body, final LivingEntity entity) {
++        ConditionSet conditions = conditionsFor(body);
+         return body.getBrain().isMemoryValue(MemoryModuleType.ATTACK_TARGET, entity)
+-            ? TARGET_CONDITIONS_IGNORE_INVISIBILITY_TESTING.test(level, body, entity)
+-            : TARGET_CONDITIONS.test(level, body, entity);
++            ? conditions.targetInvisible.test(level, body, entity)
++            : conditions.target.test(level, body, entity);
+     }
+ 
+     public static boolean isEntityAttackable(final ServerLevel level, final LivingEntity body, final LivingEntity target) {
++        ConditionSet conditions = conditionsFor(body);
+         return body.getBrain().isMemoryValue(MemoryModuleType.ATTACK_TARGET, target)
+-            ? ATTACK_TARGET_CONDITIONS_IGNORE_INVISIBILITY_TESTING.test(level, body, target)
+-            : ATTACK_TARGET_CONDITIONS.test(level, body, target);
++            ? conditions.attackInvisible.test(level, body, target)
++            : conditions.attack.test(level, body, target);
+     }
+ 
+     public static BiPredicate<ServerLevel, LivingEntity> wasEntityAttackableLastNTicks(final LivingEntity body, final int ticks) {
+@@ -98,9 +134,10 @@ public abstract class Sensor<E extends LivingEntity> {
+     }
+ 
+     public static boolean isEntityAttackableIgnoringLineOfSight(final ServerLevel level, final LivingEntity body, final LivingEntity target) {
++        ConditionSet conditions = conditionsFor(body);
+         return body.getBrain().isMemoryValue(MemoryModuleType.ATTACK_TARGET, target)
+-            ? ATTACK_TARGET_CONDITIONS_IGNORE_INVISIBILITY_AND_LINE_OF_SIGHT.test(level, body, target)
+-            : ATTACK_TARGET_CONDITIONS_IGNORE_LINE_OF_SIGHT.test(level, body, target);
++            ? conditions.attackInvisibleNoSight.test(level, body, target)
++            : conditions.attackNoSight.test(level, body, target);
+     }
+ 
+     public static <T, U> BiPredicate<T, U> rememberPositives(final int invocations, final BiPredicate<T, U> predicate) {
