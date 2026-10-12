@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.papermc.paper.porting.RegionSafeRecipeCatalogTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-11T15:29:16.180Z" hostname="ENGINE0" time="0.618">
+  <properties/>
+  <testcase name="removedDisplayIdsCannotResolveToAnUnrelatedRecipe()" classname="io.papermc.paper.porting.RegionSafeRecipeCatalogTest" time="0.475"/>
+  <testcase name="bootstrapRecipeWriterIsLimitedToTheActualConstructionOwner()" classname="io.papermc.paper.porting.RegionSafeRecipeCatalogTest" time="0.003"/>
+  <testcase name="learnableRecipesRefreshAndPublishedMapsAreImmutable()" classname="io.papermc.paper.porting.RegionSafeRecipeCatalogTest" time="0.004"/>
+  <testcase name="concurrentReadersNeverIterateAMutatingCatalog()" classname="io.papermc.paper.porting.RegionSafeRecipeCatalogTest" time="0.127"/>
+  <testcase name="duplicateBatchDoesNotPublishPartiallyAddedRecipes()" classname="io.papermc.paper.porting.RegionSafeRecipeCatalogTest" time="0.008"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

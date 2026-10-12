@@ -1,0 +1,127 @@
+{
+  "date": "2026-10-11",
+  "release": "26.3-018-beta",
+  "buildNumberChanged": false,
+  "minecraftVersion": "26.3",
+  "javaVersion": "25.0.3",
+  "gradleVersion": "9.8.0",
+  "source": {
+    "branch": "ver/26.3.x",
+    "rootBaseCommit": "c159a4e973747dbe787648d569826124a7b3c308",
+    "localChangesRequired": true,
+    "rootCommitOrPushPerformed": false,
+    "sinopiaSnapshot": "cebdb10d9418432a18b920f7f2e902a8d03a43f4",
+    "appliedMinecraftHead": "d6629832a46f5f52b8fa992536a0f770d42d0b85",
+    "appliedPaperServerHead": "9ec850dac2fcf5e1fc83a1cb86c815a60ae294f0",
+    "patches": [
+      {
+        "path": "folia-server/minecraft-patches/features/0061-Stop-accepted-disconnect-ticks-while-draining-native.patch",
+        "sha256": "e429a71bea2ed6fdb2d3b33d0a78455caa5a80815471b682b84afc429cd9e453"
+      },
+      {
+        "path": "folia-server/paper-patches/features/0050-Test-accepted-disconnect-idempotence-and-native-queu.patch",
+        "sha256": "492bce1a1f5fccf4ec43199b53ca41ba999d57244548a30a262c5ea4a281b317"
+      }
+    ]
+  },
+  "artifact": {
+    "path": "build/libs/tessera-server-26.3.build.018-beta.jar",
+    "bytes": 55630260,
+    "sha256": "77ac6d8fd776d73bfba0288f33cd8e90a3438ee3414177e18f3c3c2ff0010456"
+  },
+  "build": {
+    "standardBuildTesseraSucceeded": true,
+    "duration": "8m 23s",
+    "patchesReapplied": true,
+    "generatedSourceTreesClean": true,
+    "qualityChecksEnabled": true,
+    "serverSuiteExecution": "Fresh complete suite; no targeted test filter in buildTessera.",
+    "apiAndCheckstyleHelperExecution": "Unchanged regular Gradle UP-TO-DATE results.",
+    "log": "build/reports/build-logs/disconnect-build-final.log"
+  },
+  "tests": {
+    "server": { "cases": 10346, "skipped": 87, "failures": 0, "errors": 0 },
+    "api": { "cases": 529, "skipped": 2, "failures": 0, "errors": 0 },
+    "checkstyleHelper": { "cases": 3, "skipped": 0, "failures": 0, "errors": 0 },
+    "disconnectRegressions": {
+      "cases": 11,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "evidence": "build/reports/native-fixtures/disconnect-lifecycle-018.xml",
+      "sha256": "71e301ce3b8887e9b909f9cbb03a53286ba29ca6239098db2312a3f7f56c1a9d",
+      "reentrantNegativeTestFailedBeforeFix": true,
+      "negativeTestLog": "build/reports/build-logs/disconnect-reentrant-before-fix.log"
+    },
+    "documentationValidatorTests": 57,
+    "apiDocumentationArticles": 19,
+    "apiDocumentationLinks": 52
+  },
+  "native": {
+    "protocolClientsPerRun": 4,
+    "distinctGameplayRegionOwners": 2,
+    "gameplayFrozen": true,
+    "heldDisconnectMilliseconds": 2200,
+    "testOnlyKeepaliveSeconds": 3,
+    "testPluginSha256": "f20f5cd827415eba373deb6f635a43b5d059875afc3f40c068ba8a2e91766970",
+    "allRunsUsedFinalArtifactSha256": true,
+    "clientCountersInEachRun": [
+      { "username": "DisconnectOne", "logins": 1, "kicks": 1, "disconnects": 1, "keepalives": 2 },
+      { "username": "DisconnectTwo", "logins": 1, "kicks": 1, "disconnects": 1, "keepalives": 8 },
+      { "username": "NormalQuit", "logins": 1, "kicks": 0, "disconnects": 1, "keepalives": 17 },
+      { "username": "ConfigDrop", "logins": 1, "kicks": 1, "disconnects": 1, "keepalives": 3 }
+    ],
+    "acceptedTimeoutLogsInEachRun": ["DisconnectTwo", "ConfigDrop"],
+    "cancelledPluginKickRemainedActive": true,
+    "firstAcceptedReasonPreserved": true,
+    "normalClientReason": "Disconnected",
+    "allNativeConnectionsRemoved": true,
+    "allGameplayQuitEventsExactlyOnce": true,
+    "runs": [
+      {
+        "fixture": "disconnect-lifecycle-1791721719660",
+        "port": 50211,
+        "passed": true,
+        "assertions": 37,
+        "exitCode": 0,
+        "timedOut": false,
+        "result": "build/reports/native-fixtures/disconnect-lifecycle-1791721719660/result.json",
+        "resultSha256": "7483cf5ec9e38b705472683377e08a7d7ae66d3f62b4135079c9a73796e25c2f",
+        "checksSha256": "96ee77ef439166671465262e029434cec2b370f2a63b41b935f2b3856b919605"
+      },
+      {
+        "fixture": "disconnect-lifecycle-1791721775434",
+        "port": 54444,
+        "passed": true,
+        "assertions": 37,
+        "exitCode": 0,
+        "timedOut": false,
+        "result": "build/reports/native-fixtures/disconnect-lifecycle-1791721775434/result.json",
+        "resultSha256": "e6f4484c02fbbbadf3c6ceb2da9db2ae56aa7dfe1c1f814026891313ce04d792",
+        "checksSha256": "96ee77ef439166671465262e029434cec2b370f2a63b41b935f2b3856b919605"
+      }
+    ],
+    "preliminaryFailedFixtures": [
+      { "fixture": "disconnect-lifecycle-1791720175879", "cause": "Fixture whitelist was not explicitly disabled." },
+      { "fixture": "disconnect-lifecycle-1791720252992", "cause": "Fixture inspected unused Paper registry instead of actual Folia global connection registry; server log archived, no runner result JSON." },
+      { "fixture": "disconnect-lifecycle-1791720650309", "cause": "Fixture held terminal configuration ACK, which uses a separate 15-second timer, instead of withholding known-packs response for real keepalives." },
+      { "fixture": "disconnect-lifecycle-1791720811511", "cause": "Fixture checked native registry cleanup before asynchronous Quit removal finished; now boundedly awaits actual removal." }
+    ]
+  },
+  "cleanup": {
+    "disposableFixtureDirectoriesRemoved": 6,
+    "removedBytes": 1096159398,
+    "testProcessExitVerified": true,
+    "evidenceArchivedWithVerifiedHashes": true,
+    "worldBackupsRetained": false,
+    "worldsReproducibleThroughRunner": true,
+    "userDebugDumpAndProductionDataUntouched": true
+  },
+  "limits": [
+    "Protocol clients, not rendering Vanilla clients.",
+    "No native acceptance of the external production plugin stack or real network saturation.",
+    "Actual network timeouts remain possible; production timeout thresholds unchanged.",
+    "Previous native gameplay tests apply to their own JAR hashes; full unit regressions passed here.",
+    "Existing Windows OSHI/Perflib-009 error and JDK warnings remain visible in fixtures."
+  ]
+}

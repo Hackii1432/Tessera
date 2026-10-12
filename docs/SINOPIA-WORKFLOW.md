@@ -79,6 +79,12 @@ Der Snapshot enthält auch noch nicht im Root-Git gestagte Änderungen an
 Inhalt liefert dieselbe Git-Revision. Der technische Paperweight-Upstream
 heißt intern weiterhin `paper`, wird aber aus diesem lokalen Snapshot gespeist.
 
+Die zusätzliche [Sinopia-Backport-Sicherung](../upstream-patches/sinopia/README.md)
+bewahrt Basisänderungen auch als Git-Patch auf. Die kanonischen Quellen bleiben
+in `sinopia/`; diese Sicherung wird **nicht** als zweite Patchschicht im Build
+angewendet. Sie nur auf ihrer dokumentierten, unveränderten Ausgangsbasis
+benutzen, nicht erneut auf dem bereits integrierten Tessera-Stand.
+
 Beim Übernehmen des Umbaus in Git gehören die neuen Ordner `sinopia/` und
 `buildSrc/` sowie die Build-, Dokumentations- und Branding-Patchänderungen in
 denselben Tessera-Commit. Die Arbeitskopien unter `build/`, Caches und
@@ -186,14 +192,14 @@ Das ist ausdrücklich KEINE Erklärung, dass die Minecraft-Portierung fertig ist
 ## 26.3-Status
 
 Die aktuelle Minecraft-Basis ist das Release `26.3` mit Mache
-`26.3+build.1` und Tessera Build `017-beta`. Java 25 und die
+`26.3+build.1` und Tessera Build `019-beta`. Java 25 und die
 Plugin-API-Version `26.3` bleiben erhalten. Seit der Paper-main-Integration
 vom 25. September werden Gradle `9.8.0` und Paperweight `2.0.0-beta.24`
 gemeinsam verwendet. Der Build erzeugt die ausführbare JAR unter
-`build/libs/tessera-server-26.3.build.017-beta.jar`.
+`build/libs/tessera-server-26.3.build.019-beta.jar`.
 Der Beta-Kanal ersetzt keine Abnahme mit dem eigenen Plugin-Stack. Änderungen und
-Prüfstand: [Build 017](builds/26.3/0.0.17.md) und
-[NBT-Befehle mit nativer Abnahme](BUILD-26.3-017.md).
+Prüfstand: [Build 019](builds/26.3/0.0.19.md) und
+[Paper-/Moonrise-Integration mit nativer Abnahme](BUILD-26.3-019.md).
 Build 017 ergänzt regionslokale Block-NBT-Änderungen, Entity-Abfragen und
 atomaren CommandStorage. Die [Paper-Korrekturen aus Build 016](BUILD-26.3-016.md)
 bleiben unverändert enthalten.
@@ -201,6 +207,10 @@ Die [Paper-Integration vom 6. Oktober](PAPER-INTEGRATION-2026-10-06.md)
 ergänzt die lokale Basis selektiv; ein Wechsel von `paperRef` allein bleibt
 kein Upstream-Update. Pregen und Endportal-Anpassungen aus den vorherigen Builds
 bleiben erhalten.
+Die [Integration vom 11. Oktober](PAPER-INTEGRATION-2026-10-11.md) ergänzt alle
+folgenden fachlichen Änderungen bis `99867f8`, einschließlich beider Moonrise-
+Synchronisierungen und öffentlicher APIs. Folia-Rezeptkataloge werden atomar
+global publiziert; Spieler-Resets laufen auf den aktuellen Entity-Besitzern.
 Die [Restore-Metadaten-Prüfung aus Build 012](BUILD-26.3-012.md) bleibt erhalten.
 Die [Paper-Beta-Integration](PAPER-BETA-INTEGRATION-2026-09-28.md) bleibt der
 historische Nachweis der unveränderten Basis aus Build 011.

@@ -5,10 +5,10 @@ Subject: [PATCH] Harden Tessera runtime world failure paths
 
 
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 4df589a4f7a7dcc735bb540fe94cf55bbb3432e2..d4b46f4da15f6937b71facee0122b5d384b976f6 100644
+index e2c084cf022e9a65b78b4a1e9566585bedb63a30..47a22187f4f5f4bf7b5a0e5eac80d7ed43105ca5 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -1237,8 +1237,13 @@ public final class CraftServer implements Server {
+@@ -1215,8 +1215,13 @@ public final class CraftServer implements Server {
                      + "use Bukkit.getRuntimeWorldManager().createWorldAsync(...)"
              );
          }
@@ -23,7 +23,7 @@ index 4df589a4f7a7dcc735bb540fe94cf55bbb3432e2..d4b46f4da15f6937b71facee0122b5d3
          if (!result.successful()) {
              throw new IllegalStateException("World creation failed (" + result.status() + "): " + result.message(), result.cause());
          }
-@@ -1492,8 +1497,12 @@ public final class CraftServer implements Server {
+@@ -1470,8 +1475,12 @@ public final class CraftServer implements Server {
          this.worlds = Collections.unmodifiableMap(updated);
      }
  

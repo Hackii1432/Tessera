@@ -1,0 +1,13 @@
+Public prepare/apply/complete cycle 0: fresh on-disk backup, idempotence, store generation, exact player state, immutable source and successful resave
+Public prepare/apply/complete cycle 1: fresh on-disk backup, idempotence, store generation, exact player state, immutable source and successful resave
+Real published-store rollback restored XP/PDC from the freshly captured rollback directory and allowed another snapshot
+Transfer veto after file publication failed explicitly; rollback and completion restored native state and reopened admission
+Players without a saved entry received fresh defaults in the explicit fallback world; rollback restored their original files/state
+Native admission drain, cancelled caller future and concurrent rollback: no early backup/publication, all work drained, fence reopened only by completion
+Completion waited for native owned writer even after its caller cancelled; repeated completion returned the same committed decision
+Actual native statistic-file flush failure aborted prepare and retained admission until explicit rollback/completion
+Actual Windows file-sharing failure prevented native publication; failure retained admission, disallowed commit and recovered by real rollback
+Dead connected player restored to saved health via native client respawn/reset without replacing the connection
+Sleeping connected player safely detached from its current bed and restored to the saved awake state
+Prepared desert/red-sand generator and Nether generator bindings survived repeated restores; a newly generated target chunk retained its original biome/layers instead of the server's plains settings
+Cancelled identities stayed cancelled; gameplay freeze was released and the final runtime snapshot succeeded without reconnect

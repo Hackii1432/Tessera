@@ -158,3 +158,27 @@ und keine neue Minecraft-, Mache-, Leafpile- oder DataConverter-Version.
 
 Umfang, Original-Commits und Nachweise:
 [Integration und Build 016](../docs/PAPER-INTEGRATION-2026-10-06.md).
+
+## Vollständige fachliche Paper-Integration vom 11. Oktober 2026
+
+Die 19 folgenden Paper-Commits bis
+`99867f8f9207d3164696e469435a067330473743` sind fachlich integriert. Beide
+Moonrise-Synchronisierungen, neue öffentliche APIs und Datenmigrationen gehören
+zu Tessera `019-beta`. Der reine Patch-Rebuild und die bereits gleichwertig
+vorhandene DragonBattle-Korrektur benötigen keine zweite Verhaltensänderung.
+
+API-/Adapterquellen und kleine Quellpatches sind direkt in Sinopia versioniert.
+Die größeren nativen Änderungen liegen in den Tessera-Minecraft-Patches 0062–0064;
+deren Export sichert ausdrücklich die bestehenden Folia-Änderungen. Das ersetzt
+weder die vollständige historische Moonrise-Basis noch Tesseras DataConverter-
+Brücke: Die neuen typisierten Migrationen laufen im bereits verwendeten Vanilla-
+DFU-Pfad. Runtime-Rezeptänderungen publizieren unveränderliche Kataloge auf dem
+Global-Besitzer; Client-/RecipeBook-Arbeit läuft auf dem aktuellen Spielerbesitzer.
+
+Spark wird auf `1.10.191` aktualisiert, JOML nutzt standardmäßig den Pfad ohne
+`sun.misc.Unsafe`, und die Server-JAR erklärt ihre erforderliche Native-Access-
+Berechtigung. Minecraft/Mache, Java 25, Gradle, Paperweight, Leafpile und die
+ursprüngliche `paperRef`-Importprovenienz bleiben unverändert.
+
+Quellen, Folia-Anpassungen und Prüfumfang:
+[Paper-Integration 019](../docs/PAPER-INTEGRATION-2026-10-11.md).

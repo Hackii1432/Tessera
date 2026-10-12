@@ -1,0 +1,415 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Sun, 11 Oct 2026 16:06:09 +0200
+Subject: [PATCH] Publish runtime recipe catalogs atomically and refresh on
+ player owners
+
+
+diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
+index ba1615f515a9945c2662c65e7e0d205ff9ceadab..5e2ec22caa530e8c850bea1d11ec4bafed0cb43a 100644
+--- a/net/minecraft/server/MinecraftServer.java
++++ b/net/minecraft/server/MinecraftServer.java
+@@ -250,6 +250,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+     private @Nullable GameProfile singleplayerProfile;
+     private boolean isDemo;
+     private volatile boolean isReady;
++    private final Thread tessera$recipeBootstrapThread = Thread.currentThread();
+     private long lastOverloadWarningNanos;
+     protected final Services services;
+     private final NotificationManager notificationManager;
+@@ -2431,6 +2432,18 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+         return this.serverThread;
+     }
+ 
++    // Tessera - spin constructs the server on the launcher before starting serverThread.
++    // Only that construction owner, or the actual pre-ready server thread, may load recipes.
++    public final boolean tessera$isRecipeBootstrapThread() {
++        return tessera$isRecipeBootstrapContext(Thread.currentThread(), this.serverThread,
++            this.tessera$recipeBootstrapThread, this.isReady);
++    }
++
++    private static boolean tessera$isRecipeBootstrapContext(final Thread caller, final Thread running,
++                                                            final Thread bootstrap, final boolean ready) {
++        return !ready && (caller == running || (caller == bootstrap && running.getState() == Thread.State.NEW));
++    }
++
+     public int getCompressionThreshold() {
+         return 256;
+     }
+diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+index ec9b8b7d9229fa357d691f868980aa644e70569d..2a3b158bcc0bef9fc997ebd11cc33178e2c38f4b 100644
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -594,7 +594,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+             this.tessera$restoring = false;
+         }
+         this.tessera$playerStoreGeneration = org.bukkit.craftbukkit.world.PlayerStoreFence.INSTANCE.generation();
+-        this.recipeBook.sendInitialRecipeBook(this);
++        this.server.getRecipeManager().tessera$syncRecipes(this); // Tessera - restore also resets the matching catalog
+         this.server.getPlayerList().sendAllPlayerInfo(this);
+         this.server.getPlayerList().sendActivePlayerEffects(this);
+         this.onUpdateAbilities();
+diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
+index 552921317eec7b5267d868c748f23fa3eb615b88..6f5aa986c6a3a648bb74873f670a7a15e3915db3 100644
+--- a/net/minecraft/server/players/PlayerList.java
++++ b/net/minecraft/server/players/PlayerList.java
+@@ -268,12 +268,9 @@ public abstract class PlayerList {
+         playerConnection.send(new ClientboundPlayerAbilitiesPacket(player.getAbilities()));
+         playerConnection.send(new ClientboundSetHeldSlotPacket(player.getInventory().getSelectedSlot()));
+         RecipeManager recipeManager = this.server.getRecipeManager();
+-        playerConnection.send(
+-            new ClientboundUpdateRecipesPacket(recipeManager.getSynchronizedItemProperties(), recipeManager.getSynchronizedStonecutterRecipes())
+-        );
++        recipeManager.tessera$syncRecipes(player); // Tessera - one catalog for login packet and book reset
+         this.sendPlayerPermissionLevel(player);
+         player.getStats().markAllDirty();
+-        player.getRecipeBook().sendInitialRecipeBook(player);
+         // Tessera start - region-safe scoreboards
+         // Subscription and the initial immutable snapshot are applied by the
+         // player's entity scheduler once the player has a valid owner.
+@@ -1425,8 +1422,10 @@ public abstract class PlayerList {
+         //     playerAdvancements.reload(this.server.getAdvancements());
+         // }
+         for (ServerPlayer player : this.players) {
+-            player.getAdvancements().reload(this.server.getAdvancements());
+-            player.getAdvancements().flushDirty(player, false); // CraftBukkit - trigger immediate flush of advancements
++            this.tessera$runOnPlayerOwner(player, current -> {
++                current.getAdvancements().reload(this.server.getAdvancements());
++                current.getAdvancements().flushDirty(current, false);
++            });
+         }
+         // CraftBukkit end
+ 
+@@ -1441,14 +1440,20 @@ public abstract class PlayerList {
+ 
+     public void reloadRecipes() {
+         // CraftBukkit end
+-        RecipeManager recipeManager = this.server.getRecipeManager();
+-        ClientboundUpdateRecipesPacket recipes = new ClientboundUpdateRecipesPacket(
+-            recipeManager.getSynchronizedItemProperties(), recipeManager.getSynchronizedStonecutterRecipes()
+-        );
+-
+         for (ServerPlayer player : this.players) {
+-            player.connection.send(recipes);
+-            player.getRecipeBook().sendInitialRecipeBook(player);
++            this.tessera$runOnPlayerOwner(player, current -> this.server.getRecipeManager().tessera$syncRecipes(current));
+         }
+     }
++
++    // Tessera - immutable shared catalogs, mutable per-player state only on its current owner.
++    // Internal tasks follow transfers and run during tick freeze; no plugin task is used.
++    private void tessera$runOnPlayerOwner(final ServerPlayer player, final java.util.function.Consumer<ServerPlayer> action) {
++        player.getBukkitEntity().taskScheduler.scheduleRestore(entity -> {
++            final ServerPlayer current = (ServerPlayer)entity;
++            if (!current.hasDisconnected()) action.accept(current);
++            return java.util.concurrent.CompletableFuture.completedFuture(null);
++        }).whenComplete((ignored, failure) -> {
++            if (failure != null) LOGGER.debug("Player resource update skipped after owner retirement or failure", failure);
++        });
++    }
+ }
+diff --git a/net/minecraft/stats/ServerRecipeBook.java b/net/minecraft/stats/ServerRecipeBook.java
+index ac3fbaf20c3ed8ca981c9071f1bf95f2ad169f85..b81440676104e34247712f74f3a4c0a7ff1e1b53 100644
+--- a/net/minecraft/stats/ServerRecipeBook.java
++++ b/net/minecraft/stats/ServerRecipeBook.java
+@@ -118,11 +118,16 @@ public class ServerRecipeBook extends RecipeBook {
+     }
+ 
+     public void sendInitialRecipeBook(final ServerPlayer player) {
++        this.tessera$sendInitialRecipeBook(player, this.displayResolver);
++    }
++
++    // Tessera - one immutable catalog for an entire owner-side client reset.
++    public void tessera$sendInitialRecipeBook(final ServerPlayer player, final DisplayResolver resolver) {
+         player.connection.send(new ClientboundRecipeBookSettingsPacket(this.getBookSettings().copy()));
+         List<ClientboundRecipeBookAddPacket.Entry> recipesToSend = new ArrayList<>(this.known.size());
+ 
+         for (ResourceKey<Recipe<?>> id : this.known) {
+-            this.displayResolver.displaysForRecipe(id, r -> recipesToSend.add(new ClientboundRecipeBookAddPacket.Entry(r, false, this.highlight.contains(id))));
++            resolver.displaysForRecipe(id, r -> recipesToSend.add(new ClientboundRecipeBookAddPacket.Entry(r, false, this.highlight.contains(id))));
+         }
+ 
+         player.connection.send(new ClientboundRecipeBookAddPacket(recipesToSend, true));
+diff --git a/net/minecraft/world/item/crafting/RecipeManager.java b/net/minecraft/world/item/crafting/RecipeManager.java
+index f30349dacbc58bf88c594c84a1cc63ffce29325c..6653b9e58904320cbdea63f0f5a2501f83ae0c3a 100644
+--- a/net/minecraft/world/item/crafting/RecipeManager.java
++++ b/net/minecraft/world/item/crafting/RecipeManager.java
+@@ -46,46 +46,104 @@ public class RecipeManager implements RecipeAccess {
+         RecipePropertySet.BREWING_REAGENTS,
+         recipe -> recipe instanceof BrewingRecipe brewingRecipe ? Optional.of(brewingRecipe.getReagent().ingredient()) : Optional.empty()
+     );
+-    public RecipeMap recipes;
+-    private Map<ResourceKey<RecipePropertySet>, RecipePropertySet> propertySets = Map.of();
+-    private SelectableRecipe.SingleInputSet<StonecutterRecipe> stonecutterRecipes = SelectableRecipe.SingleInputSet.empty();
+-    private List<RecipeManager.ServerDisplayInfo> allDisplays = List.of();
+-    private Map<ResourceKey<Recipe<?>>, List<RecipeManager.ServerDisplayInfo>> recipeToDisplay = Map.of();
+-    private Collection<RecipeHolder<?>> learnableRecipes;
++    // Tessera - readers never observe a mutable catalog or half-built derived data.
++    public volatile RecipeMap recipes;
++    private volatile Catalog tessera$catalog;
++
++    private record Catalog(
++        RecipeMap recipes, Map<ResourceKey<RecipePropertySet>, RecipePropertySet> properties,
++        SelectableRecipe.SingleInputSet<StonecutterRecipe> stonecutter,
++        Map<RecipeDisplayId, ServerDisplayInfo> displays,
++        Map<ResourceKey<Recipe<?>>, List<ServerDisplayInfo>> byRecipe,
++        Collection<RecipeHolder<?>> learnable, int nextDisplayId
++    ) {
++        void listDisplays(ResourceKey<Recipe<?>> id, Consumer<RecipeDisplayEntry> output) {
++            this.byRecipe.getOrDefault(id, List.of()).forEach(info -> output.accept(info.display()));
++        }
++    }
+ 
+     public RecipeManager(final HolderLookup.Provider registries) {
+         HolderLookup.RegistryLookup<Recipe<?>> recipeRegistries = registries.lookupOrThrow(Registries.RECIPE);
+-        this.recipes = RecipeMap.create(recipeRegistries);
+-        this.learnableRecipes = this.recipes.values().stream().filter(r -> !r.value().isSpecial()).collect(Collectors.toUnmodifiableList());
++        this.recipes = RecipeMap.create(recipeRegistries).tessera$immutableCopy();
++        this.tessera$catalog = new Catalog(this.recipes, Map.of(), SelectableRecipe.SingleInputSet.empty(),
++            Map.of(), Map.of(), this.recipes.values().stream().filter(r -> !r.value().isSpecial()).toList(), 0);
+     }
+ 
+-    // CraftBukkit start
+-    public void addRecipe(RecipeHolder<?> holder) {
+-        org.spigotmc.AsyncCatcher.catchOp("Recipe Add"); // Spigot
+-        this.recipes.addRecipe(holder);
+-        this.finalizeRecipeLoading();
++    // Tessera - synchronous global writers; copy, validate, derive, then publish once.
++    public static void tessera$ensureRecipeWriter() {
++        final net.minecraft.server.MinecraftServer server = net.minecraft.server.MinecraftServer.getServer();
++        if (server != null && !io.papermc.paper.threadedregions.RegionizedServer.isGlobalTickThread()
++            && !server.tessera$isRecipeBootstrapThread()) {
++            throw new IllegalStateException("Recipe changes require the global region scheduler");
++        }
++    }
++
++    public void addRecipe(final RecipeHolder<?> holder) {
++        this.tessera$addRecipes(List.of(holder));
++    }
++
++    public boolean tessera$addRecipes(final Collection<RecipeHolder<?>> holders) {
++        tessera$ensureRecipeWriter();
++        if (holders.isEmpty()) return false;
++        final RecipeMap copy = this.tessera$catalog.recipes().tessera$mutableCopy();
++        for (final RecipeHolder<?> holder : holders) copy.addRecipe(java.util.Objects.requireNonNull(holder, "recipe"));
++        this.tessera$publish(copy);
++        return true;
++    }
++
++    public boolean tessera$removeRecipes(final Collection<ResourceKey<Recipe<?>>> ids) {
++        tessera$ensureRecipeWriter();
++        final RecipeMap copy = this.tessera$catalog.recipes().tessera$mutableCopy();
++        boolean changed = false;
++        for (final ResourceKey<Recipe<?>> id : ids) changed |= copy.removeRecipe(java.util.Objects.requireNonNull(id, "recipe key"));
++        if (changed) this.tessera$publish(copy);
++        return changed;
++    }
++
++    public void tessera$replaceRecipes(final RecipeType<?> type, final Collection<RecipeHolder<?>> replacements) {
++        tessera$ensureRecipeWriter();
++        final RecipeMap copy = this.tessera$catalog.recipes().tessera$mutableCopy();
++        copy.values().stream().filter(holder -> holder.value().getType() == type).map(RecipeHolder::id).toList()
++            .forEach(copy::removeRecipe);
++        for (final RecipeHolder<?> holder : replacements) copy.addRecipe(holder);
++        this.tessera$publish(copy);
+     }
+ 
+     private FeatureFlagSet enabledFlags;
+ 
+     public void finalizeRecipeLoading() {
+-        this.learnableRecipes = this.recipes.values().stream().filter(r -> !r.value().isSpecial()).toList(); // Paper - refresh learnable recipes after runtime recipe changes
+-        if (this.enabledFlags != null) {
+-            this.finalizeRecipeLoading(this.enabledFlags);
++        tessera$ensureRecipeWriter();
++        this.tessera$publish(this.recipes);
++    }
+ 
+-            net.minecraft.server.MinecraftServer.getServer().getPlayerList().reloadResources();
++    private void tessera$publish(final RecipeMap recipes) {
++        final Catalog updated = this.tessera$buildCatalog(recipes.tessera$immutableCopy(), this.enabledFlags);
++        this.tessera$catalog = updated;
++        this.recipes = updated.recipes();
++        if (this.enabledFlags != null && net.minecraft.server.MinecraftServer.getServer() != null) {
++            net.minecraft.server.MinecraftServer.getServer().getPlayerList().reloadRecipes();
+         }
+     }
+ 
+     public void finalizeRecipeLoading(final FeatureFlagSet enabledFlags) {
++        tessera$ensureRecipeWriter();
++        final Catalog updated = this.tessera$buildCatalog(this.recipes, enabledFlags);
+         this.enabledFlags = enabledFlags;
+-        // CraftBukkit end
++        this.tessera$catalog = updated;
++        this.recipes = updated.recipes();
++    }
++
++    private Catalog tessera$buildCatalog(final RecipeMap recipes, final @Nullable FeatureFlagSet enabledFlags) {
++        final Collection<RecipeHolder<?>> learnable = recipes.values().stream().filter(r -> !r.value().isSpecial()).toList();
++        if (enabledFlags == null) {
++            return new Catalog(recipes, Map.of(), SelectableRecipe.SingleInputSet.empty(), Map.of(), Map.of(), learnable, this.tessera$catalog.nextDisplayId());
++        }
+         List<SelectableRecipe.SingleInputEntry<StonecutterRecipe>> stonecutterRecipes = new ArrayList<>();
+         List<RecipeManager.IngredientCollector> propertySetCollectors = RECIPE_PROPERTY_SETS.entrySet()
+             .stream()
+             .map(e -> new RecipeManager.IngredientCollector(e.getKey(), e.getValue()))
+             .toList();
+-        this.recipes
++        recipes
+             .values()
+             .forEach(
+                 recipeHolder -> {
+@@ -107,10 +165,33 @@ public class RecipeManager implements RecipeAccess {
+                     }
+                 }
+             );
+-        this.propertySets = propertySetCollectors.stream().collect(Collectors.toUnmodifiableMap(c -> c.key, c -> c.asPropertySet(enabledFlags)));
+-        this.stonecutterRecipes = new SelectableRecipe.SingleInputSet<>(stonecutterRecipes);
+-        this.allDisplays = unpackRecipeInfo(this.recipes.values(), enabledFlags);
+-        this.recipeToDisplay = this.allDisplays.stream().collect(Collectors.groupingBy(r -> r.parent.id(), IdentityHashMap::new, Collectors.toList()));
++        final var properties = propertySetCollectors.stream().collect(Collectors.toUnmodifiableMap(c -> c.key, c -> c.asPropertySet(enabledFlags)));
++        final List<ServerDisplayInfo> displays = unpackRecipeInfo(recipes.values(), enabledFlags);
++        final Map<RecipeDisplayId, ServerDisplayInfo> byDisplay = new java.util.HashMap<>();
++        final Map<ResourceKey<Recipe<?>>, List<ServerDisplayInfo>> byRecipe = new IdentityHashMap<>();
++        final Catalog previous = this.tessera$catalog;
++        int nextId = previous.nextDisplayId();
++        for (final ServerDisplayInfo info : displays) {
++            final List<ServerDisplayInfo> entries = byRecipe.computeIfAbsent(info.parent().id(), ignored -> new ArrayList<>());
++            final List<ServerDisplayInfo> old = previous.byRecipe().getOrDefault(info.parent().id(), List.of());
++            final int ordinal = entries.size();
++            final RecipeDisplayId id;
++            if (ordinal < old.size() && old.get(ordinal).parent().value() == info.parent().value()) {
++                id = old.get(ordinal).display().id();
++            } else {
++                id = new RecipeDisplayId(nextId);
++                nextId = Math.incrementExact(nextId);
++            }
++            final RecipeDisplayEntry display = info.display();
++            final ServerDisplayInfo indexed = new ServerDisplayInfo(new RecipeDisplayEntry(id, display.display(), display.group(),
++                display.category(), display.craftingRequirements()), info.parent());
++            entries.add(indexed);
++            byDisplay.put(id, indexed);
++        }
++        // Never reuse a removed display ID for a different recipe: delayed client packets cannot select the wrong recipe.
++        byRecipe.replaceAll((id, entries) -> List.copyOf(entries));
++        return new Catalog(recipes, properties, new SelectableRecipe.SingleInputSet<>(List.copyOf(stonecutterRecipes)),
++            Map.copyOf(byDisplay), java.util.Collections.unmodifiableMap(byRecipe), learnable, nextId);
+     }
+ 
+     private static List<Ingredient> filterDisabled(final FeatureFlagSet enabledFlags, final List<Ingredient> ingredients) {
+@@ -137,74 +218,73 @@ public class RecipeManager implements RecipeAccess {
+ 
+     public <I extends RecipeInput, T extends Recipe<I>> Optional<RecipeHolder<T>> getRecipeFor(final RecipeType<T> type, final I input, final Level level) {
+         // CraftBukkit start
+-        List<RecipeHolder<T>> list = this.recipes.getRecipesFor(type, input, level).toList();
++        List<RecipeHolder<T>> list = this.tessera$catalog.recipes().getRecipesFor(type, input, level).toList();
+         return (list.isEmpty()) ? Optional.empty() : Optional.of(list.getLast()); // CraftBukkit - SPIGOT-4638: last recipe gets priority
+         // CraftBukkit end
+     }
+ 
+     public Optional<RecipeHolder<?>> byKey(final ResourceKey<Recipe<?>> recipeId) {
+-        return Optional.ofNullable(this.recipes.byKey(recipeId));
++        return Optional.ofNullable(this.tessera$catalog.recipes().byKey(recipeId));
+     }
+ 
+     private <T extends Recipe<?>> @Nullable RecipeHolder<T> byKeyTyped(final RecipeType<T> type, final ResourceKey<Recipe<?>> recipeId) {
+-        RecipeHolder<?> recipe = this.recipes.byKey(recipeId);
++        RecipeHolder<?> recipe = this.tessera$catalog.recipes().byKey(recipeId);
+         return (RecipeHolder<T>)(recipe != null && recipe.value().getType().equals(type) ? recipe : null);
+     }
+ 
+     public Map<ResourceKey<RecipePropertySet>, RecipePropertySet> getSynchronizedItemProperties() {
+-        return this.propertySets;
++        return this.tessera$catalog.properties();
+     }
+ 
+     public SelectableRecipe.SingleInputSet<StonecutterRecipe> getSynchronizedStonecutterRecipes() {
+-        return this.stonecutterRecipes;
++        return this.tessera$catalog.stonecutter();
+     }
+ 
+     @Override
+     public RecipePropertySet propertySet(final ResourceKey<RecipePropertySet> id) {
+-        return this.propertySets.getOrDefault(id, RecipePropertySet.EMPTY);
++        return this.tessera$catalog.properties().getOrDefault(id, RecipePropertySet.EMPTY);
+     }
+ 
+     @Override
+     public SelectableRecipe.SingleInputSet<StonecutterRecipe> stonecutterRecipes() {
+-        return this.stonecutterRecipes;
++        return this.tessera$catalog.stonecutter();
+     }
+ 
+     public Collection<RecipeHolder<?>> getRecipes() {
+-        return this.recipes.values();
++        return this.tessera$catalog.recipes().values();
+     }
+ 
+     public Collection<RecipeHolder<?>> getLearnableRecipes() {
+-        return this.learnableRecipes;
++        return this.tessera$catalog.learnable();
+     }
+ 
+     public RecipeManager.@Nullable ServerDisplayInfo getRecipeFromDisplay(final RecipeDisplayId id) {
+-        int index = id.index();
+-        return index >= 0 && index < this.allDisplays.size() ? this.allDisplays.get(index) : null;
++        return this.tessera$catalog.displays().get(id);
+     }
+ 
+     public void listDisplaysForRecipe(final ResourceKey<Recipe<?>> id, final Consumer<RecipeDisplayEntry> output) {
+-        List<RecipeManager.ServerDisplayInfo> recipes = this.recipeToDisplay.get(id);
+-        if (recipes != null) {
+-            recipes.forEach(e -> output.accept(e.display));
+-        }
++        this.tessera$catalog.listDisplays(id, output);
+     }
+ 
+     // CraftBukkit start
+     public boolean removeRecipe(ResourceKey<Recipe<?>> id) {
+-        boolean removed = this.recipes.removeRecipe(id);
+-        if (removed) {
+-            this.finalizeRecipeLoading();
+-        }
+-
+-        return removed;
++        return this.tessera$removeRecipes(List.of(id));
+     }
+ 
+     public void clearRecipes() {
+-        this.recipes = RecipeMap.createEmpty();
+-        this.finalizeRecipeLoading();
++        tessera$ensureRecipeWriter();
++        this.tessera$publish(RecipeMap.createEmpty());
+     }
+     // CraftBukkit end
+ 
++    public void tessera$syncRecipes(final net.minecraft.server.level.ServerPlayer player) {
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(player, "Recipe reset requires the player owner");
++        if (player.hasDisconnected()) return;
++        final Catalog catalog = this.tessera$catalog;
++        player.connection.send(new net.minecraft.network.protocol.game.ClientboundUpdateRecipesPacket(catalog.properties(), catalog.stonecutter()));
++        player.getRecipeBook().tessera$sendInitialRecipeBook(player, catalog::listDisplays);
++    }
++
+     public static <I extends RecipeInput, T extends Recipe<I>> RecipeManager.CachedCheck<I, T> createCheck(final RecipeType<T> type) {
+         return new RecipeManager.CachedCheck<I, T>() {
+             private @Nullable ResourceKey<Recipe<?>> lastRecipe;
+diff --git a/net/minecraft/world/item/crafting/RecipeMap.java b/net/minecraft/world/item/crafting/RecipeMap.java
+index c53044e04fbc3de6b59b1117210b59867be413e1..3d19c4caf082672690637cf00c6d58133d5d220a 100644
+--- a/net/minecraft/world/item/crafting/RecipeMap.java
++++ b/net/minecraft/world/item/crafting/RecipeMap.java
+@@ -38,6 +38,15 @@ public class RecipeMap {
+         return new RecipeMap(com.google.common.collect.LinkedHashMultimap.create(), com.google.common.collect.Maps.newLinkedHashMap());
+     }
+ 
++    // Tessera - published recipe maps are immutable; only detached copies are edited.
++    public RecipeMap tessera$mutableCopy() {
++        return new RecipeMap(com.google.common.collect.LinkedHashMultimap.create(this.byType), new java.util.LinkedHashMap<>(this.byKey));
++    }
++
++    public RecipeMap tessera$immutableCopy() {
++        return new RecipeMap(ImmutableMultimap.copyOf(this.byType), ImmutableMap.copyOf(this.byKey));
++    }
++
+     public void addRecipe(RecipeHolder<?> holder) {
+         Collection<RecipeHolder<?>> recipes = this.byType.get(holder.value().getType());
+ 

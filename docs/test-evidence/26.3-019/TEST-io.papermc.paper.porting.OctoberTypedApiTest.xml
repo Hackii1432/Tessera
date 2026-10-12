@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.papermc.paper.porting.OctoberTypedApiTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-11T15:29:16.871Z" hostname="ENGINE0" time="0.116">
+  <properties/>
+  <testcase name="typedKeyFactoryRejectsNullInputs()" classname="io.papermc.paper.porting.OctoberTypedApiTest" time="0.003"/>
+  <testcase name="restrictedMetadataDoesNotOverrideTheActualPermissionPredicate()" classname="io.papermc.paper.porting.OctoberTypedApiTest" time="0.076"/>
+  <testcase name="typedKeysUseTheExistingStoreAndPreserveTypeValidation()" classname="io.papermc.paper.porting.OctoberTypedApiTest" time="0.036"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,197 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Sun, 11 Oct 2026 16:03:39 +0200
+Subject: [PATCH] Migrate hidden item components and embedded structure states
+ through native DFU
+
+
+diff --git a/ca/spottedleaf/dataconverter/minecraft/versions/V2701.java b/ca/spottedleaf/dataconverter/minecraft/versions/V2701.java
+index f9111654dd0fba78c119c6c9ebc5c6f72096b3c2..2c4cc929984e03ddd509bea4ad5643a9b9cbb0ec 100644
+--- a/ca/spottedleaf/dataconverter/minecraft/versions/V2701.java
++++ b/ca/spottedleaf/dataconverter/minecraft/versions/V2701.java
+@@ -48,12 +48,12 @@ public final class V2701 {
+                         continue;
+                     }
+ 
+-                    final String poolElement = child.getString("pool_element");
+-                    if (!"minecraft:feature_pool_element".equals(poolElement)) {
++                    final MapType poolElement = child.getMap("pool_element");
++                    if (poolElement == null || !"minecraft:feature_pool_element".equals(poolElement.getString("element_type"))) {
+                         continue;
+                     }
+ 
+-                    final MapType feature = child.getMap("feature");
++                    final MapType feature = poolElement.getMap("feature");
+                     if (feature == null) {
+                         continue;
+                     }
+@@ -61,7 +61,7 @@ public final class V2701 {
+                     final String replacement = convertToString(feature);
+ 
+                     if (replacement != null) {
+-                        child.setString("feature", replacement);
++                        poolElement.setString("feature", replacement);
+                     }
+                 }
+ 
+diff --git a/net/minecraft/util/datafix/DataFixers.java b/net/minecraft/util/datafix/DataFixers.java
+index cf267f286c96cf58f85ec50929c87774805e44a3..ae413110f3f446dbd23c025c2e966977cc5f0b1f 100644
+--- a/net/minecraft/util/datafix/DataFixers.java
++++ b/net/minecraft/util/datafix/DataFixers.java
+@@ -1691,11 +1691,14 @@ public class DataFixers {
+         fixerUpper.addFixer(new SignsOpFlagFix(v5002));
+         Schema v5006 = fixerUpper.addSchema(5006, SAME_NAMESPACED);
+         fixerUpper.addFixer(new BlockStateFieldNamesFix(v5006));
++        fixerUpper.addFixer(new net.minecraft.util.datafix.fixes.SinopiaStructureStateFix(v5006)); // Sinopia - embedded structure states
+         Schema v5007 = fixerUpper.addSchema(5007, SAME_NAMESPACED);
+         fixerUpper.addFixer(new SwingAnimationComponentSplitFix(v5007));
++        fixerUpper.addFixer(new net.minecraft.util.datafix.fixes.SinopiaHiddenComponentsFix(v5007, "minecraft:swing_animation", "minecraft:attack_animation", "minecraft:interact_animation"));
+         Schema v5008 = fixerUpper.addSchema(5008, SAME_NAMESPACED);
+         fixerUpper.addFixer(new ExplorerMapItemFix(v5008));
+         fixerUpper.addFixer(new MapColorComponentRemovalFix(v5008));
++        fixerUpper.addFixer(new net.minecraft.util.datafix.fixes.SinopiaHiddenComponentsFix(v5008, "minecraft:map_color"));
+         Schema v5009 = fixerUpper.addSchema(5009, SAME_NAMESPACED);
+         fixerUpper.addFixer(new BlendingDataNoValueHeightFix(v5009));
+         fixerUpper.addFixer(new net.minecraft.util.datafix.fixes.SinopiaRemoveTemptedMemoryFix(v5009)); // Sinopia - Paper's V5009 correction on our vanilla DFU path
+@@ -1724,6 +1727,7 @@ public class DataFixers {
+         fixerUpper.addFixer(new MergeTerrainChunkStatusFix(v5013));
+         Schema v5014 = fixerUpper.addSchema(5014, SAME_NAMESPACED);
+         fixerUpper.addFixer(new RemoveBlockTransformerComponentFix(v5014));
++        fixerUpper.addFixer(new net.minecraft.util.datafix.fixes.SinopiaHiddenComponentsFix(v5014, "minecraft:block_transformer"));
+         Schema v5016 = fixerUpper.addSchema(5016, SAME_NAMESPACED);
+         fixerUpper.addFixer(new UnfilledBuriedTreasureMapFix(v5016));
+     }
+diff --git a/net/minecraft/util/datafix/fixes/SinopiaHiddenComponentsFix.java b/net/minecraft/util/datafix/fixes/SinopiaHiddenComponentsFix.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..74e5e7686b2cf25ad90f83d44bf04e6551345a57
+--- /dev/null
++++ b/net/minecraft/util/datafix/fixes/SinopiaHiddenComponentsFix.java
+@@ -0,0 +1,55 @@
++package net.minecraft.util.datafix.fixes;
++
++import com.mojang.datafixers.DSL;
++import com.mojang.datafixers.DataFix;
++import com.mojang.datafixers.TypeRewriteRule;
++import com.mojang.datafixers.schemas.Schema;
++import com.mojang.serialization.Dynamic;
++import java.util.ArrayList;
++import java.util.List;
++
++/** Paper's tooltip migration on Sinopia's active vanilla DFU backend. */
++public final class SinopiaHiddenComponentsFix extends DataFix {
++    private final String from;
++    private final List<String> replacements;
++
++    public SinopiaHiddenComponentsFix(final Schema schema, final String from, final String... replacements) {
++        super(schema, false);
++        this.from = from;
++        this.replacements = List.of(replacements);
++    }
++
++    @Override
++    protected TypeRewriteRule makeRule() {
++        return this.fixTypeEverywhereTyped("Sinopia hidden component " + this.from,
++            this.getInputSchema().getType(References.DATA_COMPONENTS),
++            input -> input.update(DSL.remainderFinder(), this::replaceHiddenComponent));
++    }
++
++    private <T> Dynamic<T> replaceHiddenComponent(final Dynamic<T> components) {
++        return components.update("minecraft:tooltip_display", tooltip -> tooltip.update("hidden_components", hidden -> {
++            final var stream = hidden.asStreamOpt().result();
++            if (stream.isEmpty()) return hidden;
++            final List<Dynamic<?>> values = new ArrayList<>(stream.get().toList());
++            if (values.stream().anyMatch(value -> value.asString().result().isEmpty())) return hidden;
++            int insertion = -1;
++            for (int i = values.size() - 1; i >= 0; --i) {
++                if (this.from.equals(namespace(values.get(i).asString().getOrThrow()))) {
++                    values.remove(i);
++                    insertion = i;
++                }
++            }
++            if (insertion < 0) return hidden;
++            for (final String replacement : this.replacements) {
++                if (values.stream().noneMatch(value -> replacement.equals(namespace(value.asString().getOrThrow())))) {
++                    values.add(insertion++, hidden.createString(replacement));
++                }
++            }
++            return hidden.createList(values.stream());
++        }));
++    }
++
++    private static String namespace(final String name) {
++        return name.indexOf(':') < 0 ? "minecraft:" + name : name;
++    }
++}
+diff --git a/net/minecraft/util/datafix/fixes/SinopiaStructureStateFix.java b/net/minecraft/util/datafix/fixes/SinopiaStructureStateFix.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..436c6f037c9d92ab84cc04b4af2afcadf558b490
+--- /dev/null
++++ b/net/minecraft/util/datafix/fixes/SinopiaStructureStateFix.java
+@@ -0,0 +1,67 @@
++package net.minecraft.util.datafix.fixes;
++
++import com.mojang.datafixers.DSL;
++import com.mojang.datafixers.DataFix;
++import com.mojang.datafixers.TypeRewriteRule;
++import com.mojang.datafixers.schemas.Schema;
++import com.mojang.serialization.Dynamic;
++import java.util.function.UnaryOperator;
++
++/** Migrate block states embedded in structure-start remainders, not arbitrary NBT. */
++public final class SinopiaStructureStateFix extends DataFix {
++    public SinopiaStructureStateFix(final Schema schema) {
++        super(schema, false);
++    }
++
++    @Override
++    protected TypeRewriteRule makeRule() {
++        return this.fixTypeEverywhereTyped("Sinopia embedded structure block states",
++            this.getInputSchema().getType(References.STRUCTURE_FEATURE),
++            input -> input.update(DSL.remainderFinder(), structure -> structure.update("Children", children -> list(children, SinopiaStructureStateFix::child))));
++    }
++
++    private static <T> Dynamic<T> child(Dynamic<T> child) {
++        for (final String field : new String[] {"CA", "CB", "CC", "CD"}) {
++            child = child.update(field, SinopiaStructureStateFix::state);
++        }
++        return child.update("pool_element", SinopiaStructureStateFix::pool);
++    }
++
++    private static <T> Dynamic<T> state(final Dynamic<T> state) {
++        return state.renameField("Name", "id").renameField("Properties", "properties");
++    }
++
++    private static <T> Dynamic<T> pool(final Dynamic<T> element) {
++        return element.update("elements", elements -> list(elements, SinopiaStructureStateFix::pool))
++            .update("processors", processors -> processors.asStreamOpt().result().isPresent()
++                ? list(processors, SinopiaStructureStateFix::processor)
++                : processors.update("processors", entries -> list(entries, SinopiaStructureStateFix::processor)));
++    }
++
++    private static <T> Dynamic<T> processor(final Dynamic<T> processor) {
++        return switch (namespace(processor.get("processor_type").asString(""))) {
++            case "minecraft:rule" -> processor.update("rules", rules -> list(rules, rule -> rule
++                .update("input_predicate", SinopiaStructureStateFix::test)
++                .update("location_predicate", SinopiaStructureStateFix::test)
++                .update("output_state", SinopiaStructureStateFix::state)));
++            case "minecraft:block_ignore" -> processor.update("blocks", blocks -> list(blocks, SinopiaStructureStateFix::state));
++            case "minecraft:capped" -> processor.update("delegate", SinopiaStructureStateFix::processor);
++            default -> processor;
++        };
++    }
++
++    private static <T> Dynamic<T> test(final Dynamic<T> test) {
++        return switch (namespace(test.get("predicate_type").asString(""))) {
++            case "minecraft:blockstate_match", "minecraft:random_blockstate_match" -> test.update("block_state", SinopiaStructureStateFix::state);
++            default -> test;
++        };
++    }
++
++    private static <T> Dynamic<T> list(final Dynamic<T> value, final UnaryOperator<Dynamic<T>> visitor) {
++        return value.asStreamOpt().result().map(stream -> value.createList(stream.map(visitor))).orElse(value);
++    }
++
++    private static String namespace(final String name) {
++        return name.indexOf(':') < 0 ? "minecraft:" + name : name;
++    }
++}

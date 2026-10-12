@@ -6,7 +6,7 @@ Subject: [PATCH] Exclude dragon eggs from unsafe End portal duplication
 Keep the ordinary Folia transfer/physics path for dragon eggs, reject source snapshots on capture and completion, and disable the legacy force-tick duplication flag. Leave all other falling blocks and End arrival geometry unchanged.
 
 diff --git a/net/minecraft/world/entity/item/FallingBlockEntity.java b/net/minecraft/world/entity/item/FallingBlockEntity.java
-index fc5c0a98cd5b2c618d6ac920a0f1fad6c4ef682a..872980b64321881678faf67bd688b5867eb126f8 100644
+index d124bdc4057da3b83865d9b7794f61a161c9dded..3c685215aa3f6a66ac0349d803df931b521d7377 100644
 --- a/net/minecraft/world/entity/item/FallingBlockEntity.java
 +++ b/net/minecraft/world/entity/item/FallingBlockEntity.java
 @@ -306,6 +306,12 @@ public class FallingBlockEntity extends Entity {

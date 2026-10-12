@@ -1,0 +1,434 @@
+{
+  "passed": true,
+  "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.019-beta.jar",
+  "sha256": "38a469ba075dd4fc9d36293b71aaa5d5ae077d27062d33da24994ad505d77cea",
+  "work": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\disconnect-lifecycle-1791733089185",
+  "port": 59196,
+  "code": 0,
+  "timedOut": false,
+  "clientFailure": null,
+  "configRejected": true,
+  "testKeepaliveSeconds": 3,
+  "heldDisconnectMilliseconds": 2200,
+  "counters": [
+    {
+      "username": "DisconnectOne",
+      "logins": 1,
+      "kicks": 1,
+      "disconnects": 1,
+      "keepalives": 3
+    },
+    {
+      "username": "DisconnectTwo",
+      "logins": 1,
+      "kicks": 1,
+      "disconnects": 1,
+      "keepalives": 9
+    },
+    {
+      "username": "NormalQuit",
+      "logins": 1,
+      "kicks": 0,
+      "disconnects": 1,
+      "keepalives": 18
+    },
+    {
+      "username": "ConfigDrop",
+      "logins": 1,
+      "kicks": 1,
+      "disconnects": 1,
+      "keepalives": 3
+    }
+  ],
+  "timeoutLogs": [
+    "DisconnectTwo",
+    "ConfigDrop"
+  ],
+  "checks": "player work executed on current native owner\r\nplayer work executed on current native owner\r\nsecond player transferred to a distant region\r\nplayer work executed on current native owner\r\nplayer work executed on current native owner\r\ntwo distinct native region owners\r\ngameplay freeze enabled for all disconnect cases\r\nplayer work executed on current native owner\r\nkick event belongs to player owner\r\nplayer work executed on current native owner\r\ncancelled kick kept connection active and readable\r\nplayer work executed on current native owner\r\nplayer work executed on current native owner\r\nkick event belongs to player owner\r\naccepted kick sealed before write completion\r\nnative disconnect reached Netty hold\r\nplayer work executed on current native owner\r\nglobal ticks continued while disconnect write was delayed at freeze\r\nonly original accepted packet written\r\none cancelled and one accepted kick event, no timeout retries\r\nnative quit completed once for DisconnectOne\r\naccepted reason preserved through close\r\nplayer work executed on current native owner\r\nkick event belongs to player owner\r\nreal unanswered keepalive reached native timeout\r\nexactly one native timeout event\r\nregion timeout packet pending without repeated disconnects\r\nnative quit completed once for DisconnectTwo\r\nconfiguration-stage connection owned by global tick\r\nconfiguration keepalive timeout reached Netty\r\nglobal configuration timeout written exactly once\r\nglobal maintenance continues during configuration disconnect\r\nconfiguration connection removed by global cleanup\r\nnative quit completed once for NormalQuit\r\nnormal client close did not trigger any kick event\r\nall gameplay quit events exactly once\r\nall native gameplay connections removed\r\n",
+  "observations": [
+    {
+      "type": "login",
+      "username": "DisconnectOne",
+      "observedAt": "2026-10-11T15:38:32.559Z"
+    },
+    {
+      "type": "login",
+      "username": "NormalQuit",
+      "observedAt": "2026-10-11T15:38:32.561Z"
+    },
+    {
+      "type": "login",
+      "username": "DisconnectTwo",
+      "observedAt": "2026-10-11T15:38:32.561Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "NormalQuit",
+      "state": "config",
+      "observedAt": "2026-10-11T15:38:33.648Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "DisconnectOne",
+      "state": "config",
+      "observedAt": "2026-10-11T15:38:33.648Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "DisconnectTwo",
+      "state": "config",
+      "observedAt": "2026-10-11T15:38:33.648Z"
+    },
+    {
+      "type": "teleport",
+      "username": "DisconnectOne",
+      "id": 1,
+      "position": [
+        -11.5,
+        -60,
+        3.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true,
+      "observedAt": "2026-10-11T15:38:34.935Z"
+    },
+    {
+      "type": "teleport",
+      "username": "DisconnectTwo",
+      "id": 1,
+      "position": [
+        -7.5,
+        -60,
+        -10.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true,
+      "observedAt": "2026-10-11T15:38:34.944Z"
+    },
+    {
+      "type": "teleport",
+      "username": "NormalQuit",
+      "id": 1,
+      "position": [
+        0.5,
+        -60,
+        5.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true,
+      "observedAt": "2026-10-11T15:38:34.953Z"
+    },
+    {
+      "type": "teleport",
+      "username": "DisconnectOne",
+      "id": 2,
+      "position": [
+        -11.5,
+        -60,
+        3.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true,
+      "observedAt": "2026-10-11T15:38:34.954Z"
+    },
+    {
+      "type": "teleport",
+      "username": "DisconnectTwo",
+      "id": 2,
+      "position": [
+        -7.5,
+        -60,
+        -10.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true,
+      "observedAt": "2026-10-11T15:38:34.955Z"
+    },
+    {
+      "type": "teleport",
+      "username": "NormalQuit",
+      "id": 2,
+      "position": [
+        0.5,
+        -60,
+        5.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true,
+      "observedAt": "2026-10-11T15:38:34.955Z"
+    },
+    {
+      "type": "advancements",
+      "username": "DisconnectOne",
+      "reset": true,
+      "observedAt": "2026-10-11T15:38:35.006Z"
+    },
+    {
+      "type": "advancements",
+      "username": "DisconnectTwo",
+      "reset": true,
+      "observedAt": "2026-10-11T15:38:35.011Z"
+    },
+    {
+      "type": "advancements",
+      "username": "NormalQuit",
+      "reset": true,
+      "observedAt": "2026-10-11T15:38:35.017Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "DisconnectTwo",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:35.017Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "NormalQuit",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:35.037Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "DisconnectOne",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:35.037Z"
+    },
+    {
+      "type": "teleport",
+      "username": "DisconnectTwo",
+      "id": 3,
+      "position": [
+        4096.5,
+        6,
+        0.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true,
+      "observedAt": "2026-10-11T15:38:35.494Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "DisconnectTwo",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:36.041Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "DisconnectOne",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:36.069Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "NormalQuit",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:36.070Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "DisconnectTwo",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:37.086Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "NormalQuit",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:37.115Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "DisconnectTwo",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:38.135Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "NormalQuit",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:38.164Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "DisconnectTwo",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:39.136Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "NormalQuit",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:39.164Z"
+    },
+    {
+      "type": "kicked",
+      "username": "DisconnectOne",
+      "observedAt": "2026-10-11T15:38:39.214Z"
+    },
+    {
+      "type": "end",
+      "username": "DisconnectOne",
+      "observedAt": "2026-10-11T15:38:39.215Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "DisconnectTwo",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:40.136Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "NormalQuit",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:40.165Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "DisconnectTwo",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:41.186Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "NormalQuit",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:41.215Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "DisconnectTwo",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:42.235Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "NormalQuit",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:42.265Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "NormalQuit",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:43.265Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "NormalQuit",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:44.313Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "NormalQuit",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:45.315Z"
+    },
+    {
+      "type": "kicked",
+      "username": "DisconnectTwo",
+      "observedAt": "2026-10-11T15:38:45.387Z"
+    },
+    {
+      "type": "end",
+      "username": "DisconnectTwo",
+      "observedAt": "2026-10-11T15:38:45.387Z"
+    },
+    {
+      "type": "login",
+      "username": "ConfigDrop",
+      "observedAt": "2026-10-11T15:38:45.498Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "NormalQuit",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:46.365Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "ConfigDrop",
+      "state": "config",
+      "observedAt": "2026-10-11T15:38:46.547Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "NormalQuit",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:47.415Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "ConfigDrop",
+      "state": "config",
+      "observedAt": "2026-10-11T15:38:47.596Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "NormalQuit",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:48.465Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "ConfigDrop",
+      "state": "config",
+      "observedAt": "2026-10-11T15:38:48.648Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "NormalQuit",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:49.514Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "NormalQuit",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:50.515Z"
+    },
+    {
+      "type": "keepalive",
+      "username": "NormalQuit",
+      "state": "play",
+      "observedAt": "2026-10-11T15:38:51.564Z"
+    },
+    {
+      "type": "kicked",
+      "username": "ConfigDrop",
+      "state": "config",
+      "observedAt": "2026-10-11T15:38:51.750Z"
+    },
+    {
+      "type": "end",
+      "username": "ConfigDrop",
+      "observedAt": "2026-10-11T15:38:51.751Z"
+    },
+    {
+      "type": "end",
+      "username": "NormalQuit",
+      "observedAt": "2026-10-11T15:38:51.848Z"
+    }
+  ]
+}

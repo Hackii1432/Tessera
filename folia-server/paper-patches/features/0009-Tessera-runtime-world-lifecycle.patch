@@ -49,10 +49,10 @@ index 811b8efd155540beac19b70afa1885bff570cd3e..002610695eac30e2a6f662e209af56e8
          if (!plugin.isEnabled()) {
              throw new IllegalPluginAccessException("Plugin attempted to register task while disabled");
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index e5fdc61a46d750d8279dade6efb36917e7af393f..4df589a4f7a7dcc735bb540fe94cf55bbb3432e2 100644
+index c1f7510917ebe606280c63d6150829fb0562f474..e2c084cf022e9a65b78b4a1e9566585bedb63a30 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -279,7 +279,24 @@ public final class CraftServer implements Server {
+@@ -257,7 +257,24 @@ public final class CraftServer implements Server {
      private final StructureManager structureManager;
      final DedicatedServer console;
      private final DedicatedPlayerList playerList;
@@ -78,7 +78,7 @@ index e5fdc61a46d750d8279dade6efb36917e7af393f..4df589a4f7a7dcc735bb540fe94cf55b
      private YamlConfiguration configuration;
      private YamlConfiguration commandsConfiguration;
      private final Yaml yaml = new Yaml(new SafeConstructor(new LoaderOptions()));
-@@ -328,6 +345,18 @@ public final class CraftServer implements Server {
+@@ -306,6 +323,18 @@ public final class CraftServer implements Server {
          return this.globalRegionScheduler;
      }
  
@@ -97,7 +97,7 @@ index e5fdc61a46d750d8279dade6efb36917e7af393f..4df589a4f7a7dcc735bb540fe94cf55b
      @Override
      public final boolean isOwnedByCurrentRegion(World world, io.papermc.paper.math.Position position) {
          return ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(
-@@ -401,6 +430,7 @@ public final class CraftServer implements Server {
+@@ -379,6 +408,7 @@ public final class CraftServer implements Server {
      public CraftServer(DedicatedServer console, PlayerList playerList) {
          this.console = console;
          this.playerList = (DedicatedPlayerList) playerList;
@@ -105,7 +105,7 @@ index e5fdc61a46d750d8279dade6efb36917e7af393f..4df589a4f7a7dcc735bb540fe94cf55b
          this.playerView = MCUtil.transformUnmodifiable(playerList.getPlayers(), ServerPlayer::getBukkitEntity);
          this.serverVersion = io.papermc.paper.ServerBuildInfo.buildInfo().asString(io.papermc.paper.ServerBuildInfo.StringRepresentation.VERSION_SIMPLE); // Paper - improve version
          this.structureManager = new CraftStructureManager(console.getStructureTemplateManager(), console.registryAccess());
-@@ -1200,7 +1230,27 @@ public final class CraftServer implements Server {
+@@ -1178,7 +1208,27 @@ public final class CraftServer implements Server {
  
      @Override
      public World createWorld(WorldCreator creator) {
@@ -134,7 +134,7 @@ index e5fdc61a46d750d8279dade6efb36917e7af393f..4df589a4f7a7dcc735bb540fe94cf55b
          Preconditions.checkState(this.console.getAllLevels().iterator().hasNext(), "Cannot create additional worlds on STARTUP");
          //Preconditions.checkState(!this.console.isIteratingOverLevels, "Cannot create a world while worlds are being ticked"); // Paper - Cat - Temp disable. We'll see how this goes.
          Preconditions.checkArgument(creator != null, "WorldCreator cannot be null");
-@@ -1336,6 +1386,7 @@ public final class CraftServer implements Server {
+@@ -1314,6 +1364,7 @@ public final class CraftServer implements Server {
              savedDataStorage,
              loadedWorldData
          );
@@ -142,7 +142,7 @@ index e5fdc61a46d750d8279dade6efb36917e7af393f..4df589a4f7a7dcc735bb540fe94cf55b
  
          if (!(this.worlds.containsKey(name.toLowerCase(Locale.ROOT)))) {
              return null;
-@@ -1358,45 +1409,22 @@ public final class CraftServer implements Server {
+@@ -1336,45 +1387,22 @@ public final class CraftServer implements Server {
  
      @Override
      public boolean unloadWorld(World world, boolean save) {
@@ -201,7 +201,7 @@ index e5fdc61a46d750d8279dade6efb36917e7af393f..4df589a4f7a7dcc735bb540fe94cf55b
      }
  
      @Override
-@@ -1440,14 +1468,34 @@ public final class CraftServer implements Server {
+@@ -1418,14 +1446,34 @@ public final class CraftServer implements Server {
          return level.getWorld();
      }
  
@@ -261,10 +261,10 @@ index 713554345308c17db44e16f9edd373d700ed34fd..697e86af20a7f7c54d11781d310b4b6c
          this.getHandle().setChunkForced(x, z, forced);
      }
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-index c76030cc04d8ab02ae5e6c405054a1fa078e8f8c..c43bb40286417fe315b45e7fb7d20f2ef623212e 100644
+index 995561b963b95c379fd20403e20ed69d0c24f8bd..afe3ae8fdba2f00fe2e551bea3ab93c6a3bf142b 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-@@ -1163,6 +1163,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+@@ -1185,6 +1185,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
          Preconditions.checkState(!this.entity.generation, "Cannot teleport entity to an other world during world generation");
          location.checkFinite();
          Location locationClone = location.clone(); // clone so we don't need to worry about mutations after this call.

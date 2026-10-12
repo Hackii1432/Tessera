@@ -1,0 +1,5 @@
+shutdown-active-drain: passed; generated=2
+restart-paused: passed
+restart-resume-revalidate: passed; total=1089 existing=2
+saved-full: world 4096,4096
+clients: joins=2 quits=0

@@ -53,6 +53,7 @@ import org.bukkit.World;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.PistonMoveReaction;
 import org.bukkit.craftbukkit.CraftServer;
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.craftbukkit.CraftSound;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.block.CraftBlock;
@@ -592,6 +593,12 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
     }
 
     @Override
+    public @Nullable ItemStack getWeapon() {
+        net.minecraft.world.item.ItemStack stack = this.getHandle().getWeaponItem();
+        return stack == null ? null : CraftItemStack.asBukkitCopy(stack);
+    }
+
+    @Override
     public UUID getUniqueId() {
         return this.entity.getUUID();
     }
@@ -929,6 +936,21 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
     @Override
     public void setGravity(boolean gravity) {
         this.getHandle().setNoGravity(!gravity);
+    }
+
+    @Override
+    public double getDefaultGravity() {
+        return this.getHandle().getDefaultGravity();
+    }
+
+    @Override
+    public double getGravity() {
+        return this.getHandle().getGravity();
+    }
+
+    @Override
+    public float getAirDrag() {
+        return this.getHandle().getAirDrag();
     }
 
     @Override

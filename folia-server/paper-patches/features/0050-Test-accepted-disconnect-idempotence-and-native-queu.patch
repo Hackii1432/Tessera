@@ -1,0 +1,333 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Sun, 11 Oct 2026 13:51:43 +0200
+Subject: [PATCH] Test accepted disconnect idempotence and native queue
+ draining
+
+Exercise the actual Connection tick, ServerCommonPacketListener disconnect and PlayerKickEvent cancellation with a delayed Netty write future. Retain the original reason, preserve queued write progress and exactly-once cleanup, and cover obsolete requests as well as direct keepalive maintenance after acceptance.
+
+diff --git a/src/test/java/io/papermc/paper/network/ConnectionDisconnectTest.java b/src/test/java/io/papermc/paper/network/ConnectionDisconnectTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..4a2cc04d93aaccae685003e205463a61b949fb57
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/network/ConnectionDisconnectTest.java
+@@ -0,0 +1,319 @@
++package io.papermc.paper.network;
++
++import ca.spottedleaf.moonrise.common.util.TickThread;
++import com.mojang.authlib.GameProfile;
++import io.netty.channel.ChannelHandlerContext;
++import io.netty.channel.ChannelOutboundHandlerAdapter;
++import io.netty.channel.ChannelPromise;
++import io.netty.channel.embedded.EmbeddedChannel;
++import io.papermc.paper.configuration.GlobalConfigTestingBase;
++import io.papermc.paper.connection.DisconnectionReason;
++import io.papermc.paper.util.KeepAlive;
++import java.lang.reflect.Field;
++import java.lang.reflect.Modifier;
++import java.net.InetSocketAddress;
++import java.util.ArrayList;
++import java.util.List;
++import java.util.Optional;
++import java.util.UUID;
++import java.util.concurrent.TimeUnit;
++import java.util.concurrent.atomic.AtomicBoolean;
++import java.util.concurrent.atomic.AtomicInteger;
++import net.minecraft.network.Connection;
++import net.minecraft.network.DisconnectionDetails;
++import net.minecraft.network.TickablePacketListener;
++import net.minecraft.network.chat.Component;
++import net.minecraft.network.protocol.Packet;
++import net.minecraft.network.protocol.PacketFlow;
++import net.minecraft.network.protocol.common.ClientboundDisconnectPacket;
++import net.minecraft.network.protocol.common.ServerboundKeepAlivePacket;
++import net.minecraft.server.dedicated.DedicatedServer;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.server.network.ServerCommonPacketListenerImpl;
++import net.minecraft.server.network.ServerGamePacketListenerImpl;
++import org.bukkit.craftbukkit.CraftServer;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.event.player.PlayerKickEvent;
++import org.bukkit.plugin.PluginManager;
++import org.bukkit.support.RegistryHelper;
++import org.bukkit.support.environment.VanillaFeature;
++import org.junit.jupiter.api.BeforeAll;
++import org.junit.jupiter.api.Test;
++import org.mockito.MockedStatic;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.ArgumentMatchers.*;
++import static org.mockito.Mockito.*;
++
++@VanillaFeature
++class ConnectionDisconnectTest {
++    @BeforeAll
++    static void configureNetwork() {
++        GlobalConfigTestingBase.setupGlobalConfigForTest(RegistryHelper.registryAccess());
++    }
++
++    private static void field(Object target, Class<?> owner, String name, Object value) throws ReflectiveOperationException {
++        Field field = owner.getDeclaredField(name);
++        field.setAccessible(true);
++        field.set(target, value);
++    }
++
++    private static Connection connection(EmbeddedChannel channel, TickablePacketListener listener) throws ReflectiveOperationException {
++        Connection connection = new Connection(PacketFlow.SERVERBOUND);
++        connection.channel = channel;
++        connection.address = new InetSocketAddress("127.0.0.1", 25565);
++        connection.preparing = false;
++        field(connection, Connection.class, "packetListener", listener);
++        return connection;
++    }
++
++    @Test
++    void activeConnectionStillTicksNormally() throws Exception {
++        EmbeddedChannel channel = new EmbeddedChannel();
++        try {
++            TickablePacketListener listener = mock(TickablePacketListener.class);
++            Connection connection = connection(channel, listener);
++            connection.tick();
++            verify(listener).tick();
++        } finally {
++            channel.finishAndReleaseAll();
++        }
++    }
++
++    @Test
++    void acceptedDisconnectStopsListenerTicksButStillFlushesQueuedWork() throws Exception {
++        EmbeddedChannel channel = new EmbeddedChannel();
++        try {
++            TickablePacketListener listener = mock(TickablePacketListener.class);
++            Connection connection = connection(channel, listener);
++            connection.handleConnectionDisconnectOnNextTick = true;
++            AtomicInteger drained = new AtomicInteger();
++            connection.runOnceConnected(ignored -> drained.incrementAndGet());
++            for (int tick = 0; tick < 600; ++tick) connection.tick();
++            assertEquals(1, drained.get());
++            verify(listener, never()).tick();
++            assertTrue(connection.isConnected(), "The native send completion, not a synthetic tick, closes the channel");
++        } finally {
++            channel.finishAndReleaseAll();
++        }
++    }
++
++    @Test
++    void notReadyPacketAndDisconnectCanFinishAfterListenerTicksStop() throws Exception {
++        EmbeddedChannel channel = new EmbeddedChannel();
++        try {
++            TickablePacketListener listener = mock(TickablePacketListener.class);
++            Connection connection = connection(channel, listener);
++            Packet<?> packet = mock(Packet.class);
++            AtomicBoolean ready = new AtomicBoolean();
++            when(packet.isReady()).thenAnswer(call -> ready.get());
++            connection.send(packet);
++            AtomicInteger drained = new AtomicInteger();
++            connection.runOnceConnected(ignored -> drained.incrementAndGet());
++            connection.handleConnectionDisconnectOnNextTick = true;
++            for (int tick = 0; tick < 40; ++tick) connection.tick();
++            assertNull(channel.readOutbound());
++            assertEquals(0, drained.get());
++            ready.set(true);
++            connection.tick();
++            assertSame(packet, channel.readOutbound());
++            assertEquals(1, drained.get());
++            verify(listener, never()).tick();
++        } finally {
++            channel.finishAndReleaseAll();
++        }
++    }
++
++    @Test
++    void closedDisconnectStillRunsCleanupExactlyOnce() throws Exception {
++        EmbeddedChannel channel = new EmbeddedChannel();
++        try {
++            TickablePacketListener listener = mock(TickablePacketListener.class);
++            Connection connection = connection(channel, listener);
++            connection.handleConnectionDisconnectOnNextTick = true;
++            connection.disconnect(Component.literal("original reason"));
++            connection.tick();
++            connection.tick();
++            connection.handleDisconnection();
++            verify(listener, times(1)).onDisconnect(any(DisconnectionDetails.class));
++            verify(listener, never()).tick();
++            assertEquals("original reason", connection.getDisconnectionDetails().reason().getString());
++        } finally {
++            channel.finishAndReleaseAll();
++        }
++    }
++
++    @Test
++    void disconnectStateIsPublishedAcrossNettyAndRegionOwners() throws Exception {
++        assertTrue(Modifier.isVolatile(Connection.class.getField("handleConnectionDisconnectOnNextTick").getModifiers()));
++    }
++
++    @Test
++    void acceptedKickIsIdempotentWhileItsPacketHasNotFinishedWriting() throws Exception {
++        try (GameFixture fixture = new GameFixture()) {
++            fixture.listener.disconnect(Component.literal("original plugin reason"), DisconnectionReason.game(PlayerKickEvent.Cause.PLUGIN));
++            assertTrue(fixture.connection.handleConnectionDisconnectOnNextTick);
++            assertTrue(fixture.connection.isConnected());
++            assertFalse(fixture.channel.config().isAutoRead());
++            for (int tick = 0; tick < 600; ++tick) {
++                fixture.connection.tick();
++                fixture.listener.disconnect(Component.literal("late timeout"), DisconnectionReason.TIMEOUT);
++                fixture.connection.disconnectSafely(details("late queued reason"));
++                fixture.connection.disconnectSafely(Component.literal("late component reason"), DisconnectionReason.TIMEOUT);
++            }
++            assertEquals(1, fixture.events.get());
++            assertEquals(1, fixture.held.messages.size());
++            ClientboundDisconnectPacket packet = assertInstanceOf(ClientboundDisconnectPacket.class, fixture.held.messages.getFirst());
++            assertEquals("original plugin reason", packet.reason().getString());
++            assertNull(fixture.connection.getDisconnectionDetails(), "Close callback must wait for the native write future");
++            verify(fixture.listener, never()).tick();
++            fixture.held.promise.setSuccess();
++            assertFalse(fixture.connection.isConnected());
++            assertEquals("original plugin reason", fixture.connection.getDisconnectionDetails().reason().getString());
++        }
++    }
++
++    @Test
++    void firstAcceptedQueuedRequestStopsTheListenerWithinTheSameTick() throws Exception {
++        try (GameFixture fixture = new GameFixture()) {
++            fixture.connection.disconnectSafely(details("first reason"));
++            fixture.connection.disconnectSafely(details("obsolete second reason"));
++            fixture.connection.tick();
++            assertTrue(fixture.connection.handleConnectionDisconnectOnNextTick);
++            assertEquals(1, fixture.events.get());
++            assertEquals(1, fixture.held.messages.size());
++            assertEquals("first reason", ((ClientboundDisconnectPacket) fixture.held.messages.getFirst()).reason().getString());
++            verify(fixture.listener, never()).tick();
++        }
++    }
++
++    @Test
++    void acceptedReentrantKickCannotBeOverwrittenAfterTheOuterEventReturns() throws Exception {
++        try (GameFixture fixture = new GameFixture()) {
++            fixture.onKick = event -> {
++                if (fixture.events.get() == 1) {
++                    fixture.listener.disconnect(Component.literal("first accepted nested reason"), DisconnectionReason.game(PlayerKickEvent.Cause.PLUGIN));
++                }
++            };
++            fixture.listener.disconnect(Component.literal("obsolete outer reason"), DisconnectionReason.game(PlayerKickEvent.Cause.PLUGIN));
++            assertTrue(fixture.connection.handleConnectionDisconnectOnNextTick);
++            assertEquals(2, fixture.events.get(), "The outer event was already running when the nested request was accepted");
++            assertEquals(1, fixture.held.messages.size());
++            assertEquals("first accepted nested reason", ((ClientboundDisconnectPacket) fixture.held.messages.getFirst()).reason().getString());
++            fixture.held.promise.setSuccess();
++            assertEquals("first accepted nested reason", fixture.connection.getDisconnectionDetails().reason().getString());
++        }
++    }
++
++    @Test
++    void cancelledKickDoesNotSealOrDisableTheConnection() throws Exception {
++        try (GameFixture fixture = new GameFixture()) {
++            fixture.cancel.set(true);
++            fixture.listener.disconnect(Component.literal("cancelled timeout"), DisconnectionReason.TIMEOUT);
++            assertFalse(fixture.connection.handleConnectionDisconnectOnNextTick);
++            assertTrue(fixture.channel.config().isAutoRead());
++            assertTrue(fixture.held.messages.isEmpty());
++            fixture.connection.tick();
++            verify(fixture.listener).tick();
++            assertEquals(1, fixture.events.get());
++            fixture.cancel.set(false);
++            fixture.listener.disconnect(Component.literal("accepted later"), DisconnectionReason.game(PlayerKickEvent.Cause.PLUGIN));
++            assertTrue(fixture.connection.handleConnectionDisconnectOnNextTick);
++            assertEquals(2, fixture.events.get());
++            assertEquals(1, fixture.held.messages.size());
++        }
++    }
++
++    @Test
++    void cancelledQueuedRequestDoesNotSuppressTheNextRequestOrNormalTicks() throws Exception {
++        try (GameFixture fixture = new GameFixture()) {
++            fixture.cancel.set(true);
++            fixture.connection.disconnectSafely(details("cancelled"));
++            fixture.connection.tick();
++            assertFalse(fixture.connection.handleConnectionDisconnectOnNextTick);
++            verify(fixture.listener).tick();
++            fixture.cancel.set(false);
++            fixture.connection.disconnectSafely(details("accepted"));
++            fixture.connection.tick();
++            assertTrue(fixture.connection.handleConnectionDisconnectOnNextTick);
++            assertEquals(2, fixture.events.get());
++            verify(fixture.listener, times(1)).tick();
++        }
++    }
++
++    @Test
++    void directKeepaliveMaintenanceCannotRetryAnAcceptedDisconnect() throws Exception {
++        try (GameFixture fixture = new GameFixture()) {
++            KeepAlive keepAlive = new KeepAlive();
++            keepAlive.pendingKeepAlives.add(new KeepAlive.PendingKeepAlive(System.nanoTime() - TimeUnit.MINUTES.toNanos(1), 123L));
++            field(fixture.listener, ServerCommonPacketListenerImpl.class, "keepAlive", keepAlive);
++            fixture.listener.disconnect(Component.literal("already accepted"), DisconnectionReason.game(PlayerKickEvent.Cause.PLUGIN));
++            var maintenance = ServerCommonPacketListenerImpl.class.getDeclaredMethod("keepConnectionAlive");
++            maintenance.setAccessible(true);
++            for (int tick = 0; tick < 40; ++tick) maintenance.invoke(fixture.listener);
++            fixture.listener.handleKeepAlive(new ServerboundKeepAlivePacket(999L));
++            assertEquals(1, fixture.events.get());
++            assertEquals(1, fixture.held.messages.size());
++            assertEquals(1, keepAlive.pendingKeepAlives.size(), "No new keepalives may be queued after acceptance");
++        }
++    }
++
++    private static DisconnectionDetails details(String reason) {
++        return new DisconnectionDetails(Component.literal(reason), Optional.empty(), Optional.empty(), Optional.empty(),
++            Optional.of(DisconnectionReason.game(PlayerKickEvent.Cause.PLUGIN)));
++    }
++
++    private static final class HoldWrites extends ChannelOutboundHandlerAdapter {
++        final List<Object> messages = new ArrayList<>();
++        ChannelPromise promise;
++
++        @Override
++        public void write(ChannelHandlerContext context, Object message, ChannelPromise promise) {
++            this.messages.add(message);
++            this.promise = promise;
++        }
++    }
++
++    private static final class GameFixture implements AutoCloseable {
++        final HoldWrites held = new HoldWrites();
++        final EmbeddedChannel channel = new EmbeddedChannel(this.held);
++        final ServerGamePacketListenerImpl listener = mock(ServerGamePacketListenerImpl.class, CALLS_REAL_METHODS);
++        final Connection connection;
++        final AtomicBoolean cancel = new AtomicBoolean();
++        final AtomicInteger events = new AtomicInteger();
++        java.util.function.Consumer<PlayerKickEvent> onKick = event -> {};
++        final MockedStatic<TickThread> owners;
++
++        GameFixture() throws Exception {
++            this.connection = connection(this.channel, this.listener);
++            field(this.listener, ServerCommonPacketListenerImpl.class, "connection", this.connection);
++            CraftServer craftServer = mock(CraftServer.class);
++            DedicatedServer server = mock(DedicatedServer.class);
++            PluginManager plugins = mock(PluginManager.class);
++            when(craftServer.getServer()).thenReturn(server);
++            when(server.isRunning()).thenReturn(true);
++            when(craftServer.getPluginManager()).thenReturn(plugins);
++            field(this.listener, ServerCommonPacketListenerImpl.class, "cserver", craftServer);
++            this.listener.player = mock(ServerPlayer.class);
++            when(this.listener.player.getBukkitEntity()).thenReturn(mock(CraftPlayer.class));
++            when(this.listener.player.getScoreboardName()).thenReturn("DisconnectTest");
++            when(this.listener.player.getGameProfile()).thenReturn(new GameProfile(UUID.randomUUID(), "DisconnectTest"));
++            doNothing().when(this.listener).tick();
++            doAnswer(call -> {
++                PlayerKickEvent event = call.getArgument(0);
++                this.events.incrementAndGet();
++                event.setCancelled(this.cancel.get());
++                this.onKick.accept(event);
++                return null;
++            }).when(plugins).callEvent(any(PlayerKickEvent.class));
++            this.owners = mockStatic(TickThread.class);
++            this.owners.when(() -> TickThread.isTickThreadFor(this.listener.player)).thenReturn(true);
++        }
++
++        @Override
++        public void close() {
++            this.owners.close();
++            this.channel.finishAndReleaseAll();
++        }
++    }
++}

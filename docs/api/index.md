@@ -3,13 +3,13 @@ title: "Tessera API für Pluginentwickler"
 description: "Öffentliche Erweiterungen und regionsichere Nutzung der integrierten Paper-/Folia-Basis unter Minecraft 26.3."
 navTitle: "Einstieg"
 order: 0
-updated: 2026-10-08
+updated: 2026-10-11
 minecraftVersion: "26.3"
 badge: "Referenz"
 ---
 
 Diese Referenz beschreibt den geprüften Quellstand von Tessera **26.3 Build
-018-beta**, Java **25**, auf `ver/26.3.x`. Sie ergänzt die geerbte Bukkit-,
+019-beta**, Java **25**, auf `ver/26.3.x`. Sie ergänzt die geerbte Bukkit-,
 Paper-, Folia- und Adventure-API, ersetzt aber nicht deren gesamte Javadoc.
 
 ## Herkunft der Schnittstellen
@@ -28,6 +28,7 @@ Thread-Sicherheit.
 | `GameRules.ALLOW_EYES_OF_ENDER_USE` | Tessera-Erweiterung der Bukkit-Gamerules |
 | Portal-/Respawn-Events | Geerbte Events; Tessera bindet sie in regionsichere Transferpfade ein |
 | `PlayerPostEffects` | Paper-API über Sinopia, mit Tessera-Ownership-Vertrag |
+| Typisierte PDC-Schlüssel, Batch-Rezepte, Entity-Physik und Befehlsmarker | Neue geerbte Paper-APIs; Folia-Besitzregeln bleiben maßgeblich |
 
 CraftBukkit-/NMS-Klassen, interne Save-Queues, Region-IDs und Restore-Schreibschranken
 sind keine zusätzliche öffentliche Plugin-API. Der native Restore wird nur durch
@@ -43,7 +44,8 @@ explizite Transaktionsaufrufe gestartet, nicht automatisch für jeden SMP.
 - [Scoreboards und Entity-Tags](scoreboards.md)
 - [Events](events.md), [regionale TPS](region-tps.md), [Gamerules](gamerules.md)
 - [Spieler-Post-Effects](player-effects.md) und [Konsole/RCON](commands.md)
-- [Mob-, SulfurCube- und Poplar-Kompatibilität](entity-and-tree-compatibility.md)
+- [Typisierte Persistent Data](persistent-data.md) und [Rezeptkataloge](recipes.md)
+- [Entity-Physik, Mob-, SulfurCube- und Poplar-Kompatibilität](entity-and-tree-compatibility.md)
 - [Plattformkompatibilität](compatibility.md) und [Fehlerbehandlung](error-handling.md)
 
 ## Grundregeln für Beispiele

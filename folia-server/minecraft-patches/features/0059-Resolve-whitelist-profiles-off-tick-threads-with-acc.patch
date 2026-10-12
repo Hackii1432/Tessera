@@ -194,7 +194,7 @@ index 0000000000000000000000000000000000000000..a39782e6eb3a5c74e407a9f87abf38f8
 +    }
 +}
 diff --git a/net/minecraft/commands/Commands.java b/net/minecraft/commands/Commands.java
-index a1379381477b6a41560528241df3dac4e65fd245..3a2f0476d822024c81849e6a09a7640eae57520b 100644
+index 46301dcc6c1de1bc5da8e06657de84e791ca3050..84bb38c94d0769062a9cb48d56e178cce3759d54 100644
 --- a/net/minecraft/commands/Commands.java
 +++ b/net/minecraft/commands/Commands.java
 @@ -402,6 +402,12 @@ public class Commands {

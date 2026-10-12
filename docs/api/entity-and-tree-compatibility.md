@@ -1,18 +1,74 @@
 ---
 title: "Mob-, SulfurCube- und Poplar-APIs"
-description: "Übernommene Paper-APIs für Friedlich-Despawn, SulfurCube-Ausrüstung und Poplar-Bäume mit Tesseras Regionsregeln."
+description: "Übernommene Paper-APIs für Waffen, Entity-Physik, Friedlich-Despawn, SulfurCube-Ausrüstung und Poplar-Bäume mit Tesseras Regionsregeln."
 navTitle: "Entities und Bäume"
 order: 115
-updated: 2026-10-06
+updated: 2026-10-11
 minecraftVersion: "26.3"
 badge: "Paper-Kompatibilität"
 ---
 
-Diese APIs stammen aus Paper und sind ab Tessera **26.3-011-beta** vollständig
-angebunden beziehungsweise ergänzt. Die drei farbigen Poplar-Konstanten sind
+Diese APIs stammen aus Paper. Mob-/Cube-/Poplar-Ergänzungen stammen aus Build
+011, die allgemeinen Waffen-/Physik-Getter aus Build 019. Die drei farbigen Poplar-Konstanten sind
 zusätzliche Sinopia-Erweiterungen. Alle Entity-Zugriffe gehören auf den aktuellen
 [Entity-Owner](ownership.md); Baumgenerierung gehört auf den zuständigen
 Regions-Thread. Eine vorhandene Java-Referenz ist kein Ownership-Nachweis.
+
+## Waffen und Entity-Physik
+
+Die folgenden geerbten Paper-Getter stehen ab Build 019 auf
+`org.bukkit.entity.Entity` bereit, also nicht nur auf Pfeilen:
+
+```java
+@Nullable ItemStack getWeapon();
+double getDefaultGravity();
+double getGravity();
+float getAirDrag();
+```
+
+Die parameterlosen Methoden mutieren die Entity nicht. `getWeapon()` liefert
+eine Bukkit-Kopie der nativen Waffenrepräsentation oder `null`, wenn keine
+vorhanden ist. Bei Lebewesen ist dies meist die Haupthand, bei Riptide kann es
+die Nebenhand sein; bei Projektilen bestimmt Vanilla die gespeicherte Waffe.
+Änderungen an der Kopie ändern nicht das Entity-Inventar.
+
+`getDefaultGravity()` liefert die native Standardbeschleunigung des Typs,
+unabhängig von `hasGravity()`. `getGravity()` liefert die aktuell berechnete
+Beschleunigung einschließlich nativer Entity-Eigenschaften und `0`, wenn
+Schwerkraft deaktiviert ist. `getAirDrag()` ist der native Luftwiderstandsfaktor,
+keine aus beobachteter Bewegung geschätzte TPS-/Physikmessung. Die Werte sind
+tickbezogen; die Getter ersetzen keine vollständige Simulation, insbesondere
+nicht Wasser, Bodenreibung, Geschwindigkeitsbegrenzung oder Kollisionsauflösung.
+
+Alle Getter gehören auf den aktuellen Entity-Besitzer und lösen dessen natives
+Handle auf. Fremde Threads werden abgewiesen; nicht mehr gültige Entities nicht
+nachträglich abfragen. Aufbewahrte Waffen-Kopien werden nach einem Transfer
+nicht automatisch aktualisiert. Neue Abfragen mit dem EntityScheduler einplanen,
+der dem Regions-/Dimensionswechsel folgt; bei Retirement keine Aktion ausführen.
+Disable erzeugt keine zusätzliche Bereinigung, weil nur gelesen wurde.
+
+<!-- compile: EntityPhysicsExample -->
+```java
+import org.bukkit.entity.Entity;
+import org.bukkit.plugin.Plugin;
+
+public final class EntityPhysicsExample {
+    public static boolean inspect(Plugin plugin, Entity entity) {
+        if (!plugin.isEnabled()) return false;
+        return entity.getScheduler().execute(plugin, () -> {
+            if (!entity.isValid()) return;
+            var weapon = entity.getWeapon();
+            plugin.getLogger().info("Gravity=" + entity.getGravity()
+                + ", default=" + entity.getDefaultGravity()
+                + ", airDrag=" + entity.getAirDrag()
+                + ", weapon=" + (weapon == null ? "none" : weapon.getType()));
+        }, () -> {}, 1L);
+    }
+}
+```
+
+Der boolesche Rückgabewert bestätigt nur die Einplanung. Aus dem Logger-Text
+keine neue synchron abgeschlossene API ableiten.
 
 ## Despawn auf Friedlich
 
@@ -85,6 +141,17 @@ und erzeugt nicht automatisch `SulfurCubeSwallowItemEvent`. Eventhandler dürfen
 keine anschließende gültige Ownership voraussetzen; siehe [Events](events.md).
 
 ### Direkter Slot-Zugriff
+
+Ein abgebrochenes `ExplosionPrimeEvent` lässt den Cube ab Build 019 nicht mehr
+dauerhaft unverwundbar zurück. Fehlen nach einem Callback die für eine Explosion
+benötigten Ausrüstungsdaten, startet der Server keine ungültige Explosion.
+Nach Ignite-, Unleash-, Prime- und Explosions-Callbacks prüft Tessera erneut
+Instanz, Welt und aktuellen Besitzer. Entfernung oder Transfer beendet die
+Arbeit auf dem alten Besitzer; dort laufen weder der restliche Cube-Tick noch
+weitere Fuse-/Explosionsmutationen. Der Transfer selbst bleibt asynchron und
+muss über sein Future beziehungsweise den neuen Entity-Owner verfolgt werden.
+Die Ausrüstungs-abhängigen Fähigkeiten werden durch Vanillas normale
+Equipment-Änderungserkennung aktualisiert, nicht synchron durch `swallow`.
 
 `setEquipped` und `getEquipped` sind Convenience-Methoden für `EquipmentSlot.BODY`.
 Der Setter übernimmt den Stack ohne den Schluck-/Drop-Ablauf; der Getter liefert

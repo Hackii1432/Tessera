@@ -5,7 +5,7 @@ Subject: [PATCH] Document regional post effects ownership
 
 
 diff --git a/src/main/java/io/papermc/paper/entity/PlayerPostEffects.java b/src/main/java/io/papermc/paper/entity/PlayerPostEffects.java
-index a89cce60ae043e99985ff7ba6c9ea4d2acf5b522..73490c71858bde8ad6c4af0f55e2505a6d0aeb4e 100644
+index 8d26f700917e54ae34b7e06d7f0c3e2ece2d6d02..020aa3fb3d9fdb091f8aa9c9f5f0bc02789c6926 100644
 --- a/src/main/java/io/papermc/paper/entity/PlayerPostEffects.java
 +++ b/src/main/java/io/papermc/paper/entity/PlayerPostEffects.java
 @@ -8,6 +8,10 @@ import org.jspecify.annotations.NullMarked;

@@ -3,7 +3,7 @@ title: "Konsole, RCON und Befehlsgrenzen"
 description: "Serverseitiger Weltkontext, regionsichere NBT-Befehle und Grenzen für Pluginbefehle."
 navTitle: "Befehle"
 order: 140
-updated: 2026-10-07
+updated: 2026-10-11
 minecraftVersion: "26.3"
 badge: "Referenz"
 ---
@@ -173,6 +173,51 @@ Für Plugin-Disable oder mehrstufige asynchrone Pluginarbeit gelten unverändert
 Ownership, und `Bukkit.dispatchCommand` bestätigt keine gesamte Transaktion.
 
 ## Pluginbefehle und Berechtigungen
+
+### Restricted und unrestricted
+
+Die geerbten Brigadier-Helfer akzeptieren ein bestehendes Berechtigungsprädikat:
+
+```java
+static Predicate<CommandSourceStack> restricted(Predicate<CommandSourceStack> predicate);
+static Predicate<CommandSourceStack> unrestricted(Predicate<CommandSourceStack> predicate);
+```
+
+`restricted` markiert den Command für Vanillas Schutz vor unbeaufsichtigter
+Ausführung, etwa aus Chat-Klicks. `unrestricted`, neu in Build 019, entfernt
+diesen Marker ausdrücklich. Beide liefern einen Wrapper, der weiterhin exakt
+das übergebene Prädikat auswertet. `unrestricted` erteilt weder Permission noch
+OP und ist kein Mittel zum Umgehen von Threadprüfungen. Nur bewusst harmlose
+Befehle so kennzeichnen; sensible administrative Aktionen restricted lassen.
+
+Die Hilfsmethoden mutieren keine Welt und können bei der Command-Registrierung
+verwendet werden. Ein `null`-Prädikat gehört nicht zum Vertrag. Registrierung
+weiter über `LifecycleEvents.COMMANDS` ausführen; die Prädikatauswertung läuft
+im Dispatch-Kontext. Keine Entity-/Block-Reads fremder Regionen im Prädikat.
+Die Marker überleben am registrierten Command bis dessen Lifecycle-Neuaufbau;
+sie erzeugen keine nach Disable weiterlaufenden Scheduler-Aufgaben.
+
+<!-- compile: UnrestrictedCommandExample -->
+```java
+import com.mojang.brigadier.tree.LiteralCommandNode;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
+import io.papermc.paper.command.brigadier.Commands;
+
+public final class UnrestrictedCommandExample {
+    public static LiteralCommandNode<CommandSourceStack> node() {
+        return Commands.literal("example-status")
+            .requires(Commands.unrestricted(source ->
+                source.getSender().hasPermission("example.status")))
+            .executes(context -> {
+                context.getSource().getSender().sendMessage("Status available");
+                return 1;
+            }).build();
+    }
+}
+```
+
+Das Beispiel baut nur den Node; in einem bestehenden Commands-Lifecycle-Handler
+mit `event.registrar().register(UnrestrictedCommandExample.node())` registrieren.
 
 ### BasicCommand und Syntaxfehler
 

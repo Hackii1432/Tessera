@@ -1,0 +1,122 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Sun, 11 Oct 2026 16:06:10 +0200
+Subject: [PATCH] Adapt batched recipe APIs iterators and potion resets to
+ global ownership
+
+
+diff --git a/src/main/java/io/papermc/paper/potion/PaperPotionBrewer.java b/src/main/java/io/papermc/paper/potion/PaperPotionBrewer.java
+index 36ecadf0bcd3c40356c8c7cbc8111acfb5c6f13c..294dbd21fe4a912a901c4ec7fcb77b453cb1511a 100644
+--- a/src/main/java/io/papermc/paper/potion/PaperPotionBrewer.java
++++ b/src/main/java/io/papermc/paper/potion/PaperPotionBrewer.java
+@@ -53,19 +53,13 @@ public class PaperPotionBrewer implements PotionBrewer {
+         final RecipeManager recipeManager = MinecraftServer.getServer().getRecipeManager();
+         final RegistryAccess.Frozen registryAccess = MinecraftServer.getServer().registryAccess();
+ 
+-        final Collection<RecipeHolder<BrewingRecipe>> brewingRecipes = recipeManager.recipes.byType(RecipeType.BREWING);
+-
+-        // Completely clear brewing recipes.
+-        brewingRecipes.forEach(r -> recipeManager.recipes.byKey.remove(r.id()));
+-        brewingRecipes.clear();
+-
+-        // Restore recipe manager state for brewing from registries.
+-        registryAccess.get(Registries.RECIPE)
++        RecipeManager.tessera$ensureRecipeWriter();
++        final java.util.List<RecipeHolder<?>> replacements = registryAccess.get(Registries.RECIPE)
+             .map(Holder.Reference::value)
+             .stream()
+             .flatMap(HolderLookup::listElements)
+             .filter(r -> r.value().getType() == RecipeType.BREWING)
+-            .forEach(r -> recipeManager.recipes.addRecipe(new RecipeHolder<>(r.key(), r.value())));
+-        recipeManager.finalizeRecipeLoading();
++            .<RecipeHolder<?>>map(r -> new RecipeHolder<>(r.key(), r.value())).toList();
++        recipeManager.tessera$replaceRecipes(RecipeType.BREWING, replacements);
+     }
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 8fbe183aabe96e8fdbb77404bd92d1c12c30f480..e3b97e71eed1b24de5ba03febd79b43fd9a98cfa 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -1533,22 +1533,18 @@ public final class CraftServer implements Server {
+ 
+     @Override
+     public boolean addRecipes(Iterable<Recipe> recipes) {
+-        org.spigotmc.AsyncCatcher.catchOp("Recipes Add");
++        RecipeManager.tessera$ensureRecipeWriter();
+         Preconditions.checkArgument(recipes != null, "recipes cannot be null");
+-        boolean anyAdded = false;
++        final List<RecipeHolder<?>> converted = new ArrayList<>();
+         final RecipeManager recipeManager = this.getServer().getRecipeManager();
+         for (Recipe recipe : recipes) {
+             final CraftRecipe craftRecipe = CraftRecipe.fromBukkitRecipe(recipe);
+             if (craftRecipe != null) {
+-                recipeManager.recipes.addRecipe(craftRecipe.toMinecraftRecipe());
+-                anyAdded = true;
++                converted.add(craftRecipe.toMinecraftRecipe());
+             }
+         }
+ 
+-        if (anyAdded) {
+-            recipeManager.finalizeRecipeLoading();
+-        }
+-        return anyAdded;
++        return recipeManager.tessera$addRecipes(converted);
+     }
+ 
+     @Override
+@@ -1735,19 +1731,16 @@ public final class CraftServer implements Server {
+ 
+     @Override
+     public boolean removeRecipes(Iterable<NamespacedKey> recipeKeys) {
++        RecipeManager.tessera$ensureRecipeWriter();
+         Preconditions.checkArgument(recipeKeys != null, "recipeKeys cannot be null");
+-        boolean anyRemoved = false;
++        final List<ResourceKey<net.minecraft.world.item.crafting.Recipe<?>>> ids = new ArrayList<>();
+         final RecipeManager recipeManager = this.getServer().getRecipeManager();
+         for (NamespacedKey recipeKey : recipeKeys) {
++            Preconditions.checkArgument(recipeKey != null, "recipeKey cannot be null");
+             final ResourceKey<net.minecraft.world.item.crafting.Recipe<?>> id = CraftNamespacedKey.toResourceKey(Registries.RECIPE, recipeKey);
+-            if (recipeManager.recipes.removeRecipe(id)) {
+-                anyRemoved = true;
+-            }
+-        }
+-        if (anyRemoved) {
+-            recipeManager.finalizeRecipeLoading();
++            ids.add(id);
+         }
+-        return anyRemoved;
++        return recipeManager.tessera$removeRecipes(ids);
+     }
+ 
+     @Override
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/RecipeIterator.java b/src/main/java/org/bukkit/craftbukkit/inventory/RecipeIterator.java
+index b7b342f77eb3b296e459dafd72f5f0214e244174..15fabe955a2cc55d168384108739e3b6f28a6ebf 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/RecipeIterator.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/RecipeIterator.java
+@@ -10,6 +10,7 @@ import org.bukkit.inventory.Recipe;
+ public class RecipeIterator implements Iterator<Recipe> {
+     private final Iterator<Map.Entry<RecipeType<?>, RecipeHolder<?>>> recipes;
+     private RecipeHolder<?> currentRecipe;
++    private boolean canRemove;
+ 
+     public RecipeIterator() {
+         this.recipes = MinecraftServer.getServer().getRecipeManager().recipes.byType.entries().iterator();
+@@ -23,14 +24,14 @@ public class RecipeIterator implements Iterator<Recipe> {
+     @Override
+     public Recipe next() {
+         this.currentRecipe = this.recipes.next().getValue();
++        this.canRemove = true;
+         return this.currentRecipe.toBukkitRecipe();
+     }
+ 
+     @Override
+     public void remove() {
+-        MinecraftServer.getServer().getRecipeManager().recipes.byKey.remove(this.currentRecipe.id());
+-        this.recipes.remove();
+-        MinecraftServer.getServer().getRecipeManager().finalizeRecipeLoading();
+-        MinecraftServer.getServer().getPlayerList().reloadRecipes();
++        if (!this.canRemove) throw new IllegalStateException("No recipe available to remove");
++        MinecraftServer.getServer().getRecipeManager().removeRecipe(this.currentRecipe.id());
++        this.canRemove = false;
+     }
+ }

@@ -5,10 +5,10 @@ Subject: [PATCH] Revalidate sulfur cube ownership after swallow callbacks
 
 
 diff --git a/net/minecraft/world/entity/monster/cubemob/SulfurCube.java b/net/minecraft/world/entity/monster/cubemob/SulfurCube.java
-index 6ad561921bb42df098df1aaa441055ad5d0ee8fa..9af938be3e3cde5710717271731e930547f73036 100644
+index 2607ed7962378e9b59e9278b6ade40bb6951bb8d..ec9037217e7954b9decc049e72bc22e41198091e 100644
 --- a/net/minecraft/world/entity/monster/cubemob/SulfurCube.java
 +++ b/net/minecraft/world/entity/monster/cubemob/SulfurCube.java
-@@ -544,6 +544,10 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
+@@ -551,6 +551,10 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
      }
  
      public boolean equipItem(final ItemStack heldItem) {
@@ -19,7 +19,7 @@ index 6ad561921bb42df098df1aaa441055ad5d0ee8fa..9af938be3e3cde5710717271731e9305
          if (this.isBaby()) {
              return false;
          }
-@@ -557,6 +561,7 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
+@@ -564,6 +568,7 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
              Vec3 equipmentSpawnOffset = this.getAttachments().getAverage(EntityAttachment.PASSENGER);
              if (this.level() instanceof ServerLevel serverLevel) {
                  this.spawnAtLocation(serverLevel, this.getItemBySlot(EquipmentSlot.BODY), equipmentSpawnOffset);
@@ -27,7 +27,7 @@ index 6ad561921bb42df098df1aaa441055ad5d0ee8fa..9af938be3e3cde5710717271731e9305
              }
          }
  
-@@ -567,6 +572,7 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
+@@ -574,6 +579,7 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
                  Map<EquipmentSlot, ItemStack> lastEquipmentItems = Util.makeEnumMap(EquipmentSlot.class, slot -> ItemStack.EMPTY);
                  lastEquipmentItems.put(EquipmentSlot.BODY, swallowedItem);
                  this.collectEquipmentChanges(lastEquipmentItems);
@@ -35,7 +35,7 @@ index 6ad561921bb42df098df1aaa441055ad5d0ee8fa..9af938be3e3cde5710717271731e9305
              }
          }
  
-@@ -574,6 +580,11 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
+@@ -581,6 +587,11 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
          return true;
      }
  

@@ -7,7 +7,7 @@ Subject: [PATCH] Restore opt-in End portal duplication with owned tick
 Resume the vanilla landing tail on a separately registered source entity instead of ticking the removed original. Preserve Tessera asynchronous portal preflight, plugin vetoes and wrapper ownership. Continuation approach informed by CraftCanvasMC/Canvas PR 307; implemented against Tessera's deferred transfer lifecycle.
 
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index e75d4e2c357adc8b3114e703b4399ecabd132eec..45f013550528199af36eadd3d840741d3f493325 100644
+index 698b3618fa4b293c2a28d25324d0aa4ffe9b08c6..bb96e1778f2aea13bbb25e5b2d78d153eac91bcf 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
 @@ -5052,6 +5052,15 @@ public abstract class Entity
@@ -73,7 +73,7 @@ index e75d4e2c357adc8b3114e703b4399ecabd132eec..45f013550528199af36eadd3d840741d
      // Folia end - region threading
  
 diff --git a/net/minecraft/world/entity/item/FallingBlockEntity.java b/net/minecraft/world/entity/item/FallingBlockEntity.java
-index 0ee702caeedd29c7f4cde07e88608e837f93dd28..dfe9bdc4d912f57f7b9f6af4a3e6880abc970a82 100644
+index 97d137339aa6995b9c1044e5e072d278e0caf3fc..ef217a1ce9ffd7f7d9991c004f4b5e1753733124 100644
 --- a/net/minecraft/world/entity/item/FallingBlockEntity.java
 +++ b/net/minecraft/world/entity/item/FallingBlockEntity.java
 @@ -75,6 +75,13 @@ public class FallingBlockEntity extends Entity {

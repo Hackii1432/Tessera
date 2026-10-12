@@ -445,10 +445,10 @@ index 0000000000000000000000000000000000000000..bf4127195ff93b7262b0a0b9fb6fd8be
 +    }
 +}
 diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
-index d62b03e58df9ad39a3e6efb39aa86626dc401816..51bdacf88c35b285bdfa7fe0b4c60789eef37d71 100644
+index 899a2a1809899a132b95327c5464bc8e17cdb2d5..006e2d5111aed6dfd7d422604a93f6641e192c53 100644
 --- a/src/main/java/org/bukkit/Bukkit.java
 +++ b/src/main/java/org/bukkit/Bukkit.java
-@@ -2884,6 +2884,28 @@ public final class Bukkit {
+@@ -2921,6 +2921,28 @@ public final class Bukkit {
          return server.getGlobalRegionScheduler();
      }
  
@@ -478,10 +478,10 @@ index d62b03e58df9ad39a3e6efb39aa86626dc401816..51bdacf88c35b285bdfa7fe0b4c60789
       * Returns whether the current thread is ticking a region and that the region being ticked
       * owns the chunk at the specified world and block position.
 diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
-index cd29b43a540df0b61bd7552f1792a1ded7ee2be6..8c1a93e4922e227344daddb70d40eef9a2a1e62f 100644
+index 0cf07eec15db5c3a5c71ab22acbcd1493d62d390..394ecf413bf60dc5e28406269cde6358f8a30a86 100644
 --- a/src/main/java/org/bukkit/Server.java
 +++ b/src/main/java/org/bukkit/Server.java
-@@ -2667,6 +2667,26 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+@@ -2696,6 +2696,26 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
       */
      @NotNull io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler getGlobalRegionScheduler();
  

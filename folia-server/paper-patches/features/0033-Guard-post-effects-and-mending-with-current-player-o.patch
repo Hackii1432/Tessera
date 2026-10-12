@@ -5,7 +5,7 @@ Subject: [PATCH] Guard post effects and mending with current player ownership
 
 
 diff --git a/src/main/java/io/papermc/paper/entity/PaperPlayerPostEffects.java b/src/main/java/io/papermc/paper/entity/PaperPlayerPostEffects.java
-index 230495adadd308687f1b289f614157a099f87411..0991573d0bedfd93922ec6581398369b7cd70f48 100644
+index 0ad2e12987f35f7cded827d198916b01d638d99b..3aef8a2fce9c58098f7d7639e8f89895dcfd9320 100644
 --- a/src/main/java/io/papermc/paper/entity/PaperPlayerPostEffects.java
 +++ b/src/main/java/io/papermc/paper/entity/PaperPlayerPostEffects.java
 @@ -13,14 +13,17 @@ import org.jspecify.annotations.NullMarked;

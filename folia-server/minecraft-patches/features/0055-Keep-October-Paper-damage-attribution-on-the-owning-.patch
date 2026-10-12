@@ -5,7 +5,7 @@ Subject: [PATCH] Keep October Paper damage attribution on the owning region
 
 
 diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
-index 0a117d7548d69d5b06ea1a94eb54fa818c290839..58437ea50aa3386301ed526b260342cfb807b52a 100644
+index 2ba3f69c69d95adbab00978724f062aca83aa402..966baafef48422bfcd854b5bb1103b3928e56f38 100644
 --- a/net/minecraft/world/entity/LivingEntity.java
 +++ b/net/minecraft/world/entity/LivingEntity.java
 @@ -279,7 +279,7 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin

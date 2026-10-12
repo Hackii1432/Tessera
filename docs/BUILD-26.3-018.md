@@ -4,6 +4,10 @@ Stand: 08.10.2026. Tessera `26.3-018-beta`, Minecraft/API `26.3`, Java 25.
 Die Drachenei-Ausnahme ist implementiert, als dauerhafte Patches gesichert,
 erneut angewendet und auf der finalen ausführbaren JAR nativ geprüft.
 
+Die folgenden ursprünglichen Nachweise gelten für die JAR vom 08.10.2026.
+Der [Disconnect-Nachtrag vom 11.10.2026](#nachtrag-11102026--disconnect-lücke)
+dokumentiert die danach neu gebaute 018-beta-JAR mit eigenem Hash und eigener Abnahme.
+
 Die [Changelog 0.0.18](builds/26.3/0.0.18.md) fasst auch die bereits nach dem
 ursprünglichen Build-017-Eintrag ergänzten TPS-/Pregen-, Whitelist- und
 Konsolenshutdown-Fixes zusammen. Ihre früheren nativen Nachweise beziehen sich
@@ -209,3 +213,124 @@ Für das Update Server normal stoppen, JAR ersetzen und vollständig neu starten
 `unsupported-settings.allow-unsafe-end-portal-teleportation: true` bleibt die
 bisherige Voraussetzung für die Duplizierung anderer Gravity-Blöcke; Dracheneier
 sind ohne zusätzliche Einstellung davon ausgenommen.
+
+## Nachtrag 11.10.2026 – Disconnect-Lücke
+
+Buildnummer und Kanal bleiben `26.3-018-beta`. Der Fix betrifft den nativen
+Verbindungsabbau, nicht die Ursache einer überlasteten Internetverbindung.
+Keine Änderung an Keepalive-Grenzen, Konfiguration, Gameplay, öffentlicher
+Plugin-API, MCC-/MVE-Produktcode oder Sinopia-Basis.
+
+### Ursache und Korrektur
+
+Paper markiert akzeptierte Disconnects mit
+`Connection.handleConnectionDisconnectOnNextTick`. Folias regionale und globale
+Verbindungsloops verwenden jedoch nicht Papers äußere Tick-Schranke. Solange ein
+Disconnect-Paket noch auf seinen Schreibabschluss wartet, konnte deshalb der
+Packet-Listener weiter Keepalives prüfen, weitere Kicks auslösen und denselben
+Timeout wiederholt protokollieren.
+
+- Die gemeinsame `Connection.tick()` berücksichtigt die Markierung nun für
+  Listener-Ticks. Wartende Pakete werden weiterhin geflusht; Channel-Abschluss
+  und Cleanup laufen weiterhin auf dem tatsächlichen Regions-/Global-Besitzer.
+- Die Markierung ist `volatile` und wird erst nach einem akzeptierten Kick-Event,
+  aber vor dem Versand des Disconnect-Pakets veröffentlicht. Ein abgebrochener
+  `PlayerKickEvent` lässt die Verbindung aktiv und lesbar.
+- Spätere direkte/queued Disconnect-Anfragen und verspätete Keepalive-Antworten
+  lösen keinen weiteren Kick aus. Beide `disconnectSafely`-Überladungen verwenden
+  dieselbe Schranke. Der zuerst akzeptierte Grund bleibt erhalten.
+- Auch ein akzeptierter Kick innerhalb eines schon laufenden Kick-Events wird
+  nach dessen Rückkehr nicht durch den äußeren Request überschrieben.
+- Die Timeout-Meldung wird einmal beim tatsächlichen Akzeptieren protokolliert,
+  nicht bereits vor dem abbrechbaren Event. Ein gewöhnlicher Client-Disconnect
+  ohne Timeout wird weiterhin als `Disconnected` verarbeitet.
+
+### Quellstand und reproduzierbare Patches
+
+Root-Basiscommit: `c159a4e973747dbe787648d569826124a7b3c308`, **zusätzlich** die
+lokalen Änderungen dieses Nachtrags. Kein Commit oder Push im Hauptrepository.
+Der bestehende Patchworkflow wurde erneut ausgeführt; der normale `buildTessera`
+hat anschließend alle Patchschichten erneut angewendet. Die generierten
+Minecraft-/Server-Arbeitsquellen sind danach sauber.
+
+- [Minecraft-Patch 0061](../folia-server/minecraft-patches/features/0061-Stop-accepted-disconnect-ticks-while-draining-native.patch),
+  SHA-256 `e429a71bea2ed6fdb2d3b33d0a78455caa5a80815471b682b84afc429cd9e453`.
+- [Server-Testpatch 0050](../folia-server/paper-patches/features/0050-Test-accepted-disconnect-idempotence-and-native-queu.patch),
+  SHA-256 `492bce1a1f5fccf4ec43199b53ca41ba999d57244548a30a262c5ea4a281b317`.
+- Erneut angewendeter Minecraft-HEAD: `d6629832a46f5f52b8fa992536a0f770d42d0b85`.
+- Erneut angewendeter Server-HEAD: `9ec850dac2fcf5e1fc83a1cb86c815a60ae294f0`.
+
+### Build und native Abnahme
+
+Der normale `buildTessera` mit den oben angegebenen Java-/Gradle-Versionen und
+unveränderten Qualitätsprüfungen ist erfolgreich: **8m 23s**. Frisch ausgeführte
+Server-Suite: **10.346 Fälle**, 87 bestehende Skips, 0 Fehler/Failures. Darin alle
+**11 neuen Disconnect-Regressionen**, ohne Skips. Die unveränderten API- und
+Checkstyle-Helfersuiten verwenden ihre regulären Gradle-Up-to-date-Ergebnisse:
+529 Fälle/2 bestehende Skips und 3 Fälle/0 Skips, jeweils ohne Fehler/Failures.
+Checkstyle und Bad-Call-Prüfungen bleiben aktiviert. Zusätzlich 57 bestehende
+Dokumentationsvalidator-Tests bestanden; API-Referenz unverändert gültig.
+
+Der zusätzliche Reentranz-Test wurde zuerst gegen den unvollständigen Fix
+ausgeführt und schlug mit zwei statt einem Disconnect-Paket fehl. Nach der
+Korrektur bestehen alle elf Regressionen und der vollständige Build.
+
+Der [native Runner](../smoke-tests/disconnect-lifecycle/README.md) wurde zweimal
+auf derselben finalen JAR ausgeführt, jeweils mit drei Gameplay-Protokollclients
+und einem Konfigurationsclient, zwei getrennten tatsächlichen Regionen und
+aktivem Gameplay-Freeze. Verzögerte native Netty-Schreibabschlüsse von 2,2 Sekunden
+prüfen die Zwischenphase vor dem physischen Verbindungsabbau. Die verkürzte
+Keepalive-Grenze von 3 Sekunden gilt ausschließlich für die Wegwerf-JVMs.
+
+| Lauf | Loopback-Port | Ergebnis |
+| --- | --- | --- |
+| `disconnect-lifecycle-1791721719660` | 50211 | 37 native Assertions bestanden, Exit 0 |
+| `disconnect-lifecycle-1791721775434` | 54444 | 37 native Assertions bestanden, Exit 0 |
+
+Beide Läufe: je Client genau 1 Login und 1 Verbindungsende. `DisconnectOne`,
+`DisconnectTwo` und `ConfigDrop` erhalten jeweils genau 1 Disconnect-Paket;
+`NormalQuit` erhält keines. Der erste Plugin-Kick bleibt tatsächlich abgebrochen,
+der folgende akzeptierte Kick behält seinen ursprünglichen Grund. Nur die zwei
+absichtlich nicht mehr antwortenden Clients erzeugen jeweils eine Timeout-Zeile.
+Der normale Client endet mit `Disconnected`, ohne Kick-Event. Gameplay-Quit-Events
+jeweils genau einmal; alle Spieler und ihre nativen Verbindungsregistrierungen
+vollständig entfernt. Kein Watchdog-, Ownership-, Region-Tick- oder Cleanup-Fehler.
+
+Die vier vorherigen nativen Fehlversuche betrafen die Testfixture: fehlende
+Whitelist-Deaktivierung, Prüfung der ungenutzten Paper-Verbindungsliste statt
+Folias Register, Warten auf den terminalen Konfigurations-ACK statt echte
+Keepalives sowie eine Prüfung vor Abschluss des asynchronen Quit-Cleanup.
+Diese Fixture-Ursachen wurden korrigiert; Assertions nicht abgeschwächt.
+Ihre vorhandenen Logs/Ergebnisse bleiben als fehlgeschlagene Vorläufe archiviert.
+
+### Neue ausführbare JAR, Nachweise und Grenzen
+
+Pfad bleibt `build/libs/tessera-server-26.3.build.018-beta.jar`.
+Neu gebaute Größe: **55.630.260 Bytes**. SHA-256:
+
+```text
+77ac6d8fd776d73bfba0288f33cd8e90a3438ee3414177e18f3c3c2ff0010456
+```
+
+Nach den beiden nativen Läufen nicht neu gepackt. Dieser Hash ersetzt den
+oben dokumentierten alten 018-Hash ausschließlich für den Disconnect-Nachtrag.
+Der [kompakte Nachweis](test-evidence/26.3-018/disconnect-lifecycle.json) hält
+Quellstand, Hashes, Zähler, Vorläufe und Grenzen fest. Originale Ergebnisse,
+Prüftexte und Logs unter `build/reports/native-fixtures/<Fixture-Name>/`,
+JUnit-Nachweis als `build/reports/native-fixtures/disconnect-lifecycle-018.xml`,
+Build-/Diagnoselogs unter `build/reports/build-logs/disconnect-*.log`.
+
+Nach Prozessprüfung und hashgeprüfter Archivierung wurden ausschließlich die
+sechs hierfür angelegten, markierten Wegwerfserver entfernt:
+**1.096.159.398 Bytes**, rund **1,02 GiB**. Ihre Welten sind durch den Runner
+reproduzierbar, nicht als vollständige Weltbackups archiviert. Nutzer-Debugdump,
+produktive Welten/Saves, Arbeitsquellen und finale JAR wurden nicht gelöscht.
+
+Protokollclients, keine Rendering-/Vanilla-Client-Abnahme und kein vollständiger
+Test des externen Pluginstacks oder einer real ausgelasteten Internetverbindung.
+Die früheren Endportal- und anderen nativen Tests wurden auf dieser neuen JAR
+nicht erneut ausgeführt; die vollständigen Unit-Regressionen bleiben enthalten.
+Windows meldet in den Fixtures weiterhin den bestehenden OSHI/Perflib-009-Fehler
+sowie JDK-Hinweise; keine Behauptung einer vollkommen fehlerfreien Konsole.
+Reale Netzwerk-Timeouts bleiben möglich. Zum Anwenden normal stoppen, diese
+neu gebaute JAR ersetzen und vollständig neu starten.

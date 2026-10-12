@@ -5,10 +5,10 @@ Subject: [PATCH] Revalidate region ownership after new entity events
 
 
 diff --git a/net/minecraft/world/entity/monster/cubemob/SulfurCube.java b/net/minecraft/world/entity/monster/cubemob/SulfurCube.java
-index 6894ec5b5ff6f2ade178060ae571c426e3774402..6ad561921bb42df098df1aaa441055ad5d0ee8fa 100644
+index d546e46387054433cf2e0879891c76945de37f3d..2607ed7962378e9b59e9278b6ade40bb6951bb8d 100644
 --- a/net/minecraft/world/entity/monster/cubemob/SulfurCube.java
 +++ b/net/minecraft/world/entity/monster/cubemob/SulfurCube.java
-@@ -806,8 +806,15 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
+@@ -813,8 +813,15 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
      }
  
      private void playerPush(final Player player) {
@@ -24,7 +24,7 @@ index 6894ec5b5ff6f2ade178060ae571c426e3774402..6ad561921bb42df098df1aaa441055ad
              Vec3 cubeToPusher = this.position().subtract(pusher.position());
              double pusherFeetPosition = pusher.getY();
              double sulfurCubeBottomPosition = this.getY();
-@@ -820,6 +827,7 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
+@@ -827,6 +834,7 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
                      return;
                  }
                  // Paper end - allow plugins to cancel sulfur cube collisions
@@ -32,7 +32,7 @@ index 6894ec5b5ff6f2ade178060ae571c426e3774402..6ad561921bb42df098df1aaa441055ad
                  double knockback = Math.max(0.0, 1.0 - this.getAttributeValue(Attributes.KNOCKBACK_RESISTANCE));
                  Vec3 pushDirection = cubeToPusher.horizontal().normalize().scale(knockback);
                  float pushSpeedScale = player.isPassenger() ? 0.16F : 0.3F;
-@@ -839,6 +847,16 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
+@@ -846,6 +854,16 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
          }
      }
  

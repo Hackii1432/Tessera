@@ -139,10 +139,10 @@ index 0000000000000000000000000000000000000000..d16775636f7cac3f374a6091c1491609
 +    SERVER_STOPPING
 +}
 diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
-index 51bdacf88c35b285bdfa7fe0b4c60789eef37d71..20187e785851c24a633532036630a81f5ae5f66a 100644
+index 006e2d5111aed6dfd7d422604a93f6641e192c53..81feca677e547391112c1949420990e1c7e77b4c 100644
 --- a/src/main/java/org/bukkit/Bukkit.java
 +++ b/src/main/java/org/bukkit/Bukkit.java
-@@ -2895,6 +2895,14 @@ public final class Bukkit {
+@@ -2932,6 +2932,14 @@ public final class Bukkit {
          return server.getTesseraCapabilities();
      }
  
@@ -158,10 +158,10 @@ index 51bdacf88c35b285bdfa7fe0b4c60789eef37d71..20187e785851c24a633532036630a81f
       * Returns Tessera's asynchronous runtime world manager.
       *
 diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
-index 8c1a93e4922e227344daddb70d40eef9a2a1e62f..77b1d09339e9e158f27a7a38b17debaab116b48b 100644
+index 394ecf413bf60dc5e28406269cde6358f8a30a86..a1c9127e363bece607d9828ecdf7f3a5415c7c2a 100644
 --- a/src/main/java/org/bukkit/Server.java
 +++ b/src/main/java/org/bukkit/Server.java
-@@ -2685,6 +2685,12 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+@@ -2714,6 +2714,12 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
       * @return runtime world manager
       */
      @NotNull io.papermc.paper.world.RuntimeWorldManager getRuntimeWorldManager();

@@ -284,7 +284,7 @@ index 8f940ca39da8b3fe4ca925698adb520ae389cd47..29127f21057eb83b8f08c84063ee31eb
              final List<String> out = new ArrayList<>();
              out.add("Total time: " + THREE_DECIMAL_PLACES.get().format(1.0E-9 * (regionTimings.endTime() - regionTimings.startTime())) + "s");
 diff --git a/net/minecraft/commands/Commands.java b/net/minecraft/commands/Commands.java
-index d9565a07fb39e4360710bddb28671e9a70ba1836..2bf56cb24f5f77b3ac22f696c1a2e152e57538d8 100644
+index 21f966b3c048372b37dd8164c283e6f9041101e7..3fcfdf9d04178f0aa311d72ea735afa426858a1a 100644
 --- a/net/minecraft/commands/Commands.java
 +++ b/net/minecraft/commands/Commands.java
 @@ -261,7 +261,7 @@ public class Commands {

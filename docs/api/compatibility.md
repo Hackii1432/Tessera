@@ -3,7 +3,7 @@ title: "Paper, Folia, Sinopia und Tessera unterscheiden"
 description: "Öffentliche Verträge, Plattformadapter und Grenzen von Binär- sowie Threadkompatibilität."
 navTitle: "Kompatibilität"
 order: 150
-updated: 2026-10-08
+updated: 2026-10-11
 minecraftVersion: "26.3"
 badge: "Hinweise"
 ---
@@ -28,7 +28,7 @@ ihren eigenen zulässigen Threadkontext. Die reine Existenz von Scheduler- oder
 
 ## Versionen und interne Zugriffe
 
-`api-version: '26.3'` ist die Metadatenversion, `26.3.build.018-beta` die aktuelle
+`api-version: '26.3'` ist die Metadatenversion, `26.3.build.019-beta` die aktuelle
 Tessera-Maven-Version. Beides ersetzt keine Laufzeit-Capability. Sinopia ist in
 demselben Server enthalten; es gibt keinen separaten Sinopia-Plugin-Lader.
 
@@ -73,6 +73,15 @@ Zustand. Intern wird die Auswahl nun explizit durchgereicht, ohne globalen oder
 ThreadLocal-Snapshot-Schalter. Lesen und Mutieren lebender Weltzustände bleiben
 an den Regionsbesitzer gebunden; eine Snapshot-Kopie erlaubt keinen beliebigen
 Off-thread-Zugriff auf Welt oder Blockinventory. `update` gehört wieder zum Owner.
+
+## Rezeptänderungen auf Folia
+
+Ab Build 019 erzwingt Tessera für Laufzeit-Rezeptmutationen den Global-Besitzer.
+Dies gilt auch für alte Einzel-APIs und Iterator-Entfernung. Plugins, die bislang
+von einem Regions-/Async-Thread geschrieben haben, müssen diese Arbeit über den
+GlobalRegionScheduler einplanen. Client-Resets laufen intern auf dem aktuellen
+Spielerbesitzer und folgen Transfers, ohne Gameplay bei Freeze freizugeben.
+Signaturen, Batch-Ergebnisse und Disable-Regeln stehen unter [Rezepte](recipes.md).
 
 ## Chat-Renderer
 

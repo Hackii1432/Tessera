@@ -135,7 +135,7 @@ index 4eedc8c2b412f203a6a140d05a2d5ffad5f49079..3c2df7cc692e03331cd3359c205be02f
  
      public static final record PendingTeleport(Entity.EntityTreeNode rootVehicle, Vec3 to) {}
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index ef7318db8e885365c9a88e1570055c75856f5c81..2b5c2bb011fc033c7be721617764047aa7b9ef9a 100644
+index 4690839200845aa29177fabf70aeba0e8defd6d8..e589e64f0603a1d03f694e1a835190383720b866 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
 @@ -4575,6 +4575,14 @@ public abstract class Entity

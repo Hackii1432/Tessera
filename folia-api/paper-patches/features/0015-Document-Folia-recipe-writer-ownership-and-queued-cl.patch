@@ -1,0 +1,104 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Sun, 11 Oct 2026 16:25:06 +0200
+Subject: [PATCH] Document Folia recipe writer ownership and queued client
+ resets
+
+
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index a1c9127e363bece607d9828ecdf7f3a5415c7c2a..9a22074c500bb0a48e7ad88d39cc1deb4ae27ae5 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -964,6 +964,8 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+     /**
+      * Updates all advancement, tag, and recipe data to all connected clients.
+      * Useful for updating clients to new advancements/recipes/tags.
++     * <p>On Tessera/Folia, player-state resets are queued on each current entity
++     * owner. Returning does not acknowledge delivery to every client.
+      * @see #updateRecipes()
+      */
+     void updateResources();
+@@ -971,6 +973,8 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+     /**
+      * Updates recipe data and the recipe book to each player. Useful for
+      * updating clients to new recipes.
++     * <p>On Tessera/Folia, work is queued on each current player owner, including
++     * internal work during tick freeze. Returning is not a client-delivery barrier.
+      * @see #updateResources()
+      */
+     void updateRecipes();
+@@ -1026,6 +1030,8 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+      * <p>
+      * Players still have to discover recipes via {@link Player#discoverRecipe(NamespacedKey)}
+      * before seeing them in their recipe book.
++     * <p>On Tessera/Folia, call on the global region thread. Client resets are
++     * queued on current player owners, not performed on the global thread.
+      *
+      * @param recipe the recipe to add
+      * @return true if the recipe was added, false if it wasn't for some reason
+@@ -1052,6 +1058,9 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+     /**
+      * Adds multiple recipes to the crafting manager at once, resending recipes only once
+      * after all have been added.
++     * <p>On Tessera/Folia, recipe mutations must run on the global region thread.
++     * Invalid input or duplicate recipes publish no partial batch; client resets
++     * are subsequently queued on current player owners.
+      *
+      * @apiNote This method differs from {@link #addRecipe} in that it will only resend the recipe book once instead of once per every recipe added
+      * @param recipes the recipes to add
+@@ -1205,6 +1214,9 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+ 
+     /**
+      * Get an iterator through the list of crafting recipes.
++     * <p>On Tessera/Folia, this iterates a stable catalog snapshot. Calling
++     * {@link Iterator#remove()} requires the global region thread and removes
++     * the key from the current catalog, not just the snapshot.
+      *
+      * @return an iterator
+      */
+@@ -1213,11 +1225,13 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+ 
+     /**
+      * Clears the list of crafting recipes.
++     * <p>On Tessera/Folia, call on the global region thread.
+      */
+     public void clearRecipes();
+ 
+     /**
+      * Resets the list of crafting recipes to the default.
++     * <p>On Tessera/Folia, call on the global region thread.
+      */
+     public void resetRecipes();
+ 
+@@ -1235,6 +1249,8 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+      * <b>Note that removing a recipe may cause permanent loss of data
+      * associated with that recipe (eg whether it has been discovered by
+      * players).</b>
++     * <p>On Tessera/Folia, call on the global region thread. Client recipe-book
++     * resets are queued on current player owners; returning is not delivery acknowledgement.
+      *
+      * @param key NamespacedKey of recipe to remove.
+      * @return True if recipe was removed
+@@ -1260,6 +1276,9 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+ 
+     /**
+      * Remove multiple recipes from the server.
++     * <p>On Tessera/Folia, call on the global region thread. Invalid input
++     * publishes no partial removal. Missing keys are ignored; client resets
++     * are subsequently queued on current player owners.
+      *
+      * @apiNote This method differs from {@link #removeRecipe} in that it will only resend the recipe book once instead of once per every recipe removed
+      * @param keys the NamespacedKeys of the recipes to remove
+diff --git a/src/main/java/org/bukkit/potion/PotionBrewer.java b/src/main/java/org/bukkit/potion/PotionBrewer.java
+index 7b2a29377b4b6c73ca0c23f5c946128e293d0975..c7b271dfce6915d3d6232c19858c9dbce00aab57 100644
+--- a/src/main/java/org/bukkit/potion/PotionBrewer.java
++++ b/src/main/java/org/bukkit/potion/PotionBrewer.java
+@@ -43,6 +43,8 @@ public interface PotionBrewer {
+ 
+     /**
+      * Resets potion mixes to their default, removing all custom ones.
++     * <p>On Tessera/Folia, call on the global region thread. The replacement is
++     * one atomic catalog publication; current player owners receive recipe resets.
+      * @deprecated fully replaced by {@link org.bukkit.inventory.BrewingRecipe}
+      */
+     @Deprecated(since = "26.3", forRemoval = true)

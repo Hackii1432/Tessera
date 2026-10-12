@@ -5,10 +5,10 @@ Subject: [PATCH] Tessera region-safe Bukkit scoreboards
 
 
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-index c43bb40286417fe315b45e7fb7d20f2ef623212e..de10d44f7865266cc6bf776f8b7dd0745ac64826 100644
+index afe3ae8fdba2f00fe2e551bea3ab93c6a3bf142b..cad2690b742a2e248da0ce62c3a21cdb65384e15 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-@@ -954,17 +954,24 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+@@ -976,17 +976,24 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
  
      @Override
      public Set<String> getScoreboardTags() {

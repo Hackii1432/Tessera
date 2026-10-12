@@ -1,0 +1,81 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Sun, 11 Oct 2026 17:19:52 +0200
+Subject: [PATCH] Stop sulfur cube ignition and explosion work after
+ owner-changing callbacks
+
+
+diff --git a/net/minecraft/world/entity/monster/cubemob/SulfurCube.java b/net/minecraft/world/entity/monster/cubemob/SulfurCube.java
+index ec9037217e7954b9decc049e72bc22e41198091e..7aca845b391bb56fca935023ee7e5ce5c33fe5c9 100644
+--- a/net/minecraft/world/entity/monster/cubemob/SulfurCube.java
++++ b/net/minecraft/world/entity/monster/cubemob/SulfurCube.java
+@@ -283,12 +283,16 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
+ 
+     @Override
+     public void tick() {
++        final Level originalLevel = this.level();
+         this.tickFuse();
++        if (!this.tessera$ownsSwallow(originalLevel)) return; // Tessera - explosion callbacks can remove/transfer the cube
+         this.primeWhenOnPoweredPosition();
++        if (!this.tessera$ownsSwallow(originalLevel)) return; // Tessera - ignite callbacks can retire this tick's owner
+         super.tick();
+     }
+ 
+     private void tickFuse() {
++        final Level originalLevel = this.level();
+         if (this.fuse > 0) {
+             this.fuse--;
+         }
+@@ -300,13 +304,14 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
+                     if (this.isLeashed()) {
+                         final org.bukkit.event.entity.EntityUnleashEvent unleashEvent = new org.bukkit.event.entity.EntityUnleashEvent(this.getBukkitEntity(), org.bukkit.event.entity.EntityUnleashEvent.UnleashReason.LEASHED_GONE, true);
+                         unleashEvent.callEvent();
++                        if (!this.tessera$ownsSwallow(originalLevel)) return;
+                         if (unleashEvent.isDropLeash()) {
+                             this.dropLeash();
+                         } else {
+                             this.removeLeash();
+                         }
+                     }
+-                    this.dead = true;
++                    if (this.tessera$ownsSwallow(originalLevel)) this.dead = true;
+                 };
+                 // Paper end - Fire events for SulfurCube explosions
+                 if (this.level() instanceof ServerLevel level) {
+@@ -316,6 +321,7 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
+                             : Level.ExplosionInteraction.NONE;
+                         // Paper start - Fire events for SulfurCube explosions
+                         final org.bukkit.event.entity.ExplosionPrimeEvent primeEvent = org.bukkit.craftbukkit.event.CraftEventFactory.callExplosionPrimeEvent(this, this.explosionData.get().power(), this.explosionData.get().causesFire());
++                        if (!this.tessera$ownsSwallow(originalLevel)) return; // Tessera - no cancellation reset on a stale owner
+                         if (primeEvent.isCancelled()) {
+                             this.setFuse(PrimedTnt.NO_FUSE);
+                             this.entityData.set(MAX_FUSE, PrimedTnt.NO_FUSE);
+@@ -323,6 +329,7 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
+                             return;
+                         }
+                         afterEvent.run();
++                        if (!this.tessera$ownsSwallow(originalLevel)) return;
+                         // Paper end - Fire events for SulfurCube explosions
+                         level.explode(
+                             this,
+@@ -341,9 +348,11 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
+                         // Paper end - moved from above
+                     }
+ 
++                    if (!this.tessera$ownsSwallow(originalLevel)) return; // Tessera - explosion/unleash listeners may transfer the source
+                     this.triggerOnDeathMobEffects(level, Entity.RemovalReason.KILLED);
+                 }
+ 
++                if (!this.tessera$ownsSwallow(originalLevel)) return; // Tessera - spawned death effects may invoke plugin callbacks
+                 this.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.EXPLODE); // CraftBukkit - add Bukkit remove cause
+             }
+         // Paper start - properly reset fuse if explosion data was unset by game
+@@ -374,7 +383,7 @@ public class SulfurCube extends AbstractCubeMob implements Bucketable, Shearable
+             int fuseTime = imminent ? PrimedTnt.getRandomShortFuse(fuse, this.getRandom()) : fuse;
+             // Paper start - call EntityIgniteEvent
+             fuseTime = org.bukkit.craftbukkit.event.CraftEventFactory.callEntityIgniteEvent(this, fuseTime);
+-            if (fuseTime == PrimedTnt.NO_FUSE) {
++            if (!this.tessera$ownsSwallow(serverLevel) || fuseTime == PrimedTnt.NO_FUSE) {
+                 return false;
+             }
+             // Paper end - call EntityIgniteEvent

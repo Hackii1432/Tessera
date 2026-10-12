@@ -1,0 +1,411 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Sun, 11 Oct 2026 16:14:14 +0200
+Subject: [PATCH] Test October Moonrise typed APIs data migrations and recipe
+ publication
+
+
+diff --git a/src/test/java/io/papermc/paper/porting/MoonriseOctoberBackportTest.java b/src/test/java/io/papermc/paper/porting/MoonriseOctoberBackportTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..95724d35a55a630a849b62f8857f4cb75bbab499
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/porting/MoonriseOctoberBackportTest.java
+@@ -0,0 +1,88 @@
++package io.papermc.paper.porting;
++
++import ca.spottedleaf.moonrise.patches.chunk_gen.buffer_alloc.ThreadLocalDensityBufferArena;
++import ca.spottedleaf.moonrise.patches.chunk_gen.buffer_alloc.ThreadLocalFixedDensityBufferCache;
++import java.lang.reflect.Method;
++import java.util.ArrayList;
++import java.util.concurrent.Executors;
++import net.minecraft.util.RandomSource;
++import net.minecraft.world.level.levelgen.densityfunction.DensityBuffer;
++import net.minecraft.world.level.levelgen.densityfunction.DensityVolume;
++import net.minecraft.world.level.levelgen.synth.PerlinNoise;
++import net.minecraft.world.level.levelgen.synth.SmearedPerlinNoise;
++import org.bukkit.support.environment.Normal;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.params.ParameterizedTest;
++import org.junit.jupiter.params.provider.CsvSource;
++
++import static org.junit.jupiter.api.Assertions.*;
++
++@Normal
++class MoonriseOctoberBackportTest {
++    private static void compare(boolean smeared, int offset, int step) throws Exception {
++        PerlinNoise noise = smeared ? new SmearedPerlinNoise(RandomSource.create(7149), 0.5) : new PerlinNoise(RandomSource.create(7149));
++        DensityVolume volume = new DensityVolume(7, 11, 5, offset, -64, -offset, step, 3, step);
++        DensityBuffer expected = DensityBuffer.createUnpooled(volume.size());
++        DensityBuffer actual = DensityBuffer.createUnpooled(volume.size());
++        expected.fill(0.375F);
++        actual.fill(0.375F);
++        Method vanilla = noise.getClass().getDeclaredMethod("addToVolumeVanilla", DensityBuffer.class, DensityVolume.class, double.class, double.class, float.class);
++        vanilla.setAccessible(true);
++        for (double scale : new double[] {0.01, 0.25, 1.75}) {
++            vanilla.invoke(noise, expected, volume, scale, scale * 0.75, 0.125F);
++            noise.addToVolume(actual, volume, scale, scale * 0.75, 0.125F);
++        }
++        assertArrayEquals(expected.values, actual.values, "optimisation must preserve exact vanilla noise");
++    }
++
++    @ParameterizedTest
++    @CsvSource({"false,0,1", "false,-3071,4", "false,29999984,8", "true,0,1", "true,-3071,4", "true,29999984,8"})
++    void volumeNoiseMatchesVanillaExactly(boolean smeared, int offset, int step) throws Exception {
++        compare(smeared, offset, step);
++    }
++
++    @Test
++    void parallelGeneratorsDoNotShareMutableNoiseBuffers() throws Exception {
++        try (var executor = Executors.newFixedThreadPool(4)) {
++            var tasks = new ArrayList<java.util.concurrent.Callable<Void>>();
++            for (int i = 0; i < 32; ++i) {
++                final int position = i * 173;
++                tasks.add(() -> { compare((position & 1) == 0, position, 4); return null; });
++            }
++            for (var task : executor.invokeAll(tasks)) task.get();
++        }
++    }
++
++    @Test
++    void fixedDensityBuffersAreClearedBetweenGenerationPasses() {
++        var cache = new ThreadLocalFixedDensityBufferCache();
++        assertThrows(IllegalStateException.class, () -> cache.allocate(32));
++        cache.acquire();
++        var first = cache.allocate(32);
++        first.fill(19.0F);
++        assertThrows(IllegalStateException.class, cache::acquire);
++        cache.release();
++        cache.acquire();
++        var second = cache.allocate(16);
++        assertSame(first, second);
++        assertEquals(16, second.size());
++        for (int i = 0; i < second.size(); ++i) assertEquals(0.0F, second.get(i));
++        assertThrows(IllegalArgumentException.class, () -> cache.allocate(-1));
++        cache.release();
++        assertThrows(IllegalStateException.class, cache::release);
++    }
++
++    @Test
++    void arenaReclaimsUnreturnedBuffersWithoutCrossPoolReuse() {
++        var first = new ThreadLocalDensityBufferArena();
++        var second = new ThreadLocalDensityBufferArena();
++        var leaked = first.acquire(19);
++        first.releaseAllUnreturned();
++        var reused = first.acquire(19);
++        assertSame(leaked, reused);
++        assertNotSame(reused, second.acquire(19));
++        reused.close();
++        second.releaseAllUnreturned();
++        assertThrows(IllegalArgumentException.class, () -> first.acquire(-1));
++    }
++}
+diff --git a/src/test/java/io/papermc/paper/porting/OctoberDataMigrationTest.java b/src/test/java/io/papermc/paper/porting/OctoberDataMigrationTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..81bb2469a9c96468e78d34016dc0d4326a6fd5b5
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/porting/OctoberDataMigrationTest.java
+@@ -0,0 +1,93 @@
++package io.papermc.paper.porting;
++
++import ca.spottedleaf.dataconverter.minecraft.MCDataConverter;
++import ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry;
++import com.google.gson.JsonObject;
++import com.google.gson.JsonParser;
++import net.minecraft.nbt.NbtOps;
++import net.minecraft.nbt.CompoundTag;
++import com.mojang.serialization.JsonOps;
++import org.bukkit.support.environment.Normal;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.*;
++
++@Normal
++class OctoberDataMigrationTest {
++    private static JsonObject json(String input) {
++        return JsonParser.parseString(input).getAsJsonObject();
++    }
++
++    @Test
++    void hiddenAnimationComponentsSplitWithoutDuplicatesOrUnhiding() {
++        JsonObject source = json("""
++            {"minecraft:tooltip_display":{"hidden_components":["custom:keep","swing_animation","minecraft:attack_animation","minecraft:swing_animation"]},
++             "minecraft:swing_animation":{"duration":6}}
++            """);
++        JsonObject original = source.deepCopy();
++        JsonObject result = MCDataConverter.convertJson(MCTypeRegistry.DATA_COMPONENTS, source, false, 5006, 5007);
++        assertEquals(json("""
++            {"minecraft:tooltip_display":{"hidden_components":["custom:keep","minecraft:interact_animation","minecraft:attack_animation"]},
++             "minecraft:attack_animation":{"duration":6},"minecraft:interact_animation":{"duration":6}}
++            """), result);
++        assertEquals(original, source, "DFU must not mutate the source store");
++    }
++
++    @Test
++    void removedComponentNamesAreRemovedOnlyWhenCrossingTheirVersions() {
++        JsonObject source = json("""
++            {"minecraft:tooltip_display":{"hidden_components":["map_color","minecraft:block_transformer","custom:keep"]}}
++            """);
++        JsonObject before = MCDataConverter.convertJson(MCTypeRegistry.DATA_COMPONENTS, source, false, 5007, 5008);
++        assertEquals(json("{\"minecraft:tooltip_display\":{\"hidden_components\":[\"minecraft:block_transformer\",\"custom:keep\"]}}"), before);
++        JsonObject after = MCDataConverter.convertJson(MCTypeRegistry.DATA_COMPONENTS, before, false, 5013, 5014);
++        assertEquals(json("{\"minecraft:tooltip_display\":{\"hidden_components\":[\"custom:keep\"]}}"), after);
++        assertSame(source, MCDataConverter.convertJson(MCTypeRegistry.DATA_COMPONENTS, source, false, 5023, 5023));
++    }
++
++    @Test
++    void missingHiddenComponentsDoesNotHideNewComponents() {
++        JsonObject source = json("{\"minecraft:swing_animation\":{\"duration\":6}}");
++        JsonObject result = MCDataConverter.convertJson(MCTypeRegistry.DATA_COMPONENTS, source, false, 5006, 5023);
++        assertFalse(result.has("minecraft:tooltip_display"));
++        assertTrue(result.has("minecraft:attack_animation"));
++        assertTrue(result.has("minecraft:interact_animation"));
++    }
++
++    @Test
++    void embeddedStructureStatesAndNestedProcessorsUseTheActiveDfuBackend() {
++        JsonObject source = json("""
++            {"id":"minecraft:village","Children":[{"id":"minecraft:jigsaw",
++             "CA":{"Name":"minecraft:oak_fence","Properties":{"north":"true"}},
++             "pool_element":{"elements":[{"processors":{"processors":[
++               {"processor_type":"capped","delegate":{"processor_type":"rule","rules":[
++                 {"input_predicate":{"predicate_type":"blockstate_match","block_state":{"Name":"minecraft:stone"}},
++                  "location_predicate":{"predicate_type":"random_blockstate_match","block_state":{"Name":"minecraft:dirt"}},
++                  "output_state":{"Name":"minecraft:oak_planks"}}]}},
++               {"processor_type":"block_ignore","blocks":[{"Name":"minecraft:air"}]}]}}]}}],
++             "custom":{"Name":"not_a_block_state"}}
++            """);
++        JsonObject original = source.deepCopy();
++        JsonObject result = MCDataConverter.convertJson(MCTypeRegistry.STRUCTURE_FEATURE, source, false, 5005, 5023);
++        assertFalse(result.toString().contains("\"Name\":\"minecraft:"));
++        assertTrue(result.toString().contains("\"id\":\"minecraft:oak_fence\""));
++        assertTrue(result.toString().contains("\"properties\":{\"north\":\"true\"}"));
++        assertEquals(original.get("custom"), result.get("custom"), "arbitrary plugin NBT is not a block state");
++        assertEquals(original, source);
++        CompoundTag nbt = (CompoundTag)JsonOps.INSTANCE.convertTo(NbtOps.INSTANCE, source);
++        CompoundTag migrated = MCDataConverter.convertTag(MCTypeRegistry.STRUCTURE_FEATURE, nbt.copy(), 5005, 5023);
++        assertEquals(result, NbtOps.INSTANCE.convertTo(JsonOps.INSTANCE, migrated));
++    }
++
++    @Test
++    void oldFeaturePoolConversionUsesTheNestedPoolElement() {
++        JsonObject source = json("""
++            {"Children":[{"id":"minecraft:jigsaw","pool_element":{"element_type":"minecraft:feature_pool_element",
++             "feature":{"type":"minecraft:block_pile","config":{"state_provider":{"type":"minecraft:simple_state_provider",
++             "state":{"Name":"minecraft:hay_block"}}}}}}]}
++            """);
++        JsonObject result = MCDataConverter.convertJson(MCTypeRegistry.STRUCTURE_FEATURE, source.deepCopy(), false, 2700, 2701);
++        assertEquals("minecraft:pile_hay", result.getAsJsonArray("Children").get(0).getAsJsonObject().getAsJsonObject("pool_element").get("feature").getAsString());
++        assertTrue(source.toString().contains("minecraft:hay_block"));
++    }
++}
+diff --git a/src/test/java/io/papermc/paper/porting/OctoberTypedApiTest.java b/src/test/java/io/papermc/paper/porting/OctoberTypedApiTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b16e4eda9e26b9919d555a507fa03f67978c708b
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/porting/OctoberTypedApiTest.java
+@@ -0,0 +1,52 @@
++package io.papermc.paper.porting;
++
++import io.papermc.paper.command.brigadier.CommandSourceStack;
++import io.papermc.paper.command.brigadier.Commands;
++import io.papermc.paper.persistence.PersistentDataKey;
++import net.kyori.adventure.key.Key;
++import org.bukkit.craftbukkit.persistence.CraftPersistentDataContainer;
++import org.bukkit.craftbukkit.persistence.CraftPersistentDataTypeRegistry;
++import org.bukkit.persistence.PersistentDataType;
++import org.bukkit.support.environment.Normal;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.Mockito.*;
++
++@Normal
++class OctoberTypedApiTest {
++    @Test
++    void typedKeysUseTheExistingStoreAndPreserveTypeValidation() {
++        var key = PersistentDataKey.of(Key.key("october:value"), PersistentDataType.INTEGER);
++        var wrong = PersistentDataKey.of(Key.key("october:value"), PersistentDataType.STRING);
++        var pdc = new CraftPersistentDataContainer(new CraftPersistentDataTypeRegistry());
++        assertFalse(pdc.has(key));
++        assertEquals(7, pdc.getOrDefault(key, 7));
++        pdc.set(key, 19);
++        assertTrue(pdc.has(key));
++        assertFalse(pdc.has(wrong));
++        assertEquals(19, pdc.get(key));
++        assertEquals(19, pdc.get(key.key(), PersistentDataType.INTEGER));
++        assertThrows(IllegalArgumentException.class, () -> pdc.get(wrong));
++        pdc.remove(key);
++        assertNull(pdc.get(key));
++        assertTrue(pdc.isEmpty());
++    }
++
++    @Test
++    void typedKeyFactoryRejectsNullInputs() {
++        assertThrows(IllegalArgumentException.class, () -> PersistentDataKey.of(null, PersistentDataType.INTEGER));
++        assertThrows(IllegalArgumentException.class, () -> PersistentDataKey.of(Key.key("october:value"), null));
++    }
++
++    @Test
++    void restrictedMetadataDoesNotOverrideTheActualPermissionPredicate() {
++        var source = mock(CommandSourceStack.class);
++        var unrestricted = Commands.unrestricted(ignored -> false);
++        var restricted = Commands.restricted(ignored -> true);
++        assertFalse(unrestricted.test(source));
++        assertTrue(restricted.test(source));
++        assertFalse(((net.minecraft.commands.Commands.RestrictedMarker)unrestricted).restricted());
++        assertTrue(((net.minecraft.commands.Commands.RestrictedMarker)restricted).restricted());
++    }
++}
+diff --git a/src/test/java/io/papermc/paper/porting/RegionSafeRecipeCatalogTest.java b/src/test/java/io/papermc/paper/porting/RegionSafeRecipeCatalogTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..cb9a4c0d289455a562fc9bb4db77461c82040094
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/porting/RegionSafeRecipeCatalogTest.java
+@@ -0,0 +1,147 @@
++package io.papermc.paper.porting;
++
++import java.util.List;
++import java.util.stream.Stream;
++import java.util.concurrent.Executors;
++import java.util.concurrent.atomic.AtomicBoolean;
++import net.minecraft.core.HolderLookup;
++import net.minecraft.core.registries.Registries;
++import net.minecraft.resources.Identifier;
++import net.minecraft.resources.ResourceKey;
++import net.minecraft.world.flag.FeatureFlags;
++import net.minecraft.world.item.crafting.Recipe;
++import net.minecraft.world.item.crafting.RecipeBookCategory;
++import net.minecraft.world.item.crafting.RecipeHolder;
++import net.minecraft.world.item.crafting.RecipeManager;
++import net.minecraft.world.item.crafting.RecipeType;
++import net.minecraft.world.item.crafting.display.RecipeDisplay;
++import net.minecraft.world.item.crafting.display.RecipeDisplayId;
++import org.bukkit.support.environment.Normal;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.Mockito.*;
++
++@Normal
++class RegionSafeRecipeCatalogTest {
++    @Test
++    void bootstrapRecipeWriterIsLimitedToTheActualConstructionOwner() throws Exception {
++        var predicate = net.minecraft.server.MinecraftServer.class.getDeclaredMethod("tessera$isRecipeBootstrapContext",
++            Thread.class, Thread.class, Thread.class, boolean.class);
++        predicate.setAccessible(true);
++        Thread bootstrap = Thread.currentThread();
++        Thread unrelated = new Thread(() -> {});
++        var released = new java.util.concurrent.CountDownLatch(1);
++        Thread running = new Thread(() -> {
++            try { released.await(); } catch (InterruptedException failure) { throw new AssertionError(failure); }
++        });
++        assertTrue((boolean)predicate.invoke(null, bootstrap, running, bootstrap, false));
++        assertFalse((boolean)predicate.invoke(null, unrelated, running, bootstrap, false));
++        assertFalse((boolean)predicate.invoke(null, bootstrap, running, bootstrap, true));
++        running.start();
++        try {
++            assertFalse((boolean)predicate.invoke(null, bootstrap, running, bootstrap, false));
++            assertTrue((boolean)predicate.invoke(null, running, running, bootstrap, false));
++            assertFalse((boolean)predicate.invoke(null, running, running, bootstrap, true));
++            assertFalse((boolean)predicate.invoke(null, unrelated, running, bootstrap, false));
++        } finally {
++            released.countDown();
++            running.join(5000);
++            assertFalse(running.isAlive());
++        }
++        assertFalse((boolean)predicate.invoke(null, bootstrap, running, bootstrap, false));
++    }
++
++    @SuppressWarnings("unchecked")
++    private static RecipeManager manager() {
++        var registries = mock(HolderLookup.Provider.class);
++        HolderLookup.RegistryLookup<Recipe<?>> lookup = mock(HolderLookup.RegistryLookup.class);
++        doReturn(lookup).when(registries).lookupOrThrow(Registries.RECIPE);
++        when(lookup.listElements()).thenAnswer(ignored -> Stream.empty());
++        return new RecipeManager(registries);
++    }
++
++    private static RecipeHolder<?> recipe(String name, boolean special) {
++        var recipe = mock(Recipe.class);
++        doReturn(RecipeType.CRAFTING).when(recipe).getType();
++        when(recipe.isSpecial()).thenReturn(special);
++        when(recipe.group()).thenReturn("");
++        when(recipe.recipeBookCategory()).thenReturn(mock(RecipeBookCategory.class));
++        var display = mock(RecipeDisplay.class);
++        when(display.isEnabled(any())).thenReturn(true);
++        when(recipe.display()).thenReturn(List.of(display));
++        return new RecipeHolder<>(ResourceKey.create(Registries.RECIPE, Identifier.withDefaultNamespace(name)), recipe);
++    }
++
++    @Test
++    void learnableRecipesRefreshAndPublishedMapsAreImmutable() {
++        var manager = manager();
++        var first = recipe("october_first", false);
++        var second = recipe("october_second", false);
++        var old = manager.getRecipes();
++        assertTrue(manager.tessera$addRecipes(List.of(first, second)));
++        assertEquals(2, manager.getLearnableRecipes().size());
++        assertTrue(old.isEmpty());
++        assertThrows(UnsupportedOperationException.class, () -> manager.recipes.byKey.clear());
++        assertThrows(UnsupportedOperationException.class, () -> manager.recipes.byType.clear());
++        assertTrue(manager.tessera$removeRecipes(List.of(first.id())));
++        assertEquals(List.of(second), List.copyOf(manager.getLearnableRecipes()));
++        assertFalse(manager.tessera$removeRecipes(List.of(first.id())));
++        manager.clearRecipes();
++        assertTrue(manager.getLearnableRecipes().isEmpty());
++    }
++
++    @Test
++    void duplicateBatchDoesNotPublishPartiallyAddedRecipes() {
++        var manager = manager();
++        var first = recipe("october_first", false);
++        var old = manager.recipes;
++        assertThrows(IllegalStateException.class, () -> manager.tessera$addRecipes(List.of(first, first)));
++        assertSame(old, manager.recipes);
++        assertTrue(manager.getRecipes().isEmpty());
++        assertTrue(manager.getLearnableRecipes().isEmpty());
++    }
++
++    @Test
++    void removedDisplayIdsCannotResolveToAnUnrelatedRecipe() {
++        var manager = manager();
++        manager.finalizeRecipeLoading(FeatureFlags.VANILLA_SET);
++        var first = recipe("october_first", true);
++        manager.addRecipe(first);
++        var id = new RecipeDisplayId(0);
++        assertSame(first, manager.getRecipeFromDisplay(id).parent());
++        manager.removeRecipe(first.id());
++        var second = recipe("october_second", true);
++        manager.addRecipe(second);
++        assertNull(manager.getRecipeFromDisplay(id));
++        assertSame(second, manager.getRecipeFromDisplay(new RecipeDisplayId(1)).parent());
++        manager.finalizeRecipeLoading(FeatureFlags.VANILLA_SET);
++        assertSame(second, manager.getRecipeFromDisplay(new RecipeDisplayId(1)).parent());
++    }
++
++    @Test
++    void concurrentReadersNeverIterateAMutatingCatalog() throws Exception {
++        var manager = manager();
++        var first = recipe("october_first", false);
++        var second = recipe("october_second", false);
++        var running = new AtomicBoolean(true);
++        try (var executor = Executors.newFixedThreadPool(3)) {
++            var readers = Stream.generate(() -> executor.submit(() -> {
++                while (running.get()) {
++                    var snapshot = manager.getRecipes();
++                    assertTrue(snapshot.isEmpty() || snapshot.size() == 2);
++                    snapshot.forEach(holder -> assertNotNull(holder.value()));
++                }
++            })).limit(3).toList();
++            try {
++                for (int i = 0; i < 200; ++i) {
++                    manager.tessera$addRecipes(List.of(first, second));
++                    manager.tessera$removeRecipes(List.of(first.id(), second.id()));
++                }
++            } finally {
++                running.set(false);
++            }
++            for (var reader : readers) reader.get();
++        }
++    }
++}

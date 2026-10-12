@@ -6,7 +6,7 @@ Subject: [PATCH] Restore region-owned data commands and atomic command storage
 Register owner-only entity reads and loaded block mutations while keeping Entity.load and cross-region copies unsupported. Resolve console/RCON identities before predicates, guard bounded player and foreign self filters, and await ownership reroutes. Serialize namespace mutations and detached saved-data snapshots under the same container lock; do not expose live tags.
 
 diff --git a/net/minecraft/commands/Commands.java b/net/minecraft/commands/Commands.java
-index 6de7d41e55d5e9e33bd5a582e52d64da814b8c35..a1379381477b6a41560528241df3dac4e65fd245 100644
+index 2b5811a990cde8e07d8f1a97daf24fcd90bb14a1..46301dcc6c1de1bc5da8e06657de84e791ca3050 100644
 --- a/net/minecraft/commands/Commands.java
 +++ b/net/minecraft/commands/Commands.java
 @@ -212,7 +212,7 @@ public class Commands {

@@ -1,0 +1,1627 @@
+diff --git a/sinopia/BASELINE.md b/sinopia/BASELINE.md
+index c0d8bad..4acf97c 100644
+--- a/sinopia/BASELINE.md
++++ b/sinopia/BASELINE.md
+@@ -158,3 +158,27 @@ und keine neue Minecraft-, Mache-, Leafpile- oder DataConverter-Version.
+ 
+ Umfang, Original-Commits und Nachweise:
+ [Integration und Build 016](../docs/PAPER-INTEGRATION-2026-10-06.md).
++
++## Vollständige fachliche Paper-Integration vom 11. Oktober 2026
++
++Die 19 folgenden Paper-Commits bis
++`99867f8f9207d3164696e469435a067330473743` sind fachlich integriert. Beide
++Moonrise-Synchronisierungen, neue öffentliche APIs und Datenmigrationen gehören
++zu Tessera `019-beta`. Der reine Patch-Rebuild und die bereits gleichwertig
++vorhandene DragonBattle-Korrektur benötigen keine zweite Verhaltensänderung.
++
++API-/Adapterquellen und kleine Quellpatches sind direkt in Sinopia versioniert.
++Die größeren nativen Änderungen liegen in den Tessera-Minecraft-Patches 0062–0064;
++deren Export sichert ausdrücklich die bestehenden Folia-Änderungen. Das ersetzt
++weder die vollständige historische Moonrise-Basis noch Tesseras DataConverter-
++Brücke: Die neuen typisierten Migrationen laufen im bereits verwendeten Vanilla-
++DFU-Pfad. Runtime-Rezeptänderungen publizieren unveränderliche Kataloge auf dem
++Global-Besitzer; Client-/RecipeBook-Arbeit läuft auf dem aktuellen Spielerbesitzer.
++
++Spark wird auf `1.10.191` aktualisiert, JOML nutzt standardmäßig den Pfad ohne
++`sun.misc.Unsafe`, und die Server-JAR erklärt ihre erforderliche Native-Access-
++Berechtigung. Minecraft/Mache, Java 25, Gradle, Paperweight, Leafpile und die
++ursprüngliche `paperRef`-Importprovenienz bleiben unverändert.
++
++Quellen, Folia-Anpassungen und Prüfumfang:
++[Paper-Integration 019](../docs/PAPER-INTEGRATION-2026-10-11.md).
+diff --git a/sinopia/build-data/paper.at b/sinopia/build-data/paper.at
+index 458c40a..567849f 100644
+--- a/sinopia/build-data/paper.at
++++ b/sinopia/build-data/paper.at
+@@ -5,6 +5,7 @@ private-f net.minecraft.server.MinecraftServer connection
+ private-f net.minecraft.server.MinecraftServer levels
+ private-f net.minecraft.world.item.ItemStack components
+ private-f net.minecraft.world.item.ItemStack item
++private-f net.minecraft.world.item.crafting.RecipeManager learnableRecipes
+ private-f net.minecraft.world.level.block.entity.BeehiveBlockEntity stored
+ protected net.minecraft.world.entity.LivingEntity skipDropExperience
+ protected net.minecraft.world.level.Level thread
+@@ -166,6 +167,8 @@ public net.minecraft.world.entity.Display$TextDisplay setText(Lnet/minecraft/net
+ public net.minecraft.world.entity.Display$TextDisplay setTextOpacity(B)V
+ public net.minecraft.world.entity.Entity DATA_TICKS_FROZEN
+ public net.minecraft.world.entity.Entity FLAG_INVISIBLE
++public net.minecraft.world.entity.Entity getAirDrag()F
++public net.minecraft.world.entity.Entity getDefaultGravity()D
+ public net.minecraft.world.entity.Entity getEncodeId()Ljava/lang/String;
+ public net.minecraft.world.entity.Entity getFireImmuneTicks()I
+ public net.minecraft.world.entity.Entity getSharedFlag(I)Z
+diff --git a/sinopia/paper-api/src/main/java/io/papermc/paper/InternalAPIBridge.java b/sinopia/paper-api/src/main/java/io/papermc/paper/InternalAPIBridge.java
+index 64306b5..05fc5f0 100644
+--- a/sinopia/paper-api/src/main/java/io/papermc/paper/InternalAPIBridge.java
++++ b/sinopia/paper-api/src/main/java/io/papermc/paper/InternalAPIBridge.java
+@@ -5,6 +5,7 @@ import com.destroystokyo.paper.util.VersionFetcher;
+ import io.papermc.paper.command.brigadier.CommandSourceStack;
+ import io.papermc.paper.datacomponent.item.ResolvableProfile;
+ import io.papermc.paper.entity.poi.PoiType;
++import io.papermc.paper.persistence.PersistentDataKey;
+ import io.papermc.paper.plugin.lifecycle.event.LifecycleEventManager;
+ import io.papermc.paper.world.damagesource.CombatEntry;
+ import io.papermc.paper.world.damagesource.FallLocationType;
+@@ -13,6 +14,7 @@ import java.util.Set;
+ import java.util.function.BooleanSupplier;
+ import java.util.function.Function;
+ import java.util.function.Predicate;
++import net.kyori.adventure.key.Key;
+ import net.kyori.adventure.text.Component;
+ import net.kyori.adventure.text.flattener.ComponentFlattener;
+ import net.kyori.adventure.util.Services;
+@@ -31,6 +33,7 @@ import org.bukkit.entity.LivingEntity;
+ import org.bukkit.entity.Pose;
+ import org.bukkit.entity.SpawnCategory;
+ import org.bukkit.inventory.ItemStack;
++import org.bukkit.persistence.PersistentDataType;
+ import org.bukkit.plugin.Plugin;
+ import org.bukkit.plugin.java.JavaPlugin;
+ import org.jetbrains.annotations.ApiStatus;
+@@ -69,14 +72,15 @@ public interface InternalAPIBridge {
+     CombatEntry createCombatEntry(DamageSource damageSource, float damage, @Nullable FallLocationType fallLocationType, float fallDistance);
+ 
+     /**
+-     * Causes this predicate to be considered restricted.
+-     * Applying this to a command node prevents this command from being executed from an
+-     * unattended context, such as click events.
++     * Allows overriding default restricted check.
++     * Applying this to a command node forcefully prevents or permits this command to be
++     * executed from an unattended context, such as click events.
+      *
+-     * @param predicate wrapped predicate
++     * @param predicate  wrapped predicate
++     * @param restricted restricted status of the predicate
+      * @return wrapped predicate
+      */
+-    Predicate<CommandSourceStack> restricted(Predicate<CommandSourceStack> predicate);
++    Predicate<CommandSourceStack> restricted(Predicate<CommandSourceStack> predicate, boolean restricted);
+ 
+     ResolvableProfile defaultMannequinProfile();
+ 
+@@ -121,4 +125,6 @@ public interface InternalAPIBridge {
+     Component resolveWithContext(Component component, @Nullable CommandSender context, @Nullable Entity scoreboardSubject, boolean bypassPermissions) throws IOException;
+ 
+     ComponentFlattener componentFlattener();
++
++    <C> PersistentDataKey<C> createPersistentDataKey(Key key, PersistentDataType<?, C> type);
+ }
+diff --git a/sinopia/paper-api/src/main/java/io/papermc/paper/command/brigadier/Commands.java b/sinopia/paper-api/src/main/java/io/papermc/paper/command/brigadier/Commands.java
+index 05dd8a6..bfd5377 100644
+--- a/sinopia/paper-api/src/main/java/io/papermc/paper/command/brigadier/Commands.java
++++ b/sinopia/paper-api/src/main/java/io/papermc/paper/command/brigadier/Commands.java
+@@ -97,7 +97,23 @@ public interface Commands extends Registrar {
+      * @return a new predicate with restricted execution behavior
+      */
+     static Predicate<CommandSourceStack> restricted(final Predicate<CommandSourceStack> predicate) {
+-        return InternalAPIBridge.get().restricted(predicate);
++        return InternalAPIBridge.get().restricted(predicate, true);
++    }
++
++    /**
++     * Creates an unrestricted {@link Predicate} that wraps the given predicate.
++     * <p>
++     * A restricted predicate prevents execution in unattended contexts, such as from chat click events.
++     * Unrestricting prevents the warning shown on the client before executing the command.
++     * <p>
++     * This is used by vanilla to prevent invocation of sensitive commands (like op) from
++     * players without their knowledge.
++     *
++     * @param predicate the original predicate to wrap
++     * @return a new predicate with unrestricted execution behavior
++     */
++    static Predicate<CommandSourceStack> unrestricted(final Predicate<CommandSourceStack> predicate) {
++        return InternalAPIBridge.get().restricted(predicate, false);
+     }
+ 
+     /**
+diff --git a/sinopia/paper-api/src/main/java/io/papermc/paper/entity/PlayerPostEffects.java b/sinopia/paper-api/src/main/java/io/papermc/paper/entity/PlayerPostEffects.java
+index a89cce6..8d26f70 100644
+--- a/sinopia/paper-api/src/main/java/io/papermc/paper/entity/PlayerPostEffects.java
++++ b/sinopia/paper-api/src/main/java/io/papermc/paper/entity/PlayerPostEffects.java
+@@ -52,4 +52,13 @@ public interface PlayerPostEffects {
+      */
+     boolean clear();
+ 
++    /**
++     * Forces an immediate update of post-effects currently applied to the player.
++     * <p>
++     * Calling this method manually is usually unnecessary, as post-effects are automatically
++     * synchronized at the end of the player entity tick. It should only be called if changes
++     * need to be synchronized immediately.
++     */
++    void update();
++
+ }
+diff --git a/sinopia/paper-api/src/main/java/io/papermc/paper/event/player/PlayerTrackEntityEvent.java b/sinopia/paper-api/src/main/java/io/papermc/paper/event/player/PlayerTrackEntityEvent.java
+index 0e37c8c..705400d 100644
+--- a/sinopia/paper-api/src/main/java/io/papermc/paper/event/player/PlayerTrackEntityEvent.java
++++ b/sinopia/paper-api/src/main/java/io/papermc/paper/event/player/PlayerTrackEntityEvent.java
+@@ -15,6 +15,8 @@ import org.jspecify.annotations.NullMarked;
+  * <p>
+  * Adding or removing entities from the world at the point in time this event is called is completely
+  * unsupported and should be avoided.
++ * Teleporting entities in the world at the point in time this event is called yields an undefined tracker
++ * behavior and should be avoided.
+  */
+ @NullMarked
+ public class PlayerTrackEntityEvent extends PlayerEvent implements Cancellable {
+diff --git a/sinopia/paper-api/src/main/java/io/papermc/paper/event/player/PlayerUntrackEntityEvent.java b/sinopia/paper-api/src/main/java/io/papermc/paper/event/player/PlayerUntrackEntityEvent.java
+index 30e01ff..b499b66 100644
+--- a/sinopia/paper-api/src/main/java/io/papermc/paper/event/player/PlayerUntrackEntityEvent.java
++++ b/sinopia/paper-api/src/main/java/io/papermc/paper/event/player/PlayerUntrackEntityEvent.java
+@@ -12,6 +12,8 @@ import org.jspecify.annotations.NullMarked;
+  * <p>
+  * Adding or removing entities from the world at the point in time this event is called is completely
+  * unsupported and should be avoided.
++ * Teleporting entities in the world at the point in time this event is called yields an undefined tracker
++ * behavior and should be avoided.
+  */
+ @NullMarked
+ public class PlayerUntrackEntityEvent extends PlayerEvent {
+diff --git a/sinopia/paper-api/src/main/java/io/papermc/paper/persistence/PersistentDataContainerView.java b/sinopia/paper-api/src/main/java/io/papermc/paper/persistence/PersistentDataContainerView.java
+index fd27d65..ad6693a 100644
+--- a/sinopia/paper-api/src/main/java/io/papermc/paper/persistence/PersistentDataContainerView.java
++++ b/sinopia/paper-api/src/main/java/io/papermc/paper/persistence/PersistentDataContainerView.java
+@@ -1,6 +1,7 @@
+ package io.papermc.paper.persistence;
+ 
+ import java.util.Set;
++import com.google.common.base.Preconditions;
+ import org.bukkit.NamespacedKey;
+ import org.bukkit.persistence.PersistentDataAdapterContext;
+ import org.bukkit.persistence.PersistentDataContainer;
+@@ -66,6 +67,32 @@ public interface PersistentDataContainerView {
+      */
+     boolean has(NamespacedKey key);
+ 
++    /**
++     * Returns if the persistent metadata provider has metadata registered
++     * matching the provided parameters.
++     * <p>
++     * This method will only return true if the found value has the same primitive
++     * data type as the provided data key.
++     * <p>
++     * Storing a value using a custom {@link PersistentDataType} implementation
++     * will not store the complex data type. Therefore, storing a UUID (by
++     * storing a byte[]) will match has("key", {@link PersistentDataType#BYTE_ARRAY}).
++     * Likewise, a stored byte[] will always match your UUID {@link PersistentDataType}
++     * even if it is not 16 bytes long.
++     * <p>
++     * This method is only usable for custom object keys. Overwriting existing
++     * tags, like the display name, will not work as the values are stored
++     * using your namespace.
++     *
++     * @param dataKey the data key the value is stored under
++     * @return if a value with the provided key and type exists
++     * @throws IllegalArgumentException if the key to look up is null
++     */
++    default boolean has(final PersistentDataKey<?> dataKey) {
++        Preconditions.checkArgument(dataKey != null, "The data key cannot be null");
++        return this.has(dataKey.key(), dataKey.dataType());
++    }
++
+     /**
+      * Returns the metadata value that is stored on the
+      * {@link PersistentDataHolder} instance.
+@@ -110,6 +137,46 @@ public interface PersistentDataContainerView {
+      */
+     <P, C> C getOrDefault(NamespacedKey key, PersistentDataType<P, C> type, C defaultValue);
+ 
++    /**
++     * Returns the metadata value that is stored on the
++     * {@link PersistentDataHolder} instance.
++     *
++     * @param dataKey the data key to look up in the custom tag map
++     * @param <C> the generic type of the eventually created complex object
++     * @return the value or {@code null} if no value was mapped under the given
++     * value
++     * @throws IllegalArgumentException if the data key to look up is null
++     * @throws IllegalArgumentException if a value exists under the given key,
++     * but cannot be accessed using the given type
++     * @throws IllegalArgumentException if no suitable adapter was found for
++     * the {@link PersistentDataType#getPrimitiveType()}
++     */
++    default <C> @Nullable C get(final PersistentDataKey<C> dataKey) {
++        Preconditions.checkArgument(dataKey != null, "The data key cannot be null");
++        return this.get(dataKey.key(), dataKey.dataType());
++    }
++
++    /**
++     * Returns the metadata value that is stored on the
++     * {@link PersistentDataHolder} instance. If the value does not exist in the
++     * container, the default value provided is returned.
++     *
++     * @param dataKey the data key to look up in the custom tag map
++     * @param defaultValue the default value to return if no value was found for
++     * the provided key
++     * @param <C> the generic type of the eventually created complex object
++     * @return the value or the default value if no value was mapped under the given key
++     * @throws IllegalArgumentException if the data key to look up is null
++     * @throws IllegalArgumentException if a value exists under the given key,
++     * but cannot be accessed using the given type
++     * @throws IllegalArgumentException if no suitable adapter was found for
++     * the {@link PersistentDataType#getPrimitiveType()}
++     */
++    default <C> C getOrDefault(final PersistentDataKey<C> dataKey, final C defaultValue) {
++        Preconditions.checkArgument(dataKey != null, "The data key cannot be null");
++        return this.getOrDefault(dataKey.key(), dataKey.dataType(), defaultValue);
++    }
++
+     /**
+      * Get the set of keys present on this {@link PersistentDataContainer}
+      * instance.
+diff --git a/sinopia/paper-api/src/main/java/org/bukkit/Bukkit.java b/sinopia/paper-api/src/main/java/org/bukkit/Bukkit.java
+index e5a7a27..bfd2bff 100644
+--- a/sinopia/paper-api/src/main/java/org/bukkit/Bukkit.java
++++ b/sinopia/paper-api/src/main/java/org/bukkit/Bukkit.java
+@@ -1112,14 +1112,14 @@ public final class Bukkit {
+ 
+     /**
+      * Adds a recipe to the crafting manager.
+-     * Recipes added with this method won't be sent to the client automatically.
++     * Recipes added with this method will be sent to the client automatically.
+      * <p>
+      * Players still have to discover recipes via {@link Player#discoverRecipe(NamespacedKey)}
+      * before seeing them in their recipe book.
+      *
+      * @param recipe the recipe to add
+      * @return true if the recipe was added, false if it wasn't for some reason
+-     * @see #addRecipe(Recipe, boolean)
++     * @throws IllegalStateException if the recipe is already added to the crafting manager
+      */
+     @Contract("null -> false")
+     public static boolean addRecipe(@Nullable Recipe recipe) {
+@@ -1129,14 +1129,30 @@ public final class Bukkit {
+     /**
+      * Adds a recipe to the crafting manager.
+      *
+-     * @apiNote resendRecipes is ignored at the moment for stability reasons, recipes will always be updated
+      * @param recipe the recipe to add
+-     * @param resendRecipes true to update the client with the full set of recipes
++     * @param resendRecipes ignored, refer to the deprecation note
+      * @return true if the recipe was added, false if it wasn't for some reason
++     * @throws IllegalStateException if the recipe is already added to the crafting manager
++     * @deprecated use {@link #addRecipe(Recipe)} instead, as Minecraft always resends recipes on a recipe added
+      */
++    @Deprecated(since = "26.3")
+     @Contract("null, _ -> false")
+     public static boolean addRecipe(@Nullable Recipe recipe, boolean resendRecipes) {
+-        return server.addRecipe(recipe, resendRecipes);
++        return server.addRecipe(recipe);
++    }
++
++    /**
++     * Adds multiple recipes to the crafting manager at once, resending recipes only once
++     * after all have been added.
++     *
++     * @apiNote This method differs from {@link #addRecipe} in that it will only resend the recipe book once instead of once per every recipe added
++     * @param recipes the recipes to add
++     * @return true if any recipe was added, false if none were for some reason
++     * @throws IllegalStateException if any of the recipes are already added to the crafting manager
++     * @see #addRecipe
++     */
++    public static boolean addRecipes(@NotNull Iterable<Recipe> recipes) {
++        return server.addRecipes(recipes);
+     }
+ 
+     /**
+@@ -1317,8 +1333,18 @@ public final class Bukkit {
+     }
+ 
+     /**
+-     * Remove a recipe from the server.
++     * Checks if the server has a recipe
+      *
++     * @param key NamespacedKey of recipe to check for
++     * @return True if there is a recipe with a matching key
++     */
++    public static boolean hasRecipe(@NotNull NamespacedKey key) {
++        return server.hasRecipe(key);
++    }
++
++    /**
++     * Remove a recipe from the server.
++     * <br>
+      * <b>Note that removing a recipe may cause permanent loss of data
+      * associated with that recipe (eg whether it has been discovered by
+      * players).</b>
+@@ -1330,7 +1356,6 @@ public final class Bukkit {
+         return server.removeRecipe(key);
+     }
+ 
+-    // Paper start - method to resend recipes
+     /**
+      * Remove a recipe from the server.
+      * <p>
+@@ -1339,14 +1364,26 @@ public final class Bukkit {
+      * players).</b>
+      *
+      * @param key NamespacedKey of recipe to remove.
+-     * @param resendRecipes true to update all clients on the new recipe list.
+-     *                      Will only update if a recipe was actually removed
++     * @param resendRecipes ignored, refer to the deprecation note
+      * @return True if recipe was removed
++     * @deprecated use {@link #removeRecipe(NamespacedKey)} instead, as Minecraft always resends recipes on recipe removal
+      */
++    @Deprecated(since = "26.3")
+     public static boolean removeRecipe(@NotNull NamespacedKey key, boolean resendRecipes) {
+-        return server.removeRecipe(key, resendRecipes);
++        return server.removeRecipe(key);
++    }
++
++    /**
++     * Remove multiple recipes from the server.
++     *
++     * @apiNote This method differs from {@link #removeRecipe} in that it will only resend the recipe book once instead of once per every recipe removed
++     * @param keys the NamespacedKeys of the recipes to remove
++     * @return true if any recipe was removed, false if none were for some reason
++     * @see #removeRecipe
++     */
++    public static boolean removeRecipes(@NotNull Iterable<NamespacedKey> keys) {
++        return server.removeRecipes(keys);
+     }
+-    // Paper end - method to resend recipes
+ 
+     /**
+      * Gets a list of command aliases defined in the server properties.
+diff --git a/sinopia/paper-api/src/main/java/org/bukkit/Server.java b/sinopia/paper-api/src/main/java/org/bukkit/Server.java
+index 2d8e192..9a485bb 100644
+--- a/sinopia/paper-api/src/main/java/org/bukkit/Server.java
++++ b/sinopia/paper-api/src/main/java/org/bukkit/Server.java
+@@ -1022,32 +1022,44 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+ 
+     /**
+      * Adds a recipe to the crafting manager.
+-     * Recipes added with this method won't be sent to the client automatically.
++     * Recipes added with this method will be sent to the client automatically.
+      * <p>
+      * Players still have to discover recipes via {@link Player#discoverRecipe(NamespacedKey)}
+      * before seeing them in their recipe book.
+      *
+      * @param recipe the recipe to add
+      * @return true if the recipe was added, false if it wasn't for some reason
+-     * @see #addRecipe(Recipe, boolean)
++     * @throws IllegalStateException if the recipe is already added to the crafting manager
+      */
+     @Contract("null -> false")
+-    default boolean addRecipe(@Nullable Recipe recipe) {
+-        return this.addRecipe(recipe, false);
+-    }
++    boolean addRecipe(@Nullable Recipe recipe);
+ 
+-    // Paper start - method to send recipes immediately
+     /**
+      * Adds a recipe to the crafting manager.
+      *
+-     * @apiNote resendRecipes is ignored for now for stability reasons, recipes will always be updated
+      * @param recipe the recipe to add
+-     * @param resendRecipes true to update the client with the full set of recipes
++     * @param resendRecipes ignored, refer to the deprecation note
+      * @return true if the recipe was added, false if it wasn't for some reason
++     * @throws IllegalStateException if the recipe is already added to the crafting manager
++     * @deprecated use {@link #addRecipe(Recipe)} instead, as Minecraft always resends recipes on a recipe added
+      */
++    @Deprecated(since = "26.3")
+     @Contract("null, _ -> false")
+-    boolean addRecipe(@Nullable Recipe recipe, boolean resendRecipes);
+-    // Paper end - method to send recipes immediately
++    default boolean addRecipe(@Nullable Recipe recipe, boolean resendRecipes) {
++        return this.addRecipe(recipe);
++    }
++
++    /**
++     * Adds multiple recipes to the crafting manager at once, resending recipes only once
++     * after all have been added.
++     *
++     * @apiNote This method differs from {@link #addRecipe} in that it will only resend the recipe book once instead of once per every recipe added
++     * @param recipes the recipes to add
++     * @return true if any recipe was added, false if none were for some reason
++     * @throws IllegalStateException if any of the recipes are already added to the crafting manager
++     * @see #addRecipe
++     */
++    boolean addRecipes(@NotNull Iterable<Recipe> recipes);
+ 
+     /**
+      * Get a list of all recipes for a given item. The stack size is ignored
+@@ -1209,6 +1221,14 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+      */
+     public void resetRecipes();
+ 
++    /**
++     * Checks if the server has a recipe
++     *
++     * @param key NamespacedKey of recipe to check for
++     * @return True if there is a recipe with a matching key
++     */
++    boolean hasRecipe(@NotNull NamespacedKey key);
++
+     /**
+      * Remove a recipe from the server.
+      *
+@@ -1219,11 +1239,8 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+      * @param key NamespacedKey of recipe to remove.
+      * @return True if recipe was removed
+      */
+-    default boolean removeRecipe(@NotNull NamespacedKey key) {
+-        return this.removeRecipe(key, false);
+-    }
++    boolean removeRecipe(@NotNull NamespacedKey key);
+ 
+-    // Paper start - method to resend recipes
+     /**
+      * Remove a recipe from the server.
+      * <p>
+@@ -1232,12 +1249,24 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+      * players).</b>
+      *
+      * @param key NamespacedKey of recipe to remove.
+-     * @param resendRecipes true to update all clients on the new recipe list.
+-     *                      Will only update if a recipe was actually removed
++     * @param resendRecipes ignored, refer to the deprecation note
+      * @return True if recipe was removed
++     * @deprecated use {@link #removeRecipe(NamespacedKey)} instead, as Minecraft always resends recipes on recipe removal
++     */
++    @Deprecated(since = "26.3")
++    default boolean removeRecipe(@NotNull NamespacedKey key, boolean resendRecipes) {
++        return this.removeRecipe(key);
++    }
++
++    /**
++     * Remove multiple recipes from the server.
++     *
++     * @apiNote This method differs from {@link #removeRecipe} in that it will only resend the recipe book once instead of once per every recipe removed
++     * @param keys the NamespacedKeys of the recipes to remove
++     * @return true if any recipe was removed, false if none were for some reason
++     * @see #removeRecipe
+      */
+-    boolean removeRecipe(@NotNull NamespacedKey key, boolean resendRecipes);
+-    // Paper end - method to resend recipes
++    boolean removeRecipes(@NotNull Iterable<NamespacedKey> keys);
+ 
+     /**
+      * Gets a list of command aliases defined in the server properties.
+diff --git a/sinopia/paper-api/src/main/java/org/bukkit/entity/AbstractArrow.java b/sinopia/paper-api/src/main/java/org/bukkit/entity/AbstractArrow.java
+index 9fb484e..8a10bd0 100644
+--- a/sinopia/paper-api/src/main/java/org/bukkit/entity/AbstractArrow.java
++++ b/sinopia/paper-api/src/main/java/org/bukkit/entity/AbstractArrow.java
+@@ -173,8 +173,8 @@ public interface AbstractArrow extends Projectile {
+      *
+      * @return The firing ItemStack
+      */
+-    @Nullable // Paper
+-    public ItemStack getWeapon();
++    @Override
++    @Nullable ItemStack getWeapon();
+ 
+     /**
+      * Sets the ItemStack which fired this arrow.
+diff --git a/sinopia/paper-api/src/main/java/org/bukkit/entity/Entity.java b/sinopia/paper-api/src/main/java/org/bukkit/entity/Entity.java
+index 0037668..70298c2 100644
+--- a/sinopia/paper-api/src/main/java/org/bukkit/entity/Entity.java
++++ b/sinopia/paper-api/src/main/java/org/bukkit/entity/Entity.java
+@@ -673,6 +673,17 @@ public interface Entity extends Metadatable, CommandSender, Nameable, Persistent
+     @Nullable
+     public EntityDamageEvent getLastDamageCause();
+ 
++    /**
++     * Gets the item being used as a weapon by this entity.
++     * <p>
++     * Note: In most cases this is the item in the entity's main hand, but
++     * it may be the offhand if for ex: the entity is using the riptide
++     * enchantment on a trident.
++     *
++     * @return The weapon item
++     */
++    @Nullable ItemStack getWeapon();
++
+     /**
+      * Returns a unique and persistent id for this entity
+      *
+@@ -910,6 +921,27 @@ public interface Entity extends Metadatable, CommandSender, Nameable, Persistent
+      */
+     void setGravity(boolean gravity);
+ 
++    /**
++     * Returns the default acceleration due to gravity (in blocks per tick). Ignores {@link Entity#hasGravity()}.
++     *
++     * @return the default acceleration due to gravity
++     */
++    double getDefaultGravity();
++
++    /**
++     * Returns the acceleration due to gravity (in blocks per tick). If {@link Entity#hasGravity()} is false, returns 0.
++     *
++     * @return the acceleration due to gravity
++     */
++    double getGravity();
++
++    /**
++     * Returns the air drag factor applied to this entity.
++     *
++     * @return the air drag factor
++     */
++    float getAirDrag();
++
+     /**
+      * Gets the period of time (in ticks) before this entity can use a portal.
+      *
+diff --git a/sinopia/paper-api/src/main/java/org/bukkit/entity/HumanEntity.java b/sinopia/paper-api/src/main/java/org/bukkit/entity/HumanEntity.java
+index ef089ad..ca9acb2 100644
+--- a/sinopia/paper-api/src/main/java/org/bukkit/entity/HumanEntity.java
++++ b/sinopia/paper-api/src/main/java/org/bukkit/entity/HumanEntity.java
+@@ -981,7 +981,7 @@ public interface HumanEntity extends LivingEntity, AnimalTamer, InventoryHolder
+     public int getStarvationRate();
+ 
+     /**
+-     * Get the starvation rate (1 health per x ticks) of
++     * Set the starvation rate (1 health per x ticks) of
+      * the HumanEntity. Default is 80.
+      *
+      * @param ticks the amount of ticks to lose 1 health
+diff --git a/sinopia/paper-api/src/main/java/org/bukkit/persistence/PersistentDataContainer.java b/sinopia/paper-api/src/main/java/org/bukkit/persistence/PersistentDataContainer.java
+index 9320c05..73b675f 100644
+--- a/sinopia/paper-api/src/main/java/org/bukkit/persistence/PersistentDataContainer.java
++++ b/sinopia/paper-api/src/main/java/org/bukkit/persistence/PersistentDataContainer.java
+@@ -1,5 +1,7 @@
+ package org.bukkit.persistence;
+ 
++import com.google.common.base.Preconditions;
++import io.papermc.paper.persistence.PersistentDataKey;
+ import org.bukkit.NamespacedKey;
+ import org.jetbrains.annotations.NotNull;
+ 
+@@ -26,11 +28,34 @@ public interface PersistentDataContainer extends io.papermc.paper.persistence.Pe
+      * @throws IllegalArgumentException if the key is null
+      * @throws IllegalArgumentException if the type is null
+      * @throws IllegalArgumentException if the value is null. Removing a tag should
+-     * be done using {@link #remove(NamespacedKey)}
++     * be done using {@link #remove(NamespacedKey)} or {@link #remove(PersistentDataKey)}
+      * @throws IllegalArgumentException if no suitable adapter was found for
+      * the {@link PersistentDataType#getPrimitiveType()}
+      */
+     <P, C> void set(@NotNull NamespacedKey key, @NotNull PersistentDataType<P, C> type, @NotNull C value);
++
++    /**
++     * Stores a metadata value on the {@link PersistentDataHolder} instance.
++     * <p>
++     * This API cannot be used to manipulate minecraft data, as the values will
++     * be stored using your namespace. This method will override any existing
++     * value the {@link PersistentDataHolder} may have stored under the provided
++     * key.
++     *
++     * @param dataKey the data key this value will be stored under
++     * @param value the value to store in the tag
++     * @param <C> the generic type of the object to store
++     *
++     * @throws IllegalArgumentException if the data key is null
++     * @throws IllegalArgumentException if the value is null. Removing a tag should
++     * be done using {@link #remove(NamespacedKey)} or {@link #remove(PersistentDataKey)}
++     * @throws IllegalArgumentException if no suitable adapter was found for
++     * the {@link PersistentDataType#getPrimitiveType()}
++     */
++    default <C> void set(final @NotNull PersistentDataKey<C> dataKey, final @NotNull C value) {
++        Preconditions.checkArgument(dataKey != null, "The data key cannot be null");
++        this.set(dataKey.key(), dataKey.dataType(), value);
++    }
+     // Paper - move to PersistentDataContainerView
+ 
+     /**
+@@ -41,6 +66,17 @@ public interface PersistentDataContainer extends io.papermc.paper.persistence.Pe
+      * @throws IllegalArgumentException if the provided key is null
+      */
+     void remove(@NotNull NamespacedKey key);
++
++    /**
++     * Removes a custom key from the {@link PersistentDataHolder} instance.
++     *
++     * @param dataKey the data key to remove
++     * @throws IllegalArgumentException if the provided data key is null
++     */
++    default void remove(final @NotNull PersistentDataKey<?> dataKey) {
++        Preconditions.checkArgument(dataKey != null, "The data key cannot be null");
++        this.remove(dataKey.key());
++    }
+     // Paper - move to PersistentDataContainerView
+ 
+     // Paper start - byte array serialization
+diff --git a/sinopia/paper-server/build.gradle.kts b/sinopia/paper-server/build.gradle.kts
+index 535cc72..5adeca4 100644
+--- a/sinopia/paper-server/build.gradle.kts
++++ b/sinopia/paper-server/build.gradle.kts
+@@ -158,7 +158,7 @@ dependencies {
+ 
+     // Spark
+     implementation("me.lucko:spark-api:0.1-20240720.200737-2")
+-    implementation("me.lucko:spark-paper:1.10.180")
++    implementation("me.lucko:spark-paper:1.10.191")
+ }
+ 
+ tasks.jar {
+@@ -246,6 +246,12 @@ tasks.test {
+     val provider = objects.newInstance<MockitoAgentProvider>()
+     provider.fileCollection.from(mockitoAgent)
+     jvmArgumentProviders.add(provider)
++    jvmArgs("--enable-native-access=ALL-UNNAMED")
++    systemProperty("joml.nounsafe", true)
++}
++
++tasks.withType<io.papermc.paperweight.tasks.CreateBundlerJar>().configureEach {
++    extraManifestMainAttributes = mapOf("Enable-Native-Access" to "ALL-UNNAMED")
+ }
+ 
+ val generatedDir: java.nio.file.Path = layout.projectDirectory.dir("src/generated/java").asFile.toPath()
+@@ -293,6 +299,7 @@ fun TaskContainer.registerRunTask(
+     systemProperty("io.papermc.paper.suppress.sout.nags", true)
+     systemProperty("paper.maxChatCommandInputSize", 32767)
+     systemProperty("paper.disableMigrationDelay", true)
++    systemProperty("joml.nounsafe", true)
+     systemProperty("paper.updatingMinecraft", providers.gradleProperty("updatingMinecraft").getOrElse("false").toBoolean())
+ 
+     val memoryGb = providers.gradleProperty("paper.runMemoryGb").getOrElse("2")
+diff --git a/sinopia/paper-server/patches/sources/net/minecraft/commands/Commands.java.patch b/sinopia/paper-server/patches/sources/net/minecraft/commands/Commands.java.patch
+index 1835e05..0c28168 100644
+--- a/sinopia/paper-server/patches/sources/net/minecraft/commands/Commands.java.patch
++++ b/sinopia/paper-server/patches/sources/net/minecraft/commands/Commands.java.patch
+@@ -4,7 +4,7 @@
+  import org.slf4j.Logger;
+  
+  public class Commands {
+-+    public interface RestrictedMarker { } // Paper - restricted api
+++    public interface RestrictedMarker { boolean restricted(); } // Paper - restricted api
+      public static final String COMMAND_PREFIX = "/";
+      private static final ThreadLocal<@Nullable ExecutionContext<CommandSourceStack>> CURRENT_EXECUTION_CONTEXT = new ThreadLocal<>();
+      private static final Logger LOGGER = LogUtils.getLogger();
+@@ -12,7 +12,7 @@
+  
+          @Override
+          public boolean isRestricted(final CommandNode<CommandSourceStack> node) {
+-+            if (node.getRequirement() instanceof RestrictedMarker) return true; // Paper - restricted api
+++            if (node.getRequirement() instanceof RestrictedMarker marker) return marker.restricted(); // Paper - restricted api
+              Predicate<CommandSourceStack> requirement = node.getRequirement();
+              return !requirement.test(this.noPermissionSource);
+          }
+diff --git a/sinopia/paper-server/patches/sources/net/minecraft/world/entity/Mob.java.patch b/sinopia/paper-server/patches/sources/net/minecraft/world/entity/Mob.java.patch
+index 1a414ea..f4d6980 100644
+--- a/sinopia/paper-server/patches/sources/net/minecraft/world/entity/Mob.java.patch
++++ b/sinopia/paper-server/patches/sources/net/minecraft/world/entity/Mob.java.patch
+@@ -172,6 +172,15 @@
+              double dropChance = this.dropChances.byEquipment(slot);
+              if (!current.isEmpty() && Math.max(this.random.nextFloat() - 0.1F, 0.0F) < dropChance) {
+                  this.spawnAtLocation(level, current);
++@@ -562,7 +_,7 @@
++     }
++ 
++     protected boolean canShearEquipment(final Player player) {
++-        return !this.isVehicle();
+++        return !this.isVehicle() && !(this instanceof net.minecraft.world.entity.npc.villager.Villager); // Paper - Prevent shearing villager display items
++     }
++ 
++     protected boolean attemptToShearEquipment(final Player player, final InteractionHand hand, final ItemStack heldItem) {
+ @@ -684,27 +_,33 @@
+      @Override
+      public void checkDespawn() {
+diff --git a/sinopia/paper-server/patches/sources/net/minecraft/world/entity/monster/cubemob/SulfurCube.java.patch b/sinopia/paper-server/patches/sources/net/minecraft/world/entity/monster/cubemob/SulfurCube.java.patch
+index 81fe987..c974ea0 100644
+--- a/sinopia/paper-server/patches/sources/net/minecraft/world/entity/monster/cubemob/SulfurCube.java.patch
++++ b/sinopia/paper-server/patches/sources/net/minecraft/world/entity/monster/cubemob/SulfurCube.java.patch
+@@ -1,6 +1,6 @@
+ --- a/net/minecraft/world/entity/monster/cubemob/SulfurCube.java
+ +++ b/net/minecraft/world/entity/monster/cubemob/SulfurCube.java
+-@@ -295,13 +_,34 @@
++@@ -295,13 +_,35 @@
+  
+          if (!this.explosionData.isEmpty()) {
+              if (this.fuse == 0) {
+@@ -30,6 +30,7 @@
+ +                        if (primeEvent.isCancelled()) {
+ +                            this.setFuse(PrimedTnt.NO_FUSE);
+ +                            this.entityData.set(MAX_FUSE, PrimedTnt.NO_FUSE);
+++                            this.setPermanentlyInvulnerable(false);
+ +                            return;
+ +                        }
+ +                        afterEvent.run();
+@@ -37,7 +38,7 @@
+                          level.explode(
+                              this,
+                              Explosion.getDefaultDamageSource(this.level(), this),
+-@@ -309,16 +_,20 @@
++@@ -309,17 +_,27 @@
+                              this.getX(),
+                              this.getY(0.0625),
+                              this.getZ(),
+@@ -59,8 +60,15 @@
+ -                this.discard();
+ +                this.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.EXPLODE); // CraftBukkit - add Bukkit remove cause
+              }
+++        // Paper start - properly reset fuse if explosion data was unset by game
+++        } else if (this.tickCount > 1 && this.isPrimed()) {
+++            this.setFuse(PrimedTnt.NO_FUSE);
+++            this.entityData.set(MAX_FUSE, PrimedTnt.NO_FUSE);
+++            this.setPermanentlyInvulnerable(false);
+++        // Paper end - properly reset fuse if explosion data was unset by game
+          }
+      }
++ 
+ @@ -340,6 +_,12 @@
+              && !this.isPrimed()) {
+              int fuse = this.explosionData.get().fuse();
+diff --git a/sinopia/paper-server/patches/sources/net/minecraft/world/entity/monster/zombie/Zombie.java.patch b/sinopia/paper-server/patches/sources/net/minecraft/world/entity/monster/zombie/Zombie.java.patch
+index de09af0..88abccd 100644
+--- a/sinopia/paper-server/patches/sources/net/minecraft/world/entity/monster/zombie/Zombie.java.patch
++++ b/sinopia/paper-server/patches/sources/net/minecraft/world/entity/monster/zombie/Zombie.java.patch
+@@ -72,7 +72,7 @@
+      }
+  
+      @Override
+-@@ -231,6 +_,12 @@
++@@ -231,6 +_,19 @@
+  
+      @VisibleForTesting
+      public boolean convertVillagerToZombieVillager(final ServerLevel level, final Villager villager) {
+@@ -82,6 +82,13 @@
+ +
+ +    public static @Nullable ZombieVillager convertVillagerToZombieVillager(final ServerLevel level, final Villager villager, final net.minecraft.core.BlockPos blockPosition, boolean silent, org.bukkit.event.entity.EntityTransformEvent.TransformReason transformReason, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason creatureSpawnReason) {
+ +        // CraftBukkit end
+++        // Paper start - Clear display items before conversion
+++        for (net.minecraft.world.entity.ai.behavior.BehaviorControl<? super Villager> behavior : villager.getBrain().getRunningBehaviors()) {
+++            if (behavior instanceof net.minecraft.world.entity.ai.behavior.ShowTradesToPlayer) {
+++                behavior.doStop(level, villager, level.getGameTime());
+++            }
+++        }
+++        // Paper end - Clear display items before conversion
+          ZombieVillager zombieVillager = villager.convertTo(
+              EntityTypes.ZOMBIE_VILLAGER,
+              ConversionParams.single(villager, true, true),
+diff --git a/sinopia/paper-server/patches/sources/net/minecraft/world/item/crafting/RecipeManager.java.patch b/sinopia/paper-server/patches/sources/net/minecraft/world/item/crafting/RecipeManager.java.patch
+index f7d29b5..0e04a09 100644
+--- a/sinopia/paper-server/patches/sources/net/minecraft/world/item/crafting/RecipeManager.java.patch
++++ b/sinopia/paper-server/patches/sources/net/minecraft/world/item/crafting/RecipeManager.java.patch
+@@ -1,6 +1,6 @@
+ --- a/net/minecraft/world/item/crafting/RecipeManager.java
+ +++ b/net/minecraft/world/item/crafting/RecipeManager.java
+-@@ -59,7 +_,26 @@
++@@ -59,7 +_,27 @@
+          this.learnableRecipes = this.recipes.values().stream().filter(r -> !r.value().isSpecial()).collect(Collectors.toUnmodifiableList());
+      }
+  
+@@ -14,6 +14,7 @@
+ +    private FeatureFlagSet enabledFlags;
+ +
+ +    public void finalizeRecipeLoading() {
+++        this.learnableRecipes = this.recipes.values().stream().filter(r -> !r.value().isSpecial()).toList(); // Paper - refresh learnable recipes after runtime recipe changes
+ +        if (this.enabledFlags != null) {
+ +            this.finalizeRecipeLoading(this.enabledFlags);
+ +
+diff --git a/sinopia/paper-server/src/main/java/ca/spottedleaf/moonrise/common/list/ShortList.java b/sinopia/paper-server/src/main/java/ca/spottedleaf/moonrise/common/list/ShortList.java
+index c2fe817..bd85ba8 100644
+--- a/sinopia/paper-server/src/main/java/ca/spottedleaf/moonrise/common/list/ShortList.java
++++ b/sinopia/paper-server/src/main/java/ca/spottedleaf/moonrise/common/list/ShortList.java
+@@ -5,7 +5,7 @@ import java.util.Arrays;
+ 
+ public final class ShortList {
+ 
+-    private final Short2ShortOpenHashMap map = new Short2ShortOpenHashMap();
++    private final Short2ShortOpenHashMap map = new Short2ShortOpenHashMap(0);
+     {
+         this.map.defaultReturnValue(Short.MIN_VALUE);
+     }
+diff --git a/sinopia/paper-server/src/main/java/io/papermc/paper/PaperServerInternalAPIBridge.java b/sinopia/paper-server/src/main/java/io/papermc/paper/PaperServerInternalAPIBridge.java
+index 06c0dbd..592c84a 100644
+--- a/sinopia/paper-server/src/main/java/io/papermc/paper/PaperServerInternalAPIBridge.java
++++ b/sinopia/paper-server/src/main/java/io/papermc/paper/PaperServerInternalAPIBridge.java
+@@ -13,6 +13,8 @@ import io.papermc.paper.datacomponent.item.PaperResolvableProfile;
+ import io.papermc.paper.datacomponent.item.ResolvableProfile;
+ import io.papermc.paper.entity.poi.PaperPoiType;
+ import io.papermc.paper.entity.poi.PoiType;
++import io.papermc.paper.persistence.PaperPersistentDataKey;
++import io.papermc.paper.persistence.PersistentDataKey;
+ import io.papermc.paper.plugin.lifecycle.event.LifecycleEventManager;
+ import io.papermc.paper.plugin.lifecycle.event.PaperLifecycleEventManager;
+ import io.papermc.paper.util.MCUtil;
+@@ -26,6 +28,7 @@ import java.util.Set;
+ import java.util.function.BooleanSupplier;
+ import java.util.function.Function;
+ import java.util.function.Predicate;
++import net.kyori.adventure.key.Key;
+ import net.kyori.adventure.text.Component;
+ import net.kyori.adventure.text.flattener.ComponentFlattener;
+ import net.minecraft.Optionull;
+@@ -69,6 +72,7 @@ import org.bukkit.entity.LivingEntity;
+ import org.bukkit.entity.Pose;
+ import org.bukkit.entity.SpawnCategory;
+ import org.bukkit.inventory.ItemStack;
++import org.bukkit.persistence.PersistentDataType;
+ import org.bukkit.plugin.Plugin;
+ import org.bukkit.plugin.java.JavaPlugin;
+ import org.jspecify.annotations.NullMarked;
+@@ -125,15 +129,15 @@ public class PaperServerInternalAPIBridge implements InternalAPIBridge {
+     }
+ 
+     @Override
+-    public Predicate<CommandSourceStack> restricted(final Predicate<CommandSourceStack> predicate) {
+-        record RestrictedPredicate(Predicate<CommandSourceStack> predicate) implements Predicate<CommandSourceStack>, Commands.RestrictedMarker {
++    public Predicate<CommandSourceStack> restricted(final Predicate<CommandSourceStack> predicate, final boolean restricted) {
++        record RestrictedPredicate(Predicate<CommandSourceStack> predicate, @Override boolean restricted) implements Predicate<CommandSourceStack>, Commands.RestrictedMarker {
+             @Override
+             public boolean test(final CommandSourceStack commandSourceStack) {
+                 return this.predicate.test(commandSourceStack);
+             }
+         }
+ 
+-        return new RestrictedPredicate(predicate);
++        return new RestrictedPredicate(predicate, restricted);
+     }
+ 
+     @Override
+@@ -257,4 +261,14 @@ public class PaperServerInternalAPIBridge implements InternalAPIBridge {
+     public ComponentFlattener componentFlattener() {
+         return PaperAdventure.FLATTENER;
+     }
++
++    @Override
++    public <C> PersistentDataKey<C> createPersistentDataKey(final Key key, final PersistentDataType<?, C> type) {
++        com.google.common.base.Preconditions.checkArgument(key != null, "The key cannot be null");
++        com.google.common.base.Preconditions.checkArgument(type != null, "The type cannot be null");
++        final NamespacedKey namespacedKey = key instanceof NamespacedKey thisKey
++            ? thisKey
++            : new NamespacedKey(key.namespace(), key.value());
++        return new PaperPersistentDataKey<>(namespacedKey, type);
++    }
+ }
+diff --git a/sinopia/paper-server/src/main/java/io/papermc/paper/entity/PaperPlayerPostEffects.java b/sinopia/paper-server/src/main/java/io/papermc/paper/entity/PaperPlayerPostEffects.java
+index 230495a..0ad2e12 100644
+--- a/sinopia/paper-server/src/main/java/io/papermc/paper/entity/PaperPlayerPostEffects.java
++++ b/sinopia/paper-server/src/main/java/io/papermc/paper/entity/PaperPlayerPostEffects.java
+@@ -56,4 +56,9 @@ public final class PaperPlayerPostEffects implements PlayerPostEffects {
+         return this.getHandle().clearPostEffects();
+     }
+ 
++    @Override
++    public void update() {
++        this.getHandle().sendPostEffects();
++    }
++
+ }
+diff --git a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 67047f9..5f33ba9 100644
+--- a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -93,6 +93,7 @@ import net.minecraft.world.item.MapItem;
+ import net.minecraft.world.item.crafting.CraftingInput;
+ import net.minecraft.world.item.crafting.CraftingRecipe;
+ import net.minecraft.world.item.crafting.RecipeHolder;
++import net.minecraft.world.item.crafting.RecipeManager;
+ import net.minecraft.world.item.crafting.RecipeType;
+ import net.minecraft.world.item.crafting.RepairItemRecipe;
+ import net.minecraft.world.level.CustomSpawner;
+@@ -162,22 +163,11 @@ import org.bukkit.craftbukkit.event.CraftEventFactory;
+ import org.bukkit.craftbukkit.generator.CraftWorldInfo;
+ import org.bukkit.craftbukkit.generator.OldCraftChunkData;
+ import org.bukkit.craftbukkit.help.SimpleHelpMap;
+-import org.bukkit.craftbukkit.inventory.CraftBlastingRecipe;
+-import org.bukkit.craftbukkit.inventory.CraftBrewingRecipe;
+-import org.bukkit.craftbukkit.inventory.CraftCampfireRecipe;
+-import org.bukkit.craftbukkit.inventory.CraftFurnaceRecipe;
+ import org.bukkit.craftbukkit.inventory.CraftItemCraftResult;
+ import org.bukkit.craftbukkit.inventory.CraftItemFactory;
+ import org.bukkit.craftbukkit.inventory.CraftItemStack;
+ import org.bukkit.craftbukkit.inventory.CraftMerchantCustom;
+ import org.bukkit.craftbukkit.inventory.CraftRecipe;
+-import org.bukkit.craftbukkit.inventory.CraftShapedRecipe;
+-import org.bukkit.craftbukkit.inventory.CraftShapelessRecipe;
+-import org.bukkit.craftbukkit.inventory.CraftSmithingTransformRecipe;
+-import org.bukkit.craftbukkit.inventory.CraftSmithingTrimRecipe;
+-import org.bukkit.craftbukkit.inventory.CraftSmokingRecipe;
+-import org.bukkit.craftbukkit.inventory.CraftStonecuttingRecipe;
+-import org.bukkit.craftbukkit.inventory.CraftTransmuteRecipe;
+ import org.bukkit.craftbukkit.inventory.RecipeIterator;
+ import org.bukkit.craftbukkit.inventory.util.CraftInventoryCreator;
+ import org.bukkit.craftbukkit.map.CraftMapColorCache;
+@@ -218,11 +208,6 @@ import org.bukkit.generator.BiomeProvider;
+ import org.bukkit.generator.ChunkGenerator;
+ import org.bukkit.generator.WorldInfo;
+ import org.bukkit.help.HelpMap;
+-import org.bukkit.inventory.BlastingRecipe;
+-import org.bukkit.inventory.BrewingRecipe;
+-import org.bukkit.inventory.CampfireRecipe;
+-import org.bukkit.inventory.ComplexRecipe;
+-import org.bukkit.inventory.FurnaceRecipe;
+ import org.bukkit.inventory.Inventory;
+ import org.bukkit.inventory.InventoryHolder;
+ import org.bukkit.inventory.InventoryView;
+@@ -230,13 +215,6 @@ import org.bukkit.inventory.ItemCraftResult;
+ import org.bukkit.inventory.ItemStack;
+ import org.bukkit.inventory.Merchant;
+ import org.bukkit.inventory.Recipe;
+-import org.bukkit.inventory.ShapedRecipe;
+-import org.bukkit.inventory.ShapelessRecipe;
+-import org.bukkit.inventory.SmithingTransformRecipe;
+-import org.bukkit.inventory.SmithingTrimRecipe;
+-import org.bukkit.inventory.SmokingRecipe;
+-import org.bukkit.inventory.StonecuttingRecipe;
+-import org.bukkit.inventory.TransmuteRecipe;
+ import org.bukkit.loot.LootTable;
+ import org.bukkit.map.MapPalette;
+ import org.bukkit.map.MapView;
+@@ -1445,37 +1423,36 @@ public final class CraftServer implements Server {
+     }
+ 
+     @Override
+-    public boolean addRecipe(Recipe recipe, boolean resendRecipes) {
+-        CraftRecipe toAdd;
+-        if (recipe instanceof CraftRecipe) {
+-            toAdd = (CraftRecipe) recipe;
+-        } else {
+-            toAdd = switch (recipe) {
+-                case final ShapedRecipe r -> CraftShapedRecipe.fromBukkitRecipe(r);
+-                case final ShapelessRecipe r -> CraftShapelessRecipe.fromBukkitRecipe(r);
+-                case final FurnaceRecipe r -> CraftFurnaceRecipe.fromBukkitRecipe(r);
+-                case final BlastingRecipe r -> CraftBlastingRecipe.fromBukkitRecipe(r);
+-                case final CampfireRecipe r -> CraftCampfireRecipe.fromBukkitRecipe(r);
+-                case final SmokingRecipe r -> CraftSmokingRecipe.fromBukkitRecipe(r);
+-                case final StonecuttingRecipe r -> CraftStonecuttingRecipe.fromBukkitRecipe(r);
+-                case final SmithingTransformRecipe r -> CraftSmithingTransformRecipe.fromBukkitRecipe(r);
+-                case final SmithingTrimRecipe r -> CraftSmithingTrimRecipe.fromBukkitRecipe(r);
+-                case final TransmuteRecipe r -> CraftTransmuteRecipe.fromBukkitRecipe(r);
+-                case final BrewingRecipe r -> CraftBrewingRecipe.fromBukkitRecipe(r);
+-                case final ComplexRecipe _ -> throw new UnsupportedOperationException("Cannot add custom complex recipe");
+-                case null, default -> null;
+-            };
+-            if (toAdd == null) return false;
+-        }
+-        toAdd.addToRecipeManager();
+-        // Paper start - API for updating recipes on clients
+-        if (true || resendRecipes) { // Always needs to be resent now... TODO
+-            this.playerList.reloadRecipes();
+-        }
+-        // Paper end - API for updating recipes on clients
++    public boolean addRecipe(Recipe recipe) {
++        final CraftRecipe craftRecipe = CraftRecipe.fromBukkitRecipe(recipe);
++        if (craftRecipe == null) {
++            return false;
++        }
++
++        craftRecipe.addToRecipeManager();
+         return true;
+     }
+ 
++    @Override
++    public boolean addRecipes(Iterable<Recipe> recipes) {
++        org.spigotmc.AsyncCatcher.catchOp("Recipes Add");
++        Preconditions.checkArgument(recipes != null, "recipes cannot be null");
++        boolean anyAdded = false;
++        final RecipeManager recipeManager = this.getServer().getRecipeManager();
++        for (Recipe recipe : recipes) {
++            final CraftRecipe craftRecipe = CraftRecipe.fromBukkitRecipe(recipe);
++            if (craftRecipe != null) {
++                recipeManager.recipes.addRecipe(craftRecipe.toMinecraftRecipe());
++                anyAdded = true;
++            }
++        }
++
++        if (anyAdded) {
++            recipeManager.finalizeRecipeLoading();
++        }
++        return anyAdded;
++    }
++
+     @Override
+     public List<Recipe> getRecipesFor(ItemStack result) {
+         Preconditions.checkArgument(result != null, "ItemStack cannot be null");
+@@ -1645,17 +1622,34 @@ public final class CraftServer implements Server {
+     }
+ 
+     @Override
+-    public boolean removeRecipe(NamespacedKey recipeKey, boolean resendRecipes) {
+-        Preconditions.checkArgument(recipeKey != null, "recipeKey == null");
++    public boolean hasRecipe(NamespacedKey recipeKey) {
++        Preconditions.checkArgument(recipeKey != null, "recipeKey cannot be null");
++        final ResourceKey<net.minecraft.world.item.crafting.Recipe<?>> id = CraftNamespacedKey.toResourceKey(Registries.RECIPE, recipeKey);
++        return getServer().getRecipeManager().byKey(id).isPresent();
++    }
+ 
+-        // Paper start - resend recipes on successful removal
++    @Override
++    public boolean removeRecipe(NamespacedKey recipeKey) {
++        Preconditions.checkArgument(recipeKey != null, "recipeKey cannot be null");
+         final ResourceKey<net.minecraft.world.item.crafting.Recipe<?>> id = CraftNamespacedKey.toResourceKey(Registries.RECIPE, recipeKey);
+-        final boolean removed = this.getServer().getRecipeManager().removeRecipe(id);
+-        if (removed/* && resendRecipes*/) { // TODO Always need to resend them rn - deprecate this method?
+-            this.playerList.reloadRecipes();
++        return this.getServer().getRecipeManager().removeRecipe(id);
++    }
++
++    @Override
++    public boolean removeRecipes(Iterable<NamespacedKey> recipeKeys) {
++        Preconditions.checkArgument(recipeKeys != null, "recipeKeys cannot be null");
++        boolean anyRemoved = false;
++        final RecipeManager recipeManager = this.getServer().getRecipeManager();
++        for (NamespacedKey recipeKey : recipeKeys) {
++            final ResourceKey<net.minecraft.world.item.crafting.Recipe<?>> id = CraftNamespacedKey.toResourceKey(Registries.RECIPE, recipeKey);
++            if (recipeManager.recipes.removeRecipe(id)) {
++                anyRemoved = true;
++            }
++        }
++        if (anyRemoved) {
++            recipeManager.finalizeRecipeLoading();
+         }
+-        return removed;
+-        // Paper end - resend recipes on successful removal
++        return anyRemoved;
+     }
+ 
+     @Override
+diff --git a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/Main.java b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/Main.java
+index 8ce8de8..eb0ac87 100644
+--- a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/Main.java
++++ b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/Main.java
+@@ -23,6 +23,11 @@ public class Main {
+ 
+     public static void main(String[] args) {
+         if (System.getProperty("jdk.nio.maxCachedBufferSize") == null) System.setProperty("jdk.nio.maxCachedBufferSize", "262144"); // Paper - cap per-thread NIO cache size; https://www.evanjones.ca/java-bytebuffer-leak.html
++
++        if (System.getProperty("joml.nounsafe") == null) {
++            System.setProperty("joml.nounsafe", "true");
++        }
++
+         OptionParser parser = new OptionParser() {
+             {
+                 this.acceptsAll(asList("?", "help"), "Show the help");
+diff --git a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/block/CraftCreatureSpawner.java b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/block/CraftCreatureSpawner.java
+index b1544f5..261fb93 100644
+--- a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/block/CraftCreatureSpawner.java
++++ b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/block/CraftCreatureSpawner.java
+@@ -172,7 +172,7 @@ public class CraftCreatureSpawner extends CraftBlockEntityState<SpawnerBlockEnti
+         InclusiveRange<Integer> blockLight = rule.blockLightLimit();
+         InclusiveRange<Integer> skyLight = rule.skyLightLimit();
+ 
+-        return new SpawnRule(blockLight.maxInclusive(), blockLight.maxInclusive(), skyLight.minInclusive(), skyLight.maxInclusive());
++        return new SpawnRule(blockLight.minInclusive(), blockLight.maxInclusive(), skyLight.minInclusive(), skyLight.maxInclusive());
+     }
+ 
+     @Override
+diff --git a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftAbstractArrow.java b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftAbstractArrow.java
+index cbcb8a8..b7fa7bb 100644
+--- a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftAbstractArrow.java
++++ b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftAbstractArrow.java
+@@ -133,12 +133,6 @@ public abstract class CraftAbstractArrow extends AbstractProjectile implements A
+     public void setShotFromCrossbow(boolean shotFromCrossbow) {
+     }
+ 
+-    @Override
+-    public ItemStack getWeapon() {
+-        if (this.getHandle().getWeaponItem() == null) return null; // Paper - fix NPE
+-        return CraftItemStack.asBukkitCopy(this.getHandle().getWeaponItem());
+-    }
+-
+     @Override
+     public void setWeapon(ItemStack item) {
+         Preconditions.checkArgument(item != null, "ItemStack cannot be null");
+diff --git a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+index 92ba809..6333623 100644
+--- a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
++++ b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+@@ -53,6 +53,7 @@ import org.bukkit.World;
+ import org.bukkit.block.BlockFace;
+ import org.bukkit.block.PistonMoveReaction;
+ import org.bukkit.craftbukkit.CraftServer;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
+ import org.bukkit.craftbukkit.CraftSound;
+ import org.bukkit.craftbukkit.CraftWorld;
+ import org.bukkit.craftbukkit.block.CraftBlock;
+@@ -591,6 +592,12 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+         return this.lastDamageEvent;
+     }
+ 
++    @Override
++    public @Nullable ItemStack getWeapon() {
++        net.minecraft.world.item.ItemStack stack = this.getHandle().getWeaponItem();
++        return stack == null ? null : CraftItemStack.asBukkitCopy(stack);
++    }
++
+     @Override
+     public UUID getUniqueId() {
+         return this.entity.getUUID();
+@@ -931,6 +938,21 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+         this.getHandle().setNoGravity(!gravity);
+     }
+ 
++    @Override
++    public double getDefaultGravity() {
++        return this.getHandle().getDefaultGravity();
++    }
++
++    @Override
++    public double getGravity() {
++        return this.getHandle().getGravity();
++    }
++
++    @Override
++    public float getAirDrag() {
++        return this.getHandle().getAirDrag();
++    }
++
+     @Override
+     public int getPortalCooldown() {
+         return this.getHandle().getPortalCooldown();
+diff --git a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftBlastingRecipe.java b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftBlastingRecipe.java
+index 3e39a51..3b38056 100644
+--- a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftBlastingRecipe.java
++++ b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftBlastingRecipe.java
+@@ -25,15 +25,14 @@ public class CraftBlastingRecipe extends BlastingRecipe implements CraftRecipe {
+     }
+ 
+     @Override
+-    public void addToRecipeManager() {
+-        net.minecraft.world.item.crafting.BlastingRecipe recipe = new net.minecraft.world.item.crafting.BlastingRecipe(
++    public RecipeHolder<?> toMinecraftRecipe() {
++        return new RecipeHolder<>(CraftNamespacedKey.toResourceKey(Registries.RECIPE, this.getKey()), new net.minecraft.world.item.crafting.BlastingRecipe(
+             new net.minecraft.world.item.crafting.Recipe.CommonInfo(true),
+             new net.minecraft.world.item.crafting.AbstractCookingRecipe.CookingBookInfo(CraftRecipe.getCategory(this.getCategory()), this.getGroup()),
+             CraftRecipe.toIngredient(this.getInputChoice(), true),
+             CraftItemStack.asTemplate(this.getResult()),
+             this.getExperience(),
+             this.getCookingTime()
+-        );
+-        MinecraftServer.getServer().getRecipeManager().addRecipe(new RecipeHolder<>(CraftNamespacedKey.toResourceKey(Registries.RECIPE, this.getKey()), recipe));
++        ));
+     }
+ }
+diff --git a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftBrewingRecipe.java b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftBrewingRecipe.java
+index 025a3c5..44714bc 100644
+--- a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftBrewingRecipe.java
++++ b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftBrewingRecipe.java
+@@ -2,7 +2,6 @@ package org.bukkit.craftbukkit.inventory;
+ 
+ import java.util.Optional;
+ import net.minecraft.core.registries.Registries;
+-import net.minecraft.server.MinecraftServer;
+ import net.minecraft.world.item.crafting.PotionIngredient;
+ import net.minecraft.world.item.crafting.RecipeHolder;
+ import org.bukkit.NamespacedKey;
+@@ -26,12 +25,11 @@ public class CraftBrewingRecipe extends BrewingRecipe implements CraftRecipe {
+     }
+ 
+     @Override
+-    public void addToRecipeManager() {
+-        final net.minecraft.world.item.crafting.BrewingRecipe internalRecipe = new net.minecraft.world.item.crafting.BrewingRecipe(
++    public RecipeHolder<?> toMinecraftRecipe() {
++        return new RecipeHolder<>(CraftNamespacedKey.toResourceKey(Registries.RECIPE, this.getKey()), new net.minecraft.world.item.crafting.BrewingRecipe(
+             new PotionIngredient(CraftRecipe.toIngredient(this.getInput(), false), Optional.empty()),
+             new PotionIngredient(CraftRecipe.toIngredient(this.getIngredient(), false), Optional.empty()),
+             CraftItemStack.asTemplate(this.getResult())
+-        );
+-        MinecraftServer.getServer().getRecipeManager().addRecipe(new RecipeHolder<>(CraftNamespacedKey.toResourceKey(Registries.RECIPE, this.getKey()), internalRecipe));
++        ));
+     }
+ }
+diff --git a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftCampfireRecipe.java b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftCampfireRecipe.java
+index 00a6575..254e57e 100644
+--- a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftCampfireRecipe.java
++++ b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftCampfireRecipe.java
+@@ -2,7 +2,6 @@ package org.bukkit.craftbukkit.inventory;
+ 
+ import net.minecraft.core.registries.Registries;
+ import net.minecraft.server.MinecraftServer;
+-import net.minecraft.world.item.crafting.CampfireCookingRecipe;
+ import net.minecraft.world.item.crafting.RecipeHolder;
+ import org.bukkit.NamespacedKey;
+ import org.bukkit.craftbukkit.util.CraftNamespacedKey;
+@@ -26,15 +25,14 @@ public class CraftCampfireRecipe extends CampfireRecipe implements CraftRecipe {
+     }
+ 
+     @Override
+-    public void addToRecipeManager() {
+-        CampfireCookingRecipe recipe = new net.minecraft.world.item.crafting.CampfireCookingRecipe(
++    public RecipeHolder<?> toMinecraftRecipe() {
++        return new RecipeHolder<>(CraftNamespacedKey.toResourceKey(Registries.RECIPE, this.getKey()), new net.minecraft.world.item.crafting.CampfireCookingRecipe(
+             new net.minecraft.world.item.crafting.Recipe.CommonInfo(true),
+             new net.minecraft.world.item.crafting.AbstractCookingRecipe.CookingBookInfo(CraftRecipe.getCategory(this.getCategory()), this.getGroup()),
+             CraftRecipe.toIngredient(this.getInputChoice(), true),
+             CraftItemStack.asTemplate(this.getResult()),
+             this.getExperience(),
+             this.getCookingTime()
+-        );
+-        MinecraftServer.getServer().getRecipeManager().addRecipe(new RecipeHolder<>(CraftNamespacedKey.toResourceKey(Registries.RECIPE, this.getKey()), recipe));
++        ));
+     }
+ }
+diff --git a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftComplexRecipe.java b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftComplexRecipe.java
+index 0040ae7..ce194c7 100644
+--- a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftComplexRecipe.java
++++ b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftComplexRecipe.java
+@@ -19,7 +19,7 @@ public class CraftComplexRecipe extends CraftingRecipe implements CraftRecipe, C
+     }
+ 
+     @Override
+-    public void addToRecipeManager() {
+-        MinecraftServer.getServer().getRecipeManager().addRecipe(new RecipeHolder<>(CraftNamespacedKey.toResourceKey(Registries.RECIPE, this.getKey()), this.recipe));
++    public RecipeHolder<?> toMinecraftRecipe() {
++        return new RecipeHolder<>(CraftNamespacedKey.toResourceKey(Registries.RECIPE, this.getKey()), recipe);
+     }
+ }
+diff --git a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftFurnaceRecipe.java b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftFurnaceRecipe.java
+index 658af5f..912a869 100644
+--- a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftFurnaceRecipe.java
++++ b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftFurnaceRecipe.java
+@@ -3,7 +3,6 @@ package org.bukkit.craftbukkit.inventory;
+ import net.minecraft.core.registries.Registries;
+ import net.minecraft.server.MinecraftServer;
+ import net.minecraft.world.item.crafting.RecipeHolder;
+-import net.minecraft.world.item.crafting.SmeltingRecipe;
+ import org.bukkit.NamespacedKey;
+ import org.bukkit.craftbukkit.util.CraftNamespacedKey;
+ import org.bukkit.inventory.FurnaceRecipe;
+@@ -26,15 +25,14 @@ public class CraftFurnaceRecipe extends FurnaceRecipe implements CraftRecipe {
+     }
+ 
+     @Override
+-    public void addToRecipeManager() {
+-        SmeltingRecipe recipe = new net.minecraft.world.item.crafting.SmeltingRecipe(
++    public RecipeHolder<?> toMinecraftRecipe() {
++        return new RecipeHolder<>(CraftNamespacedKey.toResourceKey(Registries.RECIPE, this.getKey()), new net.minecraft.world.item.crafting.SmeltingRecipe(
+             new net.minecraft.world.item.crafting.Recipe.CommonInfo(true),
+             new net.minecraft.world.item.crafting.AbstractCookingRecipe.CookingBookInfo(CraftRecipe.getCategory(this.getCategory()), this.getGroup()),
+             CraftRecipe.toIngredient(this.getInputChoice(), true),
+             CraftItemStack.asTemplate(this.getResult()),
+             this.getExperience(),
+             this.getCookingTime()
+-        );
+-        MinecraftServer.getServer().getRecipeManager().addRecipe(new RecipeHolder<>(CraftNamespacedKey.toResourceKey(Registries.RECIPE, this.getKey()), recipe));
++        ));
+     }
+ }
+diff --git a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftRecipe.java b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftRecipe.java
+index 83df984..67bd30d 100644
+--- a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftRecipe.java
++++ b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftRecipe.java
+@@ -11,17 +11,35 @@ import java.util.List;
+ import java.util.Optional;
+ import java.util.function.Predicate;
+ import net.minecraft.core.registries.Registries;
++import net.minecraft.server.MinecraftServer;
+ import net.minecraft.world.item.crafting.Ingredient;
++import net.minecraft.world.item.crafting.RecipeHolder;
++import org.bukkit.inventory.BlastingRecipe;
++import org.bukkit.inventory.BrewingRecipe;
++import org.bukkit.inventory.CampfireRecipe;
++import org.bukkit.inventory.ComplexRecipe;
++import org.bukkit.inventory.FurnaceRecipe;
+ import org.bukkit.inventory.ItemType;
+ import org.bukkit.inventory.Recipe;
+ import org.bukkit.inventory.RecipeChoice;
++import org.bukkit.inventory.ShapedRecipe;
++import org.bukkit.inventory.ShapelessRecipe;
++import org.bukkit.inventory.SmithingTransformRecipe;
++import org.bukkit.inventory.SmithingTrimRecipe;
++import org.bukkit.inventory.SmokingRecipe;
++import org.bukkit.inventory.StonecuttingRecipe;
++import org.bukkit.inventory.TransmuteRecipe;
+ import org.bukkit.inventory.recipe.CookingBookCategory;
+ import org.bukkit.inventory.recipe.CraftingBookCategory;
+ import org.jspecify.annotations.Nullable;
+ 
+ public interface CraftRecipe extends Recipe {
+ 
+-    void addToRecipeManager();
++    RecipeHolder<?> toMinecraftRecipe();
++
++    default void addToRecipeManager() {
++        MinecraftServer.getServer().getRecipeManager().addRecipe(this.toMinecraftRecipe());
++    }
+ 
+     static Optional<Ingredient> toPossibleIngredient(@Nullable RecipeChoice bukkit, boolean requireNotEmpty) {
+         return (bukkit == null || bukkit == RecipeChoice.empty()) ? Optional.empty() : Optional.of(toIngredient(bukkit, requireNotEmpty)); // Paper - support "empty" choices
+@@ -102,4 +120,23 @@ public interface CraftRecipe extends Recipe {
+     static CookingBookCategory getCategory(net.minecraft.world.item.crafting.CookingBookCategory internal) {
+         return CookingBookCategory.valueOf(internal.name());
+     }
++
++    static CraftRecipe fromBukkitRecipe(Recipe recipe) {
++        return switch (recipe) {
++            case CraftRecipe craftRecipe -> craftRecipe;
++            case ShapedRecipe shapedRecipe -> CraftShapedRecipe.fromBukkitRecipe(shapedRecipe);
++            case ShapelessRecipe shapelessRecipe -> CraftShapelessRecipe.fromBukkitRecipe(shapelessRecipe);
++            case FurnaceRecipe furnaceRecipe -> CraftFurnaceRecipe.fromBukkitRecipe(furnaceRecipe);
++            case BlastingRecipe blastingRecipe -> CraftBlastingRecipe.fromBukkitRecipe(blastingRecipe);
++            case CampfireRecipe campfireRecipe -> CraftCampfireRecipe.fromBukkitRecipe(campfireRecipe);
++            case SmokingRecipe smokingRecipe -> CraftSmokingRecipe.fromBukkitRecipe(smokingRecipe);
++            case StonecuttingRecipe stonecuttingRecipe -> CraftStonecuttingRecipe.fromBukkitRecipe(stonecuttingRecipe);
++            case SmithingTransformRecipe smithingTransformRecipe -> CraftSmithingTransformRecipe.fromBukkitRecipe(smithingTransformRecipe);
++            case SmithingTrimRecipe smithingTrimRecipe -> CraftSmithingTrimRecipe.fromBukkitRecipe(smithingTrimRecipe);
++            case TransmuteRecipe transmuteRecipe -> CraftTransmuteRecipe.fromBukkitRecipe(transmuteRecipe);
++            case BrewingRecipe brewingRecipe -> CraftBrewingRecipe.fromBukkitRecipe(brewingRecipe);
++            case ComplexRecipe ignored -> throw new UnsupportedOperationException("Cannot convert custom complex recipe");
++            default -> null;
++        };
++    }
+ }
+diff --git a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftShapedRecipe.java b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftShapedRecipe.java
+index bc509eb..4a21100 100644
+--- a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftShapedRecipe.java
++++ b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftShapedRecipe.java
+@@ -47,20 +47,19 @@ public class CraftShapedRecipe extends ShapedRecipe implements CraftRecipe {
+     }
+ 
+     @Override
+-    public void addToRecipeManager() {
++    public RecipeHolder<?> toMinecraftRecipe() {
+         Map<Character, org.bukkit.inventory.RecipeChoice> choices = this.getChoiceMap();
+         String[] shape = CraftShapedRecipe.replaceUndefinedIngredientsWithEmpty(this.getShape(), choices);
+         choices.values().removeIf(Objects::isNull);
+         Map<Character, Ingredient> ingredients = Maps.transformValues(choices, (bukkit) -> CraftRecipe.toIngredient(bukkit, false));
+         ShapedRecipePattern pattern = ShapedRecipePattern.of(ingredients, shape);
+ 
+-        net.minecraft.world.item.crafting.ShapedRecipe recipe = new net.minecraft.world.item.crafting.ShapedRecipe(
++        return new RecipeHolder<>(CraftNamespacedKey.toResourceKey(Registries.RECIPE, this.getKey()), new net.minecraft.world.item.crafting.ShapedRecipe(
+             new net.minecraft.world.item.crafting.Recipe.CommonInfo(true),
+             new net.minecraft.world.item.crafting.CraftingRecipe.CraftingBookInfo(CraftRecipe.getCategory(this.getCategory()), this.getGroup()),
+             pattern,
+             CraftItemStack.asTemplate(this.getResult())
+-        );
+-        MinecraftServer.getServer().getRecipeManager().addRecipe(new RecipeHolder<>(CraftNamespacedKey.toResourceKey(Registries.RECIPE, this.getKey()), recipe));
++        ));
+     }
+ 
+     private static String[] replaceUndefinedIngredientsWithEmpty(String[] shape, Map<Character, org.bukkit.inventory.RecipeChoice> ingredients) {
+diff --git a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftShapelessRecipe.java b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftShapelessRecipe.java
+index 6a7bb22..a70ef66 100644
+--- a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftShapelessRecipe.java
++++ b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftShapelessRecipe.java
+@@ -39,19 +39,18 @@ public class CraftShapelessRecipe extends ShapelessRecipe implements CraftRecipe
+     }
+ 
+     @Override
+-    public void addToRecipeManager() {
++    public RecipeHolder<?> toMinecraftRecipe() {
+         List<org.bukkit.inventory.RecipeChoice> choices = this.getChoiceList();
+         List<Ingredient> ingredients = new ArrayList<>(choices.size());
+         for (org.bukkit.inventory.RecipeChoice choice : choices) {
+             ingredients.add(CraftRecipe.toIngredient(choice, true));
+         }
+ 
+-        net.minecraft.world.item.crafting.ShapelessRecipe recipe = new net.minecraft.world.item.crafting.ShapelessRecipe(
++        return new RecipeHolder<>(CraftNamespacedKey.toResourceKey(Registries.RECIPE, this.getKey()), new net.minecraft.world.item.crafting.ShapelessRecipe(
+             new net.minecraft.world.item.crafting.Recipe.CommonInfo(true),
+             new net.minecraft.world.item.crafting.CraftingRecipe.CraftingBookInfo(CraftRecipe.getCategory(this.getCategory()), this.getGroup()),
+             CraftItemStack.asTemplate(this.getResult()),
+             ingredients
+-        );
+-        MinecraftServer.getServer().getRecipeManager().addRecipe(new RecipeHolder<>(CraftNamespacedKey.toResourceKey(Registries.RECIPE, this.getKey()), recipe));
++        ));
+     }
+ }
+diff --git a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftSmithingTransformRecipe.java b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftSmithingTransformRecipe.java
+index c85e357..ad7caae 100644
+--- a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftSmithingTransformRecipe.java
++++ b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftSmithingTransformRecipe.java
+@@ -27,15 +27,14 @@ public class CraftSmithingTransformRecipe extends SmithingTransformRecipe implem
+     }
+ 
+     @Override
+-    public void addToRecipeManager() {
+-        final net.minecraft.world.item.crafting.SmithingTransformRecipe recipe = new net.minecraft.world.item.crafting.SmithingTransformRecipe(
++    public RecipeHolder<?> toMinecraftRecipe() {
++        return new RecipeHolder<>(CraftNamespacedKey.toResourceKey(Registries.RECIPE, this.getKey()), new net.minecraft.world.item.crafting.SmithingTransformRecipe(
+             new net.minecraft.world.item.crafting.Recipe.CommonInfo(true),
+             CraftRecipe.toPossibleIngredient(this.getTemplate(), false),
+             CraftRecipe.toIngredient(this.getBase(), false),
+             CraftRecipe.toPossibleIngredient(this.getAddition(), false),
+             CraftItemStack.asTemplate(this.getResult()),
+             this.willCopyDataComponents()
+-        );
+-        MinecraftServer.getServer().getRecipeManager().addRecipe(new RecipeHolder<>(CraftNamespacedKey.toResourceKey(Registries.RECIPE, this.getKey()), recipe)); // Paper - Option to prevent data components copy
++        ));
+     }
+ }
+diff --git a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftSmithingTrimRecipe.java b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftSmithingTrimRecipe.java
+index 53f7458..04adb26 100644
+--- a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftSmithingTrimRecipe.java
++++ b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftSmithingTrimRecipe.java
+@@ -29,15 +29,14 @@ public class CraftSmithingTrimRecipe extends SmithingTrimRecipe implements Craft
+     }
+ 
+     @Override
+-    public void addToRecipeManager() {
+-        final net.minecraft.world.item.crafting.SmithingTrimRecipe recipe = new net.minecraft.world.item.crafting.SmithingTrimRecipe(
++    public RecipeHolder<?> toMinecraftRecipe() {
++        return new RecipeHolder<>(CraftNamespacedKey.toResourceKey(Registries.RECIPE, this.getKey()), new net.minecraft.world.item.crafting.SmithingTrimRecipe(
+             new net.minecraft.world.item.crafting.Recipe.CommonInfo(true),
+             CraftRecipe.toIngredient(this.getTemplate(), false),
+             CraftRecipe.toIngredient(this.getBase(), false),
+             CraftRecipe.toIngredient(this.getAddition(), false),
+             CraftTrimPattern.bukkitToMinecraftHolder(this.getTrimPattern()),
+             this.willCopyDataComponents()
+-        );
+-        MinecraftServer.getServer().getRecipeManager().addRecipe(new RecipeHolder<>(CraftNamespacedKey.toResourceKey(Registries.RECIPE, this.getKey()), recipe));
++        ));
+     }
+ }
+diff --git a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftSmokingRecipe.java b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftSmokingRecipe.java
+index 25b5c01..4bcd14d 100644
+--- a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftSmokingRecipe.java
++++ b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftSmokingRecipe.java
+@@ -25,15 +25,14 @@ public class CraftSmokingRecipe extends SmokingRecipe implements CraftRecipe {
+     }
+ 
+     @Override
+-    public void addToRecipeManager() {
+-        net.minecraft.world.item.crafting.SmokingRecipe recipe = new net.minecraft.world.item.crafting.SmokingRecipe(
++    public RecipeHolder<?> toMinecraftRecipe() {
++        return new RecipeHolder<>(CraftNamespacedKey.toResourceKey(Registries.RECIPE, this.getKey()), new net.minecraft.world.item.crafting.SmokingRecipe(
+             new net.minecraft.world.item.crafting.Recipe.CommonInfo(true),
+             new net.minecraft.world.item.crafting.AbstractCookingRecipe.CookingBookInfo(CraftRecipe.getCategory(this.getCategory()), this.getGroup()),
+             CraftRecipe.toIngredient(this.getInputChoice(), true),
+             CraftItemStack.asTemplate(this.getResult()),
+             this.getExperience(),
+             this.getCookingTime()
+-        );
+-        MinecraftServer.getServer().getRecipeManager().addRecipe(new RecipeHolder<>(CraftNamespacedKey.toResourceKey(Registries.RECIPE, this.getKey()), recipe));
++        ));
+     }
+ }
+diff --git a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftStonecuttingRecipe.java b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftStonecuttingRecipe.java
+index 4edce3a..048b9cd 100644
+--- a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftStonecuttingRecipe.java
++++ b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftStonecuttingRecipe.java
+@@ -23,12 +23,11 @@ public class CraftStonecuttingRecipe extends StonecuttingRecipe implements Craft
+     }
+ 
+     @Override
+-    public void addToRecipeManager() {
+-        StonecutterRecipe recipe = new net.minecraft.world.item.crafting.StonecutterRecipe(
++    public RecipeHolder<?> toMinecraftRecipe() {
++        return new RecipeHolder<>(CraftNamespacedKey.toResourceKey(Registries.RECIPE, this.getKey()), new net.minecraft.world.item.crafting.StonecutterRecipe(
+             new net.minecraft.world.item.crafting.Recipe.CommonInfo(true),
+             CraftRecipe.toIngredient(this.getInputChoice(), true),
+             CraftItemStack.asTemplate(this.getResult())
+-        );
+-        MinecraftServer.getServer().getRecipeManager().addRecipe(new RecipeHolder<>(CraftNamespacedKey.toResourceKey(Registries.RECIPE, this.getKey()), recipe));
++        ));
+     }
+ }
+diff --git a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftTransmuteRecipe.java b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftTransmuteRecipe.java
+index 446f02e..9af33a2 100644
+--- a/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftTransmuteRecipe.java
++++ b/sinopia/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftTransmuteRecipe.java
+@@ -27,8 +27,8 @@ public class CraftTransmuteRecipe extends TransmuteRecipe implements CraftRecipe
+     }
+ 
+     @Override
+-    public void addToRecipeManager() {
+-        net.minecraft.world.item.crafting.TransmuteRecipe recipe = new net.minecraft.world.item.crafting.TransmuteRecipe(
++    public RecipeHolder<?> toMinecraftRecipe() {
++        return new RecipeHolder<>(CraftNamespacedKey.toResourceKey(Registries.RECIPE, this.getKey()), new net.minecraft.world.item.crafting.TransmuteRecipe(
+             new net.minecraft.world.item.crafting.Recipe.CommonInfo(true),
+             new net.minecraft.world.item.crafting.CraftingRecipe.CraftingBookInfo(CraftRecipe.getCategory(this.getCategory()), this.getGroup()),
+             CraftRecipe.toIngredient(this.getInput(), true),
+@@ -36,7 +36,6 @@ public class CraftTransmuteRecipe extends TransmuteRecipe implements CraftRecipe
+             net.minecraft.world.item.crafting.TransmuteRecipe.DEFAULT_MATERIAL_COUNT,
+             TransmuteResult.fromTemplate(CraftItemStack.asTemplate(this.getResult())),
+             false
+-        );
+-        MinecraftServer.getServer().getRecipeManager().addRecipe(new RecipeHolder<>(CraftNamespacedKey.toResourceKey(Registries.RECIPE, this.getKey()), recipe));
++        ));
+     }
+ }
+diff --git a/sinopia/paper-api/src/main/java/io/papermc/paper/persistence/PersistentDataKey.java b/sinopia/paper-api/src/main/java/io/papermc/paper/persistence/PersistentDataKey.java
+new file mode 100644
+index 0000000..f055b28
+--- /dev/null
++++ b/sinopia/paper-api/src/main/java/io/papermc/paper/persistence/PersistentDataKey.java
+@@ -0,0 +1,69 @@
++package io.papermc.paper.persistence;
++
++import io.papermc.paper.InternalAPIBridge;
++import net.kyori.adventure.key.Key;
++import org.bukkit.NamespacedKey;
++import org.bukkit.persistence.PersistentDataContainer;
++import org.bukkit.persistence.PersistentDataType;
++import org.jspecify.annotations.NullMarked;
++
++/**
++ * This class represents the union of a {@link Key} and a
++ * {@link PersistentDataType}.
++ * <p>
++ * The advantage of this class is more direct, typed access to data stored in a {@link PersistentDataContainer}.
++ * Instead of having to keep track of the {@link NamespacedKey} and {@link PersistentDataType} separately
++ * when working with PDC, this class allows you to store both together.
++ * <p>
++ * <h2>Example usage</h2>
++ * <pre>{@code
++ * public class CustomLogic {
++ *   public static final PersistentDataKey<Integer> TRACKED_VALUE = PersistentDataKey.of(
++ *     Key.key("custom:tracked_value"),
++ *     PersistentDataType.INTEGER
++ *   );
++ *   public static final PersistentDataKey<UUID> OWNING_PLAYER = PersistentDataKey.of(
++ *     Key.key("custom:owning_player"),
++ *     new UUIDTagType() // Custom type
++ *   );
++ *
++ *   // Checks if the stored PDC value for OWNING_PLAYER matches the executor UUID and adds
++ *   // 1 to the TRACKED_VALUE, if it does.
++ *   public static void incrementIfOwner(PersistentDataContainer pdc, UUID executor) {
++ *     if (!Objects.equals(pdc.get(OWNING_PLAYER), executor)) {
++ *       return;
++ *     }
++ *
++ *     pdc.set(TRACKED_VALUE, pdc.getOrDefault(TRACKED_VALUE, 0) + 1);
++ *   }
++ * }
++ * }</pre>
++ *
++ * @param <C> the retrieved object type when applying this tag type
++ */
++@NullMarked
++public interface PersistentDataKey<C> {
++
++    /**
++     * Creates a new {@link PersistentDataKey} with the given {@link Key} and {@link PersistentDataType}.
++     *
++     * @param key  the access key to store
++     * @param type the persistent data type to reference
++     * @param <C>  the retrieved object type when applying this tag type
++     * @return a new {@link PersistentDataKey} of the given key and type
++     * @throws IllegalArgumentException if either key or type are null
++     */
++    static <C> PersistentDataKey<C> of(final Key key, final PersistentDataType<?, C> type) {
++        return InternalAPIBridge.get().createPersistentDataKey(key, type);
++    }
++
++    /**
++     * {@return the access key of this {@link PersistentDataKey}}
++     */
++    NamespacedKey key();
++
++    /**
++     * {@return the data type of this {@link PersistentDataKey}}
++     */
++    PersistentDataType<?, C> dataType();
++}
+diff --git a/sinopia/paper-server/src/main/java/io/papermc/paper/persistence/PaperPersistentDataKey.java b/sinopia/paper-server/src/main/java/io/papermc/paper/persistence/PaperPersistentDataKey.java
+new file mode 100644
+index 0000000..a49e801
+--- /dev/null
++++ b/sinopia/paper-server/src/main/java/io/papermc/paper/persistence/PaperPersistentDataKey.java
+@@ -0,0 +1,18 @@
++package io.papermc.paper.persistence;
++
++import com.google.common.base.Preconditions;
++import org.bukkit.NamespacedKey;
++import org.bukkit.persistence.PersistentDataType;
++import org.jspecify.annotations.NullMarked;
++
++@NullMarked
++public record PaperPersistentDataKey<C>(
++    NamespacedKey key,
++    PersistentDataType<?, C> dataType
++) implements PersistentDataKey<C> {
++
++    public PaperPersistentDataKey {
++        Preconditions.checkArgument(key != null, "The key cannot be null");
++        Preconditions.checkArgument(dataType != null, "The type cannot be null");
++    }
++}

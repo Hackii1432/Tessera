@@ -91,16 +91,27 @@ export async function connectPlayer(repo, port, username, observe = () => {}, co
             else if (id.value === loginIn.LOGIN_FINISHED) { observe({type: 'login', username}); send(loginOut.LOGIN_ACKNOWLEDGED); state = 'config'; }
             else if (id.value === loginIn.LOGIN_DISCONNECT) throw Error('Login rejected: ' + data.toString());
           } else if (state === 'config') {
-            if (id.value === configIn.SELECT_KNOWN_PACKS) send(configOut.SELECT_KNOWN_PACKS, vi(0));
+            if (id.value === configIn.SELECT_KNOWN_PACKS) {
+              if (controls.shouldSelectKnownPacks?.() !== false) send(configOut.SELECT_KNOWN_PACKS, vi(0));
+            }
             else if (id.value === configIn.FINISH_CONFIGURATION) {
               if (controls.shouldFinishConfiguration?.() === false) { observe({type: 'configuration_held', username}); continue; }
-              send(configOut.FINISH_CONFIGURATION); state = 'play'; console.log('CLIENT_PLAY', username); resolve(username);
+              send(configOut.FINISH_CONFIGURATION); state = 'play'; console.log('CLIENT_PLAY', username);
+              controls.onPlay?.({disconnect: () => socket.end()}); resolve(username);
             }
-            else if (id.value === configIn.KEEP_ALIVE) send(configOut.KEEP_ALIVE, data);
+            else if (id.value === configIn.KEEP_ALIVE) {
+              if (controls.observeKeepAlive) observe({type: 'keepalive', username, state});
+              if (controls.shouldAnswerKeepAlive?.(state) !== false) send(configOut.KEEP_ALIVE, data);
+            }
             else if (id.value === configIn.PING) send(configOut.PONG, data);
-            else if (id.value === configIn.DISCONNECT) throw Error('Configuration disconnected');
+            else if (id.value === configIn.DISCONNECT) {
+              observe({type: 'kicked', username, state}); throw Error('Configuration disconnected');
+            }
           } else if (state === 'play') {
-            if (id.value === gameIn.KEEP_ALIVE) send(gameOut.KEEP_ALIVE, data);
+            if (id.value === gameIn.KEEP_ALIVE) {
+              if (controls.observeKeepAlive) observe({type: 'keepalive', username, state});
+              if (controls.shouldAnswerKeepAlive?.(state) !== false) send(gameOut.KEEP_ALIVE, data);
+            }
             else if (id.value === gameIn.PING) send(gameOut.PONG, data);
             else if (id.value === gameIn.CHUNK_BATCH_FINISHED) {
               const batch = Buffer.alloc(4); batch.writeFloatBE(32);
@@ -132,6 +143,12 @@ export async function connectPlayer(repo, port, username, observe = () => {}, co
               observe({type: 'stats', username, entries: size.value, zeros});
             } else if (id.value === gameIn.UPDATE_ADVANCEMENTS) {
               observe({type: 'advancements', username, reset: data[0] === 1});
+            } else if (controls.observeAPI && id.value === gameIn.UPDATE_RECIPES) {
+              observe({type: 'recipes', username});
+            } else if (controls.observeAPI && id.value === gameIn.RECIPE_BOOK_ADD) {
+              observe({type: 'recipe_book', username, reset: data.at(-1) === 1});
+            } else if (controls.observeAPI && id.value === gameIn.POST_EFFECTS) {
+              observe({type: 'post_effects', username});
             }
           }
         }

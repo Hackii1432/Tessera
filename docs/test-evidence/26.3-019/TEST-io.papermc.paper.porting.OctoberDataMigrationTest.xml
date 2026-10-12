@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.papermc.paper.porting.OctoberDataMigrationTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-11T15:29:09.641Z" hostname="ENGINE0" time="1.645">
+  <properties/>
+  <testcase name="missingHiddenComponentsDoesNotHideNewComponents()" classname="io.papermc.paper.porting.OctoberDataMigrationTest" time="1.588"/>
+  <testcase name="oldFeaturePoolConversionUsesTheNestedPoolElement()" classname="io.papermc.paper.porting.OctoberDataMigrationTest" time="0.016"/>
+  <testcase name="hiddenAnimationComponentsSplitWithoutDuplicatesOrUnhiding()" classname="io.papermc.paper.porting.OctoberDataMigrationTest" time="0.013"/>
+  <testcase name="removedComponentNamesAreRemovedOnlyWhenCrossingTheirVersions()" classname="io.papermc.paper.porting.OctoberDataMigrationTest" time="0.018"/>
+  <testcase name="embeddedStructureStatesAndNestedProcessorsUseTheActiveDfuBackend()" classname="io.papermc.paper.porting.OctoberDataMigrationTest" time="0.009"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

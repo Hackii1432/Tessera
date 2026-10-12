@@ -1,0 +1,113 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Sun, 11 Oct 2026 13:51:41 +0200
+Subject: [PATCH] Stop accepted disconnect ticks while draining native
+ connection cleanup
+
+Honor the accepted-disconnect marker in the shared Connection tick used by both Folia region and global owners. Continue flushing not-yet-ready packets and completing channel cleanup; suppress obsolete requests, listener ticks and in-flight keepalive retries. Seal only after PlayerKickEvent accepts the kick, retain the first reason and log actual accepted timeouts once.
+
+diff --git a/net/minecraft/network/Connection.java b/net/minecraft/network/Connection.java
+index af94eaa1b956a54c79b8f3fe5993515dfc604e99..075d6d4225e51dfe9629a1e58cd5ba7ec6294281 100644
+--- a/net/minecraft/network/Connection.java
++++ b/net/minecraft/network/Connection.java
+@@ -85,7 +85,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+     private volatile @Nullable DisconnectionDetails delayedDisconnect;
+     private @Nullable BandwidthDebugMonitor bandwidthDebugMonitor;
+     public String hostname = ""; // CraftBukkit - add field
+-    public boolean handleConnectionDisconnectOnNextTick = false; // Paper - Force kill connection ticking
++    public volatile boolean handleConnectionDisconnectOnNextTick = false; // Paper - Force kill connection ticking // Tessera - publish accepted disconnect across connection owners
+     // Paper start - NetworkClient implementation
+     public int protocolVersion;
+     public java.net.InetSocketAddress virtualHost;
+@@ -174,6 +174,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+      * same thread that could disconnect.
+      */
+     public final void disconnectSafely(DisconnectionDetails details) {
++        if (this.handleConnectionDisconnectOnNextTick) return; // Tessera - an accepted disconnect must not be replaced
+         this.disconnectReqs.add(new DisconnectReq(details));
+         // We can't halt packet processing here because a plugin could cancel a kick request.
+     }
+@@ -183,7 +184,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+      * same thread that could disconnect.
+      */
+     public final void disconnectSafely(Component disconnectReason, io.papermc.paper.connection.DisconnectionReason cause) {
+-        this.disconnectReqs.add(new DisconnectReq(new DisconnectionDetails(disconnectReason, java.util.Optional.empty(), java.util.Optional.empty(), java.util.Optional.empty(), java.util.Optional.ofNullable(cause))));
++        this.disconnectSafely(new DisconnectionDetails(disconnectReason, java.util.Optional.empty(), java.util.Optional.empty(), java.util.Optional.empty(), java.util.Optional.ofNullable(cause)));
+         // We can't halt packet processing here because a plugin could cancel a kick request.
+     }
+ 
+@@ -691,6 +692,8 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+         // handle disconnect requests, but only after flushQueue()
+         DisconnectReq disconnectReq;
+         while ((disconnectReq = this.disconnectReqs.poll()) != null) {
++            // Tessera - drain obsolete requests without firing another kick event or replacing its reason.
++            if (this.handleConnectionDisconnectOnNextTick) continue;
+             PacketListener packetlistener = this.packetListener;
+ 
+             if (packetlistener instanceof net.minecraft.server.network.ServerLoginPacketListenerImpl loginPacketListener) {
+@@ -713,7 +716,9 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+             return;
+         }
+         // Folia end - region threading
+-        if (this.packetListener instanceof TickablePacketListener tickable) {
++        // Tessera - Folia's region/global loops do not use ServerConnectionListener's disconnect guard.
++        // Keep flushing pending writes and handling a closed channel, but never tick an accepted disconnect.
++        if (!this.handleConnectionDisconnectOnNextTick && this.packetListener instanceof TickablePacketListener tickable) {
+             // Paper start - Buffer joins to world
+             if (true) { // Folia - region threading
+             // Paper start - detailed watchdog information
+diff --git a/net/minecraft/server/network/ServerCommonPacketListenerImpl.java b/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
+index 010180899d69d0457dcc9feee4f1c062c5354995..b770b7a0e8bb87016ab9922e2911a44cfa0997b7 100644
+--- a/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
++++ b/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
+@@ -101,6 +101,7 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+ 
+     @Override
+     public void handleKeepAlive(final ServerboundKeepAlivePacket packet) {
++        if (this.connection.handleConnectionDisconnectOnNextTick) return; // Tessera - ignore in-flight replies after an accepted disconnect
+         // Paper start - improve keepalives
+         long now = System.nanoTime();
+         io.papermc.paper.util.KeepAlive.PendingKeepAlive pending = this.keepAlive.pendingKeepAlives.peek();
+@@ -257,7 +258,7 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+         Profiler.get().push("keepAlive");
+         long now = Util.getMillis();
+         // Paper start - improve keepalives
+-        if (this.checkIfClosed(now)) {
++        if (!this.connection.handleConnectionDisconnectOnNextTick && this.checkIfClosed(now)) { // Tessera - do not retry an accepted disconnect
+             long currTime = System.nanoTime();
+ 
+             if ((currTime - this.keepAlive.lastKeepAliveTx) >= java.util.concurrent.TimeUnit.SECONDS.toNanos(1L)) {
+@@ -270,7 +271,6 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+ 
+             io.papermc.paper.util.KeepAlive.PendingKeepAlive oldest = this.keepAlive.pendingKeepAlives.peek();
+             if (oldest != null && (currTime - oldest.txTimeNS()) > java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(KEEPALIVE_LIMIT)) {
+-                LOGGER.info("{} was kicked due to keepalive timeout!", this.playerProfile().name());
+                 this.disconnect(TIMEOUT_DISCONNECTION_MESSAGE, io.papermc.paper.connection.DisconnectionReason.TIMEOUT); // Paper - kick event cause
+                 // Paper end - improve keepalives
+             }
+@@ -341,7 +341,7 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+ 
+     public void disconnect(final DisconnectionDetails details) {
+         // CraftBukkit start - fire PlayerKickEvent
+-        if (!this.connection.isConnected()) {
++        if (!this.connection.isConnected() || this.connection.handleConnectionDisconnectOnNextTick) { // Tessera - accepted disconnect is idempotent
+             return;
+         }
+         // Folia start - region threading
+@@ -402,9 +402,15 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+     }
+ 
+     private void disconnect0(final DisconnectionDetails details) {
++        if (!this.connection.isConnected() || this.connection.handleConnectionDisconnectOnNextTick) return; // Tessera - kick listeners may have accepted a reentrant disconnect
++        // Tessera start - seal an accepted disconnect before dispatching its packet; cancelled kicks never reach here.
++        this.connection.handleConnectionDisconnectOnNextTick = true;
++        if (details.disconnectionReason().filter(reason -> reason == io.papermc.paper.connection.DisconnectionReason.TIMEOUT).isPresent()) {
++            LOGGER.info("{} was kicked due to keepalive timeout!", this.playerProfile().name());
++        }
++        // Tessera end - seal an accepted disconnect
+         this.connection.send(new ClientboundDisconnectPacket(details.reason()), PacketSendListener.thenRun(() -> this.connection.disconnect(details)));
+         this.connection.setReadOnly();
+-        this.connection.handleConnectionDisconnectOnNextTick = true; // Paper - Force kill connection ticking. Let this close the connection
+     }
+ 
+     // Paper start - add proper async disconnect

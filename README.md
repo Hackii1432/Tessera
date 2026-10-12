@@ -9,11 +9,11 @@ plugin APIs. Tessera is intended for SMP servers, independent arenas and
 multi-world game modes whose plugins support Folia's threading model.
 
 **Current branch:** `ver/26.3.x` · **Minecraft/API:** `26.3` ·
-**Tessera:** `018-beta` · **Java:** `25`
+**Tessera:** `019-beta` · **Java:** `25`
 
 Tessera uses the **beta** channel; this is not a blanket production guarantee.
-The [current changelog](docs/builds/26.3/0.0.18.md) and
-[Build 018 integration report](docs/BUILD-26.3-018.md) distinguish implemented
+The [current changelog](docs/builds/26.3/0.0.19.md) and
+[Build 019 integration report](docs/BUILD-26.3-019.md) distinguish implemented
 features from completed tests and outstanding integration checks. Older 26.2
 and 26.3 RC entries in the [release history](docs/builds/) are historical,
 not a promise that this branch builds or supports all those versions.
@@ -44,6 +44,7 @@ import; changing that hash alone does not update the local base. See the
 | Runtime worlds | Asynchronous create, load, clone and unload through `Bukkit.getRuntimeWorldManager()`; synchronous Bukkit world operations remain restricted. |
 | World snapshots | Coordinated snapshots of live worlds, player stores and shared level-root data. Participating worlds pause during flush/copy; this is not an unrestricted filesystem backup or a power-loss-atomic transaction. |
 | Native player restore | Contract 1 through `Bukkit.getPlayerRestoreService()`: connected-player state replacement, prepared target worlds and rollback. Requires explicit plugin integration, not an automatic SMP rollback feature. |
+| Current Paper APIs | Typed PDC keys, batched recipes, entity weapon/physics getters, explicit post-effect updates and command restriction markers; Folia ownership remains required. |
 | Scoreboards | Region-aware per-player scoreboards, teams, objectives and scores, with delivery on the owning player thread. |
 | Console/RCON commands | Owner-routed block/entity NBT reads, loaded block NBT mutations and atomic shared storage; unsafe entity writes and cross-region copies remain unsupported. |
 | Tick control | Rate, freeze, step and sprint support. Player use of `/tick` requires actual OP status, not only a granted permission. |
@@ -76,7 +77,7 @@ See [the region architecture](REGION_LOGIC.md) and
 ## Install and update
 
 1. Obtain a Tessera JAR built from the intended source revision, or build it below.
-   This branch produces `tessera-server-26.3.build.018-beta.jar` for Minecraft
+   This branch produces `tessera-server-26.3.build.019-beta.jar` for Minecraft
    **26.3** clients, not RC2/RC3 clients. Use Java **25** to run it.
 2. Use a dedicated server directory. Before migrating an existing server, stop it
    cleanly and make a separate backup of **all** worlds, player stores, level-root
@@ -84,7 +85,7 @@ See [the region architecture](REGION_LOGIC.md) and
 3. Copy the runnable JAR into that directory. Start it from that directory, for example:
 
    ```text
-   java -Xms2G -Xmx4G -jar tessera-server-26.3.build.018-beta.jar --nogui
+   java -Xms2G -Xmx4G -jar tessera-server-26.3.build.019-beta.jar --nogui
    ```
 
    The heap values are examples, not sizing guarantees. Leave memory and CPU
@@ -123,8 +124,8 @@ Run from the **Tessera repository root**, not from `sinopia/`:
 ```
 
 This prepares Sinopia, reapplies all patch layers, runs the tests/checks and
-creates the runnable JAR in `build/libs/`. The Build 018 source base,
-SHA-256 and actual test results are in [its integration report](docs/BUILD-26.3-018.md).
+creates the runnable JAR in `build/libs/`. The Build 019 source base,
+SHA-256 and actual test results are in [its integration report](docs/BUILD-26.3-019.md).
 For offline identity metadata affected by the old restore preview, follow the
 [backup and field-level repair guide](docs/restore-player-metadata-repair.md).
 
@@ -183,6 +184,9 @@ examples do not override the contracts of the API version you compile against.
 - [Operator-only tick commands](docs/tick-operator-access.md)
 - [TPS commands and region diagnostics](docs/TPS-REGION-OVERVIEW.md)
 - [Redstone region-merge tests](smoke-tests/redstone-region-merge/RESULTS.md)
+- [Native disconnect lifecycle tests](smoke-tests/disconnect-lifecycle/README.md) — accepted/cancelled kicks, delayed writes, region/global timeouts and normal client disconnects during tick freeze.
+- [October Paper-/Moonrise integration](docs/PAPER-INTEGRATION-2026-10-11.md) — commit mapping, global recipe writers and owner-side client resets.
+- [Native October API tests](smoke-tests/paper-october-update/README.md) — connected clients, separate regions, noise generation, recipes during freeze and dimension transfers.
 
 Architecture and validation reports remain in `docs/`. Reproducible integration
 tests live in [`smoke-tests/`](smoke-tests/); their results apply only to the

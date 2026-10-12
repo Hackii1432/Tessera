@@ -5,7 +5,7 @@ Subject: [PATCH] Restore Vanilla falling-block End arrival clearance
 
 
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index 45f013550528199af36eadd3d840741d3f493325..316c9e3718b557cdc772fe3c4092640769aa683c 100644
+index bb96e1778f2aea13bbb25e5b2d78d153eac91bcf..9837376cb6f5656cd300a58c39dbeb1e5ca9da8a 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
 @@ -4698,6 +4698,16 @@ public abstract class Entity
@@ -55,7 +55,7 @@ index 45f013550528199af36eadd3d840741d3f493325..316c9e3718b557cdc772fe3c40926407
                                  new net.minecraft.world.level.portal.TeleportTransition(
                                      destination, target.position(), Vec3.ZERO, target.yaw(), target.pitch(),
 diff --git a/net/minecraft/world/entity/item/FallingBlockEntity.java b/net/minecraft/world/entity/item/FallingBlockEntity.java
-index dfe9bdc4d912f57f7b9f6af4a3e6880abc970a82..fc5c0a98cd5b2c618d6ac920a0f1fad6c4ef682a 100644
+index ef217a1ce9ffd7f7d9991c004f4b5e1753733124..d124bdc4057da3b83865d9b7794f61a161c9dded 100644
 --- a/net/minecraft/world/entity/item/FallingBlockEntity.java
 +++ b/net/minecraft/world/entity/item/FallingBlockEntity.java
 @@ -287,6 +287,25 @@ public class FallingBlockEntity extends Entity {

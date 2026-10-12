@@ -1,0 +1,129 @@
+{
+  "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.019-beta.jar",
+  "sha256": "38a469ba075dd4fc9d36293b71aaa5d5ae077d27062d33da24994ad505d77cea",
+  "work": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\native-pregeneration-1791733541386",
+  "results": [
+    {
+      "mode": "native-pregeneration",
+      "passed": true,
+      "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.019-beta.jar",
+      "sha256": "38a469ba075dd4fc9d36293b71aaa5d5ae077d27062d33da24994ad505d77cea",
+      "work": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\native-pregeneration-1791733541386",
+      "port": 55790,
+      "code": 0,
+      "timedOut": false,
+      "clientFailure": null,
+      "joins": 2,
+      "kicks": 0,
+      "checks": "command-permission-selection: passed; aliases/keys/completion/rejections/isolation; dimension=minecraft:overworld targets=49; retarget prevented\r\nfreeze-parallel-dimensions: passed; overworld=81 nether=4; connected players\r\nfreeze-ticket-retirement: passed; holder unloaded at 1024,1024\r\nsaved-full: world 1024,1024\r\nexisting-full-skip: passed; generated=0 existing=81\r\nmode-pause-resume-cancel: passed\r\nstatus-latest-compact: passed; id=5 cancelled; status/all/old-id; 5 lines; applicable controls only\r\nhistory-retention: passed; only 5.json; generated world chunks preserved\r\ntps-utilisation-capacity: passed; actual command/collector; 400% for four scheduler threads during freeze\r\ncustom-world-generator: passed; selected by dimension key; diamond marker at y=60\r\nexpected-save-failure: id=7\r\nsave-failure-resume: passed; total=4\r\nexpected-checkpoint-failure: id=8\r\ncheckpoint-failure-resume: passed; total=81\r\nruntime-unload-with-active-job: passed\r\nsnapshot-with-active-job: passed\r\nrestart-checkpoint-prepared: id=10\r\nshutdown-with-active-job: id=11\r\nclients: joins=2 quits=0\r\n",
+      "checkpoints": [
+        {
+          "format": 1,
+          "id": 10,
+          "plan": {
+            "worldId": "0fa0486e-1e8f-4993-a933-875d27e20fcc",
+            "worldName": "world",
+            "worldKey": "minecraft:overworld",
+            "folder": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\native-pregeneration-1791733541386\\world\\dimensions\\minecraft\\overworld",
+            "seed": 3485956419631209500,
+            "generator": "net.minecraft.world.level.levelgen.FlatLevelSource/net.minecraft.world.level.biome.FixedBiomeSource",
+            "area": {
+              "shape": "SQUARE",
+              "centerX": 65536,
+              "centerZ": 65536,
+              "radius": 256,
+              "minX": 65280,
+              "maxX": 65792,
+              "minZ": 65280,
+              "maxZ": 65792
+            },
+            "total": 1089,
+            "mode": "BALANCED"
+          },
+          "state": "PAUSED",
+          "cursor": 530,
+          "generated": 2,
+          "existing": 0,
+          "detail": "",
+          "drained": true
+        },
+        {
+          "format": 1,
+          "id": 11,
+          "plan": {
+            "worldId": "fc34510e-8f80-42c7-ad0e-64cfb57044a3",
+            "worldName": "world_nether",
+            "worldKey": "minecraft:the_nether",
+            "folder": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\native-pregeneration-1791733541386\\world\\dimensions\\minecraft\\the_nether",
+            "seed": 3485956419631209500,
+            "generator": "net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator/net.minecraft.world.level.biome.MultiNoiseBiomeSource",
+            "area": {
+              "shape": "SQUARE",
+              "centerX": 32768,
+              "centerZ": 32768,
+              "radius": 256,
+              "minX": 32512,
+              "maxX": 33024,
+              "minZ": 32512,
+              "maxZ": 33024
+            },
+            "total": 1089,
+            "mode": "BALANCED"
+          },
+          "state": "PAUSED",
+          "cursor": 530,
+          "generated": 2,
+          "existing": 0,
+          "detail": "Server stopped; resume explicitly",
+          "drained": true
+        }
+      ]
+    },
+    {
+      "mode": "native-pregeneration-recovery",
+      "passed": true,
+      "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.019-beta.jar",
+      "sha256": "38a469ba075dd4fc9d36293b71aaa5d5ae077d27062d33da24994ad505d77cea",
+      "work": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\native-pregeneration-1791733541386",
+      "port": 55790,
+      "code": 0,
+      "timedOut": false,
+      "clientFailure": null,
+      "joins": 2,
+      "kicks": 0,
+      "checks": "shutdown-active-drain: passed; generated=2\r\nrestart-paused: passed\r\nrestart-resume-revalidate: passed; total=1089 existing=2\r\nsaved-full: world 4096,4096\r\nclients: joins=2 quits=0\r\n",
+      "checkpoints": [
+        {
+          "format": 1,
+          "id": 11,
+          "plan": {
+            "worldId": "fc34510e-8f80-42c7-ad0e-64cfb57044a3",
+            "worldName": "world_nether",
+            "worldKey": "minecraft:the_nether",
+            "folder": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\native-pregeneration-1791733541386\\world\\dimensions\\minecraft\\the_nether",
+            "seed": 3485956419631209500,
+            "generator": "net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator/net.minecraft.world.level.biome.MultiNoiseBiomeSource",
+            "area": {
+              "shape": "SQUARE",
+              "centerX": 32768,
+              "centerZ": 32768,
+              "radius": 256,
+              "minX": 32512,
+              "maxX": 33024,
+              "minZ": 32512,
+              "maxZ": 33024
+            },
+            "total": 1089,
+            "mode": "BALANCED"
+          },
+          "state": "CANCELLED",
+          "cursor": 530,
+          "generated": 2,
+          "existing": 0,
+          "detail": "Recovered paused; resume revalidates persisted chunks",
+          "drained": true
+        }
+      ]
+    }
+  ]
+}

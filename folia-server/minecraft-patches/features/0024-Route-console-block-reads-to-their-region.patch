@@ -5,7 +5,7 @@ Subject: [PATCH] Route console block reads to their region
 
 
 diff --git a/net/minecraft/commands/Commands.java b/net/minecraft/commands/Commands.java
-index 68e15641adfc0016eedea574bb41da0e24c2bd3a..6de7d41e55d5e9e33bd5a582e52d64da814b8c35 100644
+index 9c777c479e352293bd1258b8589ece8c3c93658c..2b5811a990cde8e07d8f1a97daf24fcd90bb14a1 100644
 --- a/net/minecraft/commands/Commands.java
 +++ b/net/minecraft/commands/Commands.java
 @@ -29,6 +29,8 @@ import net.minecraft.ChatFormatting;

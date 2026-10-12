@@ -1,0 +1,55 @@
+clients connected
+native noise world created update_normal
+native noise world created update_mirror
+native noise world created update_nether
+deterministic complete block palettes and biomes in region 0
+deterministic complete block palettes and biomes in region 128
+two distinct native player regions
+entity API current owner
+typed player PDC store
+typed player PDC remove and default
+entity weapon getter
+weapon getter returns a copy
+gravity and drag getters
+effective gravity respects disabled gravity
+entity API current owner
+typed player PDC store
+typed player PDC remove and default
+entity weapon getter
+weapon getter returns a copy
+gravity and drag getters
+effective gravity respects disabled gravity
+callback cube equipment accepted
+cube explosive equipment ready
+cube ignition accepted
+cancelled SulfurCube explosion restored damageability
+callback cube equipment accepted
+ignite callback retirement left fuse unchanged
+callback cube equipment accepted
+retirement cube ignition accepted
+explosion callback retirement stopped further ticking
+callback cube equipment accepted
+transfer cube ignition accepted
+explosion callback dimension transfer completed
+explosion callback transfer stopped old-owner ticking
+transferred cube cancellation on destination owner
+batch recipes published
+batch recipes queryable
+player recipe discovery on owner
+recipe region writer rejected without mutation
+player recipe discovery on owner
+recipe region writer rejected without mutation
+batch remove during tick freeze
+catalog removal published during freeze
+duplicate batch left no partial recipe
+native owner resource work ran during freeze
+native owner resource work ran during freeze
+recipe refresh followed a dimension transfer
+entity API current owner
+typed player PDC store
+typed player PDC remove and default
+entity weapon getter
+weapon getter returns a copy
+gravity and drag getters
+effective gravity respects disabled gravity
+clients remained connected throughout native update

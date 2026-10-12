@@ -1,0 +1,19 @@
+command-permission-selection: passed; aliases/keys/completion/rejections/isolation; dimension=minecraft:overworld targets=49; retarget prevented
+freeze-parallel-dimensions: passed; overworld=81 nether=4; connected players
+freeze-ticket-retirement: passed; holder unloaded at 1024,1024
+saved-full: world 1024,1024
+existing-full-skip: passed; generated=0 existing=81
+mode-pause-resume-cancel: passed
+status-latest-compact: passed; id=5 cancelled; status/all/old-id; 5 lines; applicable controls only
+history-retention: passed; only 5.json; generated world chunks preserved
+tps-utilisation-capacity: passed; actual command/collector; 400% for four scheduler threads during freeze
+custom-world-generator: passed; selected by dimension key; diamond marker at y=60
+expected-save-failure: id=7
+save-failure-resume: passed; total=4
+expected-checkpoint-failure: id=8
+checkpoint-failure-resume: passed; total=81
+runtime-unload-with-active-job: passed
+snapshot-with-active-job: passed
+restart-checkpoint-prepared: id=10
+shutdown-with-active-job: id=11
+clients: joins=2 quits=0
