@@ -1,0 +1,272 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: DOMasters <dominik.wesser@live.de>
+Date: Mon, 12 Oct 2026 23:37:02 +0200
+Subject: [PATCH] Load immutable Tessera-X experimental options from YAML
+ before bootstrap
+
+
+diff --git a/ca/spottedleaf/moonrise/patches/poi_lookup/PoiAccess.java b/ca/spottedleaf/moonrise/patches/poi_lookup/PoiAccess.java
+index 15b3c78a6a91939e72eb9e33b2fda73d6f7746bb..7d11c954936978eaca128e03c37b28208c36c087 100644
+--- a/ca/spottedleaf/moonrise/patches/poi_lookup/PoiAccess.java
++++ b/ca/spottedleaf/moonrise/patches/poi_lookup/PoiAccess.java
+@@ -29,7 +29,7 @@ import java.util.function.Predicate;
+  */
+ public final class PoiAccess {
+ 
+-    private static final boolean TESSERA_X_SCRATCH = Boolean.getBoolean("tessera-x.poi-scratch");
++    private static final boolean TESSERA_X_SCRATCH = dev.tessera.x.ExperimentalOptions.enabled(dev.tessera.x.ExperimentalOptions.Feature.POI_SCRATCH);
+     private static final ThreadLocal<SearchScratch> TESSERA_X_SEARCH = new ThreadLocal<>();
+     private static final class SearchScratch {
+         final LongArrayFIFOQueue queue = new LongArrayFIFOQueue();
+diff --git a/dev/tessera/x/ExperimentalOptions.java b/dev/tessera/x/ExperimentalOptions.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d1b992febdc6353a2f5b779a4994c8de991cb740
+--- /dev/null
++++ b/dev/tessera/x/ExperimentalOptions.java
+@@ -0,0 +1,134 @@
++package dev.tessera.x;
++
++import java.io.IOException;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.util.EnumSet;
++import java.util.Properties;
++import java.util.Set;
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++import org.spongepowered.configurate.CommentedConfigurationNode;
++import org.spongepowered.configurate.yaml.YamlConfigurationLoader;
++
++/** Immutable startup configuration. Feature classes retain their constant hot-path switches. */
++public final class ExperimentalOptions {
++    private static final Logger LOGGER = LoggerFactory.getLogger("Tessera-X");
++    public enum Feature {
++        SENSOR_SORTING("sensor-sorting", "sensors", "Experimental distance sorting. Enable adaptive preparation and reuse when testing workers."),
++        SENSOR_ADAPTIVE("sensor-adaptive", "sensor-adaptive", "Avoid unused or repeatedly discarded speculative sensor jobs."),
++        SENSOR_REUSE("sensor-reuse", "sensor-reuse", "Reuse bounded primitive sensor sorting buffers."),
++        VERIFY_SENSORS("verify-sensors", "verify-sensors", "Diagnostic native sorting oracle; adds work and allocations."),
++        REGION_RECALCULATION("region-recalculation", null, "Clean aged dead sections at a safe region release. Does not expire active tickets."),
++        REGION_COVERED_SEARCH("region-covered-search", "region-covered-search", "Avoid repeated coordinate probes in large region connectivity searches."),
++        BRAIN_SCRATCH("brain-scratch", "brain-scratch", "Experimental running-behavior snapshot reuse; no general AI speed gain established."),
++        SENSOR_LOCAL_CONDITIONS("sensor-local-conditions", "sensor-local-conditions", "Fix targeting ranges shared between sensor callers and region threads."),
++        POI_SCRATCH("poi-scratch", "poi-scratch", "Reuse bounded primitive POI search buffers; queries and reservations remain fresh."),
++        POI_RESERVATION_CHECK("poi-reservation-check", "poi-reservation-check", "Save acquired POI memory only after the final reservation succeeds."),
++        WORK_TIMINGS("work-timings", "work-timings", "Process-wide inclusive diagnostics. Enable only while investigating workload.");
++
++        public final String key;
++        final String legacyProperty;
++        final String description;
++        Feature(String key, String legacySuffix, String description) {
++            this.key = key;
++            this.legacyProperty = legacySuffix == null ? null : "tessera-x." + legacySuffix;
++            this.description = description;
++        }
++    }
++    public record Settings(boolean enabled, Set<Feature> selected, int workers, int delayMillis) {
++        public Settings { selected = Set.copyOf(selected); }
++        public boolean isEnabled(Feature feature) { return enabled && selected.contains(feature); }
++        public long effectiveDelayMillis() { return isEnabled(Feature.REGION_RECALCULATION) ? delayMillis : 0L; }
++    }
++    private static Settings settings = legacyDefaults(System.getProperties());
++    private static boolean accessed;
++    private static boolean initialized;
++    private ExperimentalOptions() {}
++
++    public static synchronized Settings current() {
++        accessed = true;
++        return settings;
++    }
++    public static boolean enabled(Feature feature) { return current().isEnabled(feature); }
++    public static int sensorWorkers() { Settings value = current(); return value.enabled() ? value.workers() : 0; }
++    public static long regionRecalcMaxDelayMillis() { return current().effectiveDelayMillis(); }
++
++    /** Must run before bootstrap, plugin initialization and any experimental feature class. No live reload. */
++    public static synchronized void initialize(Path path) throws IOException {
++        if (initialized || accessed) throw new IllegalStateException("Tessera-X options must load before feature initialization; restart required");
++        Settings loaded = load(path, settings);
++        settings = loaded;
++        initialized = true;
++        LOGGER.info("Experimental options loaded from {} (restart required after changes): enabled={}, active={}",
++            path.toAbsolutePath().normalize(), loaded.enabled(),
++            java.util.Arrays.stream(Feature.values()).filter(loaded::isEnabled).map(feature -> feature.key).toList());
++    }
++
++    // Package-private for isolated config regression tests. Loading does not publish or reload settings.
++    static Settings legacyDefaults(Properties properties) {
++        Set<Feature> selected = EnumSet.noneOf(Feature.class);
++        for (Feature feature : Feature.values()) {
++            if (feature.legacyProperty != null && Boolean.parseBoolean(properties.getProperty(feature.legacyProperty))) selected.add(feature);
++        }
++        long delay = legacyLong(properties, "tessera-x.region-recalc-max-delay-ms", 0L);
++        delay = Math.clamp(delay, 0L, 60_000L);
++        if (delay > 0L) selected.add(Feature.REGION_RECALCULATION);
++        int workers;
++        try { workers = Integer.decode(properties.getProperty("tessera-x.sensor-workers")); }
++        catch (NumberFormatException | NullPointerException invalid) { workers = 4; }
++        workers = Math.clamp(workers, 0, 8);
++        return new Settings(true, selected, workers, delay > 0L ? (int)Math.max(100L, delay) : 1000);
++    }
++    private static long legacyLong(Properties properties, String key, long fallback) {
++        try { return Long.decode(properties.getProperty(key)); }
++        catch (NumberFormatException | NullPointerException invalid) { return fallback; }
++    }
++
++    static Settings load(Path path, Settings defaults) throws IOException {
++        YamlConfigurationLoader loader = YamlConfigurationLoader.builder().path(path)
++            .defaultOptions(options -> options.header("Tessera-X experimental options. All changes require a full server restart.\n"
++                + "The enabled switch permits selected features; false disables every experiment.\n"
++                + "Explicit YAML values override legacy -Dtessera-x.* properties. Missing values inherit startup defaults.\n"
++                + "Fresh installs without legacy properties have every individual feature disabled."))
++            .build();
++        CommentedConfigurationNode root = loader.load();
++        if (root.raw() != null && !root.isMap()) throw new IOException("Tessera-X configuration root must be a mapping: " + path);
++        Fill fill = new Fill();
++        integer(root, "_version", 1, 1, 1, "Configuration format version.", fill);
++        CommentedConfigurationNode options = root.node("experimental-options");
++        if (options.raw() != null && !options.isMap()) throw new IOException("experimental-options must be a mapping: " + path);
++        boolean enabled = bool(options, "enabled", defaults.enabled(), "Master switch: false disables every experimental feature, including legacy JVM flags.", fill);
++        Set<Feature> selected = EnumSet.noneOf(Feature.class);
++        for (Feature feature : Feature.values()) {
++            if (bool(options, feature.key, defaults.selected().contains(feature), feature.description, fill)) selected.add(feature);
++        }
++        int workers = integer(options, "sensor-workers", defaults.workers(), 0, 8, "Compute workers, 0..8. A pool exists only when sensor-sorting is enabled.", fill);
++        int delay = integer(options, "region-recalc-max-delay-ms", defaults.delayMillis(), 100, 60_000,
++            "Maximum age of dead-section batches, 100..60000 ms; used only with region-recalculation enabled.", fill);
++        Settings result = new Settings(enabled, selected, workers, delay);
++        if (fill.changed) {
++            Path parent = path.toAbsolutePath().getParent();
++            if (parent != null) Files.createDirectories(parent);
++            loader.save(root); // Validate the entire document before writing defaults. Unknown entries are preserved.
++        }
++        return result;
++    }
++    private static final class Fill { boolean changed; }
++    private static Object value(CommentedConfigurationNode parent, String key, Object fallback, String comment, Fill fill) throws IOException {
++        CommentedConfigurationNode node = parent.node(key);
++        if (node.virtual()) { node.set(fallback); node.comment(comment); fill.changed = true; }
++        return node.raw();
++    }
++    private static boolean bool(CommentedConfigurationNode parent, String key, boolean fallback, String comment, Fill fill) throws IOException {
++        Object raw = value(parent, key, fallback, comment, fill);
++        if (!(raw instanceof Boolean flag)) throw new IOException("experimental-options." + key + " must be true or false");
++        return flag;
++    }
++    private static int integer(CommentedConfigurationNode parent, String key, int fallback, int min, int max, String comment, Fill fill) throws IOException {
++        Object raw = value(parent, key, fallback, comment, fill);
++        if (!(raw instanceof Integer || raw instanceof Long) || ((Number)raw).longValue() < min || ((Number)raw).longValue() > max)
++            throw new IOException(key + " must be an integer in " + min + ".." + max);
++        return ((Number)raw).intValue();
++    }
++}
+diff --git a/dev/tessera/x/RegionConnectivity.java b/dev/tessera/x/RegionConnectivity.java
+index 09281ee0768c58424cac87fd9e78f1d30d8aad1b..ac07e3f6e241c95691a26192cd6dd0a26918d2f9 100644
+--- a/dev/tessera/x/RegionConnectivity.java
++++ b/dev/tessera/x/RegionConnectivity.java
+@@ -10,7 +10,7 @@ import java.util.function.ToLongFunction;
+ 
+ /** Same BFS discovery order; compressed rows avoid repeatedly querying already searched coordinates. */
+ public final class RegionConnectivity {
+-    public static final boolean ENABLED = Boolean.getBoolean("tessera-x.region-covered-search");
++    public static final boolean ENABLED = dev.tessera.x.ExperimentalOptions.enabled(dev.tessera.x.ExperimentalOptions.Feature.REGION_COVERED_SEARCH);
+     private RegionConnectivity() {}
+ 
+     public static <T> List<List<T>> find(Long2ReferenceOpenHashMap<T> remaining, int radius, ToLongFunction<T> key) {
+diff --git a/dev/tessera/x/RegionRecalculation.java b/dev/tessera/x/RegionRecalculation.java
+index 555d58b3387fe35529ffd3679cd831c6fa8071e8..7b8292c657462a4d3f347e1ea98adcce06f60dbf 100644
+--- a/dev/tessera/x/RegionRecalculation.java
++++ b/dev/tessera/x/RegionRecalculation.java
+@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.LongAdder;
+ /** Experimental cleanup deadline. Does not change connectivity or ownership rules. */
+ public final class RegionRecalculation {
+     private static final long DELAY_MS = Math.max(0L, Math.min(60_000L,
+-        Long.getLong("tessera-x.region-recalc-max-delay-ms", 0L)));
++        dev.tessera.x.ExperimentalOptions.regionRecalcMaxDelayMillis()));
+     // Avoid a breadth-first search on every release during continuous chunk churn.
+     public static final long MAX_DELAY_NANOS = DELAY_MS == 0L ? 0L : Math.max(100L, DELAY_MS) * 1_000_000L;
+     private static final LongAdder passes = new LongAdder();
+diff --git a/dev/tessera/x/SensorWork.java b/dev/tessera/x/SensorWork.java
+index 8ea2f759e75bf512a904eee86ebc919dceb091db..0a5cf84a2860fa29d9052ffa43f9c1c2afeb1824 100644
+--- a/dev/tessera/x/SensorWork.java
++++ b/dev/tessera/x/SensorWork.java
+@@ -22,11 +22,11 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
+ 
+ /** Experimental, opt-in distance sorting. World access and publication stay on the owner. */
+ public final class SensorWork {
+-    public static final boolean ENABLED = Boolean.getBoolean("tessera-x.sensors");
+-    private static final int WORKERS = Math.clamp(Integer.getInteger("tessera-x.sensor-workers", 4), 0, 8);
+-    private static final boolean VERIFY = Boolean.getBoolean("tessera-x.verify-sensors");
+-    private static final boolean ADAPTIVE = Boolean.getBoolean("tessera-x.sensor-adaptive");
+-    private static final boolean REUSE = Boolean.getBoolean("tessera-x.sensor-reuse");
++    public static final boolean ENABLED = dev.tessera.x.ExperimentalOptions.enabled(dev.tessera.x.ExperimentalOptions.Feature.SENSOR_SORTING);
++    private static final int WORKERS = dev.tessera.x.ExperimentalOptions.sensorWorkers();
++    private static final boolean VERIFY = dev.tessera.x.ExperimentalOptions.enabled(dev.tessera.x.ExperimentalOptions.Feature.VERIFY_SENSORS);
++    private static final boolean ADAPTIVE = dev.tessera.x.ExperimentalOptions.enabled(dev.tessera.x.ExperimentalOptions.Feature.SENSOR_ADAPTIVE);
++    private static final boolean REUSE = dev.tessera.x.ExperimentalOptions.enabled(dev.tessera.x.ExperimentalOptions.Feature.SENSOR_REUSE);
+     private static final int MAX_RETAINED_SCRATCH = 8192;
+     private static final ThreadLocal<int[]> SCRATCH = ThreadLocal.withInitial(() -> new int[0]);
+     private static final int MIN_CANDIDATES = 64;
+diff --git a/dev/tessera/x/WorkTimings.java b/dev/tessera/x/WorkTimings.java
+index eaa273214ec19c466d5cf242e7a48afaf3285c3f..9196dc786b04952d3112f19b84993e1261e9d36b 100644
+--- a/dev/tessera/x/WorkTimings.java
++++ b/dev/tessera/x/WorkTimings.java
+@@ -8,7 +8,7 @@ import java.lang.management.ManagementFactory;
+ 
+ /** Opt-in, process-wide inclusive wall-time diagnostics; disabled code performs no clock reads. */
+ public final class WorkTimings {
+-    public static final boolean ENABLED = Boolean.getBoolean("tessera-x.work-timings");
++    public static final boolean ENABLED = dev.tessera.x.ExperimentalOptions.enabled(dev.tessera.x.ExperimentalOptions.Feature.WORK_TIMINGS);
+     private static final ConcurrentHashMap<String, Counter> COUNTERS = new ConcurrentHashMap<>();
+     private static final com.sun.management.ThreadMXBean ALLOCATIONS = ENABLED
+         && ManagementFactory.getThreadMXBean() instanceof com.sun.management.ThreadMXBean bean ? bean : null;
+diff --git a/net/minecraft/server/Main.java b/net/minecraft/server/Main.java
+index aa7f2ba4d931f98ce15c52dc2b99f07504149582..9426f3e9815bd98976ca803c5aae00d9acc4c556 100644
+--- a/net/minecraft/server/Main.java
++++ b/net/minecraft/server/Main.java
+@@ -97,6 +97,8 @@ public class Main {
+             */ // CraftBukkit end
+         try {
+ 
++            dev.tessera.x.ExperimentalOptions.initialize(((File)options.valueOf("paper-settings-directory")).toPath().resolve("tessera-x.yml"));
++
+             Path pidFilePath = (Path) options.valueOf("pidFile"); // CraftBukkit
+             if (pidFilePath != null) {
+                 writePidFile(pidFilePath);
+diff --git a/net/minecraft/world/entity/ai/Brain.java b/net/minecraft/world/entity/ai/Brain.java
+index caedfaf08bc1475e4426b98fdd3edb87a1c37519..e2a5337286069fbb5f8f41d5b12b5aaed64ad89e 100644
+--- a/net/minecraft/world/entity/ai/Brain.java
++++ b/net/minecraft/world/entity/ai/Brain.java
+@@ -36,7 +36,7 @@ import net.minecraft.world.phys.Vec3;
+ import org.jspecify.annotations.Nullable;
+ 
+ public class Brain<E extends LivingEntity> {
+-    private static final boolean TESSERA_X_REUSE_RUNNING = Boolean.getBoolean("tessera-x.brain-scratch");
++    private static final boolean TESSERA_X_REUSE_RUNNING = dev.tessera.x.ExperimentalOptions.enabled(dev.tessera.x.ExperimentalOptions.Feature.BRAIN_SCRATCH);
+     private @Nullable ObjectArrayList<BehaviorControl<? super E>> tesseraXRunningScratch;
+     private boolean tesseraXRunningScratchBusy;
+     private static final int SCHEDULE_UPDATE_DELAY = 20;
+diff --git a/net/minecraft/world/entity/ai/behavior/AcquirePoi.java b/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
+index 2402375728d347a2d00d1bad8852827900473ddd..518cb26e568405ba4bb57e5bb1d9852dc829ab16 100644
+--- a/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
++++ b/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
+@@ -26,7 +26,7 @@ import org.jspecify.annotations.Nullable;
+ 
+ public class AcquirePoi {
+     public static final int SCAN_RANGE = 48;
+-    private static final boolean TESSERA_X_RESERVATION_CHECK = Boolean.getBoolean("tessera-x.poi-reservation-check");
++    private static final boolean TESSERA_X_RESERVATION_CHECK = dev.tessera.x.ExperimentalOptions.enabled(dev.tessera.x.ExperimentalOptions.Feature.POI_RESERVATION_CHECK);
+ 
+     public static BehaviorControl<PathfinderMob> create(
+         final Predicate<Holder<PoiType>> poiType,
+diff --git a/net/minecraft/world/entity/ai/sensing/Sensor.java b/net/minecraft/world/entity/ai/sensing/Sensor.java
+index 1ba8640fd1f91501c1582483de57d00d4f483025..f6a072e52d9f924b73fe78c8e2514f442c6d2120 100644
+--- a/net/minecraft/world/entity/ai/sensing/Sensor.java
++++ b/net/minecraft/world/entity/ai/sensing/Sensor.java
+@@ -27,7 +27,7 @@ public abstract class Sensor<E extends LivingEntity> {
+         .ignoreLineOfSight()
+         .ignoreInvisibilityTesting();
+     private final int scanRate;
+-    private static final boolean TESSERA_X_LOCAL_CONDITIONS = Boolean.getBoolean("tessera-x.sensor-local-conditions");
++    private static final boolean TESSERA_X_LOCAL_CONDITIONS = dev.tessera.x.ExperimentalOptions.enabled(dev.tessera.x.ExperimentalOptions.Feature.SENSOR_LOCAL_CONDITIONS);
+     private static final ConditionSet LEGACY_CONDITIONS = new ConditionSet(false);
+     private static final ThreadLocal<ConditionSet> LOCAL_CONDITIONS = ThreadLocal.withInitial(() -> new ConditionSet(true));
+ 

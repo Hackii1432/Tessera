@@ -34,8 +34,13 @@ public final class RegionSplitNative extends JavaPlugin implements Listener {
     private int pollTicks;
     private final AtomicInteger assertions = new AtomicInteger();
     private long initialRegion;
-    private final boolean expectedSplit = Long.getLong("tessera-x.region-recalc-max-delay-ms", 0L) > 0;
+    private final boolean expectedSplit = recalcDelayMillis() > 0;
 
+    private static long recalcDelayMillis() {
+        try { return (long)Class.forName("dev.tessera.x.ExperimentalOptions").getMethod("regionRecalcMaxDelayMillis").invoke(null); }
+        catch (ClassNotFoundException legacyBuild) { return Long.getLong("tessera-x.region-recalc-max-delay-ms", 0L); }
+        catch (ReflectiveOperationException failure) { throw new IllegalStateException("Cannot read experimental options", failure); }
+    }
     private void require(boolean ok, String reason) { assertions.incrementAndGet(); if (!ok) throw new AssertionError(reason); }
     @Override public void onEnable() {
         Bukkit.getPluginManager().registerEvents(this,this);

@@ -1,0 +1,96 @@
+Bitte prüfe Tessera-X unabhängig als mögliche Grundlage für den nächsten Tessera-Patch.
+
+Repository und Arbeitsbranch:
+https://github.com/Hackii1432/Tessera/tree/ver/tessera-Xperimental
+Basis ist Tessera 019, Commit 0e31a2cab94f1f8e06921a7872b962bd027d25f7.
+Arbeite und pushe für diese Aufgabe ausschließlich auf ver/tessera-Xperimental.
+Bewahre vorhandene Commits; kein Force-Push. Der produktive Server smp.mosaikdev.com
+läuft mit aktiven Spielern und darf weder verändert noch mit Testclients belastet werden.
+
+Du darfst den Code aus Tessera-X übernehmen, als Basis verwenden, verbessern oder
+begründet verwerfen. Behandle die vorgeschlagene Auswahl und die Messergebnisse
+als prüfbare Hypothesen. Bitte führe eine eigene Code- und Architekturprüfung durch.
+
+Vorgeschlagene Auswahl für den nächsten Patch:
+1. Getrennte Sensor-TargetingConditions mit Reichweite des tatsächlich abfragenden Mobs.
+2. POI-Erinnerung nur nach erfolgreicher letzter Reservierung setzen.
+3. Begrenzte Wiederverwendung primitiver POI-Suchpuffer, ohne Ergebniscache.
+4. Regions-Zusammenhangssuche mit bereits abgedeckten Zeilenintervallen.
+5. Konfigurierbare frühere Bereinigung kontinuierlich toter Region-Sections.
+
+Sensor-Worker bleiben ein separates Experiment. Sie sollten nur zusammen mit
+adaptiver Vorbereitung und Pufferwiederverwendung getestet werden. Für normale
+gemischte Mob-KI war bislang kein allgemeiner Tickzeit-Gewinn belegt. Die zusätzliche
+Kandidatenabfrage und deren Allokationen können den Nutzen aufheben. KI-Snapshot-
+Puffer bitte vorerst deaktiviert lassen; Diagnosemessung nur bei Bedarf einschalten.
+Ganze Mob-/Redstone-Ticks auf beliebige Threads und ein im Sekundentakt aktualisierter
+Betten-Ergebniscache sind nicht Teil dieser Übernahme.
+
+Die Features liegen in folia-server/minecraft-patches/features/0066 bis 0074.
+Feature 0075 ergänzt die zentrale Startkonfiguration. Lies insbesondere:
+- docs/TESSERA-X-WORK-PILOTS.md
+- docs/TESSERA-X-VALIDATION.md
+- docs/tessera-x-work-results.json
+- docs/TESSERA-X-EXPERIMENTAL-OPTIONS.md
+- experiments/tessera-x/config/tessera-x-recommended.yml
+- docs/SINOPIA-WORKFLOW.md
+
+Bitte prüfe konkret:
+
+A. Konfiguration und Rücknahme
+- config/tessera-x.yml beziehungsweise der mit --paper-dir gesetzte Ordner.
+- Einzelne false-Werte müssen alte true-JVM-Flags übersteuern.
+- experimental-options.enabled=false muss alle Experimente ausschalten, einschließlich
+  Sensor-Pool, Diagnosemessung und zusätzlichem Region-Deadline-Trigger.
+- Werte werden vor Bootstrap und Plugin-Initialisierung in einen unveränderlichen
+  Snapshot geladen. Änderungen brauchen Neustart; keine unsichere Live-Umschaltung.
+- Erststart ohne Datei, Legacy-Migration, fehlerhafte Werte, vollständige Dateien,
+  unbekannte zusätzliche Einträge und verfrühte/späte Klasseninitialisierung überprüfen.
+- Die erzeugten Standardwerte bleiben ohne alte JVM-Flags aus. Die mitgelieferte
+  Empfehlungskonfiguration ist ein separat zu prüfendes Preset, keine automatische
+  Produktionsfreigabe. Prüfe selbst, welche Defaults ihr später setzen möchtet.
+
+B. Verhalten und Thread-Besitz
+- Worker dürfen ausschließlich unveränderliche Zahlenarrays sortieren. Keine
+  Live-Entities, Weltzugriffe, Brain-Erinnerungen oder Bukkit-Callbacks auf Workern.
+- Unfertige oder veraltete Ergebnisse brauchen unmittelbaren nativen Fallback.
+  Keine Änderung an Sensor-/KI-Taktung oder Reihenfolge.
+- TargetingConditions: alle sechs Varianten, Combat-/Sicht-/Unsichtbarkeitsregeln,
+  wechselnde Reichweiten, unterschiedliche Regionsthreads und aufeinanderfolgende Mobs.
+- POI: Ergebnisreihenfolge, Gleichstände, Prädikat-Aufrufe und deren Nebenwirkungen,
+  Chunk-/POI-Ladevorgänge, Rekursion, Ausnahmen, Puffergrenzen und ThreadLocal-Lebensdauer.
+- Reservierungen: HOME muss bei fehlgeschlagener take()-Reservierung leer bleiben.
+  Erfolgreiche Zuweisung, Ausschluss eines reservierten Bettes und Freigabe müssen
+  unverändert funktionieren. Suche ist getrennt vom Bettblock-Zustand OCCUPIED.
+- Region-Cleanup: aktive Tickets und Sicherheitsbereiche weiter respektieren;
+  Wiederbelebung, ausstehende Merges und übertragene Alterswerte prüfen. Das Intervall
+  ist kein garantiertes Split-Limit und kann keinen aktiven Chunk-Zusammenhang trennen.
+- Covered-row-BFS muss Komponenten UND Entdeckungsreihenfolge erhalten. Kleine
+  Komponenten/Radius eins, negative/extreme Koordinaten, fragmentierte Topologien,
+  temporäre Allokationen und Laufzeit unter dem Regionizer-Lock prüfen.
+
+C. Eigene Tests und Bewertung
+- Nutze die portablen Starter unter experiments/tessera-x/tools und die native
+  Fixture-Quellen; reproduziere Ergebnisse, bevor du sie als bestätigt übernimmst.
+- Konfigurationstests plus echte Serverstarts: recommended, all-off, master-off,
+  all-on und default-generated. Prüfe die tatsächlichen statischen Flags/Pools.
+- Sorting-Orakel, Brain-Rückrufe, POI-Reservierung, echter Regionizer sowie reale
+  Chunk-Tickets mit laufenden Redstone-Schaltungen vergleichen.
+- Bei Leistungsangaben identische Szenarien/Budgets verwenden. Diagnose- und
+  Orakel-Läufe nicht als uninstrumentierten Server-Speedup darstellen.
+- Das Labor hat einen i9-12900K. Der Zielserver besitzt zwei Xeon E5-2690 v4 mit
+  zusammen 28 echten Kernen; Windows-VM 42 vCPUs, Tessera 32 Tickthreads. Ein Gewinn
+  im lokalen Stresstest beweist keinen gleichen Gewinn in dieser VMware-Umgebung.
+- Sensor-Stresstests erzwingen ungewöhnlich häufige Aufrufe. Beim normalen gemischten
+  KI-Test war der Sensor-Worker-Gewinn nicht belegt. POI-Allokation sank im separaten
+  Diagnosepaar von etwa 72544 auf 6856 Bytes/Abfrage; das ist keine pauschale
+  91-prozentige Serverbeschleunigung. Prüfe Last, GC und Gesamttick separat.
+
+Bitte liefere danach eine klare Entscheidung pro Ansatz: übernehmen, ändern,
+experimentell lassen oder verwerfen, jeweils mit konkretem Befund und Testbeleg.
+Wenn Änderungen sinnvoll sind, implementiere sie in diesem Branch, exportiere
+generierte Minecraft-Änderungen als dauerhafte Feature-Patches und prüfe die
+vollständige Patch-Anwendung und den Build. Änderungen an generierten Quellen
+vor buildTessera sichern; Produktionsdaten und JARs nicht ins Git aufnehmen.
+Kennzeichne offene Fälle und übertrage keine Lastabschaltung, langsameren Mob-Ticks
+oder veränderte Redstone-Reihenfolge als vermeintlich spielneutrale Optimierung.

@@ -1,0 +1,175 @@
+{
+  "sourceBranch": "ver/tessera-Xperimental",
+  "sourceFeatures": "0066-0075",
+  "productionServerContacted": false,
+  "bundlerSha256": "C729267A210D3DD14547005DB78DD3D63BAE21006FFBE6C7756D2E7FBA6B8D16",
+  "paperclipSha256": "430DDECADF7CE67C6921662EC7B7EC3942FE2DB5E13E47E37AAAE335FAE71681",
+  "configurationChecks": {
+    "status": "PASS",
+    "assertions": 55
+  },
+  "nativeModes": [
+    {
+      "mode": "default-generated",
+      "result": {
+        "sensor-sorting": false,
+        "sensor-adaptive": false,
+        "sensor-reuse": false,
+        "verify-sensors": false,
+        "sensor-workers": 4,
+        "brain-scratch": false,
+        "sensor-local-conditions": false,
+        "poi-scratch": false,
+        "poi-reservation-check": false,
+        "region-covered-search": false,
+        "region-recalc-delay-nanos": 0,
+        "work-timings": false,
+        "actual-worker-threads": 0,
+        "status": "PASS",
+        "mode": "default-generated",
+        "assertions": 14
+      },
+      "fixtureSha256": "FEA99006D2CCCBA444A8BC2C3787BE3592E36FE67A80D6E7C1AF32C58F875010",
+      "logValidation": {
+        "serverExitCode": 0,
+        "elapsedSeconds": 10.166697,
+        "knownBaselineDiagnostics": [
+          "[23:48:20] [CrashReport preload thread/ERROR]: [oshi.driver.windows.registry.HkeyPerformanceDataUtil] Unable to locate English counter names in registry Perflib 009. Counters may need to be rebuilt: "
+        ],
+        "unexpectedErrors": []
+      }
+    },
+    {
+      "mode": "recommended",
+      "result": {
+        "sensor-sorting": false,
+        "sensor-adaptive": false,
+        "sensor-reuse": false,
+        "verify-sensors": false,
+        "sensor-workers": 2,
+        "brain-scratch": false,
+        "sensor-local-conditions": true,
+        "poi-scratch": true,
+        "poi-reservation-check": true,
+        "region-covered-search": true,
+        "region-recalc-delay-nanos": 1000000000,
+        "work-timings": false,
+        "actual-worker-threads": 0,
+        "status": "PASS",
+        "mode": "recommended",
+        "assertions": 14
+      },
+      "fixtureSha256": "FEA99006D2CCCBA444A8BC2C3787BE3592E36FE67A80D6E7C1AF32C58F875010",
+      "logValidation": {
+        "serverExitCode": 0,
+        "elapsedSeconds": 9.5560942,
+        "knownBaselineDiagnostics": [
+          "[23:48:33] [CrashReport preload thread/ERROR]: [oshi.driver.windows.registry.HkeyPerformanceDataUtil] Unable to locate English counter names in registry Perflib 009. Counters may need to be rebuilt: "
+        ],
+        "unexpectedErrors": []
+      }
+    },
+    {
+      "mode": "all-off",
+      "result": {
+        "sensor-sorting": false,
+        "sensor-adaptive": false,
+        "sensor-reuse": false,
+        "verify-sensors": false,
+        "sensor-workers": 2,
+        "brain-scratch": false,
+        "sensor-local-conditions": false,
+        "poi-scratch": false,
+        "poi-reservation-check": false,
+        "region-covered-search": false,
+        "region-recalc-delay-nanos": 0,
+        "work-timings": false,
+        "actual-worker-threads": 0,
+        "status": "PASS",
+        "mode": "all-off",
+        "assertions": 14
+      },
+      "fixtureSha256": "FEA99006D2CCCBA444A8BC2C3787BE3592E36FE67A80D6E7C1AF32C58F875010",
+      "logValidation": {
+        "serverExitCode": 0,
+        "elapsedSeconds": 9.5452972,
+        "knownBaselineDiagnostics": [
+          "[23:48:45] [CrashReport preload thread/ERROR]: [oshi.driver.windows.registry.HkeyPerformanceDataUtil] Unable to locate English counter names in registry Perflib 009. Counters may need to be rebuilt: "
+        ],
+        "unexpectedErrors": []
+      }
+    },
+    {
+      "mode": "master-off",
+      "result": {
+        "sensor-sorting": false,
+        "sensor-adaptive": false,
+        "sensor-reuse": false,
+        "verify-sensors": false,
+        "sensor-workers": 0,
+        "brain-scratch": false,
+        "sensor-local-conditions": false,
+        "poi-scratch": false,
+        "poi-reservation-check": false,
+        "region-covered-search": false,
+        "region-recalc-delay-nanos": 0,
+        "work-timings": false,
+        "actual-worker-threads": 0,
+        "status": "PASS",
+        "mode": "master-off",
+        "assertions": 14
+      },
+      "fixtureSha256": "FEA99006D2CCCBA444A8BC2C3787BE3592E36FE67A80D6E7C1AF32C58F875010",
+      "logValidation": {
+        "serverExitCode": 0,
+        "elapsedSeconds": 9.1354134,
+        "knownBaselineDiagnostics": [
+          "[23:48:56] [CrashReport preload thread/ERROR]: [oshi.driver.windows.registry.HkeyPerformanceDataUtil] Unable to locate English counter names in registry Perflib 009. Counters may need to be rebuilt: "
+        ],
+        "unexpectedErrors": []
+      }
+    },
+    {
+      "mode": "all-on",
+      "result": {
+        "sensor-sorting": true,
+        "sensor-adaptive": true,
+        "sensor-reuse": true,
+        "verify-sensors": true,
+        "sensor-workers": 2,
+        "brain-scratch": true,
+        "sensor-local-conditions": true,
+        "poi-scratch": true,
+        "poi-reservation-check": true,
+        "region-covered-search": true,
+        "region-recalc-delay-nanos": 1000000000,
+        "work-timings": true,
+        "actual-worker-threads": 2,
+        "status": "PASS",
+        "mode": "all-on",
+        "assertions": 14
+      },
+      "fixtureSha256": "FEA99006D2CCCBA444A8BC2C3787BE3592E36FE67A80D6E7C1AF32C58F875010",
+      "logValidation": {
+        "serverExitCode": 0,
+        "elapsedSeconds": 9.2511831,
+        "knownBaselineDiagnostics": [
+          "[23:49:08] [CrashReport preload thread/ERROR]: [oshi.driver.windows.registry.HkeyPerformanceDataUtil] Unable to locate English counter names in registry Perflib 009. Counters may need to be rebuilt: "
+        ],
+        "unexpectedErrors": []
+      }
+    }
+  ],
+  "poiRegression": {
+    "assertions": 486,
+    "successfulReservationAssignedAndReleased": true,
+    "homeSavedDespiteFailedReservation": false
+  },
+  "junit": {
+    "errors": 0,
+    "tests": 10369,
+    "failures": 0,
+    "skipped": 87
+  },
+  "initialFixtureCorrection": "Missing config load returns an empty root node; corrected root validation before the final build"
+}

@@ -81,7 +81,7 @@ public final class PoiSafety extends JavaPlugin {
             for(BlockPos pos:placed)manager.remove(pos);require(query(center,48,Double.MAX_VALUE,PoiManager.Occupancy.ANY,5,p -> true).isEmpty(),"Removed POIs remained visible");
             // Broad read-only search exercises capacity eviction; no world or record reference is retained.
             PoiAccess.findNearestPoiRecords(manager,t -> true,p -> true,center,144,Double.MAX_VALUE,PoiManager.Occupancy.ANY,false,5,new ArrayList<>());
-            if(Boolean.getBoolean("tessera-x.poi-scratch")){
+            if(flag("POI_SCRATCH", "tessera-x.poi-scratch")){
                 var pool=PoiAccess.class.getDeclaredField("TESSERA_X_SEARCH");pool.setAccessible(true);
                 require(((ThreadLocal<?>)pool.get(null)).get()==null,"Oversized POI scratch retained");
             }
@@ -112,7 +112,7 @@ public final class PoiSafety extends JavaPlugin {
                 if(calls.incrementAndGet()<60)return;task.cancel();require(reserved.get(),"Acquisition never reached validation callback");
                 boolean assigned=body.getBrain().getMemory(MemoryModuleType.HOME).isPresent();
                 out.put("homeSavedDespiteFailedReservation",assigned);
-                require(assigned!=Boolean.getBoolean("tessera-x.poi-reservation-check"),"Unexpected failed-reservation memory result: "+assigned);
+                require(assigned!=flag("POI_RESERVATION_CHECK", "tessera-x.poi-reservation-check"),"Unexpected failed-reservation memory result: "+assigned);
                 successfulReservation(body,bed);
             }catch(Throwable error){task.cancel();finish(error);}
         },1,1);
@@ -132,11 +132,20 @@ public final class PoiSafety extends JavaPlugin {
             }catch(Throwable error){task.cancel();finish(error);}
         },1,1);
     }
+    private static boolean flag(String feature, String property) {
+        try {
+            Class<?> options = Class.forName("dev.tessera.x.ExperimentalOptions");
+            Class<?> key = Class.forName("dev.tessera.x.ExperimentalOptions$Feature");
+            Object value = key.getMethod("valueOf", String.class).invoke(null, feature);
+            return (boolean)options.getMethod("enabled", key).invoke(null, value);
+        } catch (ClassNotFoundException legacyBuild) { return Boolean.getBoolean(property); }
+        catch (ReflectiveOperationException failure) { throw new IllegalStateException("Cannot read experimental options", failure); }
+    }
     private void finish(Throwable error){
         if(!finished.compareAndSet(false,true))return;
         try {
             out.put("status",error==null?"PASS":"FAIL");out.put("failure",error==null?null:error.toString());out.put("assertions",assertions);
-            out.put("scratch",Boolean.getBoolean("tessera-x.poi-scratch"));out.put("reservationCheck",Boolean.getBoolean("tessera-x.poi-reservation-check"));
+            out.put("scratch",flag("POI_SCRATCH", "tessera-x.poi-scratch"));out.put("reservationCheck",flag("POI_RESERVATION_CHECK", "tessera-x.poi-reservation-check"));
             Files.writeString(Path.of("poi-safety-result.json"),new GsonBuilder().setPrettyPrinting().create().toJson(out));
             if(error!=null)getLogger().log(java.util.logging.Level.SEVERE,"POI safety failed",error);
         }catch(Throwable write){write.printStackTrace();}

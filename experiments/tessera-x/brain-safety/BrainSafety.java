@@ -32,7 +32,7 @@ public final class BrainSafety extends JavaPlugin {
     private World world; private ServerLevel level;
     private final LivingEntity[] bodies = new LivingEntity[2], targets = new LivingEntity[2];
     private final long[] regionIds = new long[2], threads = new long[2];
-    private final boolean local = Boolean.getBoolean("tessera-x.sensor-local-conditions");
+    private final boolean local = flag("SENSOR_LOCAL_CONDITIONS", "tessera-x.sensor-local-conditions");
     private void require(boolean value,String message) { assertions.incrementAndGet(); if(!value) throw new AssertionError(message); }
     @Override public void onEnable() {
         Bukkit.getGlobalRegionScheduler().runDelayed(this, task -> start(), 100);
@@ -117,7 +117,7 @@ public final class BrainSafety extends JavaPlugin {
         trace.clear();brain.removeAllBehaviors();
         Recorder[] many=new Recorder[300];for(int i=0;i<many.length;i++)many[i]=new Recorder("N"+i,trace);
         install(brain,many);brain.tick(level,body);require(trace.size()==300,"Large snapshot truncated");
-        if(Boolean.getBoolean("tessera-x.brain-scratch")) {
+        if(flag("BRAIN_SCRATCH", "tessera-x.brain-scratch")) {
             Field scratch=Brain.class.getDeclaredField("tesseraXRunningScratch");scratch.setAccessible(true);
             Field busy=Brain.class.getDeclaredField("tesseraXRunningScratchBusy");busy.setAccessible(true);
             require(scratch.get(brain)==null,"Oversized scratch retained"); require(!busy.getBoolean(brain),"Scratch busy after callback");
@@ -169,12 +169,21 @@ public final class BrainSafety extends JavaPlugin {
             done.complete(null);
         } catch(Throwable error) {aUpdated.countDown();bUpdated.countDown();aQueried.countDown();done.completeExceptionally(error);}
     }
+    private static boolean flag(String feature, String property) {
+        try {
+            Class<?> options = Class.forName("dev.tessera.x.ExperimentalOptions");
+            Class<?> key = Class.forName("dev.tessera.x.ExperimentalOptions$Feature");
+            Object value = key.getMethod("valueOf", String.class).invoke(null, feature);
+            return (boolean)options.getMethod("enabled", key).invoke(null, value);
+        } catch (ClassNotFoundException legacyBuild) { return Boolean.getBoolean(property); }
+        catch (ReflectiveOperationException failure) { throw new IllegalStateException("Cannot read experimental options", failure); }
+    }
     private void finish(Throwable error) {
         if(!finished.compareAndSet(false,true))return;
         try {
             Map<String,Object> out=new TreeMap<>(results);out.put("status",error==null?"PASS":"FAIL");
             out.put("failure",error==null?null:error.toString());out.put("assertions",assertions.get());
-            out.put("localConditions",local);out.put("brainScratch",Boolean.getBoolean("tessera-x.brain-scratch"));
+            out.put("localConditions",local);out.put("brainScratch",flag("BRAIN_SCRATCH", "tessera-x.brain-scratch"));
             Files.writeString(Path.of("brain-safety-result.json"),new GsonBuilder().setPrettyPrinting().create().toJson(out));
             if(error!=null)getLogger().log(java.util.logging.Level.SEVERE,"Native brain safety failed",error);
         } catch(Throwable failure){failure.printStackTrace();}

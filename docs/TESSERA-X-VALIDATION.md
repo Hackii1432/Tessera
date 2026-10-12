@@ -1,5 +1,9 @@
 # Tessera-X experimental validation
 
+The following measurements describe features through 0074. Feature 0075 adds
+startup YAML control; its additional regression evidence is recorded in
+`tessera-x-config-validation.json` and `TESSERA-X-EXPERIMENTAL-OPTIONS.md`.
+
 This branch contains opt-in local experiments based on Tessera 019 at
 `0e31a2cab94f1f8e06921a7872b962bd027d25f7`. It is not a production release.
 Feature 0066 handles nearest-living-entity distance ordering; feature 0067

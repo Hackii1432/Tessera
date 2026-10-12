@@ -4,6 +4,11 @@ These experiments build on Tessera 019 (`0e31a2c`) and patches 0066/0067.
 Every new switch defaults to `false`. Enable individual switches explicitly
 when testing. Production deployment has not been requested.
 
+Feature 0075 adds `config/tessera-x.yml` with individual settings and a common
+disable switch. YAML is the preferred interface and requires restart; explicit
+values override the legacy JVM flags below. See `TESSERA-X-EXPERIMENTAL-OPTIONS.md`
+and the supplied recommendation preset for the proposed next-patch selection.
+
 ## Implemented features
 
 | Patch | Switch | Contract and expected benefit |

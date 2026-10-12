@@ -1,0 +1,19 @@
+# Tessera-X: suggested local validation preset. Restart after every change.
+# Copy to <paper-settings-directory>/tessera-x.yml (default: config/tessera-x.yml).
+# This preset is supplied for review; the auto-generated default keeps features off.
+_version: 1
+experimental-options:
+  enabled: true
+  sensor-sorting: false
+  sensor-workers: 2
+  sensor-adaptive: false
+  sensor-reuse: false
+  verify-sensors: false
+  region-recalculation: true
+  region-recalc-max-delay-ms: 1000
+  region-covered-search: true
+  brain-scratch: false
+  sensor-local-conditions: true
+  poi-scratch: true
+  poi-reservation-check: true
+  work-timings: false
