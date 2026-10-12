@@ -1,0 +1,25 @@
+#!/bin/sh
+# The owner has authorized only this repository and branch.
+allowed_url='https://github.com/Hackii1432/Tessera.git'
+allowed_ref='refs/heads/ver/tessera-Xperimental'
+if [ "$2" != "$allowed_url" ]; then
+    echo 'Push blocked: only the authorized Tessera repository is allowed.' >&2
+    exit 1
+fi
+while read -r local_ref local_oid remote_ref remote_oid; do
+    remote_oid=$(printf '%s' "$remote_oid" | tr -d '\r')
+    if [ "$local_ref" != "$allowed_ref" ] || [ "$remote_ref" != "$allowed_ref" ]; then
+        echo 'Push blocked: only ver/tessera-Xperimental may be pushed.' >&2
+        exit 1
+    fi
+    if [ "$local_oid" = '0000000000000000000000000000000000000000' ]; then
+        echo 'Push blocked: branch deletion is not allowed.' >&2
+        exit 1
+    fi
+    if [ "$remote_oid" != '0000000000000000000000000000000000000000' ]; then
+        if ! git merge-base --is-ancestor "$remote_oid" "$local_oid"; then
+            echo 'Push blocked: fetch and preserve the remote commits first.' >&2
+            exit 1
+        fi
+    fi
+done

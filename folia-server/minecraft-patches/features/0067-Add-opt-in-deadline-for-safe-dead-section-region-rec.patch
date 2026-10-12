@@ -1,0 +1,139 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Codex <codex@localhost>
+Date: Mon, 12 Oct 2026 19:51:53 +0200
+Subject: [PATCH] Add opt-in deadline for safe dead-section region
+ recalculation
+
+
+diff --git a/dev/tessera/x/RegionRecalculation.java b/dev/tessera/x/RegionRecalculation.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..555d58b3387fe35529ffd3679cd831c6fa8071e8
+--- /dev/null
++++ b/dev/tessera/x/RegionRecalculation.java
+@@ -0,0 +1,45 @@
++package dev.tessera.x;
++
++import java.util.Map;
++import java.util.concurrent.atomic.AtomicLong;
++import java.util.concurrent.atomic.LongAdder;
++
++/** Experimental cleanup deadline. Does not change connectivity or ownership rules. */
++public final class RegionRecalculation {
++    private static final long DELAY_MS = Math.max(0L, Math.min(60_000L,
++        Long.getLong("tessera-x.region-recalc-max-delay-ms", 0L)));
++    // Avoid a breadth-first search on every release during continuous chunk churn.
++    public static final long MAX_DELAY_NANOS = DELAY_MS == 0L ? 0L : Math.max(100L, DELAY_MS) * 1_000_000L;
++    private static final LongAdder passes = new LongAdder();
++    private static final LongAdder deadlinePasses = new LongAdder();
++    private static final LongAdder splitPasses = new LongAdder();
++    private static final LongAdder examinedSections = new LongAdder();
++    private static final LongAdder removedSections = new LongAdder();
++    private static final LongAdder analysisNanos = new LongAdder();
++    private static final AtomicLong maxAnalysisNanos = new AtomicLong();
++
++    private RegionRecalculation() {}
++
++    public static void record(final long start, final int examined, final int removed,
++                              final int components, final boolean deadline) {
++        if (MAX_DELAY_NANOS == 0L) {
++            return;
++        }
++        final long elapsed = System.nanoTime() - start;
++        passes.increment();
++        if (deadline) deadlinePasses.increment();
++        if (components > 1) splitPasses.increment();
++        examinedSections.add(examined);
++        removedSections.add(removed);
++        analysisNanos.add(elapsed);
++        maxAnalysisNanos.accumulateAndGet(elapsed, Math::max);
++    }
++
++    /** Process-wide diagnostic counters; no world or entity state is exposed. */
++    public static Map<String, Long> diagnostics() {
++        return Map.of("maxDelayNanos", MAX_DELAY_NANOS, "passes", passes.sum(),
++            "deadlinePasses", deadlinePasses.sum(), "splitPasses", splitPasses.sum(),
++            "examinedSections", examinedSections.sum(), "removedSections", removedSections.sum(),
++            "analysisNanos", analysisNanos.sum(), "maxAnalysisNanos", maxAnalysisNanos.get());
++    }
++}
+diff --git a/io/papermc/paper/threadedregions/ThreadedRegionizer.java b/io/papermc/paper/threadedregions/ThreadedRegionizer.java
+index 3449918b5001bb39c541ce1168eac4acf9144e1f..d586decdf39b0e24c7a714612770d0b231f50a8b 100644
+--- a/io/papermc/paper/threadedregions/ThreadedRegionizer.java
++++ b/io/papermc/paper/threadedregions/ThreadedRegionizer.java
+@@ -528,9 +528,18 @@ public final class ThreadedRegionizer<R extends ThreadedRegionizer.ThreadedRegio
+         }
+ 
+         // now check whether we need to recalculate regions
+-        final boolean removeDeadSections = hasExpectingMerges || region.hasNoAliveSections()
++        final boolean originalCleanup = hasExpectingMerges || region.hasNoAliveSections()
+             || (region.sectionByKey.size() >= this.minSectionRecalcCount && region.getDeadSectionPercent() >= this.maxDeadRegionPercent);
++        // Tessera-X: only advance cleanup of sections already proven empty and without non-empty neighbours.
++        // The check runs with the write lock, after the tick lease and pending merges have been resolved.
++        final boolean deadlineCleanup = !originalCleanup && dev.tessera.x.RegionRecalculation.MAX_DELAY_NANOS != 0L
++            && !region.deadSections.isEmpty()
++            && System.nanoTime() - region.firstDeadSectionNanos >= dev.tessera.x.RegionRecalculation.MAX_DELAY_NANOS;
++        final boolean removeDeadSections = originalCleanup || deadlineCleanup;
+         final boolean removedDeadSections = removeDeadSections && !region.deadSections.isEmpty();
++        final long analysisStart = removedDeadSections && dev.tessera.x.RegionRecalculation.MAX_DELAY_NANOS != 0L ? System.nanoTime() : 0L;
++        final int examinedSections = region.sectionByKey.size();
++        final int removedSections = region.deadSections.size();
+         if (removeDeadSections) {
+             // kill dead sections
+             for (final ThreadedRegionSection<R, S> deadSection : region.deadSections) {
+@@ -568,6 +577,7 @@ public final class ThreadedRegionizer<R extends ThreadedRegionizer.ThreadedRegio
+         final Long2ReferenceOpenHashMap<ThreadedRegionSection<R, S>> recalculateSections = region.sectionByKey.clone();
+ 
+         if (recalculateSections.isEmpty()) {
++            dev.tessera.x.RegionRecalculation.record(analysisStart, examinedSections, removedSections, 0, deadlineCleanup);
+             // looks like the region's sections were all dead, and now there is no region at all
+             region.state = ThreadedRegion.STATE_DEAD;
+             region.onRemove(true);
+@@ -617,6 +627,8 @@ public final class ThreadedRegionizer<R extends ThreadedRegionizer.ThreadedRegio
+             newRegions.add(currRegion);
+         }
+ 
++        dev.tessera.x.RegionRecalculation.record(analysisStart, examinedSections, removedSections, newRegions.size(), deadlineCleanup);
++
+         // now we have split the regions into separate parts, we can split recalculate
+ 
+         if (newRegions.size() == 1) {
+@@ -686,6 +698,8 @@ public final class ThreadedRegionizer<R extends ThreadedRegionizer.ThreadedRegio
+ 
+         private final Long2ReferenceOpenHashMap<ThreadedRegionSection<R, S>> sectionByKey = new Long2ReferenceOpenHashMap<>();
+         private final ReferenceOpenHashSet<ThreadedRegionSection<R, S>> deadSections = new ReferenceOpenHashSet<>();
++        // Valid only while deadSections is non-empty; reset implicitly when the next batch starts.
++        private long firstDeadSectionNanos;
+ 
+         public final ThreadedRegionizer<R, S> regioniser;
+ 
+@@ -857,6 +871,13 @@ public final class ThreadedRegionizer<R extends ThreadedRegionizer.ThreadedRegio
+                 section.setRegionRelease(null);
+                 mergeTarget.addSection(section);
+             }
++            // Preserve the age of an existing dead-section batch when transferring ownership.
++            if (dev.tessera.x.RegionRecalculation.MAX_DELAY_NANOS != 0L && !this.deadSections.isEmpty()) {
++                final long now = System.nanoTime();
++                if (mergeTarget.deadSections.isEmpty() || now - this.firstDeadSectionNanos > now - mergeTarget.firstDeadSectionNanos) {
++                    mergeTarget.firstDeadSectionNanos = this.firstDeadSectionNanos;
++                }
++            }
+             for (final ThreadedRegionSection<R, S> deadSection : this.deadSections) {
+                 if (this.sectionByKey.get(deadSection.sectionKey) != deadSection) {
+                     throw new IllegalStateException("Source region does not even contain its own dead sections! Missing " + deadSection + " from region " + this);
+@@ -939,6 +960,9 @@ public final class ThreadedRegionizer<R extends ThreadedRegionizer.ThreadedRegio
+         }
+ 
+         private void addDeadSection(final ThreadedRegionSection<R, S> section) {
++            if (dev.tessera.x.RegionRecalculation.MAX_DELAY_NANOS != 0L && this.deadSections.isEmpty()) {
++                this.firstDeadSectionNanos = System.nanoTime();
++            }
+             this.deadSections.add(section);
+         }
+ 
+@@ -1402,4 +1426,4 @@ public final class ThreadedRegionizer<R extends ThreadedRegionizer.ThreadedRegio
+          */
+         public void preSplit(final ThreadedRegion<R, S> from, final List<ThreadedRegion<R, S>> into);
+     }
+-}
+\ No newline at end of file
++}

@@ -1,0 +1,5 @@
+name: TesseraXRegionSplitComparison
+version: 1.0.0
+main: dev.tessera.lab.RegionSplitNative
+api-version: '26.3'
+folia-supported: true

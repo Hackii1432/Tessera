@@ -1,0 +1,311 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Codex <codex@localhost>
+Date: Mon, 12 Oct 2026 18:10:02 +0200
+Subject: [PATCH] Add opt-in Tessera-X sensor sorting pilot with owner
+ validation
+
+
+diff --git a/dev/tessera/x/SensorWork.java b/dev/tessera/x/SensorWork.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..4c34a08f198602e0296b027a681732f551b8062b
+--- /dev/null
++++ b/dev/tessera/x/SensorWork.java
+@@ -0,0 +1,226 @@
++package dev.tessera.x;
++
++import io.papermc.paper.threadedregions.RegionizedWorldData;
++import io.papermc.paper.threadedregions.TickRegionScheduler;
++import java.lang.management.ManagementFactory;
++import java.lang.management.ThreadMXBean;
++import java.util.Comparator;
++import java.util.IdentityHashMap;
++import java.util.LinkedHashMap;
++import java.util.List;
++import java.util.Map;
++import java.util.concurrent.ArrayBlockingQueue;
++import java.util.concurrent.Future;
++import java.util.concurrent.RejectedExecutionException;
++import java.util.concurrent.ThreadPoolExecutor;
++import java.util.concurrent.TimeUnit;
++import java.util.concurrent.atomic.AtomicInteger;
++import java.util.concurrent.atomic.LongAdder;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.world.entity.LivingEntity;
++import net.minecraft.world.entity.ai.attributes.Attributes;
++
++/** Experimental, opt-in distance sorting. World access and publication stay on the owner. */
++public final class SensorWork {
++    public static final boolean ENABLED = Boolean.getBoolean("tessera-x.sensors");
++    private static final int WORKERS = Math.clamp(Integer.getInteger("tessera-x.sensor-workers", 4), 0, 8);
++    private static final boolean VERIFY = Boolean.getBoolean("tessera-x.verify-sensors");
++    private static final int MIN_CANDIDATES = 64;
++    private static final int MAX_JOBS_PER_PHASE = 128;
++    private static final int MAX_VALUES_PER_PHASE = 262144;
++    private static final ThreadLocal<Phase> CURRENT = new ThreadLocal<>();
++    private static final ThreadMXBean CPU = ManagementFactory.getThreadMXBean();
++    private static final AtomicInteger ACTIVE = new AtomicInteger();
++    private static final AtomicInteger MAX_ACTIVE = new AtomicInteger();
++    private static final LongAdder SUBMITTED = new LongAdder();
++    private static final LongAdder APPLIED = new LongAdder();
++    private static final LongAdder STALE = new LongAdder();
++    private static final LongAdder NOT_READY = new LongAdder();
++    private static final LongAdder REJECTED = new LongAdder();
++    private static final LongAdder SORTS = new LongAdder();
++    private static final LongAdder VERIFIED = new LongAdder();
++    private static final LongAdder WORKER_CPU = new LongAdder();
++    private static final LongAdder WORKER_WALL = new LongAdder();
++    private static final LongAdder PREPARE_WALL = new LongAdder();
++    private static final LongAdder VALIDATE_WALL = new LongAdder();
++    private static final ThreadPoolExecutor POOL = createPool();
++
++    private SensorWork() {}
++
++    private static ThreadPoolExecutor createPool() {
++        if (!ENABLED || WORKERS == 0) return null;
++        AtomicInteger ids = new AtomicInteger();
++        ThreadPoolExecutor pool = new ThreadPoolExecutor(WORKERS, WORKERS, 0L, TimeUnit.MILLISECONDS,
++            new ArrayBlockingQueue<>(WORKERS * 32), runnable -> {
++                Thread thread = new Thread(runnable, "Tessera-X Sensor Compute " + ids.incrementAndGet());
++                thread.setDaemon(true);
++                return thread;
++            }, new ThreadPoolExecutor.AbortPolicy());
++        pool.prestartAllCoreThreads();
++        return pool;
++    }
++
++    // The owner-only Phase never crosses a tick lease, merge, split, or worker boundary.
++    private static final class Phase {
++        final ServerLevel level;
++        final Object region;
++        final IdentityHashMap<LivingEntity, Prepared> jobs = new IdentityHashMap<>();
++        int values;
++        Phase(ServerLevel level) {
++            this.level = level;
++            this.region = TickRegionScheduler.getCurrentRegion();
++        }
++    }
++
++    // Entity references exist only in the owner's validation table. Workers see double[] only.
++    private record Prepared(LivingEntity[] entities, double[] distances, Future<int[]> result) {}
++
++    public static void begin(ServerLevel level, RegionizedWorldData data) {
++        if (!ENABLED || POOL == null) return;
++        if (CURRENT.get() != null) throw new IllegalStateException("Nested sensor preparation phase");
++        Phase phase = new Phase(level);
++        CURRENT.set(phase);
++        long start = System.nanoTime();
++        try {
++            data.forEachTickingEntity(entity -> {
++                if (phase.jobs.size() >= MAX_JOBS_PER_PHASE || phase.values >= MAX_VALUES_PER_PHASE) return;
++                if (!(entity instanceof LivingEntity body) || !body.isAlive()
++                    || !body.getBrain().tesseraX$nearestSensorDue()) return;
++                double range = body.getAttributeValue(Attributes.FOLLOW_RANGE);
++                List<LivingEntity> candidates = level.getEntitiesOfClass(LivingEntity.class,
++                    body.getBoundingBox().inflate(range, range, range), other -> other != body && other.isAlive());
++                if (candidates.size() < MIN_CANDIDATES || candidates.size() > MAX_VALUES_PER_PHASE - phase.values) return;
++                LivingEntity[] references = candidates.toArray(LivingEntity[]::new);
++                double[] keys = distances(body, candidates);
++                try {
++                    // This lambda captures only primitive immutable keys, never the Phase or body.
++                    Future<int[]> result = POOL.submit(() -> compute(keys));
++                    phase.jobs.put(body, new Prepared(references, keys, result));
++                    phase.values += keys.length;
++                    SUBMITTED.increment();
++                } catch (RejectedExecutionException full) {
++                    REJECTED.increment();
++                }
++            });
++        } catch (RuntimeException | Error failure) {
++            end();
++            throw failure;
++        } finally {
++            PREPARE_WALL.add(System.nanoTime() - start);
++        }
++    }
++
++    public static void end() {
++        Phase phase = CURRENT.get();
++        if (phase == null) return;
++        CURRENT.remove();
++        for (Prepared job : phase.jobs.values()) if (!job.result().isDone()) job.result().cancel(false);
++    }
++
++    public static void sort(ServerLevel level, LivingEntity body, List<LivingEntity> candidates) {
++        SORTS.increment();
++        if (candidates.size() < MIN_CANDIDATES) {
++            candidates.sort(Comparator.comparingDouble(body::distanceToSqr));
++            return;
++        }
++        List<LivingEntity> oracle = VERIFY ? new java.util.ArrayList<>(candidates) : null;
++        if (oracle != null) oracle.sort(Comparator.comparingDouble(body::distanceToSqr));
++        Phase phase = CURRENT.get();
++        Prepared job = phase != null && phase.level == level && phase.region == TickRegionScheduler.getCurrentRegion()
++            ? phase.jobs.remove(body) : null;
++        double[] current = distances(body, candidates);
++        int[] order = null;
++        if (job != null) {
++            long start = System.nanoTime();
++            boolean valid = candidates.size() == job.entities().length;
++            for (int i = 0; valid && i < candidates.size(); i++) {
++                valid = candidates.get(i) == job.entities()[i]
++                    && Double.doubleToLongBits(current[i]) == Double.doubleToLongBits(job.distances()[i]);
++            }
++            if (!valid) {
++                STALE.increment();
++                job.result().cancel(false);
++            } else if (!job.result().isDone() || job.result().isCancelled()) {
++                NOT_READY.increment();
++                job.result().cancel(false);
++            } else {
++                try {
++                    order = job.result().get(); // isDone: never wait for a worker deadline.
++                    APPLIED.increment();
++                } catch (Exception unavailable) {
++                    NOT_READY.increment();
++                }
++            }
++            VALIDATE_WALL.add(System.nanoTime() - start);
++        }
++        if (order == null) order = stableOrder(current);
++        LivingEntity[] references = candidates.toArray(LivingEntity[]::new);
++        for (int i = 0; i < order.length; i++) candidates.set(i, references[order[i]]);
++        if (oracle != null) {
++            for (int i = 0; i < oracle.size(); i++) {
++                if (oracle.get(i) != candidates.get(i)) throw new IllegalStateException("Sensor sort differs from native stable order");
++            }
++            VERIFIED.increment();
++        }
++    }
++
++    private static double[] distances(LivingEntity body, List<LivingEntity> candidates) {
++        double[] values = new double[candidates.size()];
++        for (int i = 0; i < values.length; i++) values[i] = body.distanceToSqr(candidates.get(i));
++        return values;
++    }
++
++    private static int[] compute(double[] values) {
++        long wall = System.nanoTime();
++        long cpu = cpuTime();
++        int active = ACTIVE.incrementAndGet();
++        MAX_ACTIVE.accumulateAndGet(active, Math::max);
++        try {
++            return stableOrder(values);
++        } finally {
++            ACTIVE.decrementAndGet();
++            WORKER_WALL.add(System.nanoTime() - wall);
++            long end = cpuTime();
++            if (cpu >= 0 && end >= 0) WORKER_CPU.add(end - cpu);
++        }
++    }
++
++    private static long cpuTime() {
++        return CPU.isCurrentThreadCpuTimeSupported() && CPU.isThreadCpuTimeEnabled() ? CPU.getCurrentThreadCpuTime() : -1;
++    }
++
++    /** Stable ordering uses the same Double.compare rule and original tie order as List.sort. */
++    public static int[] stableOrder(double[] values) {
++        int[] order = new int[values.length];
++        int[] scratch = new int[values.length];
++        for (int i = 0; i < order.length; i++) order[i] = i;
++        mergeSort(values, order, scratch, 0, order.length);
++        return order;
++    }
++
++    private static void mergeSort(double[] values, int[] order, int[] scratch, int from, int to) {
++        if (to - from < 2) return;
++        int middle = (from + to) >>> 1;
++        mergeSort(values, order, scratch, from, middle);
++        mergeSort(values, order, scratch, middle, to);
++        if (Double.compare(values[order[middle - 1]], values[order[middle]]) <= 0) return;
++        int left = from, right = middle;
++        for (int i = from; i < to; i++) {
++            scratch[i] = right >= to || left < middle && Double.compare(values[order[left]], values[order[right]]) <= 0
++                ? order[left++] : order[right++];
++        }
++        System.arraycopy(scratch, from, order, from, to - from);
++    }
++
++    public static Map<String, Long> metrics() {
++        Map<String, Long> data = new LinkedHashMap<>();
++        data.put("workers", (long)WORKERS);
++        data.put("submitted", SUBMITTED.sum()); data.put("applied", APPLIED.sum());
++        data.put("stale", STALE.sum()); data.put("notReady", NOT_READY.sum());
++        data.put("rejected", REJECTED.sum()); data.put("sorts", SORTS.sum());
++        data.put("verified", VERIFIED.sum()); data.put("workerCpuNanos", WORKER_CPU.sum());
++        data.put("workerWallNanos", WORKER_WALL.sum()); data.put("prepareWallNanos", PREPARE_WALL.sum());
++        data.put("validateWallNanos", VALIDATE_WALL.sum()); data.put("maxActiveWorkers", (long)MAX_ACTIVE.get());
++        return data;
++    }
++}
+diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
+index 3d5f3779478d823a6fd25f1dffd5f841050d3acd..b28bbae01051d624ca0b545dadc775514a1245fd 100644
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -995,6 +995,8 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+             io.papermc.paper.entity.activation.ActivationRange.activateEntities(this); // Paper - EAR
+             } finally { foliaProfiler.stopTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.ACTIVATE_ENTITIES); } // Folia - profiler
+             foliaProfiler.startTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.ENTITY_TICK); try { // Folia - profiler
++            if (dev.tessera.x.SensorWork.ENABLED) dev.tessera.x.SensorWork.begin(this, regionizedWorldData);
++            try {
+             regionizedWorldData // Folia - regionised ticking
+                 .forEachTickingEntity( // Folia - regionised ticking
+                     entity -> {
+@@ -1022,6 +1024,9 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+                         }
+                     }
+                 );
++            } finally {
++                if (dev.tessera.x.SensorWork.ENABLED) dev.tessera.x.SensorWork.end();
++            }
+             } finally { foliaProfiler.stopTimer(ca.spottedleaf.leafprofiler.LProfilerRegistry.ENTITY_TICK); } // Folia - profiler
+             if (this.paperConfig().unsupportedSettings.ticking.blockEntities) { // Paper - option to disable ticking
+             profiler.popPush("blockEntities");
+diff --git a/net/minecraft/world/entity/ai/Brain.java b/net/minecraft/world/entity/ai/Brain.java
+index e097bc1268b4050e3948413c52dea69950858458..e149f35a5620f57fde5bada4746602ad7cf58162 100644
+--- a/net/minecraft/world/entity/ai/Brain.java
++++ b/net/minecraft/world/entity/ai/Brain.java
+@@ -389,6 +389,12 @@ public class Brain<E extends LivingEntity> {
+         this.tickEachRunningBehavior(level, body);
+     }
+ 
++    public boolean tesseraX$nearestSensorDue() {
++        Sensor<?> sensor = this.sensors.get(SensorType.NEAREST_LIVING_ENTITIES);
++        return sensor != null && sensor.getClass() == net.minecraft.world.entity.ai.sensing.NearestLivingEntitySensor.class
++            && sensor.tesseraX$dueNextCall();
++    }
++
+     private void tickSensors(final ServerLevel level, final E body) {
+         for (Sensor<? super E> sensor : this.sensors.values()) {
+             sensor.tick(level, body);
+diff --git a/net/minecraft/world/entity/ai/sensing/NearestLivingEntitySensor.java b/net/minecraft/world/entity/ai/sensing/NearestLivingEntitySensor.java
+index 3578ece216827fd5d8c1206c689fc608e97b50df..74f1186a1c31667a4dfdd1254559ebd42131aa7a 100644
+--- a/net/minecraft/world/entity/ai/sensing/NearestLivingEntitySensor.java
++++ b/net/minecraft/world/entity/ai/sensing/NearestLivingEntitySensor.java
+@@ -18,7 +18,11 @@ public class NearestLivingEntitySensor<T extends LivingEntity> extends Sensor<T>
+         double followRange = body.getAttributeValue(Attributes.FOLLOW_RANGE);
+         AABB boundingBox = body.getBoundingBox().inflate(followRange, followRange, followRange);
+         List<LivingEntity> livingEntities = level.getEntitiesOfClass(LivingEntity.class, boundingBox, mob -> mob != body && mob.isAlive());
+-        livingEntities.sort(Comparator.comparingDouble(body::distanceToSqr));
++        if (dev.tessera.x.SensorWork.ENABLED) {
++            dev.tessera.x.SensorWork.sort(level, body, livingEntities);
++        } else {
++            livingEntities.sort(Comparator.comparingDouble(body::distanceToSqr));
++        }
+         Brain<?> brain = body.getBrain();
+         brain.setMemory(MemoryModuleType.NEAREST_LIVING_ENTITIES, livingEntities);
+         brain.setMemory(MemoryModuleType.NEAREST_VISIBLE_LIVING_ENTITIES, new NearestVisibleLivingEntities(level, body, livingEntities));
+diff --git a/net/minecraft/world/entity/ai/sensing/Sensor.java b/net/minecraft/world/entity/ai/sensing/Sensor.java
+index 745f26d36a30a9f570bc989b97002c2723db4ba8..1641bb5971df33553ef351583a98f07f528192a5 100644
+--- a/net/minecraft/world/entity/ai/sensing/Sensor.java
++++ b/net/minecraft/world/entity/ai/sensing/Sensor.java
+@@ -70,6 +70,10 @@ public abstract class Sensor<E extends LivingEntity> {
+ 
+     protected abstract void doTick(final ServerLevel level, final E body);
+ 
++    public final boolean tesseraX$dueNextCall() {
++        return this.timeToTick <= 1L;
++    }
++
+     public abstract Set<MemoryModuleType<?>> requires();
+ 
+     public static boolean isEntityTargetable(final ServerLevel level, final LivingEntity body, final LivingEntity entity) {
