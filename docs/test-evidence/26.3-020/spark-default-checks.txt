@@ -1,0 +1,28 @@
+two protocol clients connected
+bundled spark API registered without a spark plugin
+no external spark plugin
+native fallback command registered after plugins
+clients on distinct native regions
+console command dispatched: spark profiler start --force-java-sampler --thread * --not-combined --interval 5
+non-player sentinel ticked before freeze
+non-player sentinel remained frozen at sample-window checkpoint
+non-player sentinel remained frozen at sample-window checkpoint
+non-player sentinel remained frozen at sample-window checkpoint
+non-player sentinel remained frozen at sample-window checkpoint
+gameplay stayed frozen while spark replied
+real client spark command reached the current player owner during freeze
+dimension transfer completed during recording and freeze
+metadata contains independent live regions
+metadata reports tick freeze
+exact ten-second window published
+published ten-second reports contain real finite native tick measurements
+console command dispatched: spark profiler stop --save-to-file
+all-thread profile contains Netty samples
+all-thread profile contains multiple tick workers
+saved protobuf contains region metadata
+sampler collected multiple windows throughout tick freeze
+saved protobuf contains actual stack samples
+player identity retained in recording metadata
+default recording selects dynamic tick workers only
+clients remained connected throughout profiling
+console command dispatched: spark profiler start --force-java-sampler

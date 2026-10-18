@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.papermc.paper.spark.SparkCommandSenderTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-17T20:55:42.781Z" hostname="ENGINE0" time="1.133">
+  <properties/>
+  <testcase name="repliesUseExplicitDeliveryInsteadOfOriginalSender()" classname="io.papermc.paper.spark.SparkCommandSenderTest" time="0.245"/>
+  <testcase name="consoleHasNoPlayerIdentityAndNoLatePermissionRead()" classname="io.papermc.paper.spark.SparkCommandSenderTest" time="0.005"/>
+  <testcase name="pluginPreferencePropertyRetainsSafeDefault()" classname="io.papermc.paper.spark.SparkCommandSenderTest" time="0.006"/>
+  <testcase name="unexpectedFutureSparkPlayerOperationsFailClosed()" classname="io.papermc.paper.spark.SparkCommandSenderTest" time="0.86"/>
+  <testcase name="repeatedSnapshotsPreserveNotificationIdentityWithoutLiveReads()" classname="io.papermc.paper.spark.SparkCommandSenderTest" time="0.003"/>
+  <testcase name="permissionsAndIdentityAreCopiedBeforeAsyncWork()" classname="io.papermc.paper.spark.SparkCommandSenderTest" time="0.01"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

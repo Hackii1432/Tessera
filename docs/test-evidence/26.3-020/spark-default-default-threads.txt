@@ -1,0 +1,5 @@
+Folia Region Scheduler Thread #0
+Folia Region Scheduler Thread #1
+Folia Region Scheduler Thread #2
+Folia Region Scheduler Thread #3
+Server thread

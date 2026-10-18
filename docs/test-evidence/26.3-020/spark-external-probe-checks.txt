@@ -1,0 +1,3 @@
+native spark API remains unavailable when disabled or an external plugin is preferred
+external spark-name probe is preferred without enabling a second profiler
+disabled command remains available with diagnostic

@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Sat, 17 Oct 2026 21:59:30 +0200
+Subject: [PATCH] fixup! Enable bundled spark with region-safe Tessera adapters
+
+
+diff --git a/src/main/java/io/papermc/paper/spark/TesseraSparkPlugin.java b/src/main/java/io/papermc/paper/spark/TesseraSparkPlugin.java
+index 906e6fa09d6315799d92115d1f05115491eeee51..ba51449f2af964adc416e3e559685d19be12d4cb 100644
+--- a/src/main/java/io/papermc/paper/spark/TesseraSparkPlugin.java
++++ b/src/main/java/io/papermc/paper/spark/TesseraSparkPlugin.java
+@@ -73,7 +73,7 @@ public final class TesseraSparkPlugin extends PaperSparkPlugin {
+             final Map<String, Integer> pings = new java.util.HashMap<>();
+             for (final Player player : Bukkit.getOnlinePlayers()) {
+                 // Connection latency is published volatile; never call owner-checked getHandle().
+-                final var handle = ((CraftPlayer)player).getHandleRaw();
++                final var handle = (net.minecraft.server.level.ServerPlayer)((CraftPlayer)player).getHandleRaw();
+                 if (handle.connection != null) pings.put(handle.getScoreboardName(), handle.connection.latency());
+             }
+             return Map.copyOf(pings);

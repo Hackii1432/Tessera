@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.papermc.paper.spark.RegionTickStatisticsTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-10-17T20:55:41.297Z" hostname="ENGINE0" time="1.481">
+  <properties/>
+  <testcase name="unavailableWorldDetailsNeitherReadForeignStateNorInventZeroCounts()" classname="io.papermc.paper.spark.RegionTickStatisticsTest" time="0.031"/>
+  <testcase name="realSparkWindowCollectorAcceptsMissingDurationWithoutKillingSampling()" classname="io.papermc.paper.spark.RegionTickStatisticsTest" time="1.304"/>
+  <testcase name="noRegionsIsNotFabricatedTwentyTps()" classname="io.papermc.paper.spark.RegionTickStatisticsTest" time="0.005"/>
+  <testcase name="slowRegionIsNotHiddenByAverage()" classname="io.papermc.paper.spark.RegionTickStatisticsTest" time="0.001"/>
+  <testcase name="metricsStartOnceAndAreCancelledAtShutdown()" classname="io.papermc.paper.spark.RegionTickStatisticsTest" time="0.096"/>
+  <testcase name="unmeasuredRegionsDoNotInventZeroSamples()" classname="io.papermc.paper.spark.RegionTickStatisticsTest" time="0.001"/>
+  <testcase name="snapshotsCannotBeMutatedByCallers()" classname="io.papermc.paper.spark.RegionTickStatisticsTest" time="0.002"/>
+  <testcase name="windowsAreIndependentAndTargetIsRespected()" classname="io.papermc.paper.spark.RegionTickStatisticsTest" time="0.001"/>
+  <testcase name="missingReportIsExplicitlyUnavailable()" classname="io.papermc.paper.spark.RegionTickStatisticsTest" time="0.0"/>
+  <testcase name="percentilesAreNotManufactured()" classname="io.papermc.paper.spark.RegionTickStatisticsTest" time="0.001"/>
+  <testcase name="unsafeTickOptionsAreRejectedButAllThreadsAreAllowed()" classname="io.papermc.paper.spark.RegionTickStatisticsTest" time="0.005"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

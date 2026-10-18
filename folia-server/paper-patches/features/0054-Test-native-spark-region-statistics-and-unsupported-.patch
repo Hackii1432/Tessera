@@ -1,0 +1,116 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Sat, 17 Oct 2026 21:57:00 +0200
+Subject: [PATCH] Test native spark region statistics and unsupported tick
+ filters
+
+
+diff --git a/src/test/java/io/papermc/paper/spark/RegionTickStatisticsTest.java b/src/test/java/io/papermc/paper/spark/RegionTickStatisticsTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d2ed9096685324538accc7f6a51178b099aa1561
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/spark/RegionTickStatisticsTest.java
+@@ -0,0 +1,88 @@
++package io.papermc.paper.spark;
++
++import java.util.Arrays;
++import java.util.List;
++import me.lucko.spark.paper.common.metric.Metrics;
++import me.lucko.spark.paper.common.monitor.MonitoringExecutor;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.ArgumentMatchers.*;
++import static org.mockito.Mockito.*;
++
++class RegionTickStatisticsTest {
++    private static RegionTickStatistics.Window window(final double tps) {
++        return new RegionTickStatistics.Window(tps, 2, 1, 2, 5, 0.04, 200);
++    }
++
++    private static RegionTickStatistics.Region region(final long id, final RegionTickStatistics.Window... windows) {
++        return new RegionTickStatistics.Region(id, "minecraft:overworld", 100, 20, 1, Arrays.asList(windows));
++    }
++
++    @Test void slowRegionIsNotHiddenByAverage() {
++        final var snapshot = new RegionTickStatistics.Snapshot(1, 20, false,
++            List.of(region(1, window(20)), region(2, window(8))), null);
++        assertEquals(8, snapshot.minimumTps(0));
++    }
++
++    @Test void unmeasuredRegionsDoNotInventZeroSamples() {
++        final var snapshot = new RegionTickStatistics.Snapshot(1, 20, false,
++            List.of(region(1, (RegionTickStatistics.Window)null), region(2, window(19))), null);
++        assertEquals(19, snapshot.minimumTps(0));
++    }
++
++    @Test void noRegionsIsNotFabricatedTwentyTps() {
++        assertEquals(0, new RegionTickStatistics.Snapshot(1, 20, false, List.of(), null).minimumTps(0));
++    }
++
++    @Test void windowsAreIndependentAndTargetIsRespected() {
++        final var snapshot = new RegionTickStatistics.Snapshot(1, 30, false,
++            List.of(region(1, window(40), window(18))), null);
++        assertEquals(30, snapshot.minimumTps(0));
++        assertEquals(18, snapshot.minimumTps(1));
++    }
++
++    @Test void snapshotsCannotBeMutatedByCallers() {
++        final var source = new java.util.ArrayList<RegionTickStatistics.Window>();
++        source.add(window(18));
++        final var region = new RegionTickStatistics.Region(1, "world", 1, 1, 1, source);
++        source.clear();
++        assertEquals(1, region.windows().size());
++        assertThrows(UnsupportedOperationException.class, () -> region.windows().clear());
++    }
++
++    @Test void missingReportIsExplicitlyUnavailable() {
++        assertNull(RegionTickStatistics.Window.from(null));
++    }
++
++    @Test void percentilesAreNotManufactured() {
++        final var statistics = new RegionTickStatistics();
++        assertFalse(statistics.isDurationSupported());
++        assertThrows(UnsupportedOperationException.class, statistics::duration10Sec);
++        assertThrows(UnsupportedOperationException.class, statistics::duration1Min);
++        assertThrows(UnsupportedOperationException.class, statistics::duration5Min);
++    }
++
++    @Test void metricsStartOnceAndAreCancelledAtShutdown() {
++        try (final var executor = mockStatic(MonitoringExecutor.class)) {
++            final var task = mock(java.util.concurrent.ScheduledFuture.class);
++            executor.when(() -> MonitoringExecutor.scheduleAtFixedRateMillis(any(), anyLong())).thenReturn(task);
++            final var statistics = new RegionTickStatistics();
++            final var metrics = new Metrics();
++            statistics.start(metrics);
++            statistics.start(metrics);
++            executor.verify(() -> MonitoringExecutor.scheduleAtFixedRateMillis(any(), anyLong()), times(1));
++            statistics.close();
++            verify(task).cancel(false);
++            statistics.close();
++            verifyNoMoreInteractions(task);
++        }
++    }
++
++    @Test void unsafeTickOptionsAreRejectedButAllThreadsAreAllowed() {
++        assertNotNull(TesseraSparkPlugin.unsupportedReason(new String[]{"profiler", "start", "--only-ticks-over=50"}));
++        assertNotNull(TesseraSparkPlugin.unsupportedReason(new String[]{"tickmonitor"}));
++        assertNotNull(TesseraSparkPlugin.unsupportedReason(new String[]{"profiler", "start", "--tick", "1"}));
++        assertNull(TesseraSparkPlugin.unsupportedReason(new String[]{"profiler", "start", "--thread", "*", "--not-combined"}));
++    }
++}
+diff --git a/src/test/java/io/papermc/paper/spark/SparkRegionTestSuite.java b/src/test/java/io/papermc/paper/spark/SparkRegionTestSuite.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..203c3bd90f404940c7085b122802af31f43a732a
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/spark/SparkRegionTestSuite.java
+@@ -0,0 +1,9 @@
++package io.papermc.paper.spark;
++
++import org.junit.platform.suite.api.SelectClasses;
++import org.junit.platform.suite.api.Suite;
++
++@Suite
++@SelectClasses(RegionTickStatisticsTest.class)
++public class SparkRegionTestSuite {
++}

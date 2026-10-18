@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Sat, 17 Oct 2026 21:55:55 +0200
+Subject: [PATCH] Add exact ten-second scheduler reports for native spark
+
+
+diff --git a/io/papermc/paper/threadedregions/TickRegionScheduler.java b/io/papermc/paper/threadedregions/TickRegionScheduler.java
+index b0625612e1a129202cba60047d1f9448893de24d..a648324c79b32f6f650a3ad598fec7b887607924 100644
+--- a/io/papermc/paper/threadedregions/TickRegionScheduler.java
++++ b/io/papermc/paper/threadedregions/TickRegionScheduler.java
+@@ -316,6 +316,7 @@ public final class TickRegionScheduler {
+         protected long lastTickStart;
+ 
+         protected final TickData tickTimes5s;
++        protected final TickData tickTimes10s; // Tessera - exact Spark reporting window
+         protected final TickData tickTimes15s;
+         protected final TickData tickTimes1m;
+         protected final TickData tickTimes5m;
+@@ -337,6 +338,7 @@ public final class TickRegionScheduler {
+             this.currentTick = 0L;
+             this.lastTickStart = TimeUtil.DEADLINE_NOT_SET;
+             this.tickTimes5s = new TickData(TimeUnit.SECONDS.toNanos(5L));
++            this.tickTimes10s = new TickData(TimeUnit.SECONDS.toNanos(10L)); // Tessera - exact Spark reporting window
+             this.tickTimes15s = new TickData(TimeUnit.SECONDS.toNanos(15L));
+             this.tickTimes1m = new TickData(TimeUnit.MINUTES.toNanos(1L));
+             this.tickTimes5m = new TickData(TimeUnit.MINUTES.toNanos(5L));
+@@ -583,6 +585,7 @@ public final class TickRegionScheduler {
+                 this.currentTickData = null;
+                 this.currentTickingThread = null;
+                 this.tickTimes5s.addDataFrom(time);
++                this.tickTimes10s.addDataFrom(time); // Tessera - exact Spark reporting window
+                 this.tickTimes15s.addDataFrom(time);
+                 this.tickTimes1m.addDataFrom(time);
+                 this.tickTimes5m.addDataFrom(time);
+@@ -618,6 +621,13 @@ public final class TickRegionScheduler {
+             }
+         }
+ 
++        // Tessera - do not mislabel Folia's 15 second window as Spark's 10 second window.
++        public final TickData.TickReportData getTickReport10s(final long currTime) {
++            synchronized (this) {
++                return this.tickTimes10s.generateTickReport(this.adjustCurrentTickData(currTime), currTime, getTargetTickPeriodNanos());
++            }
++        }
++
+         public final TickData.TickReportData getTickReport1m(final long currTime) {
+             synchronized (this) {
+                 return this.tickTimes1m.generateTickReport(this.adjustCurrentTickData(currTime), currTime, getTargetTickPeriodNanos());

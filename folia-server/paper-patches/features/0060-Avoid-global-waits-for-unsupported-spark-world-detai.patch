@@ -1,0 +1,77 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Sat, 17 Oct 2026 22:25:47 +0200
+Subject: [PATCH] Avoid global waits for unsupported spark world details
+
+
+diff --git a/src/main/java/io/papermc/paper/spark/TesseraSparkPlugin.java b/src/main/java/io/papermc/paper/spark/TesseraSparkPlugin.java
+index b64a434fdfb0602495e17609c9b1c13a550b6d0d..521f53af7f775911f202b96f8aa98e82790b9721 100644
+--- a/src/main/java/io/papermc/paper/spark/TesseraSparkPlugin.java
++++ b/src/main/java/io/papermc/paper/spark/TesseraSparkPlugin.java
+@@ -68,7 +68,9 @@ public final class TesseraSparkPlugin extends PaperSparkPlugin {
+         // Paper's provider enumerates foreign chunk entity lists and block entity maps.
+         // Counts and timing reports are available in tessera-regions metadata instead.
+         // Unsupported details are absent, NOT zeroes, blocking fan-outs or chunk loads.
+-        return WorldInfoProvider.NO_OP;
++        // NO_OP inherits mustCallSync=true: its window exporter would wait for
++        // a pointless global task, including before global ticking starts.
++        return UnavailableWorldInfoProvider.INSTANCE;
+     }
+ 
+     @Override public PlayerPingProvider createPlayerPingProvider() {
+diff --git a/src/main/java/io/papermc/paper/spark/UnavailableWorldInfoProvider.java b/src/main/java/io/papermc/paper/spark/UnavailableWorldInfoProvider.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..e80a194bacbd54a9eba1eb96269c14a34f9870fa
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/spark/UnavailableWorldInfoProvider.java
+@@ -0,0 +1,19 @@
++package io.papermc.paper.spark;
++
++import java.util.Collection;
++import me.lucko.spark.paper.common.platform.world.ChunkInfo;
++import me.lucko.spark.paper.common.platform.world.WorldInfoProvider;
++import org.jetbrains.annotations.Nullable;
++
++/** No live world enumeration and, unlike spark's NO_OP, no global-thread round trip. */
++final class UnavailableWorldInfoProvider implements WorldInfoProvider {
++    static final UnavailableWorldInfoProvider INSTANCE = new UnavailableWorldInfoProvider();
++
++    private UnavailableWorldInfoProvider() { }
++
++    @Override public @Nullable CountsResult pollCounts() { return null; }
++    @Override public @Nullable ChunksResult<? extends ChunkInfo<?>> pollChunks() { return null; }
++    @Override public @Nullable GameRulesResult pollGameRules() { return null; }
++    @Override public @Nullable Collection<DataPackInfo> pollDataPacks() { return null; }
++    @Override public boolean mustCallSync() { return false; }
++}
+diff --git a/src/test/java/io/papermc/paper/spark/RegionTickStatisticsTest.java b/src/test/java/io/papermc/paper/spark/RegionTickStatisticsTest.java
+index 8cbd6da8dfd117bbb1654f98ed408f5b11d9cb1a..c1b88871d4bbeaab0c92764215c3d22b2338f5b4 100644
+--- a/src/test/java/io/papermc/paper/spark/RegionTickStatisticsTest.java
++++ b/src/test/java/io/papermc/paper/spark/RegionTickStatisticsTest.java
+@@ -67,8 +67,7 @@ class RegionTickStatisticsTest {
+         final var statistics = mock(RegionTickStatistics.class, CALLS_REAL_METHODS);
+         doReturn(19.0).when(statistics).tps1Min();
+         final var plugin = mock(me.lucko.spark.paper.common.SparkPlugin.class);
+-        when(plugin.createWorldInfoProvider()).thenReturn(me.lucko.spark.paper.common.platform.world.WorldInfoProvider.NO_OP);
+-        doAnswer(call -> { call.<Runnable>getArgument(0).run(); return null; }).when(plugin).executeSync(any());
++        when(plugin.createWorldInfoProvider()).thenReturn(UnavailableWorldInfoProvider.INSTANCE);
+         final var platform = mock(me.lucko.spark.paper.common.SparkPlatform.class);
+         when(platform.getPlugin()).thenReturn(plugin);
+         when(platform.getTickStatistics()).thenReturn(statistics);
+@@ -77,6 +76,16 @@ class RegionTickStatisticsTest {
+         assertDoesNotThrow(() -> collector.measureNow(1));
+         assertEquals(19.0, collector.export().get(1).getTps());
+         verify(statistics).duration1Min();
++        verify(plugin, never()).executeSync(any());
++    }
++
++    @Test void unavailableWorldDetailsNeitherReadForeignStateNorInventZeroCounts() {
++        final var provider = UnavailableWorldInfoProvider.INSTANCE;
++        assertFalse(provider.mustCallSync());
++        assertNull(provider.pollCounts());
++        assertNull(provider.pollChunks());
++        assertNull(provider.pollGameRules());
++        assertNull(provider.pollDataPacks());
+     }
+ 
+     @Test void metricsStartOnceAndAreCancelledAtShutdown() {

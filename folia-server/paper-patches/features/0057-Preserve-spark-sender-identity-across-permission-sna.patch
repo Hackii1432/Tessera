@@ -1,0 +1,86 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Sat, 17 Oct 2026 22:21:38 +0200
+Subject: [PATCH] Preserve spark sender identity across permission snapshots
+
+
+diff --git a/src/main/java/io/papermc/paper/spark/SparkCommandSender.java b/src/main/java/io/papermc/paper/spark/SparkCommandSender.java
+index 72333de1f4c0913e40a1e454b2c42afbf1b1cfed..8610428060417f90afb80781a9de9eef2eb31775 100644
+--- a/src/main/java/io/papermc/paper/spark/SparkCommandSender.java
++++ b/src/main/java/io/papermc/paper/spark/SparkCommandSender.java
+@@ -1,6 +1,8 @@
+ package io.papermc.paper.spark;
+ 
+ import java.lang.reflect.Proxy;
++import java.lang.reflect.InvocationHandler;
++import java.lang.reflect.Method;
+ import java.util.Collection;
+ import java.util.Set;
+ import java.util.UUID;
+@@ -22,20 +24,36 @@ final class SparkCommandSender {
+         // No native entity, permission map or mutable sender state is read later.
+         // Keeping Player as the proxy type preserves spark's requester UUID.
+         return (CommandSender)Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type},
+-            (proxy, method, arguments) -> switch (method.getName()) {
+-                case "getName", "toString" -> name;
+-                case "getUniqueId" -> id;
+-                case "hasPermission" -> granted.contains((String)arguments[0]);
+-                case "hashCode" -> System.identityHashCode(proxy);
+-                case "equals" -> proxy == arguments[0];
++            new Snapshot(sender, name, id, granted, reply));
++    }
++
++    private record Snapshot(CommandSender identity, String name, UUID id, Set<String> granted, Consumer<Component> reply)
++        implements InvocationHandler {
++
++        @Override public Object invoke(final Object proxy, final Method method, final Object[] arguments) {
++            return switch (method.getName()) {
++                case "getName", "toString" -> this.name;
++                case "getUniqueId" -> this.id;
++                case "hasPermission" -> this.granted.contains((String)arguments[0]);
++                case "hashCode" -> System.identityHashCode(this.identity);
++                case "equals" -> {
++                    final Object other = arguments[0];
++                    // spark compares requesters with its notification audience.
++                    // Separate snapshots of the same sender must compare equally,
++                    // without invoking a live Bukkit sender on this worker.
++                    yield other != null && Proxy.isProxyClass(other.getClass())
++                        && Proxy.getInvocationHandler(other) instanceof Snapshot snapshot
++                        && this.identity == snapshot.identity;
++                }
+                 case "sendMessage" -> {
+                     if (arguments.length != 1 || !(arguments[0] instanceof Component message)) {
+                         throw new UnsupportedOperationException("Unexpected spark message signature: " + method);
+                     }
+-                    reply.accept(message);
++                    this.reply.accept(message);
+                     yield null;
+                 }
+                 default -> throw new UnsupportedOperationException("Unexpected spark sender operation: " + method);
+-            });
++            };
++        }
+     }
+ }
+diff --git a/src/test/java/io/papermc/paper/spark/SparkCommandSenderTest.java b/src/test/java/io/papermc/paper/spark/SparkCommandSenderTest.java
+index eb48c3f99a4de4fc1dd4f2e659d218fe8d807ad6..c1def43785e23e695a8df2ff5a7eb5aed812c7ff 100644
+--- a/src/test/java/io/papermc/paper/spark/SparkCommandSenderTest.java
++++ b/src/test/java/io/papermc/paper/spark/SparkCommandSenderTest.java
+@@ -14,6 +14,17 @@ import static org.junit.jupiter.api.Assertions.*;
+ import static org.mockito.Mockito.*;
+ 
+ class SparkCommandSenderTest {
++    @Test void repeatedSnapshotsPreserveNotificationIdentityWithoutLiveReads() {
++        final CommandSender source = mock(CommandSender.class);
++        when(source.getName()).thenReturn("CONSOLE");
++        final var first = new PaperCommandSender(SparkCommandSender.snapshot(source, List.of(), ignored -> { }));
++        final var second = new PaperCommandSender(SparkCommandSender.snapshot(source, List.of(), ignored -> { }));
++        clearInvocations(source);
++        assertEquals(first, second);
++        assertEquals(first.hashCode(), second.hashCode());
++        verifyNoInteractions(source);
++    }
++
+     @Test void permissionsAndIdentityAreCopiedBeforeAsyncWork() {
+         final Player source = mock(Player.class);
+         final UUID id = UUID.randomUUID();

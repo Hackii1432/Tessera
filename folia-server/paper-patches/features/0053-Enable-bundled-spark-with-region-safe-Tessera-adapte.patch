@@ -1,0 +1,393 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Sat, 17 Oct 2026 21:55:54 +0200
+Subject: [PATCH] Enable bundled spark with region-safe Tessera adapters
+
+
+diff --git a/src/main/java/io/papermc/paper/SparksFly.java b/src/main/java/io/papermc/paper/SparksFly.java
+index b332645ed65928100f580221d8a9948bc77e362e..6d539e7c4b4870f59b963362ad0ff7261616141a 100644
+--- a/src/main/java/io/papermc/paper/SparksFly.java
++++ b/src/main/java/io/papermc/paper/SparksFly.java
+@@ -7,10 +7,9 @@ import io.papermc.paper.plugin.provider.classloader.PaperClassLoaderStorage;
+ import io.papermc.paper.util.MCUtil;
+ import java.util.Collection;
+ import java.util.List;
+-import java.util.concurrent.ConcurrentLinkedQueue;
+ import java.util.logging.Level;
+ import java.util.logging.Logger;
+-import me.lucko.spark.paper.api.Compatibility;
++import io.papermc.paper.spark.TesseraSparkPlugin;
+ import me.lucko.spark.paper.api.PaperClassLookup;
+ import me.lucko.spark.paper.api.PaperScheduler;
+ import me.lucko.spark.paper.api.PaperSparkModule;
+@@ -35,14 +34,14 @@ public final class SparksFly {
+     private final PaperSparkModule spark;
+     // Folia - region threading
+ 
+-    private boolean enabled;
++    private volatile boolean enabled;
+     private boolean disabledInConfigurationWarningLogged;
+ 
+     public SparksFly(final Server server) {
+         // Folia - region threading
+         this.logger = Logger.getLogger(ID);
+         this.logger.log(Level.INFO, "This server bundles the spark profiler. For more information please visit https://docs.papermc.io/paper/profiling");
+-        this.spark = PaperSparkModule.create(Compatibility.VERSION_1_0, server, this.logger, new PaperScheduler() {
++        this.spark = new TesseraSparkPlugin(server, this.logger, new PaperScheduler() {
+             @Override
+             public void executeAsync(final Runnable runnable) {
+                 MCUtil.scheduleAsyncTask(this.catching(runnable, "asynchronous"));
+@@ -116,9 +115,10 @@ public final class SparksFly {
+ 
+     private void enable() {
+         if (!this.enabled) {
+-            if (false) { // Folia - disable in-built spark profiler
+-                this.enabled = true;
++            if (GlobalConfiguration.get().spark.enabled) { // Tessera - region-safe native adapter
+                 this.spark.enable();
++                this.enabled = true;
++                this.logger.log(Level.INFO, "Enabled region-safe bundled spark. Tick workers can serve different regions; use /tps for per-region MSPT.");
+             } else {
+                 if (!this.disabledInConfigurationWarningLogged) {
+                     this.logger.log(Level.INFO, "The spark profiler will not be enabled because it is currently disabled in the configuration.");
+@@ -152,11 +152,11 @@ public final class SparksFly {
+     }
+ 
+     public void tickStart() {
+-        this.spark.onServerTickStart();
++        // Tessera - there is no single server tick. Never enter Paper's shared tick hook.
+     }
+ 
+     public void tickEnd(final double duration) {
+-        this.spark.onServerTickEnd(duration);
++        // Tessera - reporting uses immutable Folia scheduler reports, not concurrent tick callbacks.
+     }
+ 
+     void executeCommand(final CommandSender sender, final String[] args) {
+@@ -168,7 +168,8 @@ public final class SparksFly {
+     }
+ 
+     public static boolean isPluginPreferred() {
+-        return true; // Folia - disable in-built spark profiler
++        // Prefer an installed Folia-compatible plugin by default; otherwise use the native adapter.
++        return Boolean.parseBoolean(System.getProperty(PREFER_SPARK_PLUGIN_PROPERTY, "true"));
+     }
+ 
+     private static boolean isPluginEnabled(final Server server) {
+diff --git a/src/main/java/io/papermc/paper/spark/RegionTickStatistics.java b/src/main/java/io/papermc/paper/spark/RegionTickStatistics.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..24a30cbe4bff39076b4768c2165324575a23f438
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/spark/RegionTickStatistics.java
+@@ -0,0 +1,159 @@
++package io.papermc.paper.spark;
++
++import ca.spottedleaf.common.time.TickData;
++import com.google.gson.JsonArray;
++import com.google.gson.JsonObject;
++import io.papermc.paper.threadedregions.RegionizedServer;
++import io.papermc.paper.threadedregions.TickRegionScheduler;
++import io.papermc.paper.threadedregions.TickRegions;
++import io.papermc.paper.threadedregions.ThreadedRegionizer;
++import java.util.ArrayList;
++import java.util.List;
++import java.util.function.LongFunction;
++import java.util.concurrent.ScheduledFuture;
++import me.lucko.spark.api.statistic.misc.DoubleAverageInfo;
++import me.lucko.spark.paper.common.metric.Metrics;
++import me.lucko.spark.paper.common.monitor.MonitoringExecutor;
++import me.lucko.spark.paper.common.util.TimeUtil;
++import me.lucko.spark.paper.common.monitor.tick.TickStatistics;
++import net.minecraft.server.MinecraftServer;
++
++/**
++ * Internal bridge for spark 1.10.191. A conservative minimum, NOT a fictitious
++ * global tick or an average which hides one lagging region. World/region objects
++ * are held only during collection; the cached result contains immutable values.
++ */
++public final class RegionTickStatistics implements TickStatistics {
++    private volatile Snapshot cached = new Snapshot(0, 20, false, List.of(), null);
++    private ScheduledFuture<?> metricsTask;
++
++    public synchronized void start(final Metrics metrics) {
++        if (this.metricsTask != null) return;
++        this.metricsTask = MonitoringExecutor.scheduleAtFixedRateMillis(() -> {
++            metrics.tps().record(TimeUtil.monotonicCurrentTimeMillis(), this.tps10Sec());
++        }, Metrics.INTERVAL_MILLIS);
++    }
++
++    @Override public synchronized void close() {
++        if (this.metricsTask != null) this.metricsTask.cancel(false);
++        this.metricsTask = null;
++        this.cached = new Snapshot(0, 20, false, List.of(), null);
++    }
++
++    record Window(double tps, double mspt, double min, double median, double max, double utilisation, int ticks) {
++        static Window from(final TickData.TickReportData report) {
++            if (report == null || report.collectedTicks() == 0) return null;
++            final var time = report.timePerTickData().segmentAll();
++            final double tps = report.tpsData().segmentAll().average();
++            if (!Double.isFinite(tps) || tps < 0 || !Double.isFinite(time.average())) return null;
++            return new Window(tps, time.average() / 1.0E6, time.least() / 1.0E6,
++                time.median() / 1.0E6, time.greatest() / 1.0E6, report.utilisation(), report.collectedTicks());
++        }
++
++        JsonObject json() {
++            final JsonObject json = new JsonObject();
++            json.addProperty("tps", this.tps);
++            json.addProperty("mspt-mean", this.mspt);
++            json.addProperty("mspt-min", this.min);
++            json.addProperty("mspt-median", this.median);
++            json.addProperty("mspt-max", this.max);
++            json.addProperty("utilisation", this.utilisation);
++            json.addProperty("ticks", this.ticks);
++            return json;
++        }
++    }
++
++    record Region(long id, String world, int chunks, int entities, int players, List<Window> windows) {
++        Region {
++            // Unmeasured windows are null, not invented zeroes or a copy of a different window.
++            windows = java.util.Collections.unmodifiableList(new ArrayList<>(windows));
++        }
++    }
++
++    record Snapshot(long nanoTime, int target, boolean frozen, List<Region> regions, Window global) {
++        Snapshot { regions = List.copyOf(regions); }
++
++        double minimumTps(final int window) {
++            return regions.stream().map(region -> region.windows.get(window)).filter(java.util.Objects::nonNull)
++                .mapToDouble(value -> Math.min(target, value.tps)).min().orElse(0.0);
++        }
++    }
++
++    private Snapshot snapshot() {
++        final long now = System.nanoTime();
++        Snapshot value = this.cached;
++        if (now - value.nanoTime < 1_000_000_000L) return value;
++        synchronized (this) {
++            value = this.cached;
++            if (now - value.nanoTime < 1_000_000_000L) return value;
++            final MinecraftServer server = MinecraftServer.getServer();
++            if (server == null) return value;
++            final List<Region> regions = new ArrayList<>();
++            for (final var world : server.getAllLevels()) {
++                final List<ThreadedRegionizer.ThreadedRegion<TickRegions.TickRegionData, TickRegions.TickRegionSectionData>> references = new ArrayList<>();
++                // Never generate tick reports while holding the regionizer topology lock.
++                world.regioniser.computeForAllRegions(references::add);
++                for (final var region : references) {
++                    final var data = region.getData();
++                    final var handle = data.getRegionSchedulingHandle();
++                    if (handle.isMarkedAsNonSchedulable() || data.getRegionStats().getChunkCount() == 0) continue;
++                    final List<Window> windows = new ArrayList<>();
++                    for (final LongFunction<TickData.TickReportData> report : List.<LongFunction<TickData.TickReportData>>of(
++                        handle::getTickReport5s, handle::getTickReport10s, handle::getTickReport1m,
++                        handle::getTickReport5m, handle::getTickReport15m)) {
++                        windows.add(Window.from(report.apply(now)));
++                    }
++                    final var stats = data.getRegionStats();
++                    regions.add(new Region(region.id, world.dimension().identifier().toString(), stats.getChunkCount(),
++                        stats.getEntityCount(), stats.getPlayerCount(), windows));
++                }
++            }
++            value = new Snapshot(now, Math.max(1, Math.round(server.tickRateManager().tickrate())),
++                server.tickRateManager().isFrozen(), regions, Window.from(RegionizedServer.getGlobalTickData().getTickReport10s(now)));
++            this.cached = value;
++            return value;
++        }
++    }
++
++    public JsonObject metadata() {
++        final Snapshot snapshot = this.snapshot();
++        final JsonObject root = new JsonObject();
++        root.addProperty("tps-semantics", "minimum measured active-region TPS per window, capped at target; not global TPS");
++        root.addProperty("tick-windows", "5s,10s,1m,5m,15m (scheduler wall-clock ticks, including maintenance while frozen)");
++        root.addProperty("frozen", snapshot.frozen);
++        root.addProperty("tick-threads", TickRegions.getScheduler().getTotalThreadCount());
++        root.addProperty("thread-identity", "worker thread != region; ownership changes after split, merge and transfer");
++        root.addProperty("unsupported", "single-tick filters/monitor; pooled MSPT percentiles; live chunk/entity enumeration");
++        if (snapshot.global != null) root.add("global-10s", snapshot.global.json());
++        final JsonArray regions = new JsonArray();
++        for (final Region region : snapshot.regions) {
++            final JsonObject json = new JsonObject();
++            json.addProperty("id", region.id);
++            json.addProperty("dimension", region.world);
++            json.addProperty("chunks", region.chunks);
++            json.addProperty("entities", region.entities);
++            json.addProperty("players", region.players);
++            final JsonObject windows = new JsonObject();
++            final String[] names = {"5s", "10s", "1m", "5m", "15m"};
++            for (int i = 0; i < names.length; i++) {
++                if (region.windows.get(i) != null) windows.add(names[i], region.windows.get(i).json());
++            }
++            json.add("windows", windows);
++            regions.add(json);
++        }
++        root.add("regions", regions);
++        return root;
++    }
++
++    @Override public int gameTargetTps() { return this.snapshot().target; }
++    @Override public double tps5Sec() { return this.snapshot().minimumTps(0); }
++    @Override public double tps10Sec() { return this.snapshot().minimumTps(1); }
++    @Override public double tps1Min() { return this.snapshot().minimumTps(2); }
++    @Override public double tps5Min() { return this.snapshot().minimumTps(3); }
++    @Override public double tps15Min() { return this.snapshot().minimumTps(4); }
++    @Override public boolean isDurationSupported() { return false; }
++    // TickData publishes median/min/max but no p95. Do not manufacture a percentile.
++    @Override public DoubleAverageInfo duration10Sec() { throw new UnsupportedOperationException("Use /tps for per-region MSPT"); }
++    @Override public DoubleAverageInfo duration1Min() { throw new UnsupportedOperationException("Use /tps for per-region MSPT"); }
++    @Override public DoubleAverageInfo duration5Min() { throw new UnsupportedOperationException("Use /tps for per-region MSPT"); }
++}
+diff --git a/src/main/java/io/papermc/paper/spark/TesseraSparkPlugin.java b/src/main/java/io/papermc/paper/spark/TesseraSparkPlugin.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..906e6fa09d6315799d92115d1f05115491eeee51
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/spark/TesseraSparkPlugin.java
+@@ -0,0 +1,146 @@
++package io.papermc.paper.spark;
++
++import ca.spottedleaf.moonrise.common.util.TickThread;
++import com.google.gson.JsonElement;
++import java.util.Collection;
++import java.util.List;
++import java.util.Locale;
++import java.util.Map;
++import java.util.Set;
++import java.util.UUID;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.atomic.AtomicBoolean;
++import java.util.logging.Logger;
++import java.util.stream.Collectors;
++import java.util.stream.Stream;
++import me.lucko.spark.paper.PaperCommandSender;
++import me.lucko.spark.paper.PaperSparkPlugin;
++import me.lucko.spark.paper.api.PaperClassLookup;
++import me.lucko.spark.paper.api.PaperScheduler;
++import me.lucko.spark.paper.common.metric.Metrics;
++import me.lucko.spark.paper.common.monitor.ping.PlayerPingProvider;
++import me.lucko.spark.paper.common.monitor.tick.TickStatistics;
++import me.lucko.spark.paper.common.platform.MetadataProvider;
++import me.lucko.spark.paper.common.platform.world.WorldInfoProvider;
++import me.lucko.spark.paper.common.sampler.ThreadDumper;
++import me.lucko.spark.paper.common.tick.TickHook;
++import me.lucko.spark.paper.common.tick.TickReporter;
++import net.kyori.adventure.text.Component;
++import org.bukkit.Bukkit;
++import org.bukkit.Server;
++import org.bukkit.command.CommandSender;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.entity.Player;
++
++/** Internal, version-pinned spark adapter. Not a public plugin API. */
++public final class TesseraSparkPlugin extends PaperSparkPlugin {
++    private static final String WORKERS = "Folia Region Scheduler Thread #\\d+|Server thread";
++    private final AtomicBoolean active = new AtomicBoolean();
++    // Assigned by SparkPlatform's constructor through createTickStatistics.
++    private RegionTickStatistics statistics;
++    private Metrics metrics;
++
++    public TesseraSparkPlugin(final Server server, final Logger logger, final PaperScheduler scheduler, final PaperClassLookup lookup) {
++        super(server, logger, scheduler, lookup);
++    }
++
++    @Override public void enable() { this.active.set(true); super.enable(); this.statistics.start(this.metrics); }
++    @Override public void disable() { this.active.set(false); super.disable(); }
++
++    @Override public ThreadDumper getDefaultThreadDumper() { return new ThreadDumper.Regex(Set.of(WORKERS)); }
++    @Override public TickHook createTickHook() { return null; }
++    @Override public TickReporter createTickReporter() { return null; }
++    @Override public void onServerTickStart() { /* No shared mutable Paper tick hook. */ }
++    @Override public void onServerTickEnd(final double duration) { /* No shared mutable Paper tick reporter. */ }
++    @Override public TickStatistics createTickStatistics(final Metrics metrics) {
++        this.metrics = metrics;
++        return this.statistics = new RegionTickStatistics();
++    }
++
++    @Override public MetadataProvider createExtraMetadataProvider() {
++        return () -> Map.<String, JsonElement>of("tessera-regions", this.statistics.metadata());
++    }
++
++    @Override public WorldInfoProvider createWorldInfoProvider() {
++        // Paper's provider enumerates foreign chunk entity lists and block entity maps.
++        // Counts and timing reports are available in tessera-regions metadata instead.
++        // Unsupported details are absent, NOT zeroes, blocking fan-outs or chunk loads.
++        return WorldInfoProvider.NO_OP;
++    }
++
++    @Override public PlayerPingProvider createPlayerPingProvider() {
++        return () -> {
++            final Map<String, Integer> pings = new java.util.HashMap<>();
++            for (final Player player : Bukkit.getOnlinePlayers()) {
++                // Connection latency is published volatile; never call owner-checked getHandle().
++                final var handle = ((CraftPlayer)player).getHandleRaw();
++                if (handle.connection != null) pings.put(handle.getScoreboardName(), handle.connection.latency());
++            }
++            return Map.copyOf(pings);
++        };
++    }
++
++    @Override public Stream<PaperCommandSender> getCommandSenders() {
++        // Do not read every player's permission map off-owner for broadcast notifications.
++        // The requesting player still receives their own asynchronous command responses.
++        return Stream.of(new PaperCommandSender(Bukkit.getConsoleSender()));
++    }
++
++    @Override public void executeCommand(final CommandSender sender, final String[] args) {
++        if (!this.active.get()) return;
++        final String unsupported = unsupportedReason(args);
++        if (unsupported != null) {
++            sender.sendMessage(Component.text(unsupported));
++            return;
++        }
++        super.executeCommand(this.wrap(sender), args.clone());
++    }
++
++    @Override public List<String> tabComplete(final CommandSender sender, final String[] args) {
++        return super.tabComplete(this.wrap(sender), args);
++    }
++
++    static String unsupportedReason(final String[] args) {
++        for (final String argument : args) {
++            final String value = argument.toLowerCase(Locale.ROOT);
++            if (value.equals("tickmonitor") || value.equals("tick-monitor") || value.equals("tpsmonitor")
++                || value.equals("--only-ticks-over") || value.startsWith("--only-ticks-over=")
++                || value.equals("--tick") || value.startsWith("--tick=")) {
++                return "This spark option requires a single server tick and is unavailable on Tessera. Use /tps for region timings or an unfiltered profiler recording.";
++            }
++        }
++        return null;
++    }
++
++    private CommandSender wrap(final CommandSender sender) {
++        if (!(sender instanceof CraftPlayer player)) return sender;
++        TickThread.ensureTickThread(player.getHandleRaw(), "Spark player commands must start on the owning region");
++        final Collection<String> permissions = this.getPermissions();
++        final Set<String> granted = permissions.stream().filter(sender::hasPermission).collect(Collectors.toUnmodifiableSet());
++        final String name = player.getName();
++        final UUID id = player.getUniqueId();
++        // The pinned PaperCommandSender calls only these four methods. Preserve
++        // player identity without exposing any live Player operation to spark's workers.
++        return (CommandSender)java.lang.reflect.Proxy.newProxyInstance(Player.class.getClassLoader(), new Class<?>[]{Player.class},
++            (proxy, method, arguments) -> switch (method.getName()) {
++                case "getName", "toString" -> name;
++                case "getUniqueId" -> id;
++                case "hasPermission" -> granted.contains((String)arguments[0]);
++                case "hashCode" -> id.hashCode();
++                case "equals" -> proxy == arguments[0];
++                case "sendMessage" -> {
++                    if (arguments.length != 1 || !(arguments[0] instanceof Component message)) {
++                        throw new UnsupportedOperationException("Unexpected spark message signature: " + method);
++                    }
++                    // Owner maintenance follows transfers and also runs during freeze.
++                    // Retirement drops replies; disable invalidates queued responses.
++                    player.taskScheduler.scheduleRestore(entity -> {
++                        if (this.active.get()) entity.getBukkitEntity().sendMessage(message);
++                        return CompletableFuture.completedFuture(null);
++                    });
++                    yield null;
++                }
++                default -> throw new UnsupportedOperationException("Unexpected spark player operation: " + method);
++            });
++    }
++}

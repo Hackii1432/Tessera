@@ -1,0 +1,27 @@
+{
+  "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.020-beta.jar",
+  "fixtureJar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\native-spark-1792271010284\\server.jar",
+  "sha256": "67918a3bc6fd3a8572920ef644d463d83dc34347c799d591ca54c494965906d2",
+  "work": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\native-spark-1792271010284",
+  "port": 62814,
+  "code": 0,
+  "passed": true,
+  "disabled": true,
+  "external": false,
+  "early": false,
+  "timedOut": false,
+  "clientFailure": null,
+  "joins": 0,
+  "kicks": 0,
+  "disconnects": 0,
+  "frozenReplies": 0,
+  "frozenKeepalives": {
+    "SparkAlpha": 0,
+    "SparkBeta": 0
+  },
+  "networkCommandSent": false,
+  "profiles": [],
+  "profileHashes": {},
+  "checks": "native spark API remains unavailable when disabled or an external plugin is preferred\r\ndisabled command remains available with diagnostic\r\n",
+  "observations": []
+}

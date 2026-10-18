@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Sat, 17 Oct 2026 22:23:21 +0200
+Subject: [PATCH] Keep spark sampling alive when pooled duration statistics are
+ unavailable
+
+
+diff --git a/src/main/java/io/papermc/paper/spark/RegionTickStatistics.java b/src/main/java/io/papermc/paper/spark/RegionTickStatistics.java
+index f8cd9c1d5c8e7d5181b8912f6f1f36d0a5a0b432..a585241a3b034e8db07ec3ce923f967ba12be683 100644
+--- a/src/main/java/io/papermc/paper/spark/RegionTickStatistics.java
++++ b/src/main/java/io/papermc/paper/spark/RegionTickStatistics.java
+@@ -161,7 +161,9 @@ public final class RegionTickStatistics implements TickStatistics {
+     @Override public double tps15Min() { return this.snapshot(4).minimumTps(4); }
+     @Override public boolean isDurationSupported() { return false; }
+     // TickData publishes median/min/max but no p95. Do not manufacture a percentile.
+-    @Override public DoubleAverageInfo duration10Sec() { throw new UnsupportedOperationException("Use /tps for per-region MSPT"); }
+-    @Override public DoubleAverageInfo duration1Min() { throw new UnsupportedOperationException("Use /tps for per-region MSPT"); }
+-    @Override public DoubleAverageInfo duration5Min() { throw new UnsupportedOperationException("Use /tps for per-region MSPT"); }
++    // spark's WindowStatisticsCollector asks duration1Min even when duration is
++    // unsupported, and explicitly accepts null. Throwing kills sampler insertion.
++    @Override public org.jetbrains.annotations.Nullable DoubleAverageInfo duration10Sec() { return null; }
++    @Override public org.jetbrains.annotations.Nullable DoubleAverageInfo duration1Min() { return null; }
++    @Override public org.jetbrains.annotations.Nullable DoubleAverageInfo duration5Min() { return null; }
+ }
+diff --git a/src/test/java/io/papermc/paper/spark/RegionTickStatisticsTest.java b/src/test/java/io/papermc/paper/spark/RegionTickStatisticsTest.java
+index d2ed9096685324538accc7f6a51178b099aa1561..8cbd6da8dfd117bbb1654f98ed408f5b11d9cb1a 100644
+--- a/src/test/java/io/papermc/paper/spark/RegionTickStatisticsTest.java
++++ b/src/test/java/io/papermc/paper/spark/RegionTickStatisticsTest.java
+@@ -58,9 +58,25 @@ class RegionTickStatisticsTest {
+     @Test void percentilesAreNotManufactured() {
+         final var statistics = new RegionTickStatistics();
+         assertFalse(statistics.isDurationSupported());
+-        assertThrows(UnsupportedOperationException.class, statistics::duration10Sec);
+-        assertThrows(UnsupportedOperationException.class, statistics::duration1Min);
+-        assertThrows(UnsupportedOperationException.class, statistics::duration5Min);
++        assertNull(statistics.duration10Sec());
++        assertNull(statistics.duration1Min());
++        assertNull(statistics.duration5Min());
++    }
++
++    @Test void realSparkWindowCollectorAcceptsMissingDurationWithoutKillingSampling() {
++        final var statistics = mock(RegionTickStatistics.class, CALLS_REAL_METHODS);
++        doReturn(19.0).when(statistics).tps1Min();
++        final var plugin = mock(me.lucko.spark.paper.common.SparkPlugin.class);
++        when(plugin.createWorldInfoProvider()).thenReturn(me.lucko.spark.paper.common.platform.world.WorldInfoProvider.NO_OP);
++        doAnswer(call -> { call.<Runnable>getArgument(0).run(); return null; }).when(plugin).executeSync(any());
++        final var platform = mock(me.lucko.spark.paper.common.SparkPlatform.class);
++        when(platform.getPlugin()).thenReturn(plugin);
++        when(platform.getTickStatistics()).thenReturn(statistics);
++        final var collector = new me.lucko.spark.paper.common.sampler.window.WindowStatisticsCollector(platform);
++        collector.recordWindowStartTime(1);
++        assertDoesNotThrow(() -> collector.measureNow(1));
++        assertEquals(19.0, collector.export().get(1).getTps());
++        verify(statistics).duration1Min();
+     }
+ 
+     @Test void metricsStartOnceAndAreCancelledAtShutdown() {

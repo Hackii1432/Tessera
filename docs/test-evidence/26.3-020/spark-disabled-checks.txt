@@ -1,0 +1,2 @@
+native spark API remains unavailable when disabled or an external plugin is preferred
+disabled command remains available with diagnostic

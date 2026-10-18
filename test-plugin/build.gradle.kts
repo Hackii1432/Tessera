@@ -12,3 +12,10 @@ dependencies {
 tasks.jar {
     archiveFileName = "tessera-runtime-world-smoke.jar"
 }
+
+tasks.register<Jar>("sparkPreferenceProbeJar") {
+    dependsOn(tasks.classes)
+    archiveFileName = "spark-preference-probe.jar"
+    from(sourceSets.main.get().output) { include("dev/tessera/smoke/SparkPreferenceProbe.class") }
+    from("src/sparkProbe")
+}

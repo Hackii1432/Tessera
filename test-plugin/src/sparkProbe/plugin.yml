@@ -1,0 +1,8 @@
+name: spark
+version: 1.0-test-only
+main: dev.tessera.smoke.SparkPreferenceProbe
+api-version: '26.3'
+folia-supported: true
+commands:
+  spark:
+    description: Isolated command collision test, not a profiler

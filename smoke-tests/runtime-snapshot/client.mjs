@@ -97,7 +97,10 @@ export async function connectPlayer(repo, port, username, observe = () => {}, co
             else if (id.value === configIn.FINISH_CONFIGURATION) {
               if (controls.shouldFinishConfiguration?.() === false) { observe({type: 'configuration_held', username}); continue; }
               send(configOut.FINISH_CONFIGURATION); state = 'play'; console.log('CLIENT_PLAY', username);
-              controls.onPlay?.({disconnect: () => socket.end()}); resolve(username);
+              controls.onPlay?.({disconnect: () => socket.end(), command: command => {
+                if (gameOut.CHAT_COMMAND === undefined) throw Error('Unsigned command packet is unavailable');
+                send(gameOut.CHAT_COMMAND, str(command));
+              }}); resolve(username);
             }
             else if (id.value === configIn.KEEP_ALIVE) {
               if (controls.observeKeepAlive) observe({type: 'keepalive', username, state});
@@ -149,6 +152,8 @@ export async function connectPlayer(repo, port, username, observe = () => {}, co
               observe({type: 'recipe_book', username, reset: data.at(-1) === 1});
             } else if (controls.observeAPI && id.value === gameIn.POST_EFFECTS) {
               observe({type: 'post_effects', username});
+            } else if (controls.observeChat && id.value === gameIn.SYSTEM_CHAT) {
+              observe({type: 'system_chat', username, raw: data.toString('utf8')});
             }
           }
         }

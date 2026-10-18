@@ -1,0 +1,63 @@
+Attach Listener
+Common-Cleaner
+Craft Scheduler Thread - 0
+Craft Scheduler Thread - 1
+Craft Scheduler Thread - 2
+Craft Scheduler Thread - 3
+DestroyJavaVM
+Dimension-Data-IO-Worker-1
+Dimension-Data-IO-Worker-2
+Dimension-Data-IO-Worker-3
+Dimension-Data-IO-Worker-4
+Finalizer
+Folia Async Scheduler Thread #0
+Folia Region Scheduler Thread #0
+Folia Region Scheduler Thread #1
+Folia Region Scheduler Thread #2
+Folia Region Scheduler Thread #3
+Folia Watchdog Thread
+ForkJoinPool-2-worker-1
+ForkJoinPool-2-worker-2
+ForkJoinPool.commonPool-worker-1
+ForkJoinPool.commonPool-worker-2
+ForkJoinPool.commonPool-worker-3
+HttpClient-1-SelectorManager
+JLine terminal non blocking reader thread
+JNA Cleaner
+Keep-Alive-Timer
+Log4j2-AsyncAppenderEventDispatcher-1-Async
+Minecraft Services Discovery
+Netty NIO IO #0
+Netty NIO IO #1
+Netty NIO IO #2
+Netty NIO IO #3
+Notification Thread
+Paper Async Command Builder Thread Pool - 0
+Paper Async Command Builder Thread Pool - 1
+Paper Async Task Handler Thread - 0
+Paper Async Task Handler Thread - 1
+Paper Common Worker #0
+Paper DensityBuffer garbage collector
+Paper I/O Worker #0
+Paper Watchdog Thread
+PaperFilledProfileCache-cleanup-0
+Reference Handler
+Server console handler
+Server thread
+Signal Dispatcher
+Tessera pregeneration controller
+Tessera pregeneration metadata
+Timer hack thread
+VirtualThread-unblocker
+Worker-Main-1
+pool-8-thread-1
+spark-java-sampler-3-thread-1
+spark-java-sampler-3-thread-2
+spark-java-sampler-3-thread-3
+spark-java-sampler-3-thread-4
+spark-java-sampler-3-thread-5
+spark-java-sampler-3-thread-6
+spark-monitoring-1-thread-1
+spark-monitoring-1-thread-2
+spark-monitoring-1-thread-3
+spark-monitoring-1-thread-4
