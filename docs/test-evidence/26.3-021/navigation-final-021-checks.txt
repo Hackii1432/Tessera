@@ -1,0 +1,107 @@
+two protocol clients connected
+first client transferred to Nether roof
+second client transferred to distant Nether region
+player mounted a tamed equipped horse on its owner
+player mounted a tamed equipped horse on its owner
+two mounted riders are on distinct native regions
+reported distant waypoint is not owned
+reported distant waypoint is initially unloaded
+original ground navigation accepts a valid local path
+reported unloaded stale path is cleared without discarding horse
+horse identity and live state preserved
+rider remains on the same horse
+horse ownership preserved
+saddle and horse armor preserved
+reported stale path does not load its distant chunk
+second parallel foreign loaded path: local route installed before invalidation
+second parallel foreign loaded path: cleared before any ground read
+second parallel foreign loaded path: stale AI steering cancelled
+horse identity and live state preserved
+rider remains on the same horse
+horse ownership preserved
+saddle and horse armor preserved
+first parallel foreign loaded path: local route installed before invalidation
+first parallel foreign loaded path: cleared before any ground read
+first parallel foreign loaded path: stale AI steering cancelled
+horse identity and live state preserved
+rider remains on the same horse
+horse ownership preserved
+saddle and horse armor preserved
+foreign waypoint after native advancement: local route installed before invalidation
+foreign waypoint after native advancement: cleared before any ground read
+foreign waypoint after native advancement: stale AI steering cancelled
+horse identity and live state preserved
+rider remains on the same horse
+horse ownership preserved
+saddle and horse armor preserved
+owned but unloaded waypoint available in native region footprint
+owned unloaded path: local route installed before invalidation
+owned unloaded path: cleared before any ground read
+owned unloaded path: stale AI steering cancelled
+horse identity and live state preserved
+rider remains on the same horse
+horse ownership preserved
+saddle and horse armor preserved
+owned unloaded path does not synchronously load a chunk
+native recomputation cache omits foreign loaded chunk
+supplied foreign path rejected before trimming
+supplied foreign path never reads ground
+valid local navigation accepted
+valid local navigation retains Vanilla ground read and live path
+valid local navigation retains Vanilla movement control
+horse identity and live state preserved
+rider remains on the same horse
+horse ownership preserved
+saddle and horse armor preserved
+mounted horse transfers across native regions
+rider and horse reached a new native region
+horse identity and live state preserved
+rider remains on the same horse
+horse ownership preserved
+saddle and horse armor preserved
+old waypoint after region transfer: local route installed before invalidation
+old waypoint after region transfer: cleared before any ground read
+old waypoint after region transfer: stale AI steering cancelled
+horse identity and live state preserved
+rider remains on the same horse
+horse ownership preserved
+saddle and horse armor preserved
+valid local navigation accepted
+valid local navigation retains Vanilla ground read and live path
+valid local navigation retains Vanilla movement control
+horse identity and live state preserved
+rider remains on the same horse
+horse ownership preserved
+saddle and horse armor preserved
+second rider dismounts explicitly before dimension transfer
+horse transfers to another dimension
+second client transfers without reconnect
+rider remounts preserved horse in target dimension
+horse identity and live state preserved
+rider remains on the same horse
+horse ownership preserved
+saddle and horse armor preserved
+navigation uses destination ServerLevel after dimension transfer
+stale coordinates in destination dimension: local route installed before invalidation
+stale coordinates in destination dimension: cleared before any ground read
+stale coordinates in destination dimension: stale AI steering cancelled
+horse identity and live state preserved
+rider remains on the same horse
+horse ownership preserved
+saddle and horse armor preserved
+valid local navigation accepted
+valid local navigation retains Vanilla ground read and live path
+valid local navigation retains Vanilla movement control
+horse identity and live state preserved
+rider remains on the same horse
+horse ownership preserved
+saddle and horse armor preserved
+horse identity and live state preserved
+rider remains on the same horse
+horse ownership preserved
+saddle and horse armor preserved
+horse identity and live state preserved
+rider remains on the same horse
+horse ownership preserved
+saddle and horse armor preserved
+both riders remain connected after natural entity ticks

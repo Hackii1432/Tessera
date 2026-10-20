@@ -1,0 +1,182 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Tue, 20 Oct 2026 00:45:44 +0200
+Subject: [PATCH] Guard stale navigation paths with region ownership checks
+
+
+diff --git a/net/minecraft/world/entity/ai/navigation/FlyingPathNavigation.java b/net/minecraft/world/entity/ai/navigation/FlyingPathNavigation.java
+index e44814cfb6afb594456b8215bd13a92e93de2c85..4e8e3890504b470bae4c6f50f4c1ad7a900724a7 100644
+--- a/net/minecraft/world/entity/ai/navigation/FlyingPathNavigation.java
++++ b/net/minecraft/world/entity/ai/navigation/FlyingPathNavigation.java
+@@ -43,12 +43,14 @@ public class FlyingPathNavigation extends PathNavigation {
+ 
+     @Override
+     public void tick() {
++        this.ensureNavigationOwner(); // Tessera - this override must share the ownership checks
+         this.tick++;
+         if (this.hasDelayedRecomputation) {
+             this.recomputePath();
+         }
+ 
+         if (!this.isDone()) {
++            if (!this.validateNextPathNode()) return; // Tessera - do not trace a stale foreign waypoint
+             if (this.canUpdatePath()) {
+                 this.followThePath();
+             } else if (this.path != null && !this.path.isDone()) {
+@@ -58,7 +60,7 @@ public class FlyingPathNavigation extends PathNavigation {
+                 }
+             }
+ 
+-            if (!this.isDone()) {
++            if (!this.isDone() && this.validateNextPathNode()) { // Tessera - validate again after advancement
+                 Vec3 target = this.path.getNextEntityPos(this.mob);
+                 this.mob.getMoveControl().setWantedPosition(target.x, target.y, target.z, this.speedModifier);
+             }
+diff --git a/net/minecraft/world/entity/ai/navigation/PathNavigation.java b/net/minecraft/world/entity/ai/navigation/PathNavigation.java
+index 34b71f5276a00dbbc375728246ae544953a54146..366448c39396dcc93567817f2f4a05628bc35ecd 100644
+--- a/net/minecraft/world/entity/ai/navigation/PathNavigation.java
++++ b/net/minecraft/world/entity/ai/navigation/PathNavigation.java
+@@ -99,6 +99,13 @@ public abstract class PathNavigation {
+     }
+ 
+     public void recomputePath() {
++        // Tessera start - never reuse navigation targets outside the current owner
++        this.ensureNavigationOwner();
++        if (this.targetPos != null && !this.isRegionSafeNavigationPosition(this.targetPos)) {
++            this.stopForRegionSafety();
++            return;
++        }
++        // Tessera end - never reuse navigation targets outside the current owner
+         if (this.tick - this.timeLastRecompute <= 20L || !this.canUpdatePath()) { // Folia - region threading
+             this.hasDelayedRecomputation = true;
+         } else if (this.targetPos != null) {
+@@ -242,6 +249,17 @@ public abstract class PathNavigation {
+     }
+ 
+     public boolean moveTo(final @Nullable Path newPath, final double speedModifier) {
++        // Tessera start - trimPath reads every supplied node, including visited nodes
++        this.ensureNavigationOwner();
++        if (newPath != null) {
++            for (int i = 0; i < newPath.getNodeCount(); ++i) {
++                if (!this.isRegionSafeNavigationPosition(newPath.getNodePos(i))) {
++                    this.stopForRegionSafety();
++                    return false;
++                }
++            }
++        }
++        // Tessera end - trimPath reads every supplied node, including visited nodes
+         if (newPath == null) {
+             this.path = null;
+             return false;
+@@ -272,12 +290,14 @@ public abstract class PathNavigation {
+     }
+ 
+     public void tick() {
++        this.ensureNavigationOwner(); // Tessera - navigation state belongs to the mob's owner
+         this.tick++;
+         if (this.hasDelayedRecomputation) {
+             this.recomputePath();
+         }
+ 
+         if (!this.isDone()) {
++            if (!this.validateNextPathNode()) return; // Tessera - stale paths may survive riding or region changes
+             if (this.canUpdatePath()) {
+                 this.followThePath();
+             } else if (this.path != null && !this.path.isDone()) {
+@@ -288,7 +308,7 @@ public abstract class PathNavigation {
+                 }
+             }
+ 
+-            if (!this.isDone()) {
++            if (!this.isDone() && this.validateNextPathNode()) { // Tessera - following may advance into another chunk
+                 Vec3 target = this.path.getNextEntityPos(this.mob);
+                 this.mob.getMoveControl().setWantedPosition(target.x, this.getGroundY(target), target.z, this.speedModifier);
+             }
+@@ -300,6 +320,48 @@ public abstract class PathNavigation {
+         return this.level.getBlockState(blockPos.below()).isAir() ? target.y : WalkNodeEvaluator.getFloorLevel(this.level, blockPos);
+     }
+ 
++    // Tessera start - region-safe navigation of already computed paths
++    protected final void ensureNavigationOwner() {
++        if (this.level instanceof ServerLevel) {
++            ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this.mob, "Cannot update navigation off-region");
++        }
++    }
++
++    protected final boolean isRegionSafeNavigationPosition(final BlockPos pos) {
++        if (!(this.level instanceof ServerLevel serverLevel)) {
++            return true;
++        }
++        final int chunkX = pos.getX() >> 4;
++        final int chunkZ = pos.getZ() >> 4;
++        // A loaded chunk alone is not sufficient: another region may own it.
++        return ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(serverLevel, chunkX, chunkZ)
++            && serverLevel.getChunkSource().getChunkAtIfLoadedImmediately(chunkX, chunkZ) != null;
++    }
++
++    protected final boolean validateNextPathNode() {
++        if (this.path == null || this.path.isDone()) {
++            return true;
++        }
++        // Wide mobs can have an entity waypoint in a different chunk than its node.
++        if (this.isRegionSafeNavigationPosition(this.path.getNextNodePos())
++            && this.isRegionSafeNavigationPosition(BlockPos.containing(this.path.getNextEntityPos(this.mob)))) {
++            return true;
++        }
++        this.stopForRegionSafety();
++        return false;
++    }
++
++    protected final void stopForRegionSafety() {
++        this.ensureNavigationOwner();
++        this.stop();
++        this.targetPos = null;
++        this.hasDelayedRecomputation = false;
++        this.resetStuckTimeout();
++        // Cancel only stale AI steering, not rider input, velocity or jump momentum.
++        this.mob.getMoveControl().setWait();
++    }
++    // Tessera end - region-safe navigation of already computed paths
++
+     protected void followThePath() {
+         Vec3 mobPos = this.getTempMobPos();
+         this.maxDistanceToWaypoint = this.mob.getBbWidth() > 0.75F ? this.mob.getBbWidth() / 2.0F : 0.75F - this.mob.getBbWidth() / 2.0F;
+diff --git a/net/minecraft/world/entity/ai/navigation/WallClimberNavigation.java b/net/minecraft/world/entity/ai/navigation/WallClimberNavigation.java
+index 2b5ba8f01b57b5e54bba4a8624f17e1b550d818e..468d9ba6eb93218a02f5a14712a7c93038ec7cf3 100644
+--- a/net/minecraft/world/entity/ai/navigation/WallClimberNavigation.java
++++ b/net/minecraft/world/entity/ai/navigation/WallClimberNavigation.java
+@@ -40,10 +40,18 @@ public class WallClimberNavigation extends GroundPathNavigation {
+ 
+     @Override
+     public void tick() {
++        this.ensureNavigationOwner(); // Tessera - the fallback also mutates the mob's controls
+         if (!this.isDone()) {
+             super.tick();
+         } else {
+             if (this.pathToPosition != null) {
++                // Tessera start - do not retain foreign fallback steering after path invalidation
++                if (!this.isRegionSafeNavigationPosition(this.pathToPosition)) {
++                    this.pathToPosition = null;
++                    this.stopForRegionSafety();
++                    return;
++                }
++                // Tessera end - do not retain foreign fallback steering after path invalidation
+                 if (!this.pathToPosition.closerToCenterThan(this.mob.position(), this.mob.getBbWidth())
+                     && (
+                         !(this.mob.getY() > this.pathToPosition.getY())
+diff --git a/net/minecraft/world/level/PathNavigationRegion.java b/net/minecraft/world/level/PathNavigationRegion.java
+index 24e82cff2bc2908852bcd4f1367b54690a65e2da..f6848ab7a1d6f5d0098b28c96a6052f5a13d5ca2 100644
+--- a/net/minecraft/world/level/PathNavigationRegion.java
++++ b/net/minecraft/world/level/PathNavigationRegion.java
+@@ -44,7 +44,10 @@ public class PathNavigationRegion implements CollisionGetter {
+ 
+         for (int xc = this.centerX; xc <= xc2; xc++) {
+             for (int zc = this.centerZ; zc <= zc2; zc++) {
+-                this.chunks[xc - this.centerX][zc - this.centerZ] = chunkSource.getChunkNow(xc, zc);
++                // Tessera - a cache for recomputation must not expose another region's loaded chunks.
++                this.chunks[xc - this.centerX][zc - this.centerZ] = level instanceof net.minecraft.server.level.ServerLevel serverLevel
++                    && !ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(serverLevel, xc, zc)
++                    ? null : chunkSource.getChunkNow(xc, zc);
+             }
+         }
+ 

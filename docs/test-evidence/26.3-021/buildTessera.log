@@ -1,0 +1,701 @@
+> Task :buildSrc:compileJava UP-TO-DATE
+> Task :buildSrc:compileGroovy NO-SOURCE
+> Task :buildSrc:processResources NO-SOURCE
+> Task :buildSrc:classes UP-TO-DATE
+> Task :buildSrc:jar UP-TO-DATE
+
+> Configure project :
+paperweight-patcher v2.0.0-beta.24 (running on 'Windows 11')
+
+> Configure project :folia-server
+paperweight-core v2.0.0-beta.24 (running on 'Windows 11')
+
+> Task :prepareSinopia
+Sinopia snapshot: 7eecec186248f7aa177afc2997c1893c8c0f9208
+
+> Task :checkoutPaperRepo
+> Task :filterPaperApiFromPaper
+
+> Task :applyPaperApiFilePatches
+Applied 0 patches
+
+> Task :applyPaperApiFeaturePatches
+> Task :applyPaperApiPatches
+> Task :filterPaperCheckstyleConfigFromPaper
+
+> Task :applyPaperCheckstyleConfigFilePatches
+Applied 0 patches
+
+> Task :applyPaperCheckstyleConfigFeaturePatches
+> Task :applyPaperCheckstyleConfigPatches
+> Task :filterPaperCheckstyleFromPaper
+
+> Task :applyPaperCheckstyleFilePatches
+Applied 0 patches
+
+> Task :applyPaperCheckstyleFeaturePatches
+> Task :applyPaperCheckstylePatches
+> Task :applyPaperSingleFilePatches UP-TO-DATE
+> Task :applyPaperPatches
+> Task :Tessera:buildSrc:compileJava UP-TO-DATE
+> Task :Tessera:buildSrc:compileGroovy NO-SOURCE
+> Task :Tessera:buildSrc:processResources NO-SOURCE
+> Task :Tessera:buildSrc:classes UP-TO-DATE
+> Task :Tessera:buildSrc:jar UP-TO-DATE
+
+> Configure project :Tessera
+paperweight-patcher v2.0.0-beta.24 (running on 'Windows 11')
+
+> Configure project :Tessera:folia-server
+paperweight-core v2.0.0-beta.24 (running on 'Windows 11')
+
+> Task :Tessera:prepareSinopia
+Sinopia snapshot: 7eecec186248f7aa177afc2997c1893c8c0f9208
+
+> Task :Tessera:checkoutPaperRepo
+> Task :Tessera:folia-server:downloadMcManifest
+> Task :Tessera:folia-server:downloadMcVersionManifest UP-TO-DATE
+> Task :Tessera:folia-server:downloadServerJar UP-TO-DATE
+> Task :Tessera:folia-server:extractFromBundler UP-TO-DATE
+> Task :Tessera:folia-server:setupMacheResources UP-TO-DATE
+> Task :Tessera:folia-server:extractMacheResources UP-TO-DATE
+> Task :Tessera:folia-server:applyPaperMinecraftResourcePatches UP-TO-DATE
+
+> Task :Tessera:folia-server:applyMinecraftResourcePatches
+Applied 0 patches
+
+> Task :Tessera:folia-server:downloadMcLibrariesSources UP-TO-DATE
+> Task :Tessera:folia-server:downloadRuntimeClasspathSources UP-TO-DATE
+> Task :Tessera:folia-server:indexLibraryFiles UP-TO-DATE
+> Task :Tessera:folia-server:importPaperLibraryFiles UP-TO-DATE
+> Task :Tessera:folia-server:macheRemapJar UP-TO-DATE
+> Task :Tessera:folia-server:macheDecompileJar UP-TO-DATE
+> Task :Tessera:folia-server:collectPaperATsFromPatches UP-TO-DATE
+> Task :Tessera:folia-server:mergePaperATs UP-TO-DATE
+> Task :Tessera:folia-server:setupMacheSources UP-TO-DATE
+> Task :Tessera:folia-server:extractMacheSources UP-TO-DATE
+> Task :Tessera:folia-server:applyPaperMinecraftSourcePatches UP-TO-DATE
+> Task :Tessera:folia-server:applyPaperMinecraftFilePatches
+> Task :Tessera:folia-server:applyPaperMinecraftFeaturePatches UP-TO-DATE
+
+> Task :Tessera:folia-server:importFoliaLibraryFiles
+Importing 1 classes from library sources...
+
+> Task :Tessera:folia-server:collectFoliaATsFromPatches
+> Task :Tessera:folia-server:mergeFoliaATs UP-TO-DATE
+> Task :Tessera:folia-server:runFoliaSetup UP-TO-DATE
+> Task :applyAllPatches
+
+> Task :Tessera:folia-server:applyMinecraftSourcePatches
+Applied 0 patches
+
+> Task :Tessera:folia-server:applyMinecraftFilePatches
+> Task :Tessera:folia-server:applyMinecraftFeaturePatches
+> Task :Tessera:folia-server:applyMinecraftPatches
+> Task :Tessera:folia-server:filterPaperServerFromPaper
+
+> Task :Tessera:folia-server:applyPaperServerFilePatches
+Applied 0 patches
+
+> Task :Tessera:folia-server:applyPaperServerFeaturePatches
+> Task :Tessera:folia-server:applyPaperServerPatches
+> Task :Tessera:folia-server:applyServerPatches
+> Task :Tessera:folia-server:applyAllServerPatches
+> Task :tessera-compiled:buildSrc:compileJava UP-TO-DATE
+> Task :tessera-compiled:buildSrc:compileGroovy NO-SOURCE
+> Task :tessera-compiled:buildSrc:processResources NO-SOURCE
+> Task :tessera-compiled:buildSrc:classes UP-TO-DATE
+> Task :tessera-compiled:buildSrc:jar UP-TO-DATE
+
+> Configure project :tessera-compiled
+paperweight-patcher v2.0.0-beta.24 (running on 'Windows 11')
+
+> Configure project :tessera-compiled:folia-server
+paperweight-core v2.0.0-beta.24 (running on 'Windows 11')
+
+> Task :tessera-compiled:compileJava NO-SOURCE
+> Task :tessera-compiled:processResources NO-SOURCE
+> Task :tessera-compiled:classes UP-TO-DATE
+> Task :tessera-compiled:jar SKIPPED
+> Task :tessera-compiled:compileTestJava NO-SOURCE
+> Task :tessera-compiled:processTestResources NO-SOURCE
+> Task :tessera-compiled:testClasses UP-TO-DATE
+> Task :tessera-compiled:test NO-SOURCE
+> Task :tessera-compiled:folia-api:compileJava UP-TO-DATE
+> Task :tessera-compiled:folia-api:processResources NO-SOURCE
+> Task :tessera-compiled:folia-api:classes UP-TO-DATE
+> Task :tessera-compiled:folia-api:generateApiVersioningFile UP-TO-DATE
+> Task :tessera-compiled:folia-api:jar UP-TO-DATE
+
+> Task :tessera-compiled:folia-api:javadoc
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\co\aikar\timings\TimingHistory.java:49: Warnung: [removal] TimingsManager in co.aikar.timings ist veraltet und wurde zum Entfernen markiert
+import static co.aikar.timings.TimingsManager.FULL_SERVER_TICK;
+                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\co\aikar\timings\TimingHistory.java:50: Warnung: [removal] TimingsManager in co.aikar.timings ist veraltet und wurde zum Entfernen markiert
+import static co.aikar.timings.TimingsManager.MINUTE_REPORTS;
+                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\co\aikar\timings\TimingHistory.java:51: Warnung: [removal] JSONUtil in co.aikar.util ist veraltet und wurde zum Entfernen markiert
+import static co.aikar.util.JSONUtil.*;
+                           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\co\aikar\timings\TimingHistoryEntry.java:31: Warnung: [removal] JSONUtil in co.aikar.util ist veraltet und wurde zum Entfernen markiert
+import static co.aikar.util.JSONUtil.toArrayMapper;
+                           ^
+
+> Task :buildTessera
+
+> Task :tessera-compiled:folia-api:javadoc
+Warnung: Der Code, der dokumentiert wird, verwendet Packages im unbenannten Modul, aber die in https://www.javadocs.dev/com.google.code.gson/gson/2.14.0/ definierten Packages befinden sich in benannten Modulen.
+Warnung: Der Code, der dokumentiert wird, verwendet Packages im unbenannten Modul, aber die in https://jd.papermc.io/adventure/5.2.0/ definierten Packages befinden sich in benannten Modulen.
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\generated\java\com\destroystokyo\paper\entity\ai\VanillaGoal.java:73: Warnung: kein @param f�r <T>
+public interface VanillaGoal<T extends Mob> extends Goal<T> {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\command\defaults\BukkitCommand.java:9: Warnung: Keine Hauptbeschreibung
+ * @apiNote plugin developers should prefer to use the
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\com\destroystokyo\paper\entity\ai\Goal.java:11: Warnung: kein @param f�r <T>
+public interface Goal<T extends Mob> {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\com\destroystokyo\paper\event\brigadier\AsyncPlayerSendCommandsEvent.java:34: Warnung: kein @param f�r <S>
+public class AsyncPlayerSendCommandsEvent<S extends CommandSourceStack> extends PlayerEvent {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\com\destroystokyo\paper\event\brigadier\CommandRegisteredEvent.java:25: Warnung: kein @param f�r <S>
+public class CommandRegisteredEvent<S extends com.destroystokyo.paper.brigadier.BukkitBrigadierCommandSource> extends ServerEvent implements Cancellable {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\com\destroystokyo\paper\util\SneakyThrow.java:7: Warnung: Keine Hauptbeschreibung
+ * @hidden
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\com\destroystokyo\paper\util\VersionFetcher.java:44: Warnung: Keine Hauptbeschreibung
+     * @hidden
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\ban\BanListType.java:13: Warnung: kein @param f�r <T>
+public interface BanListType<T> {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\command\brigadier\argument\range\RangeProvider.java:8: Warnung: keine Beschreibung f�r @param
+ * @param <T>
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\event\world\StructuresLocateEvent.java:169: Warnung: kein @param f�r pos
+    public record Result(Position pos, Structure structure) {
+           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\event\world\StructuresLocateEvent.java:169: Warnung: kein @param f�r structure
+    public record Result(Position pos, Structure structure) {
+           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\persistence\PersistentDataKey.java:17: Warnung: leeres <p>-Tag
+ * <p>
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\plugin\lifecycle\event\handler\configuration\LifecycleEventHandlerConfiguration.java:12: Warnung: keine Beschreibung f�r @param
+ * @param <O>
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\registry\data\dialog\DialogInstancesProvider.java:31: Warnung: Keine Hauptbeschreibung
+ * @hidden
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\registry\data\InlinedRegistryBuilderProvider.java:15: Warnung: Keine Hauptbeschreibung
+ * @hidden
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\registry\tag\Tag.java:12: Warnung: keine Beschreibung f�r @param
+ * @param <T>
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\util\BoundChecker.java:7: Warnung: Keine Hauptbeschreibung
+ * @hidden
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\util\JarManifests.java:15: Warnung: Keine Hauptbeschreibung
+ * @hidden
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\world\WorldCloneResult.java:13: Warnung: kein @param f�r status
+public record WorldCloneResult(
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\world\WorldCloneResult.java:13: Warnung: kein @param f�r world
+public record WorldCloneResult(
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\world\WorldCloneResult.java:13: Warnung: kein @param f�r message
+public record WorldCloneResult(
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\world\WorldCloneResult.java:13: Warnung: kein @param f�r cause
+public record WorldCloneResult(
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\world\WorldUnloadResult.java:10: Warnung: kein @param f�r status
+public record WorldUnloadResult(
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\world\WorldUnloadResult.java:10: Warnung: kein @param f�r message
+public record WorldUnloadResult(
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\world\WorldUnloadResult.java:10: Warnung: kein @param f�r cause
+public record WorldUnloadResult(
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\command\CommandMap.java:10: Warnung: Keine Hauptbeschreibung
+ * @apiNote plugin developers should prefer to use the
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\command\FormattedCommandAlias.java:14: Warnung: Keine Hauptbeschreibung
+ * @apiNote plugin developers should prefer to use the
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\command\PluginCommandYamlParser.java:13: Warnung: Keine Hauptbeschreibung
+ * @apiNote plugin developers should prefer to use the
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\command\SimpleCommandMap.java:24: Warnung: Keine Hauptbeschreibung
+ * @apiNote plugin developers should prefer to use the
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\CopperGolem.java:137: Warnung: Keine Hauptbeschreibung
+         * @hidden
+           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\CopperGolem.java:140: Warnung: kein @param f�r time
+        record AtTimeImpl(long time) implements AtTime {}
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\event\world\AsyncStructureGenerateEvent.java:36: Warnung: leeres <p>-Tag
+ * <p>
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\inventory\MenuType.java:141: Warnung: kein @param f�r <B>
+    interface Typed<V extends InventoryView, B extends InventoryViewBuilder<V>> extends MenuType {
+    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\metadata\MetadataStore.java:14: Warnung: kein @param f�r <T>
+public interface MetadataStore<T> {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\metadata\MetadataStoreBase.java:22: Warnung: kein @param f�r <T>
+public abstract class MetadataStoreBase<T> {
+                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\plugin\java\LibraryLoader.java:39: Warnung: Keine Hauptbeschreibung
+ * @hidden
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\Registry.java:639: Warnung: Keine Hauptbeschreibung
+     * @hidden
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\Registry.java:642: Warnung: kein @param f�r <A>
+    abstract class NotARegistry<A extends Keyed> implements Registry<A> {
+             ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\Registry.java:586: Warnung: Keine Hauptbeschreibung
+     * @hidden
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\Registry.java:589: Warnung: kein @param f�r <T>
+    class SimpleRegistry<T extends Enum<T> & Keyed> extends NotARegistry<T> { // Paper - remove final
+    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\block\bed\package-info.java:2: Warnung: kein Kommentar
+package io.papermc.paper.block.bed;
+^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\datacomponent\item\attribute\package-info.java:3: Warnung: kein Kommentar
+package io.papermc.paper.datacomponent.item.attribute;
+^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\datacomponent\item\blocksattacks\package-info.java:3: Warnung: kein Kommentar
+package io.papermc.paper.datacomponent.item.blocksattacks;
+^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\datacomponent\item\consumable\package-info.java:3: Warnung: kein Kommentar
+package io.papermc.paper.datacomponent.item.consumable;
+^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\plugin\lifecycle\event\package-info.java:2: Warnung: kein Kommentar
+package io.papermc.paper.plugin.lifecycle.event;
+^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\plugin\lifecycle\event\handler\package-info.java:2: Warnung: kein Kommentar
+package io.papermc.paper.plugin.lifecycle.event.handler;
+^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\plugin\lifecycle\event\handler\configuration\package-info.java:2: Warnung: kein Kommentar
+package io.papermc.paper.plugin.lifecycle.event.handler.configuration;
+^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\plugin\lifecycle\event\registrar\package-info.java:2: Warnung: kein Kommentar
+package io.papermc.paper.plugin.lifecycle.event.registrar;
+^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\plugin\lifecycle\event\types\package-info.java:2: Warnung: kein Kommentar
+package io.papermc.paper.plugin.lifecycle.event.types;
+^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\registry\data\client\package-info.java:3: Warnung: kein Kommentar
+package io.papermc.paper.registry.data.client;
+^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\registry\data\dialog\package-info.java:3: Warnung: kein Kommentar
+package io.papermc.paper.registry.data.dialog;
+^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Entity.java:1198: Warnung: kein @return
+    boolean isUnderWater();
+            ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Entity.java:1203: Warnung: kein @return
+    boolean isInRain();
+            ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Entity.java:1211: Warnung: kein @return
+    default boolean isInBubbleColumn() {
+                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Entity.java:1221: Warnung: kein @return
+    default boolean isInWaterOrRain() {
+                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Entity.java:1231: Warnung: kein @return
+    default boolean isInWaterOrBubbleColumn() {
+                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Entity.java:1241: Warnung: kein @return
+    default boolean isInWaterOrRainOrBubbleColumn() {
+                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Entity.java:1248: Warnung: kein @return
+    boolean isInLava();
+            ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Entity.java:1253: Warnung: kein @return
+    boolean isTicking();
+            ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\AbstractArrow.java:231: Warnung: kein Kommentar
+    enum PickupRule {
+    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\AbstractArrow.java:233: Warnung: kein Kommentar
+        ALLOWED,
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\AbstractArrow.java:234: Warnung: kein Kommentar
+        CREATIVE_ONLY;
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\AbstractArrow.java:232: Warnung: kein Kommentar
+        DISALLOWED,
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\AbstractCubeMob.java:9: Warnung: Keine Hauptbeschreibung
+     * @return the size of the cube mob
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\AbstractNautilus.java:8: Warnung: kein Kommentar
+public interface AbstractNautilus extends Tameable, InventoryHolder, Vehicle {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\event\player\AbstractRespawnEvent.java:13: Warnung: kein Kommentar
+public abstract class AbstractRespawnEvent extends PlayerEvent {
+                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\event\player\AbstractRespawnEvent.java:15: Warnung: kein Kommentar
+    protected Location respawnLocation;
+                       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\event\player\AbstractRespawnEvent.java:22: Warnung: kein Kommentar
+    protected AbstractRespawnEvent(
+              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\event\block\Action.java:3: Warnung: kein Kommentar
+public enum Action {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\advancement\AdvancementRequirement.java:6: Warnung: kein Kommentar
+public interface AdvancementRequirement {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\block\data\type\AmethystCluster.java:6: Warnung: kein Kommentar
+public interface AmethystCluster extends Directional, Waterlogged {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\command\brigadier\argument\resolvers\AngleResolver.java:27: Warnung: kein @throws f�r com.mojang.brigadier.exceptions.CommandSyntaxException
+    float resolve(CommandSourceStack sourceStack) throws CommandSyntaxException;
+          ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\AnimalTamer.java:7: Warnung: kein Kommentar
+public interface AnimalTamer {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\com\destroystokyo\paper\event\block\AnvilDamagedEvent.java:26: Warnung: kein Kommentar
+    public AnvilDamagedEvent(final InventoryView inventory, final @Nullable BlockData blockData) {
+           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\com\destroystokyo\paper\event\block\AnvilDamagedEvent.java:91: Warnung: kein Kommentar
+    public static HandlerList getHandlerList() {
+                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\event\Event.java:66: Warnung: kein Kommentar
+    public abstract HandlerList getHandlers();
+                                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\com\destroystokyo\paper\event\block\AnvilDamagedEvent.java:102: Warnung: kein Kommentar
+        BROKEN(Material.AIR);
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\com\destroystokyo\paper\event\block\AnvilDamagedEvent.java:100: Warnung: kein Kommentar
+        CHIPPED(Material.CHIPPED_ANVIL),
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\com\destroystokyo\paper\event\block\AnvilDamagedEvent.java:101: Warnung: kein Kommentar
+        DAMAGED(Material.DAMAGED_ANVIL),
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\com\destroystokyo\paper\event\block\AnvilDamagedEvent.java:99: Warnung: kein Kommentar
+        FULL(Material.ANVIL),
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\event\entity\AreaEffectCloudApplyEvent.java:24: Warnung: kein Kommentar
+    public AreaEffectCloudApplyEvent(@NotNull final AreaEffectCloud entity, @NotNull final List<LivingEntity> affectedEntities) {
+           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\event\entity\AreaEffectCloudApplyEvent.java:67: Warnung: kein Kommentar
+    public static HandlerList getHandlerList() {
+                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\command\brigadier\argument\resolvers\ArgumentResolver.java:23: Warnung: kein @throws f�r com.mojang.brigadier.exceptions.CommandSyntaxException
+    T resolve(CommandSourceStack sourceStack) throws CommandSyntaxException;
+      ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Armadillo.java:33: Warnung: kein Kommentar
+        IDLE,
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Armadillo.java:34: Warnung: kein Kommentar
+        ROLLING,
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Armadillo.java:35: Warnung: kein Kommentar
+        SCARED,
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Armadillo.java:36: Warnung: kein Kommentar
+        UNROLLING;
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\inventory\ArmoredHorseInventory.java:7: Warnung: kein Kommentar
+public interface ArmoredHorseInventory extends AbstractHorseInventory, ArmoredSaddledMountInventory {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\inventory\ArmoredMountInventory.java:7: Warnung: kein Kommentar
+public interface ArmoredMountInventory extends MountInventory {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\inventory\ArmoredSaddledMountInventory.java:3: Warnung: kein Kommentar
+public interface ArmoredSaddledMountInventory extends ArmoredMountInventory, SaddledMountInventory {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\inventory\meta\ItemMeta.java:1102: Warnung: kein Kommentar
+    ItemMeta clone();
+             ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\ArmorStand.java:10: Warnung: kein Kommentar
+public interface ArmorStand extends LivingEntity {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\com\destroystokyo\paper\inventory\meta\ArmorStandMeta.java:5: Warnung: kein Kommentar
+public interface ArmorStandMeta extends ItemMeta {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Arrow.java:12: Warnung: kein Kommentar
+public interface Arrow extends AbstractArrow {
+       ^
+100 Warnungen
+
+> Task :tessera-compiled:folia-api:javadocJar
+> Task :tessera-compiled:folia-api:sourcesJar
+> Task :tessera-compiled:folia-api:compileTestJava UP-TO-DATE
+> Task :tessera-compiled:folia-api:processTestResources UP-TO-DATE
+> Task :tessera-compiled:folia-api:testClasses UP-TO-DATE
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+> Task :tessera-compiled:folia-api:test
+> Task :tessera-compiled:folia-server:compileJava UP-TO-DATE
+> Task :tessera-compiled:folia-server:processResources UP-TO-DATE
+> Task :tessera-compiled:folia-server:classes UP-TO-DATE
+> Task :tessera-compiled:folia-server:compileLog4jPluginsJava UP-TO-DATE
+> Task :tessera-compiled:folia-server:processLog4jPluginsResources NO-SOURCE
+> Task :tessera-compiled:folia-server:log4jPluginsClasses UP-TO-DATE
+> Task :tessera-compiled:folia-server:jar
+> Task :tessera-compiled:folia-server:compileTestJava UP-TO-DATE
+> Task :tessera-compiled:folia-server:processTestResources UP-TO-DATE
+> Task :tessera-compiled:folia-server:testClasses UP-TO-DATE
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[00:55:58 INFO]: Found new data pack paper, loading it automatically
+[00:56:00 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[00:56:02 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[00:56:02 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+> Task :tessera-compiled:folia-server:test
+
+[00:56:15 INFO]: Found new data pack paper, loading it automatically
+[00:56:17 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[00:56:19 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[00:56:19 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+[00:56:31 INFO]: Found new data pack paper, loading it automatically
+[00:56:33 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[00:56:35 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[00:56:35 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+[00:56:48 INFO]: Found new data pack paper, loading it automatically
+[00:56:50 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[00:56:52 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[00:56:52 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+[00:57:07 INFO]: Found new data pack paper, loading it automatically
+[00:57:09 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[00:57:11 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[00:57:11 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+[33;1m[00:57:17 WARN]: [org.bukkit.craftbukkit.legacy.CraftLegacy] Initializing Legacy Material Support. Unless you have legacy plugins and/or data this is a bug!
+[m[00:57:33 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Initialising converters for DataConverter...
+[00:57:34 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Finished initialising converters for DataConverter in 1.093,6ms
+[33;1m[00:57:42 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 71dd6050-8520-426b-905a-8a56d312745f (entity world: minecraft:overworld); aborting the respawn sequence
+[m[33;1m[00:57:42 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal aab116e2-fb37-4d2d-a591-89f24999a96b (entity world: minecraft:overworld); aborting the respawn sequence
+[m[33;1m[00:57:42 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 6a3ec623-4c72-465a-a3d3-883627f309a8 (entity world: minecraft:the_end); aborting the respawn sequence
+[m[33;1m[00:57:42 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 13507ee9-5390-443f-ac55-a62ba5018676 (entity world: minecraft:the_end); aborting the respawn sequence
+[m[33;1m[00:57:42 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal e9fe0a04-64ce-4534-826e-b885a6ec1a53 (entity world: minecraft:the_end); aborting the respawn sequence
+[m[33;1m[00:57:42 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 8a9a168d-78de-4910-9963-64726c0f4db7 (entity world: minecraft:the_end); aborting the respawn sequence
+[m[33;1m[00:57:42 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 3afd9249-8f23-4c7e-aee6-8a1145635604 (entity world: minecraft:overworld); leaving the transferred crystal untouched
+[m[33;1m[00:57:42 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 532256c2-e936-4ff3-9de3-e44308ad23bc (entity world: minecraft:overworld); aborting the respawn sequence
+[m[33;1m[00:57:42 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal edd99f10-9848-44ca-a03a-1d8f3ba36384 (entity world: minecraft:overworld); aborting the respawn sequence
+[m[33;1m[00:57:42 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal b0bbedb6-7f94-4cef-9833-1f4e1f4118a2 (entity world: minecraft:overworld); aborting the respawn sequence
+[m[33;1m[00:57:42 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal ae339cdc-aed3-45fb-8f62-3b26179969ed (entity world: minecraft:overworld); aborting the respawn sequence
+[m[33;1m[00:57:42 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 95d9f374-7fec-4ea3-9b3b-6eefbe326443 (entity world: minecraft:the_end); aborting the respawn sequence
+[m[33;1m[00:57:42 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal f3fc33f5-dadd-44ca-8574-afa0ae58ff8f (entity world: minecraft:the_end); aborting the respawn sequence
+[m[33;1m[00:57:42 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 5ca489bd-940e-45c5-9a0c-8ebe8df992cf (entity world: minecraft:the_end); aborting the respawn sequence
+[m[33;1m[00:57:42 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal f0178c2c-c9a4-4b73-b835-8da255b28d1b (entity world: minecraft:the_end); leaving the transferred crystal untouched
+[m[33;1m[00:57:42 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 7c797bc4-90d7-4398-9ff6-b7019576ebd3 (entity world: minecraft:the_end); leaving the transferred crystal untouched
+[m[33;1m[00:57:42 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 2f0ff243-f388-4474-94b8-9feb088c5dab (entity world: minecraft:the_end); aborting the respawn sequence
+[m[33;1m[00:57:48 WARN]: Skipping Entity with id null
+[m[33;1m[00:57:48 WARN]: Skipping Entity with id null
+[m[33;1m[00:57:48 WARN]: Skipping Entity with id null
+[m[33;1m[00:57:48 WARN]: Skipping Entity with id null
+[m[33;1m[00:57:48 WARN]: Skipping Entity with id null
+[m[00:58:08 INFO]: Found new data pack paper, loading it automatically
+[00:58:11 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[00:58:12 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[00:58:12 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+[33;1m[00:58:13 WARN]: [org.bukkit.craftbukkit.legacy.CraftLegacy] Initializing Legacy Material Support. Unless you have legacy plugins and/or data this is a bug!
+[m[00:58:28 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Initialising converters for DataConverter...
+[00:58:29 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Finished initialising converters for DataConverter in 884,4ms
+[00:58:42 INFO]: Found new data pack paper, loading it automatically
+[00:58:44 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[00:58:45 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[00:58:45 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+[00:58:46 INFO]: Environment: Environment[discoveryUrl=https://discovery.minecraftservices.com/minecraft/client, name=PROD]
+[00:58:59 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Initialising converters for DataConverter...
+[00:59:00 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Finished initialising converters for DataConverter in 996,1ms
+[33;1m[00:59:09 WARN]: [io.papermc.paper.command.WhitelistProfileLookup] Whitelist profile lookup failed for smokelower: java.util.concurrent.TimeoutException
+[m[33;1m[00:59:09 WARN]: [io.papermc.paper.command.WhitelistProfileLookup] Whitelist profile lookup failed for smokelower: java.util.concurrent.TimeoutException
+[m[33;1m[00:59:09 WARN]: [io.papermc.paper.command.WhitelistProfileLookup] Whitelist profile lookup failed for smokelower: java.lang.IllegalStateException: injected unavailable service
+[m[33;1m[00:59:09 WARN]: [io.papermc.paper.command.WhitelistProfileLookup] Whitelist profile lookup failed for smokelower: java.util.concurrent.RejectedExecutionException: full
+[m[33;1m[00:59:09 WARN]: [io.papermc.paper.command.WhitelistProfileLookup] Whitelist profile lookup failed for smokelower: java.lang.IllegalStateException: Profile service returned a different player identity
+[m[31;1m[00:59:13 ERROR]: Error while scanning chunk [2, 3] in world 'minecraft:overworld':
+java.lang.RuntimeException: visitor failed
+	at net.minecraft.nbt.Tag.acceptAsRoot(Tag.java:45) ~[main/:?]
+	at net.minecraft.server.level.ChunkMap.lambda$chunkScanner$1(ChunkMap.java:1073) ~[main/:?]
+	at io.papermc.paper.porting.TesseraBetaBackportTest.chunkScannerCompletesAfterIoAndPropagatesReadAndVisitorFailures(TesseraBetaBackportTest.java:120) ~[test/:?]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[?:?]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[?:?]
+	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:701) ~[junit-platform-commons-6.0.3.jar:6.0.3]
+	at org.junit.platform.commons.support.ReflectionSupport.invokeMethod(ReflectionSupport.java:502) ~[junit-platform-commons-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.support.MethodReflectionUtils.invoke(MethodReflectionUtils.java:45) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:61) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:124) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:163) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:148) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestMethod(TimeoutExtension.java:86) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:123) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:105) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:99) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:66) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:47) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:39) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:104) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:98) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invokeVoid(InterceptingExecutableInvoker.java:71) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$0(TestMethodTestDescriptor.java:219) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:215) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:157) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:70) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:176) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604) ~[?:?]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604) ~[?:?]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:36) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:52) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:58) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.executeEngine(EngineExecutionOrchestrator.java:246) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.failOrExecuteEngine(EngineExecutionOrchestrator.java:218) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:179) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:108) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:89) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.suite.engine.SuiteLauncher.execute(SuiteLauncher.java:65) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.suite.engine.SuiteTestDescriptor.executeTests(SuiteTestDescriptor.java:208) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.suite.engine.SuiteTestDescriptor.execute(SuiteTestDescriptor.java:173) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.suite.engine.SuiteTestEngine.lambda$execute$0(SuiteTestEngine.java:78) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186) ~[?:?]
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214) ~[?:?]
+	at java.base/java.util.Iterator.forEachRemaining(Iterator.java:133) ~[?:?]
+	at java.base/java.util.Spliterators$IteratorSpliterator.forEachRemaining(Spliterators.java:1939) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:570) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:560) ~[?:?]
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:153) ~[?:?]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:176) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:265) ~[?:?]
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:632) ~[?:?]
+	at org.junit.platform.suite.engine.SuiteTestEngine.execute(SuiteTestEngine.java:78) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.executeEngine(EngineExecutionOrchestrator.java:246) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.failOrExecuteEngine(EngineExecutionOrchestrator.java:218) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:179) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:108) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:66) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:157) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:65) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:125) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:114) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:93) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:48) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.lambda$execute$0(InterceptingLauncher.java:41) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.ClasspathAlignmentCheckingLauncherInterceptor.intercept(ClasspathAlignmentCheckingLauncherInterceptor.java:25) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:40) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:48) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor$CollectThenExecuteTestDefinitionConsumer.processAllTestDefinitions(JUnitPlatformTestDefinitionProcessor.java:206) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor$CollectThenExecuteTestDefinitionConsumer.access$000(JUnitPlatformTestDefinitionProcessor.java:123) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor.stop(JUnitPlatformTestDefinitionProcessor.java:117) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.SuiteTestDefinitionProcessor.stop(SuiteTestDefinitionProcessor.java:63) ~[?:?]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[?:?]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[?:?]
+	at org.gradle.internal.dispatch.MethodInvocation.invokeOn(MethodInvocation.java:77) ~[?:?]
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:28) ~[?:?]
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:19) ~[?:?]
+	at org.gradle.internal.dispatch.ContextClassLoaderDispatch.dispatch(ContextClassLoaderDispatch.java:33) ~[?:?]
+	at org.gradle.internal.dispatch.ProxyDispatchAdapter$DispatchingInvocationHandler.invoke(ProxyDispatchAdapter.java:88) ~[?:?]
+	at jdk.proxy1/jdk.proxy1.$Proxy4.stop(Unknown Source) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker$3.run(TestWorker.java:195) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.executeAndMaintainThreadName(TestWorker.java:126) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:103) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:63) ~[?:?]
+	at org.gradle.process.internal.worker.child.ActionExecutionWorker.execute(ActionExecutionWorker.java:56) ~[?:?]
+	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:122) ~[?:?]
+	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:72) ~[?:?]
+	at worker.org.gradle.process.internal.worker.GradleWorkerMain.run(GradleWorkerMain.java:69) ~[gradle-worker.jar:?]
+	at worker.org.gradle.process.internal.worker.GradleWorkerMain.main(GradleWorkerMain.java:74) ~[gradle-worker.jar:?]
+[m[00:59:29 INFO]: Found new data pack paper, loading it automatically
+[00:59:32 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[00:59:33 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[00:59:33 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+[00:59:34 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Initialising converters for DataConverter...
+[00:59:35 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Finished initialising converters for DataConverter in 934,8ms
+[33;1m[00:59:35 WARN]: [org.bukkit.craftbukkit.legacy.CraftLegacy] Initializing Legacy Material Support. Unless you have legacy plugins and/or data this is a bug!
+[m
+> Task :tessera-compiled:paper-checkstyle:compileJava FROM-CACHE
+> Task :tessera-compiled:paper-checkstyle:processResources
+> Task :tessera-compiled:paper-checkstyle:classes
+> Task :tessera-compiled:paper-checkstyle:jar
+> Task :tessera-compiled:paper-checkstyle:compileTestDataJava FROM-CACHE
+> Task :tessera-compiled:paper-checkstyle:processTestDataResources NO-SOURCE
+> Task :tessera-compiled:paper-checkstyle:testDataClasses UP-TO-DATE
+> Task :tessera-compiled:paper-checkstyle:compileTestJava FROM-CACHE
+> Task :tessera-compiled:paper-checkstyle:processTestResources NO-SOURCE
+> Task :tessera-compiled:paper-checkstyle:testClasses UP-TO-DATE
+> Task :tessera-compiled:paper-checkstyle:test FROM-CACHE
+> Task :tessera-compiled:test-plugin:compileJava UP-TO-DATE
+> Task :tessera-compiled:test-plugin:processResources UP-TO-DATE
+> Task :tessera-compiled:test-plugin:classes UP-TO-DATE
+> Task :tessera-compiled:test-plugin:jar UP-TO-DATE
+> Task :tessera-compiled:test-plugin:compileTestJava NO-SOURCE
+> Task :tessera-compiled:test-plugin:processTestResources NO-SOURCE
+> Task :tessera-compiled:test-plugin:testClasses UP-TO-DATE
+> Task :tessera-compiled:test-plugin:test NO-SOURCE
+> Task :tessera-compiled:assemble UP-TO-DATE
+> Task :tessera-compiled:check UP-TO-DATE
+> Task :tessera-compiled:build UP-TO-DATE
+> Task :tessera-compiled:folia-api:assemble
+> Task :tessera-compiled:folia-api:mergeCheckstyleConfigs UP-TO-DATE
+> Task :tessera-compiled:folia-api:checkstyleMain UP-TO-DATE
+> Task :tessera-compiled:folia-api:checkstyleTest UP-TO-DATE
+> Task :tessera-compiled:folia-server:downloadMcManifest
+> Task :tessera-compiled:folia-server:downloadMcVersionManifest UP-TO-DATE
+> Task :tessera-compiled:folia-server:downloadServerJar UP-TO-DATE
+> Task :tessera-compiled:folia-server:extractFromBundler UP-TO-DATE
+> Task :tessera-compiled:folia-api:scanJarForBadCalls
+> Task :tessera-compiled:folia-server:createBundlerJar
+> Task :tessera-compiled:folia-api:check
+> Task :tessera-compiled:folia-api:build
+> Task :tessera-compiled:folia-server:createPaperclipJar
+> Task :tessera-compiled:folia-server:assemble
+> Task :tessera-compiled:paper-checkstyle:assemble
+> Task :tessera-compiled:paper-checkstyle:mergeCheckstyleConfigs
+> Task :tessera-compiled:folia-server:scanJarForBadCalls
+> Task :tessera-compiled:folia-server:check
+> Task :tessera-compiled:folia-server:build
+> Task :tessera-compiled:paper-checkstyle:checkstyleMain
+> Task :tessera-compiled:paper-checkstyle:checkstyleTestData
+> Task :tessera-compiled:test-plugin:assemble UP-TO-DATE
+> Task :tessera-compiled:test-plugin:check UP-TO-DATE
+> Task :tessera-compiled:test-plugin:build UP-TO-DATE
+> Task :tessera-compiled:paper-checkstyle:checkstyleTest
+> Task :tessera-compiled:paper-checkstyle:check
+> Task :tessera-compiled:paper-checkstyle:build
+
+BUILD SUCCESSFUL in 10m 46s
+16 actionable tasks: 13 executed, 3 up-to-date

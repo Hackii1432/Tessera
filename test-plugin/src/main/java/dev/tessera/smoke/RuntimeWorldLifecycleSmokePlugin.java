@@ -90,6 +90,10 @@ public final class RuntimeWorldLifecycleSmokePlugin extends JavaPlugin {
             return;
         }
         this.worlds = Bukkit.getRuntimeWorldManager();
+        if (this.mode.equals("native-navigation")) {
+            new NativeNavigationSmoke(this).start();
+            return;
+        }
         if (this.mode.equals("native-spark")) {
             new NativeSparkSmoke(this).start();
             return;

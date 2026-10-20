@@ -1,0 +1,18 @@
+{
+  "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.021-beta.jar",
+  "fixtureJar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\native-navigation-1792450899942\\server.jar",
+  "sha256": "7ab2677fd3179a13edf57a21001526de6cc1241ce30e414c2d64ad219b1f1f91",
+  "work": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\native-navigation-1792450899942",
+  "port": 61911,
+  "code": 0,
+  "passed": false,
+  "baseline": false,
+  "bugReproduced": false,
+  "timedOut": false,
+  "clientFailure": null,
+  "joins": 0,
+  "kicks": 0,
+  "disconnects": 0,
+  "checks": "",
+  "observations": []
+}

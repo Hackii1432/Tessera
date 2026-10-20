@@ -1,0 +1,322 @@
+{
+  "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.021-beta.jar",
+  "fixtureJar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\native-navigation-1792450958977\\server.jar",
+  "sha256": "7ab2677fd3179a13edf57a21001526de6cc1241ce30e414c2d64ad219b1f1f91",
+  "work": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\native-navigation-1792450958977",
+  "port": 49865,
+  "code": 0,
+  "passed": true,
+  "baseline": false,
+  "bugReproduced": false,
+  "timedOut": false,
+  "clientFailure": null,
+  "joins": 2,
+  "kicks": 0,
+  "disconnects": 0,
+  "checks": "two protocol clients connected\r\nfirst client transferred to Nether roof\r\nsecond client transferred to distant Nether region\r\nplayer mounted a tamed equipped horse on its owner\r\nplayer mounted a tamed equipped horse on its owner\r\ntwo mounted riders are on distinct native regions\r\nreported distant waypoint is not owned\r\nreported distant waypoint is initially unloaded\r\noriginal ground navigation accepts a valid local path\r\nreported unloaded stale path is cleared without discarding horse\r\nhorse identity and live state preserved\r\nrider remains on the same horse\r\nhorse ownership preserved\r\nsaddle and horse armor preserved\r\nreported stale path does not load its distant chunk\r\nsecond parallel foreign loaded path: local route installed before invalidation\r\nsecond parallel foreign loaded path: cleared before any ground read\r\nsecond parallel foreign loaded path: stale AI steering cancelled\r\nhorse identity and live state preserved\r\nrider remains on the same horse\r\nhorse ownership preserved\r\nsaddle and horse armor preserved\r\nfirst parallel foreign loaded path: local route installed before invalidation\r\nfirst parallel foreign loaded path: cleared before any ground read\r\nfirst parallel foreign loaded path: stale AI steering cancelled\r\nhorse identity and live state preserved\r\nrider remains on the same horse\r\nhorse ownership preserved\r\nsaddle and horse armor preserved\r\nforeign waypoint after native advancement: local route installed before invalidation\r\nforeign waypoint after native advancement: cleared before any ground read\r\nforeign waypoint after native advancement: stale AI steering cancelled\r\nhorse identity and live state preserved\r\nrider remains on the same horse\r\nhorse ownership preserved\r\nsaddle and horse armor preserved\r\nowned but unloaded waypoint available in native region footprint\r\nowned unloaded path: local route installed before invalidation\r\nowned unloaded path: cleared before any ground read\r\nowned unloaded path: stale AI steering cancelled\r\nhorse identity and live state preserved\r\nrider remains on the same horse\r\nhorse ownership preserved\r\nsaddle and horse armor preserved\r\nowned unloaded path does not synchronously load a chunk\r\nnative recomputation cache omits foreign loaded chunk\r\nsupplied foreign path rejected before trimming\r\nsupplied foreign path never reads ground\r\nvalid local navigation accepted\r\nvalid local navigation retains Vanilla ground read and live path\r\nvalid local navigation retains Vanilla movement control\r\nhorse identity and live state preserved\r\nrider remains on the same horse\r\nhorse ownership preserved\r\nsaddle and horse armor preserved\r\nmounted horse transfers across native regions\r\nrider and horse reached a new native region\r\nhorse identity and live state preserved\r\nrider remains on the same horse\r\nhorse ownership preserved\r\nsaddle and horse armor preserved\r\nold waypoint after region transfer: local route installed before invalidation\r\nold waypoint after region transfer: cleared before any ground read\r\nold waypoint after region transfer: stale AI steering cancelled\r\nhorse identity and live state preserved\r\nrider remains on the same horse\r\nhorse ownership preserved\r\nsaddle and horse armor preserved\r\nvalid local navigation accepted\r\nvalid local navigation retains Vanilla ground read and live path\r\nvalid local navigation retains Vanilla movement control\r\nhorse identity and live state preserved\r\nrider remains on the same horse\r\nhorse ownership preserved\r\nsaddle and horse armor preserved\r\nsecond rider dismounts explicitly before dimension transfer\r\nhorse transfers to another dimension\r\nsecond client transfers without reconnect\r\nrider remounts preserved horse in target dimension\r\nhorse identity and live state preserved\r\nrider remains on the same horse\r\nhorse ownership preserved\r\nsaddle and horse armor preserved\r\nnavigation uses destination ServerLevel after dimension transfer\r\nstale coordinates in destination dimension: local route installed before invalidation\r\nstale coordinates in destination dimension: cleared before any ground read\r\nstale coordinates in destination dimension: stale AI steering cancelled\r\nhorse identity and live state preserved\r\nrider remains on the same horse\r\nhorse ownership preserved\r\nsaddle and horse armor preserved\r\nvalid local navigation accepted\r\nvalid local navigation retains Vanilla ground read and live path\r\nvalid local navigation retains Vanilla movement control\r\nhorse identity and live state preserved\r\nrider remains on the same horse\r\nhorse ownership preserved\r\nsaddle and horse armor preserved\r\nhorse identity and live state preserved\r\nrider remains on the same horse\r\nhorse ownership preserved\r\nsaddle and horse armor preserved\r\nhorse identity and live state preserved\r\nrider remains on the same horse\r\nhorse ownership preserved\r\nsaddle and horse armor preserved\r\nboth riders remain connected after natural entity ticks\r\n",
+  "observations": [
+    {
+      "type": "login",
+      "username": "NavBeta"
+    },
+    {
+      "type": "login",
+      "username": "NavAlpha"
+    },
+    {
+      "type": "keepalive",
+      "username": "NavAlpha",
+      "state": "config"
+    },
+    {
+      "type": "keepalive",
+      "username": "NavBeta",
+      "state": "config"
+    },
+    {
+      "type": "teleport",
+      "username": "NavAlpha",
+      "id": 1,
+      "position": [
+        -14.5,
+        -60,
+        -1.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "teleport",
+      "username": "NavBeta",
+      "id": 1,
+      "position": [
+        -7.5,
+        -60,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "teleport",
+      "username": "NavAlpha",
+      "id": 2,
+      "position": [
+        -14.5,
+        -60,
+        -1.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "teleport",
+      "username": "NavBeta",
+      "id": 2,
+      "position": [
+        -7.5,
+        -60,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "advancements",
+      "username": "NavAlpha",
+      "reset": true
+    },
+    {
+      "type": "keepalive",
+      "username": "NavAlpha",
+      "state": "play"
+    },
+    {
+      "type": "advancements",
+      "username": "NavBeta",
+      "reset": true
+    },
+    {
+      "type": "keepalive",
+      "username": "NavBeta",
+      "state": "play"
+    },
+    {
+      "type": "keepalive",
+      "username": "NavBeta",
+      "state": "play"
+    },
+    {
+      "type": "teleport",
+      "username": "NavAlpha",
+      "id": 3,
+      "position": [
+        -361.5,
+        128,
+        -1429.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "advancements",
+      "username": "NavAlpha",
+      "reset": false
+    },
+    {
+      "type": "keepalive",
+      "username": "NavAlpha",
+      "state": "play"
+    },
+    {
+      "type": "advancements",
+      "username": "NavAlpha",
+      "reset": false
+    },
+    {
+      "type": "teleport",
+      "username": "NavBeta",
+      "id": 3,
+      "position": [
+        2056.5,
+        128,
+        8.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "advancements",
+      "username": "NavBeta",
+      "reset": false
+    },
+    {
+      "type": "keepalive",
+      "username": "NavBeta",
+      "state": "play"
+    },
+    {
+      "type": "teleport",
+      "username": "NavAlpha",
+      "id": 4,
+      "position": [
+        -361.5,
+        128.84375002384186,
+        -1429.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "teleport",
+      "username": "NavBeta",
+      "id": 4,
+      "position": [
+        2056.5,
+        128.84375002384186,
+        8.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "keepalive",
+      "username": "NavAlpha",
+      "state": "play"
+    },
+    {
+      "type": "keepalive",
+      "username": "NavBeta",
+      "state": "play"
+    },
+    {
+      "type": "teleport",
+      "username": "NavAlpha",
+      "id": 5,
+      "position": [
+        4104.5,
+        128,
+        8.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "teleport",
+      "username": "NavBeta",
+      "id": 5,
+      "position": [
+        2055.501752800579,
+        128,
+        8.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "advancements",
+      "username": "NavBeta",
+      "reset": false
+    },
+    {
+      "type": "keepalive",
+      "username": "NavAlpha",
+      "state": "play"
+    },
+    {
+      "type": "teleport",
+      "username": "NavBeta",
+      "id": 6,
+      "position": [
+        2056.5,
+        70,
+        8.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "teleport",
+      "username": "NavBeta",
+      "id": 7,
+      "position": [
+        2056.5,
+        70.84375002384186,
+        8.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "keepalive",
+      "username": "NavBeta",
+      "state": "play"
+    },
+    {
+      "type": "keepalive",
+      "username": "NavAlpha",
+      "state": "play"
+    },
+    {
+      "type": "keepalive",
+      "username": "NavBeta",
+      "state": "play"
+    },
+    {
+      "type": "keepalive",
+      "username": "NavAlpha",
+      "state": "play"
+    },
+    {
+      "type": "advancements",
+      "username": "NavAlpha",
+      "reset": false
+    },
+    {
+      "type": "keepalive",
+      "username": "NavBeta",
+      "state": "play"
+    },
+    {
+      "type": "keepalive",
+      "username": "NavAlpha",
+      "state": "play"
+    }
+  ]
+}

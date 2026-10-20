@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-20",
+  "version": "26.3-021-beta",
+  "minecraftVersion": "26.3",
+  "javaVersion": "25.0.3",
+  "source": {
+    "branch": "ver/26.3.x",
+    "baseCommit": "027304d3c31f6ca5be089a70f7d53d5fb9c224ba",
+    "includesUncommittedRootChanges": true,
+    "rootCommitOrPushCreated": false,
+    "generatedMinecraftHead": "70960c69c03a661c96a3d00cdec1b3037cae7c76",
+    "generatedPaperServerHead": "5ce14695718804856bfd52434c08d2ccd5531ce3",
+    "minecraftFeaturePatches": 68,
+    "serverFeaturePatches": 61,
+    "navigationPatchSha256": "14a88cb80fc00dd5dcf7ba37ef495a3536fe1c3ffaad532d9213e27325377012",
+    "navigationTestPatchSha256": "201ee921fd78c552333999eaa52234c2b231d3e06220a6cfa8a423b6b9e9a2af"
+  },
+  "artifact": {
+    "path": "build/libs/tessera-server-26.3.build.021-beta.jar",
+    "bytes": 56612628,
+    "sha256": "7ab2677fd3179a13edf57a21001526de6cc1241ce30e414c2d64ad219b1f1f91"
+  },
+  "build": {
+    "command": ".\\gradlew.bat buildTessera --offline --console=plain --no-configuration-cache --max-workers=2 --no-parallel",
+    "result": "BUILD SUCCESSFUL",
+    "duration": "10m 46s",
+    "patchesReapplied": true,
+    "log": "buildTessera.log"
+  },
+  "junit": {
+    "api": { "files": 42, "tests": 529, "skipped": 2, "failures": 0, "errors": 0 },
+    "server": { "files": 186, "tests": 10404, "skipped": 87, "failures": 0, "errors": 0 },
+    "checkstyleModule": { "files": 3, "tests": 3, "skipped": 0, "failures": 0, "errors": 0, "fromGradleCache": true },
+    "newNavigationTests": 18,
+    "newNavigationFailures": 0,
+    "newNavigationSkipped": 0
+  },
+  "native": {
+    "baseline": "navigation-baseline-020.json",
+    "final": "navigation-final-021.json",
+    "repeat": "navigation-repeat-021.json",
+    "sandboxBlockedAttempt": "navigation-sandbox-blocked.json",
+    "assertionsPerSuccessfulFinalRun": 107,
+    "testPluginSha256": "7b13dc1c540fe5cdde9d70eba54d831db3fec2cebea78c311aac00bebbde1817"
+  },
+  "documentation": {
+    "validatorTests": 57,
+    "validatorFailures": 0,
+    "apiArticles": 21,
+    "apiLocalLinks": 59,
+    "newReleaseParsed": true,
+    "globalChangelogValidation": "Existing failure: docs/builds/26.2/0.0.1.md requires double-quoted YAML strings"
+  }
+}

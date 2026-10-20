@@ -1,0 +1,358 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Tue, 20 Oct 2026 00:45:47 +0200
+Subject: [PATCH] Test navigation ownership and no-load guarantees
+
+
+diff --git a/src/test/java/net/minecraft/world/entity/ai/navigation/NavigationRegionSafetyTestSuite.java b/src/test/java/net/minecraft/world/entity/ai/navigation/NavigationRegionSafetyTestSuite.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..ce901e8dda67929cf54d172078e6b310b2748468
+--- /dev/null
++++ b/src/test/java/net/minecraft/world/entity/ai/navigation/NavigationRegionSafetyTestSuite.java
+@@ -0,0 +1,346 @@
++package net.minecraft.world.entity.ai.navigation;
++
++import ca.spottedleaf.moonrise.common.util.TickThread;
++import java.util.ArrayList;
++import java.util.List;
++import net.minecraft.core.BlockPos;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.level.ServerChunkCache;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.world.entity.Mob;
++import net.minecraft.world.entity.ai.control.MoveControl;
++import net.minecraft.world.level.PathNavigationRegion;
++import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.chunk.LevelChunk;
++import net.minecraft.world.level.pathfinder.Node;
++import net.minecraft.world.level.pathfinder.Path;
++import net.minecraft.world.level.pathfinder.PathFinder;
++import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
++import net.minecraft.world.phys.Vec3;
++import org.bukkit.support.environment.VanillaFeature;
++import org.junit.jupiter.api.Test;
++import org.mockito.MockedStatic;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.ArgumentMatchers.*;
++import static org.mockito.Mockito.*;
++
++@VanillaFeature
++class NavigationRegionSafetyTestSuite {
++    @Test
++    void foreignLoadedWaypointIsRejectedBeforeAnyChunkOrBlockRead() {
++        try (Fixture f = new Fixture()) {
++            f.navigation.path = path(new Node(2048, 128, 2048));
++            f.navigation.tick();
++            f.assertStopped();
++            verifyNoInteractions(f.chunks);
++            verify(f.level, never()).getBlockState(any());
++        }
++    }
++
++    @Test
++    void foreignUnloadedWaypointCannotTriggerASynchronousLoad() {
++        try (Fixture f = new Fixture()) {
++            when(f.chunks.getChunkAtIfLoadedImmediately(anyInt(), anyInt())).thenReturn(null);
++            f.navigation.path = path(new Node(-362, 128, -270));
++            f.navigation.tick();
++            f.assertStopped();
++            verifyNoInteractions(f.chunks);
++            verify(f.level, never()).getBlockState(any());
++        }
++    }
++
++    @Test
++    void ownedButUnloadedWaypointIsRejectedWithoutWorldReads() {
++        try (Fixture f = new Fixture()) {
++            f.own(0, 0);
++            when(f.chunks.getChunkAtIfLoadedImmediately(0, 0)).thenReturn(null);
++            f.navigation.path = path(new Node(8, 128, 8));
++            f.navigation.tick();
++            f.assertStopped();
++            verify(f.chunks).getChunkAtIfLoadedImmediately(0, 0);
++            verify(f.level, never()).getBlockState(any());
++        }
++    }
++
++    @Test
++    void horseWidthCannotMoveTheEntityWaypointIntoAForeignChunk() {
++        try (Fixture f = new Fixture()) {
++            f.own(0, 0);
++            f.navigation.path = path(new Node(15, 128, 8));
++            f.navigation.tick();
++            f.assertStopped();
++            verify(f.chunks, never()).getChunkAtIfLoadedImmediately(1, 0);
++            verify(f.level, never()).getBlockState(any());
++        }
++    }
++
++    @Test
++    void advancementIsRevalidatedBeforeTheGroundHeightRead() {
++        try (Fixture f = new Fixture()) {
++            f.own(0, 0);
++            f.navigation.advance = true;
++            f.navigation.path = path(new Node(8, 128, 8), new Node(2048, 128, 2048));
++            f.navigation.tick();
++            assertTrue(f.navigation.followed);
++            f.assertStopped();
++            verify(f.level, never()).getBlockState(any());
++        }
++    }
++
++    @Test
++    void ownedLoadedNavigationKeepsVanillaGroundHeightAndSteering() {
++        try (Fixture f = new Fixture()) {
++            f.own(0, 0);
++            f.navigation.speedModifier = 1.5;
++            f.navigation.path = path(new Node(8, 128, 8));
++            f.navigation.tick();
++            assertTrue(f.navigation.isInProgress());
++            assertEquals(1, f.navigation.groundReads);
++            verify(f.level).getBlockState(new BlockPos(9, 127, 9));
++            verify(f.control).setWantedPosition(9.0, 128.0, 9.0, 1.5);
++            verify(f.control, never()).setWait();
++        }
++    }
++
++    @Test
++    void negativeCoordinatesUseFloorChunkCoordinates() {
++        try (Fixture f = new Fixture()) {
++            f.own(-1, -2);
++            f.navigation.path = path(new Node(-8, 128, -24));
++            f.navigation.tick();
++            assertTrue(f.navigation.isInProgress());
++            verify(f.level).getBlockState(new BlockPos(-7, 127, -23));
++        }
++    }
++
++    @Test
++    void invalidationDoesNotEraseRiderMovementOrMomentum() {
++        try (Fixture f = new Fixture()) {
++            f.navigation.path = path(new Node(2048, 128, 2048));
++            f.navigation.tick();
++            f.assertStopped();
++            verify(f.mob, never()).setDeltaMovement(any(Vec3.class));
++            verify(f.mob, never()).setDeltaMovement(anyDouble(), anyDouble(), anyDouble());
++            verify(f.mob, never()).setXxa(anyFloat());
++            verify(f.mob, never()).setYya(anyFloat());
++            verify(f.mob, never()).setSpeed(anyFloat());
++        }
++    }
++
++    @Test
++    void delayedForeignRecomputationIsClearedBeforePathfinding() throws Exception {
++        try (Fixture f = new Fixture()) {
++            f.own(0, 0);
++            f.navigation.path = path(new Node(8, 128, 8));
++            var target = PathNavigation.class.getDeclaredField("targetPos");
++            target.setAccessible(true);
++            target.set(f.navigation, new BlockPos(2048, 128, 2048));
++            f.navigation.hasDelayedRecomputation = true;
++            f.navigation.tick();
++            f.assertStopped();
++            assertFalse(f.navigation.hasDelayedRecomputation);
++            assertNull(f.navigation.getTargetPos());
++            assertEquals(0, f.navigation.creations);
++        }
++    }
++
++    @Test
++    void suppliedForeignPathIsRejectedBeforeTrimReadsVisitedNodes() {
++        try (Fixture f = new Fixture()) {
++            var path = path(new Node(2048, 128, 2048), new Node(8, 128, 8));
++            path.setNextNodeIndex(1);
++            assertFalse(f.navigation.moveTo(path, 1.0));
++            assertFalse(f.navigation.trimmed);
++            f.assertStopped();
++            verify(f.level, never()).getBlockState(any());
++        }
++    }
++
++    @Test
++    void suppliedOwnedPathStillUsesVanillaTrimming() {
++        try (Fixture f = new Fixture()) {
++            f.own(0, 0);
++            var path = path(new Node(8, 128, 8), new Node(10, 128, 8));
++            assertTrue(f.navigation.moveTo(path, 1.0));
++            assertTrue(f.navigation.trimmed);
++            assertSame(path, f.navigation.path);
++            verify(f.level).getBlockState(new BlockPos(8, 128, 8));
++            verify(f.level).getBlockState(new BlockPos(10, 128, 8));
++        }
++    }
++
++    @Test
++    void noPathDoesNotReadChunksOrChangeSteering() {
++        try (Fixture f = new Fixture()) {
++            f.navigation.tick();
++            assertEquals(1, f.navigation.tick);
++            verifyNoInteractions(f.chunks, f.control);
++            verify(f.level, never()).getBlockState(any());
++        }
++    }
++
++    @Test
++    void aWrongMobOwnerFailsBeforeAnyNavigationMutation() {
++        try (Fixture f = new Fixture()) {
++            var original = path(new Node(2048, 128, 2048));
++            f.navigation.path = original;
++            f.threads.when(() -> TickThread.ensureTickThread(f.mob, "Cannot update navigation off-region"))
++                .thenThrow(new IllegalStateException("wrong owner"));
++            assertThrows(IllegalStateException.class, f.navigation::tick);
++            assertEquals(0, f.navigation.tick);
++            assertSame(original, f.navigation.path);
++            verifyNoInteractions(f.chunks, f.control);
++        }
++    }
++
++    @Test
++    void recomputationCacheNeverObtainsAForeignLoadedChunk() {
++        try (Fixture f = new Fixture()) {
++            f.own(0, 0);
++            when(f.chunks.getChunkNow(0, 0)).thenReturn(f.chunk);
++            when(f.chunk.isYSpaceEmpty(anyInt(), anyInt())).thenReturn(true);
++            when(f.chunk.getBlockState(any())).thenReturn(Blocks.STONE.defaultBlockState());
++            var cache = new PathNavigationRegion(f.level, new BlockPos(0, 127, 0), new BlockPos(31, 129, 0));
++            assertNotNull(cache.getBlockStateIfLoaded(new BlockPos(0, 128, 0)));
++            assertNull(cache.getBlockStateIfLoaded(new BlockPos(16, 128, 0)));
++            verify(f.chunks, never()).getChunkNow(1, 0);
++            verify(f.chunk, never()).getBlockState(new BlockPos(16, 128, 0));
++        }
++    }
++
++    @Test
++    void flyingOverrideRejectsAForeignWaypointBeforeFollowing() {
++        try (Fixture f = new Fixture()) {
++            var navigation = new FlyingPathNavigation(f.mob, f.level);
++            navigation.path = path(new Node(2048, 128, 2048));
++            navigation.tick();
++            assertTrue(navigation.isDone());
++            verify(f.control).setWait();
++            verifyNoInteractions(f.chunks);
++        }
++    }
++
++    @Test
++    void flyingOverrideRevalidatesAnAdvancedWaypoint() {
++        try (Fixture f = new Fixture()) {
++            f.own(0, 0);
++            var navigation = spy(new FlyingPathNavigation(f.mob, f.level));
++            navigation.path = path(new Node(8, 128, 8), new Node(2048, 128, 2048));
++            doAnswer(call -> { navigation.path.advance(); return null; }).when(navigation).followThePath();
++            navigation.tick();
++            assertTrue(navigation.isDone());
++            verify(f.control).setWait();
++            verify(f.control, never()).setWantedPosition(anyDouble(), anyDouble(), anyDouble(), anyDouble());
++        }
++    }
++
++    @Test
++    void climberDiscardsAForeignFallbackWithoutIssuingSteering() throws Exception {
++        try (Fixture f = new Fixture()) {
++            var navigation = new WallClimberNavigation(f.mob, f.level);
++            var target = WallClimberNavigation.class.getDeclaredField("pathToPosition");
++            target.setAccessible(true);
++            target.set(navigation, new BlockPos(2048, 128, 2048));
++            navigation.tick();
++            assertNull(target.get(navigation));
++            verify(f.control).setWait();
++            verify(f.control, never()).setWantedPosition(anyDouble(), anyDouble(), anyDouble(), anyDouble());
++            verifyNoInteractions(f.chunks);
++        }
++    }
++
++    @Test
++    void climberRetainsItsOwnedLoadedFallback() throws Exception {
++        try (Fixture f = new Fixture()) {
++            f.own(0, 0);
++            var navigation = new WallClimberNavigation(f.mob, f.level);
++            var target = WallClimberNavigation.class.getDeclaredField("pathToPosition");
++            target.setAccessible(true);
++            target.set(navigation, new BlockPos(12, 128, 8));
++            navigation.tick();
++            assertNotNull(target.get(navigation));
++            verify(f.control).setWantedPosition(12.0, 128.0, 8.0, 0.0);
++            verify(f.control, never()).setWait();
++        }
++    }
++
++    private static Path path(Node... nodes) {
++        return new Path(new ArrayList<>(List.of(nodes)), nodes[nodes.length - 1].asBlockPos(), true);
++    }
++
++    private static final class Fixture implements AutoCloseable {
++        final ServerLevel level = mock(ServerLevel.class);
++        final ServerChunkCache chunks = mock(ServerChunkCache.class);
++        final LevelChunk chunk = mock(LevelChunk.class);
++        final Mob mob = mock(Mob.class);
++        final MoveControl<?> control = mock(MoveControl.class);
++        final MockedStatic<TickThread> threads = mockStatic(TickThread.class);
++        final TestNavigation navigation;
++
++        Fixture() {
++            when(this.level.getServer()).thenReturn(mock(MinecraftServer.class));
++            when(this.level.getChunkSource()).thenReturn(this.chunks);
++            when(this.chunks.getChunkAtIfLoadedImmediately(anyInt(), anyInt())).thenReturn(this.chunk);
++            when(this.level.getBlockState(any())).thenReturn(Blocks.AIR.defaultBlockState());
++            when(this.mob.getBbWidth()).thenReturn(1.4F);
++            when(this.mob.getMoveControl()).thenReturn(this.control);
++            when(this.mob.position()).thenReturn(new Vec3(8.5, 128.0, 8.5));
++            this.navigation = new TestNavigation(this.mob, this.level);
++            clearInvocations(this.chunks, this.control);
++        }
++
++        void own(int x, int z) {
++            this.threads.when(() -> TickThread.isTickThreadFor(this.level, x, z)).thenReturn(true);
++        }
++
++        void assertStopped() {
++            assertTrue(this.navigation.isDone());
++            assertNull(this.navigation.path);
++            assertEquals(0, this.navigation.groundReads);
++            verify(this.control).setWait();
++        }
++
++        @Override
++        public void close() {
++            this.threads.close();
++        }
++    }
++
++    private static final class TestNavigation extends PathNavigation {
++        boolean advance;
++        boolean followed;
++        boolean trimmed;
++        int groundReads;
++        int creations;
++
++        TestNavigation(Mob mob, ServerLevel level) { super(mob, level); }
++
++        @Override
++        protected PathFinder createPathFinder(int maxVisitedNodes) {
++            this.nodeEvaluator = new WalkNodeEvaluator();
++            return new PathFinder(this.nodeEvaluator, maxVisitedNodes);
++        }
++
++        @Override
++        protected boolean canUpdatePath() { return this.advance; }
++
++        @Override
++        protected Vec3 getTempMobPos() { return this.mob.position(); }
++
++        @Override
++        protected void followThePath() { this.followed = true; this.path.advance(); }
++
++        @Override
++        protected double getGroundY(Vec3 target) { this.groundReads++; return super.getGroundY(target); }
++
++        @Override
++        protected void trimPath() { this.trimmed = true; super.trimPath(); }
++
++        @Override
++        public Path createPath(BlockPos pos, int reachRange) { this.creations++; return null; }
++
++        @Override
++        public boolean canNavigateGround() { return true; }
++    }
++}

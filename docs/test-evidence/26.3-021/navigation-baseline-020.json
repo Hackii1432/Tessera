@@ -1,0 +1,192 @@
+{
+  "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.020-beta.jar",
+  "fixtureJar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\native-navigation-baseline-1792449932588\\server.jar",
+  "sha256": "67918a3bc6fd3a8572920ef644d463d83dc34347c799d591ca54c494965906d2",
+  "work": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\native-navigation-baseline-1792449932588",
+  "port": 57591,
+  "code": 0,
+  "passed": true,
+  "baseline": true,
+  "bugReproduced": true,
+  "timedOut": false,
+  "clientFailure": null,
+  "joins": 2,
+  "kicks": 0,
+  "disconnects": 0,
+  "checks": "two protocol clients connected\r\nfirst client transferred to Nether roof\r\nsecond client transferred to distant Nether region\r\nplayer mounted a tamed equipped horse on its owner\r\nplayer mounted a tamed equipped horse on its owner\r\ntwo mounted riders are on distinct native regions\r\nreported distant waypoint is not owned\r\nreported distant waypoint is initially unloaded\r\noriginal ground navigation accepts a valid local path\r\nbaseline reproduces horse removal through real entity exception guard\r\n",
+  "observations": [
+    {
+      "type": "login",
+      "username": "NavBeta"
+    },
+    {
+      "type": "login",
+      "username": "NavAlpha"
+    },
+    {
+      "type": "keepalive",
+      "username": "NavAlpha",
+      "state": "config"
+    },
+    {
+      "type": "teleport",
+      "username": "NavBeta",
+      "id": 1,
+      "position": [
+        -3.5,
+        -60,
+        -6.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "advancements",
+      "username": "NavBeta",
+      "reset": true
+    },
+    {
+      "type": "keepalive",
+      "username": "NavBeta",
+      "state": "play"
+    },
+    {
+      "type": "teleport",
+      "username": "NavAlpha",
+      "id": 1,
+      "position": [
+        -11.5,
+        -60,
+        2.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "teleport",
+      "username": "NavAlpha",
+      "id": 2,
+      "position": [
+        -11.5,
+        -60,
+        2.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "advancements",
+      "username": "NavAlpha",
+      "reset": true
+    },
+    {
+      "type": "keepalive",
+      "username": "NavBeta",
+      "state": "play"
+    },
+    {
+      "type": "teleport",
+      "username": "NavAlpha",
+      "id": 3,
+      "position": [
+        -361.5,
+        128,
+        -1429.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "advancements",
+      "username": "NavAlpha",
+      "reset": false
+    },
+    {
+      "type": "keepalive",
+      "username": "NavAlpha",
+      "state": "play"
+    },
+    {
+      "type": "advancements",
+      "username": "NavAlpha",
+      "reset": false
+    },
+    {
+      "type": "teleport",
+      "username": "NavBeta",
+      "id": 2,
+      "position": [
+        2056.5,
+        128,
+        8.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "advancements",
+      "username": "NavBeta",
+      "reset": false
+    },
+    {
+      "type": "teleport",
+      "username": "NavAlpha",
+      "id": 4,
+      "position": [
+        -361.5,
+        128.84375002384186,
+        -1429.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "teleport",
+      "username": "NavBeta",
+      "id": 3,
+      "position": [
+        2056.5,
+        128.84375002384186,
+        8.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "teleport",
+      "username": "NavAlpha",
+      "id": 5,
+      "position": [
+        -361.5,
+        128.84375002384186,
+        -1429.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    }
+  ]
+}

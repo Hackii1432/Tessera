@@ -1,0 +1,252 @@
+Applying patches
+Starting org.bukkit.craftbukkit.Main
+[01:01:48 INFO]: [bootstrap] Running Java 25 (Java HotSpot(TM) 64-Bit Server VM 25.0.3+9-LTS-195; Oracle Corporation null) on Windows 11 10.0 (amd64)
+[01:01:48 INFO]: [bootstrap] Loading Tessera 26.3-21-ver/26.3.x@027304d (2026-10-19T22:53:48Z) for Minecraft 26.3
+[01:01:48 INFO]: [PluginInitializerManager] Initializing plugins...
+[33;1m[01:01:48 WARN]: [oshi.util.platform.windows.WmiQueryHandler] COM exception querying Win32_Processor, which might not be on your system. Will not attempt to query it again. Error was -2147024891: Zugriff verweigert(HRESULT: 80070005)
+[m[33;1m[01:01:48 WARN]: [oshi.util.platform.windows.WmiQueryHandler] COM exception querying Win32_Processor, which might not be on your system. Will not attempt to query it again. Error was -2147024891: Zugriff verweigert(HRESULT: 80070005)
+[m[33;1m[01:01:48 WARN]: [oshi.util.platform.windows.WmiQueryHandler] COM exception querying Win32_PhysicalMemory, which might not be on your system. Will not attempt to query it again. Error was -2147024891: Zugriff verweigert(HRESULT: 80070005)
+[m[01:01:48 INFO]: [PluginInitializerManager] Initialized 1 plugin
+[01:01:48 INFO]: [PluginInitializerManager] Bukkit plugins (1):
+ - TesseraRuntimeWorldSmoke (1.0.0)
+[33;1m[01:01:48 WARN]: [oshi.util.platform.windows.PerfDataUtil] Failed to add PDH Counter: \Paging File(_Total)\% Usage, Error code: 0xC0000BC8
+[m[33;1m[01:01:48 WARN]: [oshi.util.platform.windows.PerfCounterQueryHandler] Failed to add counter for PDH counter: \Paging File(_Total)\% Usage
+[m[01:01:48 INFO]: [oshi.util.platform.windows.PerfCounterQuery] Disabling further attempts to query Paging File.
+[33;1m[01:01:48 WARN]: [oshi.util.platform.windows.WmiQueryHandler] COM exception querying Win32_PerfRawData_PerfOS_PagingFile, which might not be on your system. Will not attempt to query it again. Error was -2147024891: Zugriff verweigert(HRESULT: 80070005)
+[m[33;1m[01:01:48 WARN]: [oshi.software.os.windows.WindowsOperatingSystem] Unable to open configured system Event log "System". Calculating boot time from uptime.
+[m[33;1m[01:01:48 WARN]: [oshi.util.platform.windows.WmiQueryHandler] COM exception querying Win32_OperatingSystem, which might not be on your system. Will not attempt to query it again. Error was -2147024891: Zugriff verweigert(HRESULT: 80070005)
+[m[31;1m[01:01:48 ERROR]: [oshi.driver.windows.registry.HkeyPerformanceDataUtil] Unable to locate English counter names in registry Perflib 009. Counters may need to be rebuilt: 
+com.sun.jna.platform.win32.Win32Exception: Zugriff verweigert
+	at com.sun.jna.platform.win32.Advapi32Util.registryGetStringArray(Advapi32Util.java:921) ~[jna-platform-5.17.0.jar:5.17.0 (b0)]
+	at com.sun.jna.platform.win32.Advapi32Util.registryGetStringArray(Advapi32Util.java:898) ~[jna-platform-5.17.0.jar:5.17.0 (b0)]
+	at oshi.driver.windows.registry.HkeyPerformanceDataUtil.mapCounterIndicesFromRegistry(HkeyPerformanceDataUtil.java:274) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.driver.windows.registry.HkeyPerformanceDataUtil.<clinit>(HkeyPerformanceDataUtil.java:51) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.driver.windows.registry.ProcessPerformanceData.buildProcessMapFromRegistry(ProcessPerformanceData.java:45) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.software.os.windows.WindowsOperatingSystem.queryProcessMapFromRegistry(WindowsOperatingSystem.java:328) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.util.Memoizer$1.get(Memoizer.java:65) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.software.os.windows.WindowsOperatingSystem.processMapToList(WindowsOperatingSystem.java:298) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.software.os.windows.WindowsOperatingSystem.getProcess(WindowsOperatingSystem.java:292) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.software.os.OperatingSystem.getCurrentProcess(OperatingSystem.java:246) ~[oshi-core-6.9.0.jar:6.9.0]
+	at net.minecraft.SystemReport.lambda$putSoftware$0(SystemReport.java:115) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.ignoreErrors(SystemReport.java:120) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.putSoftware(SystemReport.java:115) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.lambda$new$7(SystemReport.java:68) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.ignoreErrors(SystemReport.java:120) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.<init>(SystemReport.java:68) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.CrashReport.<init>(CrashReport.java:32) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.CrashReport.preload(CrashReport.java:240) ~[folia-26.3.jar:26.3-021-027304d]
+	at java.base/java.lang.Thread.run(Thread.java:1474) ~[?:?]
+[m[33;1m[01:01:48 WARN]: [oshi.util.platform.windows.PerfCounterQuery] Unable to locate English counter names in registry Perflib 009. Assuming English counters. Error 0x80070005. See https://support.microsoft.com/en-us/help/300956/how-to-manually-rebuild-performance-counter-library-values
+[m[33;1m[01:01:48 WARN]: [oshi.util.platform.windows.PerfCounterWildcardQuery] Failed to locate performance object for Process in the registry. Performance counters may be corrupt. Pdh call failed with error code 0xC0000BB8
+[m[01:01:48 INFO]: [oshi.util.platform.windows.PerfCounterWildcardQuery] Disabling further attempts to query Process.
+[33;1m[01:01:48 WARN]: [oshi.util.platform.windows.WmiQueryHandler] COM exception querying Win32_PerfRawData_PerfProc_Process WHERE NOT Name LIKE "%_Total", which might not be on your system. Will not attempt to query it again. Error was -2147024891: Zugriff verweigert(HRESULT: 80070005)
+[m[33;1m[01:01:48 WARN]: Failed to get system info for Process Loads
+java.lang.NullPointerException: Cannot invoke "oshi.software.os.OSProcess.getUserTime()" because "process" is null
+	at net.minecraft.SystemReport.lambda$putProcessDetails$0(SystemReport.java:191) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.setDetail(SystemReport.java:96) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.putProcessDetails(SystemReport.java:188) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.lambda$putSoftware$0(SystemReport.java:115) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.ignoreErrors(SystemReport.java:120) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.putSoftware(SystemReport.java:115) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.lambda$new$7(SystemReport.java:68) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.ignoreErrors(SystemReport.java:120) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.<init>(SystemReport.java:68) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.CrashReport.<init>(CrashReport.java:32) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.CrashReport.preload(CrashReport.java:240) ~[folia-26.3.jar:26.3-021-027304d]
+	at java.base/java.lang.Thread.run(Thread.java:1474) ~[?:?]
+[m[33;1m[01:01:48 WARN]: Failed to get system info for Process Virtual Size (MiB)
+java.lang.NullPointerException: Cannot invoke "oshi.software.os.OSProcess.getVirtualSize()" because "process" is null
+	at net.minecraft.SystemReport.lambda$putProcessDetails$1(SystemReport.java:208) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.setDetail(SystemReport.java:96) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.putProcessDetails(SystemReport.java:208) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.lambda$putSoftware$0(SystemReport.java:115) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.ignoreErrors(SystemReport.java:120) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.putSoftware(SystemReport.java:115) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.lambda$new$7(SystemReport.java:68) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.ignoreErrors(SystemReport.java:120) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.<init>(SystemReport.java:68) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.CrashReport.<init>(CrashReport.java:32) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.CrashReport.preload(CrashReport.java:240) ~[folia-26.3.jar:26.3-021-027304d]
+	at java.base/java.lang.Thread.run(Thread.java:1474) ~[?:?]
+[m[33;1m[01:01:48 WARN]: Failed to get system info for Process Resident Size (MiB)
+java.lang.NullPointerException: Cannot invoke "oshi.software.os.OSProcess.getResidentSetSize()" because "process" is null
+	at net.minecraft.SystemReport.lambda$putProcessDetails$2(SystemReport.java:209) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.setDetail(SystemReport.java:96) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.putProcessDetails(SystemReport.java:209) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.lambda$putSoftware$0(SystemReport.java:115) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.ignoreErrors(SystemReport.java:120) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.putSoftware(SystemReport.java:115) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.lambda$new$7(SystemReport.java:68) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.ignoreErrors(SystemReport.java:120) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.<init>(SystemReport.java:68) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.CrashReport.<init>(CrashReport.java:32) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.CrashReport.preload(CrashReport.java:240) ~[folia-26.3.jar:26.3-021-027304d]
+	at java.base/java.lang.Thread.run(Thread.java:1474) ~[?:?]
+[m[01:01:53 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Initialising converters for DataConverter...
+[01:01:53 INFO]: [com.destroystokyo.paper.profile.PaperServicesDiscoveryService] Environment: Environment[discoveryUrl=https://discovery.minecraftservices.com/minecraft/client, name=PROD]
+[33;1m[01:01:53 WARN]: Failed to connect
+com.mojang.authlib.exceptions.MinecraftClientException: Failed to read from https://discovery.minecraftservices.com/minecraft/client due to discovery.minecraftservices.com
+	at com.mojang.authlib.minecraft.client.MinecraftClient.readServiceResponse(MinecraftClient.java:151) ~[authlib-10.0.77.jar:?]
+	at com.mojang.authlib.minecraft.client.MinecraftClient.getWithEtag(MinecraftClient.java:81) ~[authlib-10.0.77.jar:?]
+	at com.mojang.authlib.minecraft.client.MinecraftClient.get(MinecraftClient.java:65) ~[authlib-10.0.77.jar:?]
+	at com.mojang.authlib.services.MinecraftServicesDiscoveryService.lambda$createDiscoverySupplier$1(MinecraftServicesDiscoveryService.java:76) ~[folia-26.3.jar:26.3-021-027304d]
+	at com.mojang.authlib.services.RetryableFetch$1.run(RetryableFetch.java:42) ~[authlib-10.0.77.jar:26.3-021-027304d]
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545) ~[?:?]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328) ~[?:?]
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309) ~[?:?]
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090) ~[?:?]
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614) ~[?:?]
+	at java.base/java.lang.Thread.run(Thread.java:1474) ~[?:?]
+Caused by: java.net.UnknownHostException: discovery.minecraftservices.com
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:569) ~[?:?]
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:284) ~[?:?]
+	at java.base/java.net.Socket.connect(Socket.java:659) ~[?:?]
+	at java.base/sun.security.ssl.SSLSocketImpl.connect(SSLSocketImpl.java:304) ~[?:?]
+	at java.base/sun.net.NetworkClient.doConnect(NetworkClient.java:161) ~[?:?]
+	at java.base/sun.net.www.http.HttpClient.openServer(HttpClient.java:516) ~[?:?]
+	at java.base/sun.net.www.http.HttpClient.openServer(HttpClient.java:604) ~[?:?]
+	at java.base/sun.net.www.protocol.https.HttpsClient.<init>(HttpsClient.java:206) ~[?:?]
+	at java.base/sun.net.www.protocol.https.HttpsClient.New(HttpsClient.java:288) ~[?:?]
+	at java.base/sun.net.www.protocol.https.AbstractDelegateHttpsURLConnection.getNewHttpClient(AbstractDelegateHttpsURLConnection.java:193) ~[?:?]
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.plainConnect0(HttpURLConnection.java:1008) ~[?:?]
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.plainConnect(HttpURLConnection.java:899) ~[?:?]
+	at java.base/sun.net.www.protocol.https.AbstractDelegateHttpsURLConnection.connect(AbstractDelegateHttpsURLConnection.java:179) ~[?:?]
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.getInputStream0(HttpURLConnection.java:1377) ~[?:?]
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.getInputStream(HttpURLConnection.java:1302) ~[?:?]
+	at java.base/java.net.HttpURLConnection.getResponseCode(HttpURLConnection.java:493) ~[?:?]
+	at java.base/sun.net.www.protocol.https.HttpsURLConnectionImpl.getResponseCode(HttpsURLConnectionImpl.java:307) ~[?:?]
+	at com.mojang.authlib.minecraft.client.MinecraftClient.readServiceResponse(MinecraftClient.java:130) ~[authlib-10.0.77.jar:?]
+	... 10 more
+[m[33;1m[01:01:53 WARN]: Services are unavailable, unable to fetch uri for AUTHENTICATION/getPublicKeys
+[m[33;1m[01:01:53 WARN]: Failed to connect
+com.mojang.authlib.exceptions.MinecraftClientException: Services are unavailable
+	at com.mojang.authlib.services.MinecraftServicesDiscoveryService.getEndpoint(MinecraftServicesDiscoveryService.java:139) ~[folia-26.3.jar:26.3-021-027304d]
+	at com.mojang.authlib.services.MinecraftServicesDiscoveryService.getUrl(MinecraftServicesDiscoveryService.java:125) ~[folia-26.3.jar:26.3-021-027304d]
+	at com.mojang.authlib.services.MinecraftServicesDiscoveryService.lambda$getServicesKeySet$0(MinecraftServicesDiscoveryService.java:117) ~[folia-26.3.jar:26.3-021-027304d]
+	at com.mojang.authlib.services.RetryableFetch$1.run(RetryableFetch.java:40) ~[authlib-10.0.77.jar:26.3-021-027304d]
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545) ~[?:?]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328) ~[?:?]
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309) ~[?:?]
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090) ~[?:?]
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614) ~[?:?]
+	at java.base/java.lang.Thread.run(Thread.java:1474) ~[?:?]
+[m[33;1m[01:01:53 WARN]: Services are unavailable, unable to fetch uri for AUTHENTICATION/getPublicKeys
+[m[33;1m[01:01:53 WARN]: Failed to connect
+com.mojang.authlib.exceptions.MinecraftClientException: Services are unavailable
+	at com.mojang.authlib.services.MinecraftServicesDiscoveryService.getEndpoint(MinecraftServicesDiscoveryService.java:139) ~[folia-26.3.jar:26.3-021-027304d]
+	at com.mojang.authlib.services.MinecraftServicesDiscoveryService.getUrl(MinecraftServicesDiscoveryService.java:125) ~[folia-26.3.jar:26.3-021-027304d]
+	at com.mojang.authlib.services.MinecraftServicesDiscoveryService.lambda$getServicesKeySet$0(MinecraftServicesDiscoveryService.java:117) ~[folia-26.3.jar:26.3-021-027304d]
+	at com.mojang.authlib.services.RetryableFetch$1.run(RetryableFetch.java:40) ~[authlib-10.0.77.jar:26.3-021-027304d]
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545) ~[?:?]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328) ~[?:?]
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309) ~[?:?]
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090) ~[?:?]
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614) ~[?:?]
+	at java.base/java.lang.Thread.run(Thread.java:1474) ~[?:?]
+[m[01:01:53 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Finished initialising converters for DataConverter in 482,4ms
+[01:01:53 INFO]: Found new data pack paper, loading it automatically
+[01:01:54 INFO]: No existing world data, creating new world
+[01:01:55 INFO]: Loaded 1866 advancements
+[01:01:55 INFO]: Starting minecraft server version 26.3
+[01:01:55 INFO]: Loading properties
+[01:01:55 INFO]: This server is running Tessera version 26.3-21-ver/26.3.x@027304d (2026-10-19T22:53:48Z) (Implementing API version 26.3.build.021-beta)
+[01:01:55 INFO]: [spark] This server bundles the spark profiler. For more information please visit https://docs.papermc.io/paper/profiling
+[31;1m[01:01:55 ERROR]: Encountered an unexpected exception
+java.io.UncheckedIOException: java.io.IOException: Unable to establish loopback connection
+	at java.net.http/jdk.internal.net.http.HttpClientImpl.<init>(HttpClientImpl.java:482) ~[java.net.http:?]
+	at java.net.http/jdk.internal.net.http.HttpClientImpl.create(HttpClientImpl.java:420) ~[java.net.http:?]
+	at java.net.http/jdk.internal.net.http.HttpClientBuilderImpl.build(HttpClientBuilderImpl.java:142) ~[java.net.http:?]
+	at me.lucko.spark.paper.lib.bytesocks.BytesocksClientJdk.<init>(BytesocksClientJdk.java:54) ~[spark-paper-1.10.191.jar:?]
+	at me.lucko.spark.paper.lib.bytesocks.BytesocksClient.create(BytesocksClient.java:38) ~[spark-paper-1.10.191.jar:?]
+	at me.lucko.spark.paper.common.SparkPlatform.<init>(SparkPlatform.java:116) ~[spark-paper-1.10.191.jar:?]
+	at me.lucko.spark.paper.PaperSparkPlugin.<init>(PaperSparkPlugin.java:71) ~[spark-paper-1.10.191.jar:?]
+	at io.papermc.paper.spark.TesseraSparkPlugin.<init>(TesseraSparkPlugin.java:42) ~[folia-26.3.jar:26.3-021-027304d]
+	at io.papermc.paper.SparksFly.<init>(SparksFly.java:44) ~[folia-26.3.jar:26.3-021-027304d]
+	at org.bukkit.craftbukkit.CraftServer.<init>(CraftServer.java:498) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.server.players.PlayerList.<init>(PlayerList.java:211) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.server.dedicated.DedicatedPlayerList.<init>(DedicatedPlayerList.java:16) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.server.dedicated.DedicatedServer.initServer(DedicatedServer.java:233) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.server.MinecraftServer.runServer(MinecraftServer.java:1399) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.server.MinecraftServer.lambda$spin$0(MinecraftServer.java:298) ~[folia-26.3.jar:26.3-021-027304d]
+	at java.base/java.lang.Thread.run(Thread.java:1474) ~[?:?]
+Caused by: java.io.IOException: Unable to establish loopback connection
+	at java.base/sun.nio.ch.PipeImpl$Initializer.init(PipeImpl.java:96) ~[?:?]
+	at java.base/sun.nio.ch.PipeImpl.<init>(PipeImpl.java:186) ~[?:?]
+	at java.base/sun.nio.ch.WEPollSelectorImpl.<init>(WEPollSelectorImpl.java:78) ~[?:?]
+	at java.base/sun.nio.ch.WEPollSelectorProvider.openSelector(WEPollSelectorProvider.java:33) ~[?:?]
+	at java.base/java.nio.channels.Selector.open(Selector.java:295) ~[?:?]
+	at java.net.http/jdk.internal.net.http.HttpClientImpl$SelectorManager.<init>(HttpClientImpl.java:1094) ~[java.net.http:?]
+	at java.net.http/jdk.internal.net.http.HttpClientImpl.<init>(HttpClientImpl.java:479) ~[java.net.http:?]
+	... 15 more
+Caused by: java.net.SocketException: Permission denied: connect
+	at java.base/sun.nio.ch.Net.connect0(Native Method) ~[?:?]
+	at java.base/sun.nio.ch.Net.connect(Net.java:546) ~[?:?]
+	at java.base/sun.nio.ch.Net.connect(Net.java:553) ~[?:?]
+	at java.base/sun.nio.ch.SocketChannelImpl.connect(SocketChannelImpl.java:952) ~[?:?]
+	at java.base/java.nio.channels.SocketChannel.open(SocketChannel.java:281) ~[?:?]
+	at java.base/sun.nio.ch.PipeImpl$Initializer$LoopbackConnector.run(PipeImpl.java:123) ~[?:?]
+	at java.base/sun.nio.ch.PipeImpl$Initializer.init(PipeImpl.java:78) ~[?:?]
+	... 21 more
+[m[33;1m[01:01:55 WARN]: [oshi.util.platform.windows.WmiQueryHandler] COM exception querying Win32_Processor, which might not be on your system. Will not attempt to query it again. Error was -2147024891: Zugriff verweigert(HRESULT: 80070005)
+[m[33;1m[01:01:55 WARN]: [oshi.util.platform.windows.WmiQueryHandler] COM exception querying Win32_Processor, which might not be on your system. Will not attempt to query it again. Error was -2147024891: Zugriff verweigert(HRESULT: 80070005)
+[m[33;1m[01:01:55 WARN]: [oshi.util.platform.windows.WmiQueryHandler] COM exception querying Win32_PhysicalMemory, which might not be on your system. Will not attempt to query it again. Error was -2147024891: Zugriff verweigert(HRESULT: 80070005)
+[m[33;1m[01:01:55 WARN]: [oshi.util.platform.windows.WmiQueryHandler] COM exception querying Win32_PerfRawData_PerfOS_PagingFile, which might not be on your system. Will not attempt to query it again. Error was -2147024891: Zugriff verweigert(HRESULT: 80070005)
+[m[33;1m[01:01:55 WARN]: [oshi.util.platform.windows.WmiQueryHandler] COM exception querying Win32_OperatingSystem, which might not be on your system. Will not attempt to query it again. Error was -2147024891: Zugriff verweigert(HRESULT: 80070005)
+[m[33;1m[01:01:55 WARN]: [oshi.util.platform.windows.WmiQueryHandler] COM exception querying Win32_PerfRawData_PerfProc_Process WHERE NOT Name LIKE "%_Total", which might not be on your system. Will not attempt to query it again. Error was -2147024891: Zugriff verweigert(HRESULT: 80070005)
+[m[33;1m[01:01:55 WARN]: Failed to get system info for Process Loads
+java.lang.NullPointerException: Cannot invoke "oshi.software.os.OSProcess.getUserTime()" because "process" is null
+	at net.minecraft.SystemReport.lambda$putProcessDetails$0(SystemReport.java:191) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.setDetail(SystemReport.java:96) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.putProcessDetails(SystemReport.java:188) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.lambda$putSoftware$0(SystemReport.java:115) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.ignoreErrors(SystemReport.java:120) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.putSoftware(SystemReport.java:115) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.lambda$new$7(SystemReport.java:68) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.ignoreErrors(SystemReport.java:120) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.<init>(SystemReport.java:68) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.CrashReport.<init>(CrashReport.java:32) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.server.MinecraftServer.constructOrExtractCrashReport(MinecraftServer.java:1578) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.server.MinecraftServer.runServer(MinecraftServer.java:1516) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.server.MinecraftServer.lambda$spin$0(MinecraftServer.java:298) ~[folia-26.3.jar:26.3-021-027304d]
+	at java.base/java.lang.Thread.run(Thread.java:1474) ~[?:?]
+[m[33;1m[01:01:55 WARN]: Failed to get system info for Process Virtual Size (MiB)
+java.lang.NullPointerException: Cannot invoke "oshi.software.os.OSProcess.getVirtualSize()" because "process" is null
+	at net.minecraft.SystemReport.lambda$putProcessDetails$1(SystemReport.java:208) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.setDetail(SystemReport.java:96) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.putProcessDetails(SystemReport.java:208) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.lambda$putSoftware$0(SystemReport.java:115) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.ignoreErrors(SystemReport.java:120) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.putSoftware(SystemReport.java:115) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.lambda$new$7(SystemReport.java:68) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.ignoreErrors(SystemReport.java:120) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.<init>(SystemReport.java:68) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.CrashReport.<init>(CrashReport.java:32) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.server.MinecraftServer.constructOrExtractCrashReport(MinecraftServer.java:1578) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.server.MinecraftServer.runServer(MinecraftServer.java:1516) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.server.MinecraftServer.lambda$spin$0(MinecraftServer.java:298) ~[folia-26.3.jar:26.3-021-027304d]
+	at java.base/java.lang.Thread.run(Thread.java:1474) ~[?:?]
+[m[33;1m[01:01:55 WARN]: Failed to get system info for Process Resident Size (MiB)
+java.lang.NullPointerException: Cannot invoke "oshi.software.os.OSProcess.getResidentSetSize()" because "process" is null
+	at net.minecraft.SystemReport.lambda$putProcessDetails$2(SystemReport.java:209) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.setDetail(SystemReport.java:96) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.putProcessDetails(SystemReport.java:209) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.lambda$putSoftware$0(SystemReport.java:115) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.ignoreErrors(SystemReport.java:120) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.putSoftware(SystemReport.java:115) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.lambda$new$7(SystemReport.java:68) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.ignoreErrors(SystemReport.java:120) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.SystemReport.<init>(SystemReport.java:68) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.CrashReport.<init>(CrashReport.java:32) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.server.MinecraftServer.constructOrExtractCrashReport(MinecraftServer.java:1578) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.server.MinecraftServer.runServer(MinecraftServer.java:1516) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.server.MinecraftServer.lambda$spin$0(MinecraftServer.java:298) ~[folia-26.3.jar:26.3-021-027304d]
+	at java.base/java.lang.Thread.run(Thread.java:1474) ~[?:?]
+[m[31;1m[01:01:55 ERROR]: This crash report has been saved to: C:\Users\hunte\IdeaProjects\Tessera\build\native-navigation-1792450899942\crash-reports\crash-2026-10-20_01.01.55-server.txt
+[m[31;1m[01:01:55 ERROR]: Exception stopping the server
+java.lang.NullPointerException: Cannot invoke "io.papermc.paper.threadedregions.TickRegionScheduler.halt(boolean, long)" because the return value of "io.papermc.paper.threadedregions.TickRegions.getScheduler()" is null
+	at net.minecraft.server.MinecraftServer.stopServer(MinecraftServer.java:1111) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.server.dedicated.DedicatedServer.stopServer(DedicatedServer.java:968) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.server.MinecraftServer.runServer(MinecraftServer.java:1529) ~[folia-26.3.jar:26.3-021-027304d]
+	at net.minecraft.server.MinecraftServer.lambda$spin$0(MinecraftServer.java:298) ~[folia-26.3.jar:26.3-021-027304d]
+	at java.base/java.lang.Thread.run(Thread.java:1474) ~[?:?]
+[m

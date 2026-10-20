@@ -1,0 +1,10 @@
+two protocol clients connected
+first client transferred to Nether roof
+second client transferred to distant Nether region
+player mounted a tamed equipped horse on its owner
+player mounted a tamed equipped horse on its owner
+two mounted riders are on distinct native regions
+reported distant waypoint is not owned
+reported distant waypoint is initially unloaded
+original ground navigation accepts a valid local path
+baseline reproduces horse removal through real entity exception guard
