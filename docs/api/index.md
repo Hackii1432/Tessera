@@ -3,13 +3,13 @@ title: "Tessera API für Pluginentwickler"
 description: "Öffentliche Erweiterungen und regionsichere Nutzung der integrierten Paper-/Folia-Basis unter Minecraft 26.3."
 navTitle: "Einstieg"
 order: 0
-updated: 2026-10-11
+updated: 2026-10-26
 minecraftVersion: "26.3"
 badge: "Referenz"
 ---
 
 Diese Referenz beschreibt den geprüften Quellstand von Tessera **26.3 Build
-019-beta**, Java **25**, auf `ver/26.3.x`. Sie ergänzt die geerbte Bukkit-,
+022-beta**, Java **25**, auf `ver/26.3.x`. Sie ergänzt die geerbte Bukkit-,
 Paper-, Folia- und Adventure-API, ersetzt aber nicht deren gesamte Javadoc.
 
 ## Herkunft der Schnittstellen
@@ -46,6 +46,7 @@ explizite Transaktionsaufrufe gestartet, nicht automatisch für jeden SMP.
 - [Spieler-Post-Effects](player-effects.md) und [Konsole/RCON](commands.md)
 - [Typisierte Persistent Data](persistent-data.md) und [Rezeptkataloge](recipes.md)
 - [Entity-Physik, Mob-, SulfurCube- und Poplar-Kompatibilität](entity-and-tree-compatibility.md)
+- [Chunk-Generierungsstatus](chunk-generation-state.md) und [neue Paper-APIs ab Build 022](paper-api-022.md)
 - [Plattformkompatibilität](compatibility.md) und [Fehlerbehandlung](error-handling.md)
 
 ## Grundregeln für Beispiele

@@ -1,0 +1,1580 @@
+{
+  "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.022-beta.jar",
+  "fixtureJar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\native-spark-1793023986443\\server.jar",
+  "sha256": "d65513f45a1f8a94ac642f3a11ffbe3f6c01abff0561147729e9124344944532",
+  "work": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\native-spark-1793023986443",
+  "port": 58189,
+  "code": 0,
+  "passed": true,
+  "disabled": false,
+  "external": false,
+  "early": false,
+  "timedOut": false,
+  "clientFailure": null,
+  "joins": 2,
+  "kicks": 0,
+  "disconnects": 0,
+  "frozenReplies": 42,
+  "frozenKeepalives": {
+    "SparkAlpha": 62,
+    "SparkBeta": 62
+  },
+  "networkCommandSent": true,
+  "profiles": [
+    "profile-2026-10-26_15.14.38.sparkprofile",
+    "profile-2026-10-26_15.14.44.sparkprofile"
+  ],
+  "profileHashes": {
+    "profile-2026-10-26_15.14.38.sparkprofile": "96f3f940ed26d7a988dd4bac7baddf97c94f2d6aa9cedc64c30079e3d5e2b1ed",
+    "profile-2026-10-26_15.14.44.sparkprofile": "fc9b72e6f41283f6b31dae796259a1a0aa4698146462cc0fc8f3859d48068951"
+  },
+  "checks": "two protocol clients connected\r\nbundled spark API registered without a spark plugin\r\nno external spark plugin\r\nnative fallback command registered after plugins\r\nclients on distinct native regions\r\nconsole command dispatched: spark profiler start --force-java-sampler --thread * --not-combined --interval 5\r\nnon-player sentinel ticked before freeze\r\nnon-player sentinel remained frozen at sample-window checkpoint\r\nnon-player sentinel remained frozen at sample-window checkpoint\r\nnon-player sentinel remained frozen at sample-window checkpoint\r\nnon-player sentinel remained frozen at sample-window checkpoint\r\ngameplay stayed frozen while spark replied\r\nreal client spark command reached the current player owner during freeze\r\ndimension transfer completed during recording and freeze\r\nmetadata contains independent live regions\r\nmetadata reports tick freeze\r\nexact ten-second window published\r\npublished ten-second reports contain real finite native tick measurements\r\nconsole command dispatched: spark profiler stop --save-to-file\r\nall-thread profile contains Netty samples\r\nall-thread profile contains multiple tick workers\r\nsaved protobuf contains region metadata\r\nsampler collected multiple windows throughout tick freeze\r\nsaved protobuf contains actual stack samples\r\nplayer identity retained in recording metadata\r\ndefault recording selects dynamic tick workers only\r\nclients remained connected throughout profiling\r\nconsole command dispatched: spark profiler start --force-java-sampler\r\n",
+  "observations": [
+    {
+      "type": "login",
+      "username": "SparkAlpha",
+      "frozen": false
+    },
+    {
+      "type": "login",
+      "username": "SparkBeta",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "config",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "config",
+      "frozen": false
+    },
+    {
+      "type": "teleport",
+      "username": "SparkAlpha",
+      "id": 1,
+      "position": [
+        -0.5,
+        -60,
+        1.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true,
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0006yellow\t\u0000\u0004with\n\u0000\u0000\u0000\u0001\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0011/tell SparkAlpha \b\u0000\u0006action\u0000\u000fsuggest_command\u0000\b\u0000\tinsertion\u0000\nSparkAlpha\n\u0000\u000bhover_event\b\u0000\u0004name\u0000\nSparkAlpha\b\u0000\u0002id\u0000\u0010minecraft:player\b\u0000\u0006action\u0000\u000bshow_entity\u000b\u0000\u0004uuid\u0000\u0000\u0000\u0004E��\f�^=��q|\u0010\u0003\u001b#�\u0000\b\u0000\u0004text\u0000\nSparkAlpha\u0000\b\u0000\ttranslate\u0000\u0019multiplayer.player.joined\u0000\u0000",
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0006yellow\t\u0000\u0004with\n\u0000\u0000\u0000\u0001\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0010/tell SparkBeta \b\u0000\u0006action\u0000\u000fsuggest_command\u0000\b\u0000\tinsertion\u0000\tSparkBeta\n\u0000\u000bhover_event\b\u0000\u0004name\u0000\tSparkBeta\b\u0000\u0002id\u0000\u0010minecraft:player\b\u0000\u0006action\u0000\u000bshow_entity\u000b\u0000\u0004uuid\u0000\u0000\u0000\u0004<F�̨V0u��\u0013��R\u0012\u0012\u0000\b\u0000\u0004text\u0000\tSparkBeta\u0000\b\u0000\ttranslate\u0000\u0019multiplayer.player.joined\u0000\u0000",
+      "frozen": false
+    },
+    {
+      "type": "teleport",
+      "username": "SparkBeta",
+      "id": 1,
+      "position": [
+        5.5,
+        -60,
+        -4.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true,
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkBeta",
+      "raw": "\n\b\u0000\u0005color\u0000\u0006yellow\t\u0000\u0004with\n\u0000\u0000\u0000\u0001\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0010/tell SparkBeta \b\u0000\u0006action\u0000\u000fsuggest_command\u0000\b\u0000\tinsertion\u0000\tSparkBeta\n\u0000\u000bhover_event\b\u0000\u0004name\u0000\tSparkBeta\b\u0000\u0002id\u0000\u0010minecraft:player\b\u0000\u0006action\u0000\u000bshow_entity\u000b\u0000\u0004uuid\u0000\u0000\u0000\u0004<F�̨V0u��\u0013��R\u0012\u0012\u0000\b\u0000\u0004text\u0000\tSparkBeta\u0000\b\u0000\ttranslate\u0000\u0019multiplayer.player.joined\u0000\u0000",
+      "frozen": false
+    },
+    {
+      "type": "teleport",
+      "username": "SparkAlpha",
+      "id": 2,
+      "position": [
+        -0.5,
+        -60,
+        1.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true,
+      "frozen": false
+    },
+    {
+      "type": "teleport",
+      "username": "SparkBeta",
+      "id": 2,
+      "position": [
+        5.5,
+        -60,
+        -4.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true,
+      "frozen": false
+    },
+    {
+      "type": "advancements",
+      "username": "SparkAlpha",
+      "reset": true,
+      "frozen": false
+    },
+    {
+      "type": "advancements",
+      "username": "SparkBeta",
+      "reset": true,
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "teleport",
+      "username": "SparkBeta",
+      "id": 3,
+      "position": [
+        2056.5,
+        100,
+        8.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true,
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0005color\u0000\u0004gold\b\u0000\u0004text\u0000\u001cProfiler is already running!\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000\u001fSo far, it has profiled for 1s.\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000-To view the profiler while it's running, run:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0002  \u0000\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0014/spark profiler open\b\u0000\u0006action\u0000\u000brun_command\u0000\b\u0000\u0005color\u0000\u0005white\b\u0000\u0004text\u0000\u0014/spark profiler open\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u00001To stop the profiler and upload the results, run:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0002  \u0000\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0014/spark profiler stop\b\u0000\u0006action\u0000\u000brun_command\u0000\b\u0000\u0005color\u0000\u0005white\b\u0000\u0004text\u0000\u0014/spark profiler stop\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000:To cancel the profiler without uploading the results, run:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0002  \u0000\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0016/spark profiler cancel\b\u0000\u0006action\u0000\u000brun_command\u0000\b\u0000\u0005color\u0000\u0005white\b\u0000\u0004text\u0000\u0016/spark profiler cancel\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0005color\u0000\u0004gold\b\u0000\u0004text\u0000\u001cProfiler is already running!\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000\u001fSo far, it has profiled for 2s.\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000-To view the profiler while it's running, run:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0002  \u0000\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0014/spark profiler open\b\u0000\u0006action\u0000\u000brun_command\u0000\b\u0000\u0005color\u0000\u0005white\b\u0000\u0004text\u0000\u0014/spark profiler open\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u00001To stop the profiler and upload the results, run:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0002  \u0000\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0014/spark profiler stop\b\u0000\u0006action\u0000\u000brun_command\u0000\b\u0000\u0005color\u0000\u0005white\b\u0000\u0004text\u0000\u0014/spark profiler stop\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000:To cancel the profiler without uploading the results, run:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0002  \u0000\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0016/spark profiler cancel\b\u0000\u0006action\u0000\u000brun_command\u0000\b\u0000\u0005color\u0000\u0005white\b\u0000\u0004text\u0000\u0016/spark profiler cancel\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0005color\u0000\u0004gold\b\u0000\u0004text\u0000\u001cProfiler is already running!\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000\u001fSo far, it has profiled for 2s.\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000-To view the profiler while it's running, run:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0002  \u0000\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0014/spark profiler open\b\u0000\u0006action\u0000\u000brun_command\u0000\b\u0000\u0005color\u0000\u0005white\b\u0000\u0004text\u0000\u0014/spark profiler open\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u00001To stop the profiler and upload the results, run:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0002  \u0000\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0014/spark profiler stop\b\u0000\u0006action\u0000\u000brun_command\u0000\b\u0000\u0005color\u0000\u0005white\b\u0000\u0004text\u0000\u0014/spark profiler stop\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000:To cancel the profiler without uploading the results, run:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0002  \u0000\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0016/spark profiler cancel\b\u0000\u0006action\u0000\u000brun_command\u0000\b\u0000\u0005color\u0000\u0005white\b\u0000\u0004text\u0000\u0016/spark profiler cancel\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0005color\u0000\u0004gold\b\u0000\u0004text\u0000\u001cProfiler is already running!\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000 So far, it has profiled for 18s.\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000-To view the profiler while it's running, run:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0002  \u0000\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0014/spark profiler open\b\u0000\u0006action\u0000\u000brun_command\u0000\b\u0000\u0005color\u0000\u0005white\b\u0000\u0004text\u0000\u0014/spark profiler open\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u00001To stop the profiler and upload the results, run:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0002  \u0000\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0014/spark profiler stop\b\u0000\u0006action\u0000\u000brun_command\u0000\b\u0000\u0005color\u0000\u0005white\b\u0000\u0004text\u0000\u0014/spark profiler stop\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000:To cancel the profiler without uploading the results, run:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0002  \u0000\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0016/spark profiler cancel\b\u0000\u0006action\u0000\u000brun_command\u0000\b\u0000\u0005color\u0000\u0005white\b\u0000\u0004text\u0000\u0016/spark profiler cancel\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0005color\u0000\u0004gold\b\u0000\u0004text\u0000\u001cProfiler is already running!\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000 So far, it has profiled for 34s.\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000-To view the profiler while it's running, run:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0002  \u0000\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0014/spark profiler open\b\u0000\u0006action\u0000\u000brun_command\u0000\b\u0000\u0005color\u0000\u0005white\b\u0000\u0004text\u0000\u0014/spark profiler open\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u00001To stop the profiler and upload the results, run:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0002  \u0000\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0014/spark profiler stop\b\u0000\u0006action\u0000\u000brun_command\u0000\b\u0000\u0005color\u0000\u0005white\b\u0000\u0004text\u0000\u0014/spark profiler stop\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000:To cancel the profiler without uploading the results, run:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0002  \u0000\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0016/spark profiler cancel\b\u0000\u0006action\u0000\u000brun_command\u0000\b\u0000\u0005color\u0000\u0005white\b\u0000\u0004text\u0000\u0016/spark profiler cancel\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0005color\u0000\u0004gold\b\u0000\u0004text\u0000\u001cProfiler is already running!\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000 So far, it has profiled for 50s.\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000-To view the profiler while it's running, run:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0002  \u0000\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0014/spark profiler open\b\u0000\u0006action\u0000\u000brun_command\u0000\b\u0000\u0005color\u0000\u0005white\b\u0000\u0004text\u0000\u0014/spark profiler open\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u00001To stop the profiler and upload the results, run:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0002  \u0000\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0014/spark profiler stop\b\u0000\u0006action\u0000\u000brun_command\u0000\b\u0000\u0005color\u0000\u0005white\b\u0000\u0004text\u0000\u0014/spark profiler stop\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000:To cancel the profiler without uploading the results, run:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0002  \u0000\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0016/spark profiler cancel\b\u0000\u0006action\u0000\u000brun_command\u0000\b\u0000\u0005color\u0000\u0005white\b\u0000\u0004text\u0000\u0016/spark profiler cancel\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0005color\u0000\u0004gold\b\u0000\u0004text\u0000\u001cProfiler is already running!\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000\"So far, it has profiled for 1m 4s.\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000-To view the profiler while it's running, run:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0002  \u0000\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0014/spark profiler open\b\u0000\u0006action\u0000\u000brun_command\u0000\b\u0000\u0005color\u0000\u0005white\b\u0000\u0004text\u0000\u0014/spark profiler open\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u00001To stop the profiler and upload the results, run:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0002  \u0000\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0014/spark profiler stop\b\u0000\u0006action\u0000\u000brun_command\u0000\b\u0000\u0005color\u0000\u0005white\b\u0000\u0004text\u0000\u0014/spark profiler stop\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000:To cancel the profiler without uploading the results, run:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0002  \u0000\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0016/spark profiler cancel\b\u0000\u0006action\u0000\u000brun_command\u0000\b\u0000\u0005color\u0000\u0005white\b\u0000\u0004text\u0000\u0016/spark profiler cancel\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "teleport",
+      "username": "SparkAlpha",
+      "id": 3,
+      "position": [
+        8.5,
+        120,
+        8.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true,
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkBeta",
+      "raw": "\n\t\u0000\u0004with\n\u0000\u0000\u0000\u0002\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0011/tell SparkAlpha \b\u0000\u0006action\u0000\u000fsuggest_command\u0000\b\u0000\tinsertion\u0000\nSparkAlpha\n\u0000\u000bhover_event\b\u0000\u0004name\u0000\nSparkAlpha\b\u0000\u0002id\u0000\u0010minecraft:player\b\u0000\u0006action\u0000\u000bshow_entity\u000b\u0000\u0004uuid\u0000\u0000\u0000\u0004E��\f�^=��q|\u0010\u0003\u001b#�\u0000\b\u0000\u0004text\u0000\nSparkAlpha\u0000\b\u0000\u0005color\u0000\u0005green\t\u0000\u0004with\n\u0000\u0000\u0000\u0001\n\u0000\u000bhover_event\b\u0000\u0006action\u0000\tshow_text\n\u0000\u0005value\b\u0000\u0005color\u0000\u0005green\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0001\n\u0000\b\u0000\ttranslate\u0000/advancements.story.enter_the_nether.description\u0000\b\u0000\ttranslate\u0000)advancements.story.enter_the_nether.title\u0000\u0000\b\u0000\ttranslate\u0000)advancements.story.enter_the_nether.title\u0000\b\u0000\ttranslate\u0000\u0014chat.square_brackets\u0000\b\u0000\ttranslate\u0000\u001achat.type.advancement.task\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\t\u0000\u0004with\n\u0000\u0000\u0000\u0002\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0011/tell SparkAlpha \b\u0000\u0006action\u0000\u000fsuggest_command\u0000\b\u0000\tinsertion\u0000\nSparkAlpha\n\u0000\u000bhover_event\b\u0000\u0004name\u0000\nSparkAlpha\b\u0000\u0002id\u0000\u0010minecraft:player\b\u0000\u0006action\u0000\u000bshow_entity\u000b\u0000\u0004uuid\u0000\u0000\u0000\u0004E��\f�^=��q|\u0010\u0003\u001b#�\u0000\b\u0000\u0004text\u0000\nSparkAlpha\u0000\b\u0000\u0005color\u0000\u0005green\t\u0000\u0004with\n\u0000\u0000\u0000\u0001\n\u0000\u000bhover_event\b\u0000\u0006action\u0000\tshow_text\n\u0000\u0005value\b\u0000\u0005color\u0000\u0005green\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0001\n\u0000\b\u0000\ttranslate\u0000/advancements.story.enter_the_nether.description\u0000\b\u0000\ttranslate\u0000)advancements.story.enter_the_nether.title\u0000\u0000\b\u0000\ttranslate\u0000)advancements.story.enter_the_nether.title\u0000\b\u0000\ttranslate\u0000\u0014chat.square_brackets\u0000\b\u0000\ttranslate\u0000\u001achat.type.advancement.task\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "advancements",
+      "username": "SparkAlpha",
+      "reset": false,
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\b\u0000bSpark TPS is the minimum measured active-region TPS, not global TPS. Use /tps for per-region MSPT.\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000#TPS from last 5s, 10s, 1m, 5m, 15m:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\t\b\u0000\u0005color\u0000\u0005green\b\u0000\u0004text\u0000\u000420.0\u0000\b\u0000\u0000\u0000\u0002, \u0000\b\u0000\u0005color\u0000\u0005green\b\u0000\u0004text\u0000\u000420.0\u0000\b\u0000\u0000\u0000\u0002, \u0000\b\u0000\u0005color\u0000\u0005green\b\u0000\u0004text\u0000\u000420.0\u0000\b\u0000\u0000\u0000\u0002, \u0000\b\u0000\u0005color\u0000\u0005green\b\u0000\u0004text\u0000\u000519.78\u0000\b\u0000\u0000\u0000\u0002, \u0000\b\u0000\u0005color\u0000\u0005green\b\u0000\u0004text\u0000\u000519.78\u0000\b\u0000\u0004text\u0000\u0001 \u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0004\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000!CPU usage from last 10s, 1m, 15m:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0006\b\u0000\u0005color\u0000\u0005green\b\u0000\u0004text\u0000\u000324%\u0000\b\u0000\u0000\u0000\u0002, \u0000\b\u0000\u0005color\u0000\u0005green\b\u0000\u0004text\u0000\u000322%\u0000\b\u0000\u0000\u0000\u0002, \u0000\b\u0000\u0005color\u0000\u0005green\b\u0000\u0004text\u0000\u000323%\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\n  (system)\u0000\b\u0000\u0004text\u0000\u0001 \u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0006\b\u0000\u0005color\u0000\u0005green\b\u0000\u0004text\u0000\u00021%\u0000\b\u0000\u0000\u0000\u0002, \u0000\b\u0000\u0005color\u0000\u0005green\b\u0000\u0004text\u0000\u00021%\u0000\b\u0000\u0000\u0000\u0002, \u0000\b\u0000\u0005color\u0000\u0005green\b\u0000\u0004text\u0000\u00023%\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u000b  (process)\u0000\b\u0000\u0004text\u0000\u0001 \u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000KThere is not enough data to show ping averages yet. Please try again later.\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "advancements",
+      "username": "SparkAlpha",
+      "reset": false,
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": true
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000?Stopping the background profiler before starting... please wait\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000'Starting a new profiler, please wait...\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0003\b\u0000\u0005color\u0000\u0004gold\b\u0000\u0004text\u0000\u0018Profiler is now running!\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u000f(built-in java)\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000>It will run in the background until it is stopped by an admin.\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u00001To stop the profiler and upload the results, run:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0002  \u0000\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0014/spark profiler stop\b\u0000\u0006action\u0000\u000brun_command\u0000\b\u0000\u0005color\u0000\u0005white\b\u0000\u0004text\u0000\u0014/spark profiler stop\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000-To view the profiler while it's running, run:\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000\u0002  \u0000\n\u0000\u000bclick_event\b\u0000\u0007command\u0000\u0014/spark profiler open\b\u0000\u0006action\u0000\u000brun_command\u0000\b\u0000\u0005color\u0000\u0005white\b\u0000\u0004text\u0000\u0014/spark profiler open\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u00006Stopping the profiler & saving results, please wait...\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0005color\u0000\u0004gold\b\u0000\u0004text\u0000!Profiler stopped & save complete!\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0000\u0000PData has been written to: plugins\\spark\\profile-2026-10-26_15.14.44.sparkprofile\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\b\u0000\u0005color\u0000\u0004gray\b\u0000\u0004text\u0000IYou can view the profile file using the web app @ https://spark.lucko.me/\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": false
+    },
+    {
+      "type": "system_chat",
+      "username": "SparkAlpha",
+      "raw": "\n\b\u0000\u0005color\u0000\u0004gray\t\u0000\u0005extra\n\u0000\u0000\u0000\u0005\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001[\u0000\u0001\u0000\u0004bold\u0001\b\u0000\u0005color\u0000\u0006yellow\b\u0000\u0004text\u0000\u0003⚡\u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000\u0001]\u0000\b\u0000\u0000\u0000\u0001 \u0000\t\u0000\u0005extra\n\u0000\u0000\u0000\u0002\b\u0000\u0000\u0000#Restarted the background profiler. \u0000\b\u0000\u0005color\u0000\tdark_gray\b\u0000\u0004text\u0000?(If you don't want this to happen, run: /spark profiler cancel)\u0000\b\u0000\u0004text\u0000\u0000\u0000\b\u0000\u0004text\u0000\u0000\u0000\u0000",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkBeta",
+      "state": "play",
+      "frozen": false
+    },
+    {
+      "type": "keepalive",
+      "username": "SparkAlpha",
+      "state": "play",
+      "frozen": false
+    }
+  ]
+}

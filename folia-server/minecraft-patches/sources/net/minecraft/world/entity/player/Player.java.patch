@@ -1,0 +1,11 @@
+--- a/net/minecraft/world/entity/player/Player.java
++++ b/net/minecraft/world/entity/player/Player.java
+@@ -1111,7 +_,7 @@
+         }
+     }
+ 
+-    public boolean canCriticalAttack(final Entity entity) {
++    private boolean canCriticalAttack(final Entity entity) {
+         return this.fallDistance > 0.0
+             && !this.onGround()
+             && !this.onClimbable()

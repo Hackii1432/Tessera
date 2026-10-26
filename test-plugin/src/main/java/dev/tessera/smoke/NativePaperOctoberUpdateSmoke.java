@@ -83,6 +83,7 @@ final class NativePaperOctoberUpdateSmoke implements Listener {
             require(first != second, "two distinct native player regions");
             CompletableFuture.allOf(onPlayer(one, () -> { playerApis(one); return null; }),
                 onPlayer(two, () -> { playerApis(two); return null; })).get(15, TimeUnit.SECONDS);
+            testLatestApis(one, two);
             onRegion(this.normal, 0, this::spawnExplosiveCube).get(10, TimeUnit.SECONDS);
             waitCubeReady(this.normal);
             onRegion(this.normal, 0, () -> {
@@ -134,6 +135,7 @@ final class NativePaperOctoberUpdateSmoke implements Listener {
             global(() -> { Bukkit.getServer().updateRecipes(); return null; }).get(10, TimeUnit.SECONDS);
             onPlayer(two, () -> { require(two.getWorld() == this.nether, "recipe refresh followed a dimension transfer"); playerApis(two); return null; }).get(10, TimeUnit.SECONDS);
             global(() -> { server().tickRateManager().setFrozen(false); return null; }).get(10, TimeUnit.SECONDS);
+            testMetadataUnload();
             Thread.sleep(1000); // Let connected protocol clients observe final reset packets.
             require(Bukkit.getOnlinePlayers().size() == 2, "clients remained connected throughout native update");
             Files.writeString(Path.of("update-checks.txt"), String.join("\n", this.checks));
@@ -143,6 +145,133 @@ final class NativePaperOctoberUpdateSmoke implements Listener {
         } finally {
             Bukkit.getGlobalRegionScheduler().execute(this.plugin, () -> { server().tickRateManager().setFrozen(false); Bukkit.shutdown(); });
         }
+    }
+
+    @EventHandler
+    public void emptySulfurBucket(org.bukkit.event.player.PlayerBucketEmptyEvent event) {
+        if (event.getBucket() != Material.SULFUR_CUBE_BUCKET || event.getPlayer().getWorld() != this.normal) return;
+        try (var nested = io.papermc.paper.event.BucketResultScope.openPlacement()) {
+            nested.setResult(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.GOLD_INGOT));
+            nested.completePlacement(true);
+        }
+        event.setItemStack(new ItemStack(Material.EMERALD));
+    }
+
+    @EventHandler
+    public void prepareHopper(io.papermc.paper.event.inventory.PrepareHopperTransferEvent event) {
+        if (event.getSource().getLocation() == null || event.getSource().getLocation().getWorld() != this.normal) return;
+        for (int slot = 0; slot < event.getSource().getSize(); ++slot) {
+            ItemStack item = event.getSource().getItem(slot);
+            if (item != null && item.getType() == Material.DIRT) event.setSlotAllowed(slot, false);
+        }
+    }
+
+    private void testLatestApis(Player one, Player two) throws Exception {
+        require(this.normal.getChunkGenerationStateAsync(40000, 40000).get(10, TimeUnit.SECONDS)
+            == io.papermc.paper.world.chunk.ChunkGenerationState.NOT_GENERATED, "unloaded metadata query without generation");
+        require(!this.normal.isChunkLoaded(40000, 40000), "metadata query did not load chunk");
+        CompletableFuture.allOf(onPlayer(one, () -> { latestOwnerApis(one); return null; }),
+            onPlayer(two, () -> { latestOwnerApis(two); return null; })).get(20, TimeUnit.SECONDS);
+        final var futures = new java.util.ArrayList<CompletableFuture<io.papermc.paper.threadedregions.scheduler.ScheduledTask>>();
+        var globalTask = new CompletableFuture<io.papermc.paper.threadedregions.scheduler.ScheduledTask>();
+        Bukkit.getGlobalRegionScheduler().runAtFixedRate(this.plugin, task -> { task.cancel(); globalTask.complete(task); }, 1, 1);
+        futures.add(globalTask);
+        var regionTask = new CompletableFuture<io.papermc.paper.threadedregions.scheduler.ScheduledTask>();
+        Bukkit.getRegionScheduler().runAtFixedRate(this.plugin, this.normal, 0, 0, task -> { task.cancel(); regionTask.complete(task); }, 1, 1);
+        futures.add(regionTask);
+        var entityTask = new CompletableFuture<io.papermc.paper.threadedregions.scheduler.ScheduledTask>();
+        one.getScheduler().runAtFixedRate(this.plugin, task -> { task.cancel(); entityTask.complete(task); },
+            () -> entityTask.completeExceptionally(new AssertionError("client retired")), 1, 1);
+        futures.add(entityTask);
+        var asyncTask = new CompletableFuture<io.papermc.paper.threadedregions.scheduler.ScheduledTask>();
+        Bukkit.getAsyncScheduler().runAtFixedRate(this.plugin, task -> { task.cancel(); asyncTask.complete(task); }, 1, 1, TimeUnit.MILLISECONDS);
+        futures.add(asyncTask);
+        for (int i = 0; i < futures.size(); ++i) {
+            final var scheduled = futures.get(i).get(10, TimeUnit.SECONDS);
+            final long until = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (scheduled.getExecutionState() == io.papermc.paper.threadedregions.scheduler.ScheduledTask.ExecutionState.CANCELLED_RUNNING
+                && System.nanoTime() < until) Thread.sleep(2);
+            require(scheduled.getExecutionState() == io.papermc.paper.threadedregions.scheduler.ScheduledTask.ExecutionState.CANCELLED,
+                "scheduler callback cancellation final state " + i);
+        }
+        global(() -> { server().tickRateManager().setFrozen(true); return null; }).get(10, TimeUnit.SECONDS);
+        require(this.normal.getChunkGenerationStateAsync(40001, 40001).get(10, TimeUnit.SECONDS)
+            == io.papermc.paper.world.chunk.ChunkGenerationState.NOT_GENERATED, "metadata I/O completes while gameplay frozen");
+        global(() -> { server().tickRateManager().setFrozen(false); return null; }).get(10, TimeUnit.SECONDS);
+    }
+
+    private void testMetadataUnload() throws Exception {
+        var queries = new java.util.ArrayList<CompletableFuture<io.papermc.paper.world.chunk.ChunkGenerationState>>();
+        for (int i = 0; i < 128; ++i) queries.add(this.mirror.getChunkGenerationStateAsync(40000 + i * 32, 40000));
+        var unloaded = Bukkit.getRuntimeWorldManager().unloadWorldAsync(this.mirror,
+            io.papermc.paper.world.WorldUnloadOptions.defaults()).toCompletableFuture().get(60, TimeUnit.SECONDS);
+        require(unloaded.successful(), "metadata query world unloaded through real lifecycle");
+        for (var query : queries) {
+            try {
+                require(query.get(10, TimeUnit.SECONDS) == io.papermc.paper.world.chunk.ChunkGenerationState.NOT_GENERATED,
+                    "accepted metadata read completed without generation");
+            } catch (java.util.concurrent.ExecutionException failure) {
+                require(failure.getCause() instanceof IllegalStateException, "inflight metadata read rejected inactive lifecycle explicitly");
+            }
+        }
+        require(queries.stream().allMatch(CompletableFuture::isDone), "no pending metadata future after world unload");
+        try { this.mirror.getChunkGenerationStateAsync(9, 9).get(10, TimeUnit.SECONDS); throw new AssertionError("closed world accepted query"); }
+        catch (java.util.concurrent.ExecutionException failure) {
+            require(failure.getCause() instanceof IllegalStateException, "closed world async metadata admission rejected");
+        }
+        try { this.mirror.getChunkGenerationState(9, 9); throw new AssertionError("closed world accepted sync query"); }
+        catch (IllegalStateException expected) { require(true, "closed world sync metadata admission rejected"); }
+    }
+
+    private void latestOwnerApis(Player player) {
+        final Location at = player.getLocation();
+        require(this.normal.getChunkGenerationState(at.getBlockX() >> 4, at.getBlockZ() >> 4)
+            == io.papermc.paper.world.chunk.ChunkGenerationState.GENERATED, "owner loaded generation snapshot");
+        try { this.normal.getChunkGenerationState(40000, 40000); throw new AssertionError("blocking I/O accepted"); }
+        catch (IllegalStateException expected) { require(true, "region disk query rejected before blocking"); }
+        var stand = this.normal.spawn(at.clone().add(1, 0, 0), org.bukkit.entity.ArmorStand.class);
+        var key = Key.key("tessera_smoke", "allies");
+        player.addAdditionalAlliedRule(key, entity -> entity.getUniqueId().equals(stand.getUniqueId()));
+        require(player.isAlliedTo(stand) && player.getAdditionalAlliedRules().containsKey(key), "native additional alliance rule");
+        player.removeAdditionalAlliedRule(key);
+        require(!player.getAdditionalAlliedRules().containsKey(key), "alliance rule removal");
+        stand.setInvulnerable(true);
+        require(stand.isMarkedInvulnerable(), "marked invulnerability getter");
+        stand.setInvulnerable(false);
+        require(!stand.isInvulnerableTo(org.bukkit.damage.DamageSource.builder(org.bukkit.damage.DamageType.GENERIC).build()),
+            "source-specific invulnerability getter");
+        require(player.canCriticalAttack(stand) == (((CraftPlayer)player).getHandle().canCriticalAttack(
+            ((org.bukkit.craftbukkit.entity.CraftArmorStand)stand).getHandle())
+            && !((CraftWorld)this.normal).getHandle().paperConfig().entities.behavior.disablePlayerCrits), "critical query matches native predicate");
+        player.swingHand(org.bukkit.inventory.EquipmentSlot.HAND);
+        stand.remove();
+        var offers = org.bukkit.enchantments.EnchantmentOffer.rollEnchantmentOffers(new ItemStack(Material.DIAMOND_SWORD), 42, 15, 3);
+        require(offers != null && offers.length == 3 && java.util.Arrays.stream(offers).anyMatch(java.util.Objects::nonNull), "native enchantment offers");
+        var bucket = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.SULFUR_CUBE_BUCKET);
+        var bucketPos = new net.minecraft.core.BlockPos(at.getBlockX(), at.getBlockY(), at.getBlockZ());
+        try (var scope = io.papermc.paper.event.BucketResultScope.openUse()) {
+            require(((net.minecraft.world.item.MobBucketItem)net.minecraft.world.item.Items.SULFUR_CUBE_BUCKET).emptyContents(
+                ((CraftPlayer)player).getHandle(), ((CraftWorld)this.normal).getHandle(), bucketPos, null,
+                net.minecraft.core.Direction.UP, bucketPos, bucket, net.minecraft.world.InteractionHand.MAIN_HAND), "fluidless native bucket event accepted");
+            var result = io.papermc.paper.event.BucketResultScope.takeUseResult();
+            require(result != null && result.is(net.minecraft.world.item.Items.EMERALD), "fluidless bucket nested callback result remains invocation scoped");
+        }
+        final var position = at.clone().add(0, -3, 0);
+        final var hopperBlock = position.getBlock();
+        final var chestBlock = position.clone().add(0, 1, 0).getBlock();
+        hopperBlock.setType(Material.HOPPER, false);
+        chestBlock.setType(Material.CHEST, false);
+        var chest = (org.bukkit.block.Chest)chestBlock.getState();
+        chest.getBlockInventory().setItem(0, new ItemStack(Material.DIRT, 2));
+        chest.getBlockInventory().setItem(1, new ItemStack(Material.STONE, 2));
+        var nativeLevel = ((CraftWorld)this.normal).getHandle();
+        var hopper = (net.minecraft.world.level.block.entity.HopperBlockEntity)nativeLevel.getBlockEntity(
+            new net.minecraft.core.BlockPos(position.getBlockX(), position.getBlockY(), position.getBlockZ()));
+        require(net.minecraft.world.level.block.entity.HopperBlockEntity.suckInItems(nativeLevel, hopper), "native hopper transfer selected allowed slot");
+        require(chest.getBlockInventory().getItem(0).getAmount() == 2 && !hopper.isEmpty()
+            && hopper.getItem(0).is(net.minecraft.world.item.Items.STONE), "hopper callback excluded dirt and moved stone");
+        hopperBlock.setType(Material.AIR, false);
+        chestBlock.setType(Material.AIR, false);
     }
 
     @EventHandler

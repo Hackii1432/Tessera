@@ -6,10 +6,10 @@ Subject: [PATCH] Guard October Paper passenger spawns and API dragon respawns
 
 
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index 1e0c05d3ad3378dc5810c340a2828b61aae43f7f..0dff0c046eb43b370ba02eb9c4beff65c2a9f004 100644
+index af3f879caa4f0a7f1f59a9601617a154208adbca..f107a0e3aa942a5a3b64869b64f5d683dc961c88 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-@@ -968,9 +968,21 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+@@ -982,9 +982,21 @@ public class CraftWorld extends CraftRegionAccessor implements World {
      public void addEntityWithPassengers(net.minecraft.world.entity.Entity entity, SpawnReason reason) {
          // Be more lenient than ServerLevel#tryAddFreshEntityWithPassengers and ignore already added entities instead of failing completely.
          // This otherwise causes problems when an entity already added to the world is added as a passenger inside of the pre-spawn consumer.

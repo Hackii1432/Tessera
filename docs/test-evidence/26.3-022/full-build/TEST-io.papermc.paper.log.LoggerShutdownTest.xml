@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.papermc.paper.log.LoggerShutdownTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-26T14:02:48.568Z" hostname="ENGINE0" time="0.321">
+  <properties/>
+  <testcase name="manualHookRemovalDoesNotTryToRemoveANullJvmHook()" classname="io.papermc.paper.log.LoggerShutdownTest" time="0.005"/>
+  <testcase name="dedicatedServerDrainsLoggingBeforeEveryJvmExitInstruction()" classname="io.papermc.paper.log.LoggerShutdownTest" time="0.004"/>
+  <testcase name="manualJlineHooksRunAfterDrainingAndBeforeTerminalCloseExactlyOnce()" classname="io.papermc.paper.log.LoggerShutdownTest" time="0.296"/>
+  <testcase name="concurrentCallersCannotCloseWhileTheOtherCallerIsFlushing()" classname="io.papermc.paper.log.LoggerShutdownTest" time="0.005"/>
+  <testcase name="closingFailureDoesNotRepeatAnAlreadyFlushedShutdown()" classname="io.papermc.paper.log.LoggerShutdownTest" time="0.003"/>
+  <testcase name="flushesBeforeClosingTheTerminalAndDoesNotRepeatCleanup()" classname="io.papermc.paper.log.LoggerShutdownTest" time="0.002"/>
+  <testcase name="aFailedFlushDoesNotCloseTheTerminalOrPreventRetry()" classname="io.papermc.paper.log.LoggerShutdownTest" time="0.003"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

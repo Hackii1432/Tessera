@@ -1,0 +1,144 @@
+{
+  "build": "26.3-022-beta",
+  "minecraftApi": "26.3",
+  "java": "25.0.3",
+  "generatedAt": "2026-10-26T14:33:15.200Z",
+  "source": {
+    "branch": "ver/26.3.x",
+    "baseCommit": "c1f9128c388cea89c3ef479dff6091fe780c685b",
+    "workingTreeRequired": true,
+    "automaticRootCommitOrPush": false,
+    "paperFrom": "99867f8f9207d3164696e469435a067330473743",
+    "paperThrough": "e415f5e030435d3108d7b623b41b9e47901e9d12",
+    "paperCommits": 54,
+    "nativeHead": "0c18292f103443f83a659c9bb1da499ea6e50c82",
+    "serverHead": "5f5edb1bd31363d5ad22434a699a3b2346c20ab3",
+    "apiHead": "6cae6c3a4664fcb97825a5ac82203efc3beb231c"
+  },
+  "artifact": {
+    "path": "build/libs/tessera-server-26.3.build.022-beta.jar",
+    "bytes": 56726475,
+    "sha256": "d65513f45a1f8a94ac642f3a11ffbe3f6c01abff0561147729e9124344944532"
+  },
+  "buildTessera": {
+    "passed": true,
+    "duration": "12m 4s",
+    "patchReapplication": true,
+    "checkstyle": true,
+    "badCalls": true,
+    "modules": {
+      "folia-server": {
+        "files": 191,
+        "tests": 10434,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 87,
+        "passed": 10347
+      },
+      "folia-api": {
+        "files": 42,
+        "tests": 529,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 2,
+        "passed": 527
+      },
+      "paper-checkstyle": {
+        "files": 3,
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 3
+      }
+    },
+    "checkstyleModuleTestsFromCache": true
+  },
+  "targeted": {
+    "files": 6,
+    "tests": 38,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "passed": 38
+  },
+  "documentation": {
+    "validatorUnitTests": 57,
+    "apiArticles": 23,
+    "localApiLinks": 73,
+    "compiledJavaExamples": 15,
+    "releaseMetadata": {
+      "version": "0.0.22",
+      "minecraftVersion": "26.3",
+      "title": "26.3 – Paper- und Moonrise-Update mit Folia-Anpassungen",
+      "description": "Tessera Build 022 – übernimmt die empfohlenen Paper-Korrekturen, beide Moonrise-Updates und neue APIs mit regionsicheren Adaptern.",
+      "date": "2026-10-26",
+      "status": "beta",
+      "breaking": false,
+      "tags": [
+        "Tessera",
+        "Folia",
+        "Paper",
+        "Moonrise",
+        "API",
+        "Fehlerbehebung"
+      ]
+    },
+    "historicalChangelogValidator": "Unchanged docs/builds/26.2/0.0.1.md has unquoted YAML strings"
+  },
+  "native": {
+    "native-october": {
+      "passed": true,
+      "evidence": "native-october.json"
+    },
+    "native-october-repeat": {
+      "passed": true,
+      "evidence": "native-october-repeat.json"
+    },
+    "native-navigation": {
+      "passed": true,
+      "evidence": "native-navigation.json"
+    },
+    "native-restore": {
+      "passed": true,
+      "evidence": "native-restore.json"
+    },
+    "native-pregeneration": {
+      "passed": true,
+      "evidence": "native-pregeneration.json"
+    },
+    "native-disconnect": {
+      "passed": true,
+      "evidence": "native-disconnect.json"
+    },
+    "native-spark": {
+      "passed": true,
+      "evidence": "native-spark.json"
+    },
+    "console-shutdown": {
+      "passed": true,
+      "evidence": "console-shutdown.json"
+    },
+    "native-worldgen": {
+      "passed": true,
+      "evidence": "native-worldgen.json"
+    }
+  },
+  "patchSha256": {
+    "folia-server/minecraft-patches/features/0069-Integrate-October-Paper-and-Moonrise-updates-with-re.patch": "847f2054363d681c7ad055d7e78b1e562e8aed4ee1b098a05401e710c4138be3",
+    "folia-server/minecraft-patches/features/0070-Revalidate-bundle-air-and-sorting-callbacks-on-curre.patch": "701b0f857a38b9943c9941061801be44bd996d754bd3c688a80a37819c65ceb1",
+    "folia-server/paper-patches/features/0062-Guard-October-entity-APIs-and-test-native-chunk-meta.patch": "5ae23a21b00b4455c42806b817778fa77852f7384b77e8d36fd5b10788bef57e",
+    "folia-server/paper-patches/features/0063-Test-October-API-ownership-recipe-priority-and-vanil.patch": "2ed538a2e6287d75fcd5c2962db3b233a58761b26d5077aa4a7f34e118d23f8e",
+    "folia-server/minecraft-patches/sources/net/minecraft/resources/RegistryOps.java.patch": "8d19a9f5160409507d58f807c7af3e961e401637c3a3f9f68ce8485a0fd31365",
+    "folia-server/minecraft-patches/sources/net/minecraft/world/entity/player/Player.java.patch": "b22ee24ef01d16489b1787f82949742eb07f9c85833fa6165ac09f53a71df138",
+    "upstream-patches/sinopia/2026-10-26-paper-backports.patch": "7950643359c357d5917c23114f1304313c572df41c08bf2b4679f888a13f6c5f"
+  },
+  "limits": [
+    "Protocol clients do not render Vanilla visuals",
+    "No production load/Internet latency benchmark",
+    "MCC/MVE/TAB/LuckPerms full-stack integration not rerun",
+    "Linux Unix socket transport not tested on Windows",
+    "128 metadata reads completed before quiescing; no artificially forced in-flight rejection claimed",
+    "Existing Windows Perflib/OSHI hardware counter errors remain; no OS/registry changes"
+  ]
+}

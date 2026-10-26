@@ -34,10 +34,10 @@ index 36ecadf0bcd3c40356c8c7cbc8111acfb5c6f13c..294dbd21fe4a912a901c4ec7fcb77b45
      }
  }
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 8fbe183aabe96e8fdbb77404bd92d1c12c30f480..e3b97e71eed1b24de5ba03febd79b43fd9a98cfa 100644
+index ec97ce4cee42db2931eb22cf20f4fecd2f9fd591..04ad79fa2995c97291dd184999fe06fcdc72f238 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -1533,22 +1533,18 @@ public final class CraftServer implements Server {
+@@ -1535,22 +1535,18 @@ public final class CraftServer implements Server {
  
      @Override
      public boolean addRecipes(Iterable<Recipe> recipes) {
@@ -64,7 +64,7 @@ index 8fbe183aabe96e8fdbb77404bd92d1c12c30f480..e3b97e71eed1b24de5ba03febd79b43f
      }
  
      @Override
-@@ -1735,19 +1731,16 @@ public final class CraftServer implements Server {
+@@ -1737,19 +1733,16 @@ public final class CraftServer implements Server {
  
      @Override
      public boolean removeRecipes(Iterable<NamespacedKey> recipeKeys) {

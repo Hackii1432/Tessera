@@ -3,7 +3,7 @@ title: "Scheduler und Threadkontexte"
 description: "Aufgaben, Verzögerungen, Retirement und Plugin-Disable unter Folias Regionsmodell."
 navTitle: "Scheduler"
 order: 30
-updated: 2026-09-28
+updated: 2026-10-26
 minecraftVersion: "26.3"
 badge: "Referenz"
 ---
@@ -222,6 +222,14 @@ Wiederholungen.
 `null`, ungültige Intervalle, ein deaktiviertes Plugin oder eine durch Lifecycle-Arbeit gesperrte Welt können die Einplanung synchron ablehnen. `IllegalPluginAccessException`, `IllegalArgumentException`, `NullPointerException` und Zustandsfehler nicht mit erfolgreicher Einplanung verwechseln. Task-Ausnahmen werden protokolliert; sie schließen eigene Plugin-Futures nicht automatisch ab.
 
 ## Abbruch und Plugin-Disable
+
+Ab Build 022 wechselt ein wiederholter Task nach einem während des Callbacks
+angenommenen Abbruch von `CANCELLED_RUNNING` zu `CANCELLED`, sobald der Callback
+beendet ist. Dies gilt für Async-, Global-, Entity- und den tatsächlichen
+Folia-Regionsscheduler. Der Abbruch stoppt weiterhin keinen bereits laufenden
+Java-Code; er verhindert weitere Ausführungen. Ein in einem Callback beendetes
+eigenes Future ist nicht automatisch ein Nachweis, dass dessen `finally` schon
+abgeschlossen und der Taskzustand bereits final ist.
 
 `cancel()` liefert `CANCELLED_BY_CALLER`, `CANCELLED_ALREADY`, `RUNNING`, `ALREADY_EXECUTED`, `NEXT_RUNS_CANCELLED` oder `NEXT_RUNS_CANCELLED_ALREADY`. Bereits laufender Java-Code wird nicht unterbrochen. Region-/Entity-Scheduler besitzen keine öffentliche `cancelTasks(Plugin)`-Methode: ihre `ScheduledTask`-Handles selbst verwalten. Async und Global bieten diesen Einstieg.
 

@@ -5,7 +5,7 @@ Subject: [PATCH] Publish safe TPS region lookup and test health commands
 
 
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-index 96162cf9b6e018963ac0705404102ab19b2d33f8..3bdbdc81afd19d05897b922fe706341936810334 100644
+index 0dd00659a95af432d8acacf601c136a3fa1f1b2f..267e581b3aecc657dfa66d5494868fd063c508eb 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 @@ -259,6 +259,23 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa

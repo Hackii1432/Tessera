@@ -1,0 +1,57 @@
+Starting org.bukkit.craftbukkit.Main
+[15:17:49 INFO]: [bootstrap] Running Java 25 (Java HotSpot(TM) 64-Bit Server VM 25.0.3+9-LTS-195; Oracle Corporation null) on Windows 11 10.0 (amd64)
+[15:17:49 INFO]: [bootstrap] Loading Tessera 26.3-22-ver/26.3.x@c1f9128 (2026-10-26T13:55:12Z) for Minecraft 26.3
+[15:17:49 INFO]: [PluginInitializerManager] Initializing plugins...
+[15:17:49 INFO]: [PluginInitializerManager] Initialized 1 plugin
+[15:17:49 INFO]: [PluginInitializerManager] Bukkit plugins (1):
+ - TesseraRuntimeWorldSmoke (1.0.0)
+[31;1m[15:17:50 ERROR]: [oshi.driver.windows.registry.HkeyPerformanceDataUtil] Unable to locate English counter names in registry Perflib 009. Counters may need to be rebuilt: 
+com.sun.jna.platform.win32.Win32Exception: Falscher Parameter.
+	at com.sun.jna.platform.win32.Advapi32Util.registryGetStringArray(Advapi32Util.java:921) ~[jna-platform-5.17.0.jar:5.17.0 (b0)]
+	at com.sun.jna.platform.win32.Advapi32Util.registryGetStringArray(Advapi32Util.java:898) ~[jna-platform-5.17.0.jar:5.17.0 (b0)]
+	at oshi.driver.windows.registry.HkeyPerformanceDataUtil.mapCounterIndicesFromRegistry(HkeyPerformanceDataUtil.java:274) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.driver.windows.registry.HkeyPerformanceDataUtil.<clinit>(HkeyPerformanceDataUtil.java:51) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.driver.windows.registry.ProcessPerformanceData.buildProcessMapFromRegistry(ProcessPerformanceData.java:45) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.software.os.windows.WindowsOperatingSystem.queryProcessMapFromRegistry(WindowsOperatingSystem.java:328) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.util.Memoizer$1.get(Memoizer.java:65) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.software.os.windows.WindowsOperatingSystem.processMapToList(WindowsOperatingSystem.java:298) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.software.os.windows.WindowsOperatingSystem.getProcess(WindowsOperatingSystem.java:292) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.software.os.OperatingSystem.getCurrentProcess(OperatingSystem.java:246) ~[oshi-core-6.9.0.jar:6.9.0]
+	at net.minecraft.SystemReport.lambda$putSoftware$0(SystemReport.java:115) ~[folia-26.3.jar:26.3-022-c1f9128]
+	at net.minecraft.SystemReport.ignoreErrors(SystemReport.java:120) ~[folia-26.3.jar:26.3-022-c1f9128]
+	at net.minecraft.SystemReport.putSoftware(SystemReport.java:115) ~[folia-26.3.jar:26.3-022-c1f9128]
+	at net.minecraft.SystemReport.lambda$new$7(SystemReport.java:68) ~[folia-26.3.jar:26.3-022-c1f9128]
+	at net.minecraft.SystemReport.ignoreErrors(SystemReport.java:120) ~[folia-26.3.jar:26.3-022-c1f9128]
+	at net.minecraft.SystemReport.<init>(SystemReport.java:68) ~[folia-26.3.jar:26.3-022-c1f9128]
+	at net.minecraft.CrashReport.<init>(CrashReport.java:32) ~[folia-26.3.jar:26.3-022-c1f9128]
+	at net.minecraft.CrashReport.preload(CrashReport.java:240) ~[folia-26.3.jar:26.3-022-c1f9128]
+	at java.base/java.lang.Thread.run(Thread.java:1474) ~[?:?]
+[m[33;1m[15:17:50 WARN]: [oshi.util.platform.windows.PerfCounterQuery] Unable to locate English counter names in registry Perflib 009. Assuming English counters. Error 0x80070057. See https://support.microsoft.com/en-us/help/300956/how-to-manually-rebuild-performance-counter-library-values
+[m[33;1m[15:17:50 WARN]: [oshi.util.platform.windows.PerfCounterWildcardQuery] Failed to locate performance object for Process in the registry. Performance counters may be corrupt. Pdh call failed with error code 0xC0000BB8
+[m[15:17:50 INFO]: [oshi.util.platform.windows.PerfCounterWildcardQuery] Disabling further attempts to query Process.
+[15:17:54 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Initialising converters for DataConverter...
+[15:17:54 INFO]: [com.destroystokyo.paper.profile.PaperServicesDiscoveryService] Environment: Environment[discoveryUrl=https://discovery.minecraftservices.com/minecraft/client, name=PROD]
+[15:17:54 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Finished initialising converters for DataConverter in 508,7ms
+[33;1m[15:17:56 WARN]: Failed to load datapacks, can't proceed with server load. You can either fix your datapacks or reset to vanilla with --safeMode
+java.util.concurrent.ExecutionException: java.lang.IllegalStateException: Unable to read or access the world gen settings file .\world\dimensions\minecraft\overworld\data\minecraft\world_gen_settings.dat. Not in GZIP format
+	at java.base/java.util.concurrent.CompletableFuture.wrapInExecutionException(CompletableFuture.java:345) ~[?:?]
+	at java.base/java.util.concurrent.CompletableFuture.reportGet(CompletableFuture.java:440) ~[?:?]
+	at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2094) ~[?:?]
+	at net.minecraft.server.Main.main(Main.java:287) ~[folia-26.3.jar:26.3-022-c1f9128]
+	at io.papermc.paper.PaperBootstrap.boot(PaperBootstrap.java:25) ~[folia-26.3.jar:26.3-022-c1f9128]
+	at org.bukkit.craftbukkit.Main.main(Main.java:209) ~[folia-26.3.jar:26.3-022-c1f9128]
+	at io.papermc.paperclip.Paperclip.lambda$main$0(Paperclip.java:42) ~[?:?]
+	at java.base/java.lang.Thread.run(Thread.java:1474) ~[?:?]
+Caused by: java.lang.IllegalStateException: Unable to read or access the world gen settings file .\world\dimensions\minecraft\overworld\data\minecraft\world_gen_settings.dat. Not in GZIP format
+	at net.minecraft.world.level.storage.LevelStorageSource.lambda$getLevelDataAndDimensions$1(LevelStorageSource.java:182) ~[folia-26.3.jar:26.3-022-c1f9128]
+	at com.mojang.serialization.DataResult$Error.mapOrElse(DataResult.java:309) ~[datafixerupper-10.0.21.jar:?]
+	at net.minecraft.world.level.storage.LevelStorageSource.getLevelDataAndDimensions(LevelStorageSource.java:176) ~[folia-26.3.jar:26.3-022-c1f9128]
+	at net.minecraft.server.Main.lambda$main$1(Main.java:262) ~[folia-26.3.jar:26.3-022-c1f9128]
+	at net.minecraft.server.WorldLoader.lambda$load$2(WorldLoader.java:56) ~[folia-26.3.jar:26.3-022-c1f9128]
+	at java.base/java.util.concurrent.CompletableFuture$UniCompose.tryFire(CompletableFuture.java:1171) ~[?:?]
+	at java.base/java.util.concurrent.CompletableFuture$Completion.exec(CompletableFuture.java:504) ~[?:?]
+	at java.base/java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:511) ~[?:?]
+	at java.base/java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1450) ~[?:?]
+	at java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:2019) ~[?:?]
+	at java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:187) ~[?:?]
+[m

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.papermc.paper.log.LoggerShutdownTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-26T13:43:37.365Z" hostname="ENGINE0" time="15.709">
+  <properties/>
+  <testcase name="manualHookRemovalDoesNotTryToRemoveANullJvmHook()" classname="io.papermc.paper.log.LoggerShutdownTest" time="0.039"/>
+  <testcase name="dedicatedServerDrainsLoggingBeforeEveryJvmExitInstruction()" classname="io.papermc.paper.log.LoggerShutdownTest" time="0.036"/>
+  <testcase name="manualJlineHooksRunAfterDrainingAndBeforeTerminalCloseExactlyOnce()" classname="io.papermc.paper.log.LoggerShutdownTest" time="0.256"/>
+  <testcase name="concurrentCallersCannotCloseWhileTheOtherCallerIsFlushing()" classname="io.papermc.paper.log.LoggerShutdownTest" time="0.009"/>
+  <testcase name="closingFailureDoesNotRepeatAnAlreadyFlushedShutdown()" classname="io.papermc.paper.log.LoggerShutdownTest" time="0.007"/>
+  <testcase name="flushesBeforeClosingTheTerminalAndDoesNotRepeatCleanup()" classname="io.papermc.paper.log.LoggerShutdownTest" time="0.003"/>
+  <testcase name="aFailedFlushDoesNotCloseTheTerminalOrPreventRetry()" classname="io.papermc.paper.log.LoggerShutdownTest" time="0.005"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[Okt. 26, 2026 2:43:37 PM org.bukkit.support.extension.BaseExtension isTestCase
+INFORMATION: Running tests with environment: Normal
+Okt. 26, 2026 2:43:52 PM org.bukkit.Bukkit setServer
+INFORMATION: This server is running org.bukkit.support.DummyServerHelper version 26.3-DEV (2026-10-26T13:43:50Z) (Implementing API version 26.3.build.022-beta)
+]]></system-err>
+</testsuite>

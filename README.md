@@ -9,11 +9,11 @@ plugin APIs. Tessera is intended for SMP servers, independent arenas and
 multi-world game modes whose plugins support Folia's threading model.
 
 **Current branch:** `ver/26.3.x` · **Minecraft/API:** `26.3` ·
-**Tessera:** `021-beta` · **Java:** `25`
+**Tessera:** `022-beta` · **Java:** `25`
 
 Tessera uses the **beta** channel; this is not a blanket production guarantee.
-The [current changelog](docs/builds/26.3/0.0.21.md) and
-[Build 021 integration report](docs/BUILD-26.3-021.md) distinguish implemented
+The [current changelog](docs/builds/26.3/0.0.22.md) and
+[Build 022 integration report](docs/BUILD-26.3-022.md) distinguish implemented
 features from completed tests and outstanding integration checks. Older 26.2
 and 26.3 RC entries in the [release history](docs/builds/) are historical,
 not a promise that this branch builds or supports all those versions.
@@ -44,7 +44,7 @@ import; changing that hash alone does not update the local base. See the
 | Runtime worlds | Asynchronous create, load, clone and unload through `Bukkit.getRuntimeWorldManager()`; synchronous Bukkit world operations remain restricted. |
 | World snapshots | Coordinated snapshots of live worlds, player stores and shared level-root data. Participating worlds pause during flush/copy; this is not an unrestricted filesystem backup or a power-loss-atomic transaction. |
 | Native player restore | Contract 1 through `Bukkit.getPlayerRestoreService()`: connected-player state replacement, prepared target worlds and rollback. Requires explicit plugin integration, not an automatic SMP rollback feature. |
-| Current Paper APIs | Typed PDC keys, batched recipes, entity weapon/physics getters, explicit post-effect updates and command restriction markers; Folia ownership remains required. |
+| Current Paper APIs | Typed PDC keys, batched recipes, entity alliance/damage queries, inventory events, command replies and non-loading chunk-state queries; Folia ownership remains required. |
 | Scoreboards | Region-aware per-player scoreboards, teams, objectives and scores, with delivery on the owning player thread. |
 | Console/RCON commands | Owner-routed block/entity NBT reads, loaded block NBT mutations and atomic shared storage; unsafe entity writes and cross-region copies remain unsupported. |
 | Tick control | Rate, freeze, step and sprint support. Player use of `/tick` requires actual OP status, not only a granted permission. |
@@ -78,7 +78,7 @@ See [the region architecture](REGION_LOGIC.md) and
 ## Install and update
 
 1. Obtain a Tessera JAR built from the intended source revision, or build it below.
-   This branch produces `tessera-server-26.3.build.021-beta.jar` for Minecraft
+   This branch produces `tessera-server-26.3.build.022-beta.jar` for Minecraft
    **26.3** clients, not RC2/RC3 clients. Use Java **25** to run it.
 2. Use a dedicated server directory. Before migrating an existing server, stop it
    cleanly and make a separate backup of **all** worlds, player stores, level-root
@@ -86,7 +86,7 @@ See [the region architecture](REGION_LOGIC.md) and
 3. Copy the runnable JAR into that directory. Start it from that directory, for example:
 
    ```text
-   java -Xms2G -Xmx4G -jar tessera-server-26.3.build.021-beta.jar --nogui
+   java -Xms2G -Xmx4G -jar tessera-server-26.3.build.022-beta.jar --nogui
    ```
 
    The heap values are examples, not sizing guarantees. Leave memory and CPU
@@ -125,8 +125,8 @@ Run from the **Tessera repository root**, not from `sinopia/`:
 ```
 
 This prepares Sinopia, reapplies all patch layers, runs the tests/checks and
-creates the runnable JAR in `build/libs/`. The Build 021 source base,
-SHA-256 and actual test results are in [its integration report](docs/BUILD-26.3-021.md).
+creates the runnable JAR in `build/libs/`. The Build 022 source base,
+SHA-256 and actual test results are in [its integration report](docs/BUILD-26.3-022.md).
 For offline identity metadata affected by the old restore preview, follow the
 [backup and field-level repair guide](docs/restore-player-metadata-repair.md).
 

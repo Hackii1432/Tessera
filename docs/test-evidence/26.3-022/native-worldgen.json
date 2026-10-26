@@ -1,0 +1,25 @@
+{
+  "passed": true,
+  "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.022-beta.jar",
+  "sha256": "d65513f45a1f8a94ac642f3a11ffbe3f6c01abff0561147729e9124344944532",
+  "source": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\console-shutdown-1793023957016",
+  "work": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\worldgen-startup-1793024217587",
+  "port": 54518,
+  "missing": {
+    "name": "missing-settings",
+    "passed": true,
+    "code": 0,
+    "ready": true,
+    "timedOut": false,
+    "elapsedMs": 49561
+  },
+  "corrupt": {
+    "name": "corrupt-settings",
+    "passed": true,
+    "code": 0,
+    "ready": false,
+    "timedOut": false,
+    "elapsedMs": 8829
+  },
+  "corruptFilePreserved": true
+}

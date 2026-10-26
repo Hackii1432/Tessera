@@ -4,6 +4,7 @@ import io.papermc.paper.entity.poi.PoiSearchResult;
 import io.papermc.paper.entity.poi.PoiType;
 import io.papermc.paper.math.Position;
 import io.papermc.paper.raytracing.PositionedRayTraceConfigurationBuilder;
+import io.papermc.paper.world.chunk.ChunkGenerationState;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -12,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.bukkit.block.Biome;
@@ -393,6 +395,63 @@ public interface World extends RegionAccessor, WorldInfo, PluginMessageRecipient
      * @return true if the chunk is generated, otherwise false
      */
     public boolean isChunkGenerated(int x, int z);
+
+    /**
+     * Checks the generation state of the {@link Chunk} at the specified coordinates
+     * without loading it, blocking until the state is known.
+     *
+     * <p>
+     * This may read chunk data from disk, which blocks the calling thread. Prefer
+     * {@link #getChunkGenerationStateAsync(int, int)} where possible.
+     * </p>
+     *
+     * <p>
+     * The result is a snapshot: the chunk may be generated, loaded, or saved
+     * concurrently, so the state may be stale by the time it is observed.
+     * </p>
+     *
+     * @param x X-coordinate of the chunk
+     * @param z Z-coordinate of the chunk
+     * @return the generation state of the chunk
+     * @throws RuntimeException if the chunk data cannot be read, or if it was saved
+     *     by a newer version of the game
+     * @throws IllegalStateException on Tessera if disk I/O would be required on a
+     *     region, global tick, or networking thread, or the world is not active;
+     *     use {@link #getChunkGenerationStateAsync(int, int)} without blocking
+     */
+    @NotNull ChunkGenerationState getChunkGenerationState(int x, int z);
+
+    /**
+     * Checks the generation state of the {@link Chunk} at the specified coordinates
+     * without loading it.
+     *
+     * <p>
+     * The result is a snapshot: the chunk may be generated, loaded, or saved
+     * concurrently, so the state may be stale by the time it is observed.
+     * </p>
+     *
+     * <p>
+     * The returned future is completed on an unspecified thread. Callers that need to
+     * interact with the world should move to the appropriate thread themselves.
+     * </p>
+     *
+     * <p>
+     * On Tessera, never block a region, global tick, or networking thread on this
+     * future. An already-loaded result uses an immutable metadata snapshot.
+     * </p>
+     *
+     * <p>
+     * The future is completed exceptionally if the chunk data cannot be read, or if
+     * it was saved by a newer version of the game. On Tessera, inactive worlds and
+     * rejected I/O admission also complete exceptionally. Completion grants no
+     * region ownership. Cancellation does not undo an already-accepted read.
+     * </p>
+     *
+     * @param x X-coordinate of the chunk
+     * @param z Z-coordinate of the chunk
+     * @return a future completed with the generation state of the chunk
+     */
+    @NotNull CompletableFuture<@NotNull ChunkGenerationState> getChunkGenerationStateAsync(int x, int z);
 
     /**
      * Checks if the {@link Chunk} at the specified coordinates is loaded and

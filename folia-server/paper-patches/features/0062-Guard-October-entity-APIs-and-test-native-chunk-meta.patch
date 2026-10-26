@@ -1,0 +1,497 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <build@tessera.invalid>
+Date: Mon, 26 Oct 2026 14:25:04 +0100
+Subject: [PATCH] Guard October entity APIs and test native chunk metadata NBT
+ region files and shutdown
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+index 9206bd79d293831b1a9c00392c71cc5c7db91ef9..cd86a87262ec54e16adeff50fdc427d61952869d 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+@@ -935,12 +935,14 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+ 
+     @Override
+     public boolean isMarkedInvulnerable() {
++        this.tessera$ensureExtendedEntityOwner();
+         return this.getHandle().isInvulnerable();
+     }
+ 
+     @Override
+     public boolean isInvulnerableTo(final @NotNull DamageSource source) {
+         Preconditions.checkArgument(source != null, "DamageSource cannot be null");
++        this.tessera$ensureExtendedEntityOwner();
+         return this.getHandle().isInvulnerableToBase(((CraftDamageSource) source).getHandle());
+     }
+ 
+@@ -1438,8 +1440,13 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+         return this.getHandleRaw().get(PaperDataComponentType.bukkitToMinecraft(type)) != null;
+     }
+ 
++    protected final void tessera$ensureExtendedEntityOwner() {
++        // CraftPlayer deliberately has a legacy unchecked getHandle override; do not rely on it here.
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this.entity, "Cannot access extended entity state off its owning region");
++    }
++
+     public boolean considersEntityAsAlly0(final @NotNull org.bukkit.entity.Entity entity) {
+-        this.getHandle(); // Tessera - rule evaluation belongs to the entity owner, including empty maps
++        this.tessera$ensureExtendedEntityOwner();
+         if (this.additionalAlliedRules.isEmpty()) {
+             return false;
+         }
+@@ -1449,12 +1456,14 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+     @Override
+     public boolean isAlliedTo(final @NotNull org.bukkit.entity.Entity other) {
+         Preconditions.checkArgument(other != null, "other cannot be null");
++        this.tessera$ensureExtendedEntityOwner();
++        ((CraftEntity)other).tessera$ensureExtendedEntityOwner();
+         return this.getHandle().isAlliedTo(((CraftEntity)other).getHandle());
+     }
+ 
+     @Override
+     public @NotNull Map<Key, Predicate<org.bukkit.entity.Entity>> getAdditionalAlliedRules() {
+-        this.getHandle(); // Tessera - do not publish a live rule view off-owner
++        this.tessera$ensureExtendedEntityOwner();
+         return Collections.unmodifiableMap(this.additionalAlliedRules);
+     }
+ 
+@@ -1462,21 +1471,21 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+     public void addAdditionalAlliedRule(final @NotNull Key key, final @NotNull Predicate<org.bukkit.entity.Entity> predicate) {
+         Preconditions.checkArgument(key != null, "key cannot be null");
+         Preconditions.checkArgument(predicate != null, "predicate cannot be null");
+-        this.getHandle(); // Tessera - all writes share the entity ownership check
++        this.tessera$ensureExtendedEntityOwner();
+         this.additionalAlliedRules.put(key, predicate);
+     }
+ 
+     @Override
+     public void removeAdditionalAlliedRule(final @NotNull Key key) {
+         Preconditions.checkArgument(key != null, "key cannot be null");
+-        this.getHandle(); // Tessera - all writes share the entity ownership check
++        this.tessera$ensureExtendedEntityOwner();
+         this.additionalAlliedRules.remove(key);
+     }
+ 
+     @Override
+     public void removeAdditionalAlliedRule(final @NotNull Namespaced nameSpaced) {
+         Preconditions.checkArgument(nameSpaced != null, "nameSpaced cannot be null");
+-        this.getHandle(); // Tessera - all writes share the entity ownership check
++        this.tessera$ensureExtendedEntityOwner();
+         this.additionalAlliedRules.entrySet()
+             .removeIf(entry -> entry.getKey().namespace().equals(nameSpaced.namespace()));
+     }
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftHumanEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftHumanEntity.java
+index c8d01f6ea513d621963971b3c6ff3d9e52d48fc2..b3cc9558f779b439d5e5b14da4a002f2d4a83503 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftHumanEntity.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftHumanEntity.java
+@@ -236,7 +236,8 @@ public class CraftHumanEntity extends CraftLivingEntity implements HumanEntity {
+     @Override
+     public boolean canCriticalAttack(Entity entity) {
+         Preconditions.checkArgument(entity != null, "entity cannot be null");
+-
++        this.tessera$ensureExtendedEntityOwner();
++        ((CraftEntity)entity).tessera$ensureExtendedEntityOwner();
+         return this.getHandle().canCriticalAttack(((CraftEntity) entity).getHandle()) && !this.getHandle().level().paperConfig().entities.behavior.disablePlayerCrits;
+     }
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftLivingEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftLivingEntity.java
+index 312eb46539d556d245bcf02b50865ac02b3df26f..4295b081c4fa3625f90568527cf53312e8121357 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftLivingEntity.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftLivingEntity.java
+@@ -377,6 +377,7 @@ public class CraftLivingEntity extends CraftEntity implements LivingEntity {
+     @Override
+     public boolean isInvulnerableTo(final org.bukkit.damage.@NonNull DamageSource source) {
+         Preconditions.checkArgument(source != null, "DamageSource cannot be null");
++        this.tessera$ensureExtendedEntityOwner();
+         return this.getHandle().isInvulnerableTo((ServerLevel) this.getHandle().level(), ((CraftDamageSource) source).getHandle());
+     }
+ 
+@@ -832,11 +833,15 @@ public class CraftLivingEntity extends CraftEntity implements LivingEntity {
+ 
+     @Override
+     public void swingHand(org.bukkit.inventory.EquipmentSlot hand, io.papermc.paper.datacomponent.item.SwingAnimation swingAnimation) {
++        this.tessera$ensureExtendedEntityOwner();
++        Preconditions.checkArgument(hand != null && hand.isHand(), "Expected a hand");
++        Preconditions.checkArgument(swingAnimation != null, "Swing animation cannot be null");
+         Preconditions.checkState(!this.getHandle().generation, "Cannot swing hand during world generation");
+         this.getHandle().swing(CraftEquipmentSlot.getHand(hand), ((io.papermc.paper.datacomponent.item.PaperSwingAnimation) swingAnimation).getHandle(), true);
+     }
+ 
+     private net.minecraft.world.item.component.SwingAnimation getSwingAnimation(InteractionHand hand) {
++        this.tessera$ensureExtendedEntityOwner();
+         final net.minecraft.world.item.component.SwingAnimation animation = this.getHandle()
+             .getItemInHand(hand)
+             .get(net.minecraft.core.component.DataComponents.ATTACK_ANIMATION);
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+index 673afb269edaebf09179a3b183145fa2fe826468..fdb8458dac77e08d8e6fbb2a4d35cca45e794dd3 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+@@ -3122,7 +3122,8 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
+ 
+         @Override
+         public InetSocketAddress getRawAddress() {
+-            return (InetSocketAddress) CraftPlayer.this.getHandle().connection.getRawAddress();
++            SocketAddress address = CraftPlayer.this.getHandle().connection.getRawAddress();
++            return address instanceof InetSocketAddress inet ? inet : new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
+         }
+ 
+         @Override
+diff --git a/src/test/java/io/papermc/paper/log/LoggerShutdownTest.java b/src/test/java/io/papermc/paper/log/LoggerShutdownTest.java
+index 0398695c55168dafe372a15c4d96f64fe2f81949..9e5c67cc826aa22ecea83637924418e613caecee 100644
+--- a/src/test/java/io/papermc/paper/log/LoggerShutdownTest.java
++++ b/src/test/java/io/papermc/paper/log/LoggerShutdownTest.java
+@@ -49,6 +49,7 @@ class LoggerShutdownTest {
+         List<String> order = new ArrayList<>();
+         try (MockedStatic<CustomLogManager> jul = mockStatic(CustomLogManager.class);
+              MockedStatic<LogManager> log4j = mockStatic(LogManager.class);
++             MockedStatic<org.jline.utils.ShutdownHooks> jline = mockStatic(org.jline.utils.ShutdownHooks.class);
+              MockedStatic<TerminalConsoleAppender> terminal = mockStatic(TerminalConsoleAppender.class)) {
+             jul.when(CustomLogManager::forceReset).thenAnswer(call -> { order.add("reset"); return null; });
+             log4j.when(LogManager::shutdown).thenAnswer(call -> { order.add("flush"); return null; });
+@@ -63,6 +64,7 @@ class LoggerShutdownTest {
+     void closingFailureDoesNotRepeatAnAlreadyFlushedShutdown() {
+         try (MockedStatic<CustomLogManager> jul = mockStatic(CustomLogManager.class);
+              MockedStatic<LogManager> log4j = mockStatic(LogManager.class);
++             MockedStatic<org.jline.utils.ShutdownHooks> jline = mockStatic(org.jline.utils.ShutdownHooks.class);
+              MockedStatic<TerminalConsoleAppender> terminal = mockStatic(TerminalConsoleAppender.class)) {
+             terminal.when(TerminalConsoleAppender::close).thenThrow(new IOException("injected terminal close failure"));
+             assertDoesNotThrow(LoggerShutdown::shutdownLogging);
+@@ -77,6 +79,7 @@ class LoggerShutdownTest {
+     void aFailedFlushDoesNotCloseTheTerminalOrPreventRetry() {
+         try (MockedStatic<CustomLogManager> jul = mockStatic(CustomLogManager.class);
+              MockedStatic<LogManager> log4j = mockStatic(LogManager.class);
++             MockedStatic<org.jline.utils.ShutdownHooks> jline = mockStatic(org.jline.utils.ShutdownHooks.class);
+              MockedStatic<TerminalConsoleAppender> terminal = mockStatic(TerminalConsoleAppender.class)) {
+             log4j.when(LogManager::shutdown).thenThrow(new IllegalStateException("injected flush failure"));
+             assertThrows(IllegalStateException.class, LoggerShutdown::shutdownLogging);
+@@ -123,6 +126,7 @@ class LoggerShutdownTest {
+         // Static Mockito scopes are thread-local: install all three scopes on each caller.
+         try (MockedStatic<CustomLogManager> jul = mockStatic(CustomLogManager.class);
+              MockedStatic<LogManager> log4j = mockStatic(LogManager.class);
++             MockedStatic<org.jline.utils.ShutdownHooks> jline = mockStatic(org.jline.utils.ShutdownHooks.class);
+              MockedStatic<TerminalConsoleAppender> terminal = mockStatic(TerminalConsoleAppender.class)) {
+             jul.when(CustomLogManager::forceReset).thenAnswer(call -> { order.add("reset"); return null; });
+             log4j.when(LogManager::shutdown).thenAnswer(call -> {
+@@ -166,4 +170,30 @@ class LoggerShutdownTest {
+         assertTrue(flushed);
+         assertTrue(exits > 0);
+     }
++
++    @Test
++    void manualJlineHooksRunAfterDrainingAndBeforeTerminalCloseExactlyOnce() {
++        List<String> order = new ArrayList<>();
++        try (MockedStatic<CustomLogManager> jul = mockStatic(CustomLogManager.class);
++             MockedStatic<LogManager> log4j = mockStatic(LogManager.class);
++             MockedStatic<org.jline.utils.ShutdownHooks> hooks = mockStatic(org.jline.utils.ShutdownHooks.class);
++             MockedStatic<TerminalConsoleAppender> terminal = mockStatic(TerminalConsoleAppender.class)) {
++            jul.when(CustomLogManager::forceReset).thenAnswer(call -> { order.add("reset"); return null; });
++            log4j.when(LogManager::shutdown).thenAnswer(call -> { order.add("flush"); return null; });
++            hooks.when(org.jline.utils.ShutdownHooks::runTasks).thenAnswer(call -> { order.add("hooks"); return null; });
++            terminal.when(TerminalConsoleAppender::close).thenAnswer(call -> { order.add("close"); return null; });
++            LoggerShutdown.shutdownLogging();
++            LoggerShutdown.shutdownLogging();
++            assertEquals(List.of("reset", "flush", "hooks", "close"), order);
++            hooks.verify(org.jline.utils.ShutdownHooks::runTasks, times(1));
++        }
++    }
++
++    @Test
++    void manualHookRemovalDoesNotTryToRemoveANullJvmHook() {
++        org.jline.utils.ShutdownHooks.Task hook = () -> {};
++        assertSame(hook, org.jline.utils.ShutdownHooks.add(hook));
++        assertDoesNotThrow(() -> org.jline.utils.ShutdownHooks.remove(hook));
++        assertDoesNotThrow(() -> org.jline.utils.ShutdownHooks.remove(hook));
++    }
+ }
+diff --git a/src/test/java/io/papermc/paper/porting/PaperOctober22ChunkStateTest.java b/src/test/java/io/papermc/paper/porting/PaperOctober22ChunkStateTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..cc68ea5b2cf5c525fa212b74668f90a21b617b08
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/porting/PaperOctober22ChunkStateTest.java
+@@ -0,0 +1,95 @@
++package io.papermc.paper.porting;
++
++import ca.spottedleaf.moonrise.common.util.TickThread;
++import ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkHolderManager;
++import ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkTaskScheduler;
++import io.papermc.paper.FeatureHooks;
++import io.papermc.paper.world.chunk.ChunkGenerationState;
++import java.lang.reflect.InvocationTargetException;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.TimeUnit;
++import net.minecraft.SharedConstants;
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.server.level.ServerLevel;
++import org.bukkit.support.environment.Normal;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.Mockito.*;
++
++@Normal
++class PaperOctober22ChunkStateTest {
++    private static ChunkGenerationState classify(CompoundTag tag) throws Exception {
++        var method = FeatureHooks.class.getDeclaredMethod("classifyChunkGenerationState", CompoundTag.class, int.class, int.class);
++        method.setAccessible(true);
++        try { return (ChunkGenerationState)method.invoke(null, tag, 5, -3); }
++        catch (InvocationTargetException ex) { if (ex.getCause() instanceof RuntimeException cause) throw cause; throw ex; }
++    }
++
++    private static CompoundTag tag(String status) {
++        var tag = new CompoundTag();
++        tag.putInt("DataVersion", SharedConstants.getCurrentVersion().dataVersion().version());
++        tag.putInt("xPos", 5);
++        tag.putInt("zPos", -3);
++        tag.putString("Status", status);
++        return tag;
++    }
++
++    @Test void absentPartialAndFullMetadataAreDistinguished() throws Exception {
++        assertEquals(ChunkGenerationState.NOT_GENERATED, classify(null));
++        assertEquals(ChunkGenerationState.PARTIAL, classify(tag("minecraft:noise")));
++        assertEquals(ChunkGenerationState.GENERATED, classify(tag("minecraft:full")));
++    }
++
++    @Test void oldRelocatedAndFutureVersionsAreNotSilentlyTreatedAsCurrent() throws Exception {
++        var old = tag("minecraft:full");
++        old.putInt("DataVersion", 100);
++        assertEquals(ChunkGenerationState.OUTDATED, classify(old));
++        var relocated = tag("minecraft:full");
++        relocated.putInt("xPos", 9);
++        assertEquals(ChunkGenerationState.OUTDATED, classify(relocated));
++        var future = tag("minecraft:full");
++        future.putInt("DataVersion", Integer.MAX_VALUE);
++        assertThrows(IllegalStateException.class, () -> classify(future));
++    }
++
++    private static ServerLevel unloadedWorld() throws Exception {
++        var world = mock(ServerLevel.class);
++        var scheduler = mock(ChunkTaskScheduler.class);
++        var field = ChunkTaskScheduler.class.getDeclaredField("chunkHolderManager");
++        field.setAccessible(true);
++        field.set(scheduler, mock(ChunkHolderManager.class));
++        when(world.moonrise$getChunkTaskScheduler()).thenReturn(scheduler);
++        return world;
++    }
++
++    @Test void tickAndNettyThreadsRejectDiskFallbackWithoutSubmittingIo() throws Exception {
++        var world = unloadedWorld();
++        var tick = new CompletableFuture<Throwable>();
++        var thread = new TickThread(() -> {
++            try { FeatureHooks.getChunkGenerationState(world, 5, -3); tick.complete(null); }
++            catch (Throwable failure) { tick.complete(failure); }
++        }, "chunk-state-tick-test");
++        thread.start();
++        assertInstanceOf(IllegalStateException.class, tick.get(5, TimeUnit.SECONDS));
++        thread.join(5000);
++        var netty = new CompletableFuture<Throwable>();
++        var network = new io.netty.util.concurrent.FastThreadLocalThread(() -> {
++            try { FeatureHooks.getChunkGenerationState(world, 5, -3); netty.complete(null); }
++            catch (Throwable failure) { netty.complete(failure); }
++        });
++        network.start();
++        assertInstanceOf(IllegalStateException.class, netty.get(5, TimeUnit.SECONDS));
++        network.join(5000);
++        verify(world, never()).tessera$admitChunkStateQuery(any());
++    }
++
++    @Test void rejectedLifecycleAdmissionCompletesTheAsyncFutureExceptionally() {
++        var world = mock(ServerLevel.class);
++        doThrow(new IllegalStateException("world unloading")).when(world).tessera$admitChunkStateQuery(any());
++        var future = FeatureHooks.getChunkGenerationStateAsync(world, 0, 0);
++        assertTrue(future.isCompletedExceptionally());
++        var error = assertThrows(java.util.concurrent.CompletionException.class, future::join);
++        assertEquals("world unloading", error.getCause().getMessage());
++    }
++}
+diff --git a/src/test/java/io/papermc/paper/porting/PaperOctober22NbtAndRegionTest.java b/src/test/java/io/papermc/paper/porting/PaperOctober22NbtAndRegionTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..7834b260945a745bad9e556dab2b045a17f75969
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/porting/PaperOctober22NbtAndRegionTest.java
+@@ -0,0 +1,157 @@
++package io.papermc.paper.porting;
++
++import ca.spottedleaf.moonrise.patches.nbt_rw.FastNBTParser;
++import java.io.ByteArrayInputStream;
++import java.io.ByteArrayOutputStream;
++import java.io.DataInput;
++import java.io.DataInputStream;
++import java.io.DataOutputStream;
++import java.nio.ByteBuffer;
++import java.nio.channels.FileChannel;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.nio.file.StandardOpenOption;
++import java.util.Arrays;
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.nbt.ListTag;
++import net.minecraft.nbt.NbtAccounter;
++import net.minecraft.nbt.NbtIo;
++import net.minecraft.nbt.StringTag;
++import net.minecraft.world.level.ChunkPos;
++import net.minecraft.world.level.Level;
++import net.minecraft.world.level.chunk.storage.RegionFile;
++import net.minecraft.world.level.chunk.storage.RegionFileVersion;
++import net.minecraft.world.level.chunk.storage.RegionStorageInfo;
++import org.bukkit.support.environment.Normal;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.api.io.TempDir;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.AdditionalAnswers.delegatesTo;
++import static org.mockito.Mockito.mock;
++
++@Normal
++class PaperOctober22NbtAndRegionTest {
++    @TempDir Path folder;
++
++    private static CompoundTag payload() {
++        var tag = new CompoundTag();
++        tag.putByte("byte", (byte)-5);
++        tag.putShort("short", (short)32001);
++        tag.putInt("int", Integer.MIN_VALUE);
++        tag.putLong("long", Long.MAX_VALUE);
++        tag.putFloat("float", -1.25F);
++        tag.putDouble("double", Math.PI);
++        tag.putString("utf", "null\0 snowman\u2603 surrogate\uD83D\uDE00");
++        tag.putByteArray("bytes", new byte[] {0, -1, 42});
++        tag.putIntArray("ints", new int[] {0, -1, Integer.MAX_VALUE});
++        tag.putLongArray("longs", new long[] {0, -1, Long.MIN_VALUE});
++        var list = new ListTag();
++        list.add(StringTag.valueOf("first"));
++        list.add(StringTag.valueOf("second"));
++        tag.put("list", list);
++        tag.put("emptyList", new ListTag());
++        var nested = new CompoundTag();
++        nested.putString("inside", "value");
++        tag.put("compound", nested);
++        return tag;
++    }
++
++    private static byte[] encode(CompoundTag tag) throws Exception {
++        var bytes = new ByteArrayOutputStream();
++        try (var output = new DataOutputStream(bytes)) { NbtIo.write(tag, output); }
++        return bytes.toByteArray();
++    }
++
++    @Test
++    void everyTagAndModifiedUtfMatchTheVanillaDataInputFallback() throws Exception {
++        CompoundTag tag = payload();
++        byte[] bytes = encode(tag);
++        DataInput fallback = mock(DataInput.class, delegatesTo(new DataInputStream(new ByteArrayInputStream(bytes))));
++        assertEquals(tag, NbtIo.read(fallback));
++        assertEquals(tag, FastNBTParser.nbtIoReadStream(new ByteArrayInputStream(bytes), NbtAccounter.unlimitedHeap()));
++    }
++
++    @Test
++    void truncatedStreamsAndHeapQuotasNeverReturnPartialData() throws Exception {
++        byte[] bytes = encode(payload());
++        for (int length = 0; length < bytes.length; ++length) {
++            byte[] truncated = Arrays.copyOf(bytes, length);
++            assertThrows(Exception.class, () -> FastNBTParser.nbtIoReadStream(new ByteArrayInputStream(truncated), NbtAccounter.unlimitedHeap()), "length " + length);
++        }
++        assertThrows(net.minecraft.nbt.NbtAccounterException.class,
++            () -> FastNBTParser.nbtIoReadStream(new ByteArrayInputStream(bytes), NbtAccounter.create(8)));
++    }
++
++    @Test
++    void nestingLimitStillProtectsTheOptimizedParser() throws Exception {
++        var root = new CompoundTag();
++        var next = root;
++        for (int depth = 0; depth < 520; ++depth) {
++            var child = new CompoundTag();
++            next.put("n", child);
++            next = child;
++        }
++        byte[] bytes = encode(root);
++        assertThrows(net.minecraft.nbt.NbtAccounterException.class,
++            () -> FastNBTParser.nbtIoReadStream(new ByteArrayInputStream(bytes), NbtAccounter.unlimitedHeap()));
++    }
++
++    private static CompoundTag chunk(ChunkPos pos) {
++        var tag = payload();
++        tag.putInt("DataVersion", 5023);
++        tag.putInt("xPos", pos.x());
++        tag.putInt("zPos", pos.z());
++        tag.putLong("LastUpdate", 99);
++        tag.putString("Status", "minecraft:full");
++        return tag;
++    }
++
++    private RegionFile open(Path path, RegionFileVersion version) throws Exception {
++        return new RegionFile(new RegionStorageInfo("unit", Level.OVERWORLD, "chunk"), path, this.folder, version, true);
++    }
++
++    @Test
++    void normalAndExternalOversizedChunksSurviveCloseAndReopen() throws Exception {
++        Path path = this.folder.resolve("r.0.0.mca");
++        var smallPos = new ChunkPos(1, 1);
++        var largePos = new ChunkPos(2, 2);
++        var small = chunk(smallPos);
++        var large = chunk(largePos);
++        large.putByteArray("large", new byte[2 * 1024 * 1024]);
++        try (var file = open(path, RegionFileVersion.VERSION_NONE)) {
++            try (var output = file.getChunkDataOutputStream(smallPos)) { NbtIo.write(small, output); }
++            try (var output = file.getChunkDataOutputStream(largePos)) { NbtIo.write(large, output); }
++        }
++        assertTrue(Files.isRegularFile(this.folder.resolve("c.2.2.mcc")));
++        try (var file = open(path, RegionFileVersion.VERSION_NONE)) {
++            try (var input = file.getChunkDataInputStream(smallPos)) { assertEquals(small, NbtIo.read(input)); }
++            try (var input = file.getChunkDataInputStream(largePos)) { assertEquals(large, NbtIo.read(input)); }
++            file.clear(largePos);
++            assertNull(file.getChunkDataInputStream(largePos));
++        }
++        assertFalse(Files.exists(this.folder.resolve("c.2.2.mcc")));
++    }
++
++    @Test
++    void corruptHeaderRecoveryKeepsPayloadAndBacksUpOriginalBytes() throws Exception {
++        Path path = this.folder.resolve("r.0.0.mca");
++        var pos = new ChunkPos(0, 0);
++        var tag = chunk(pos);
++        try (var file = open(path, RegionFileVersion.VERSION_DEFLATE)) {
++            try (var output = file.getChunkDataOutputStream(pos)) { NbtIo.write(tag, output); }
++        }
++        try (var file = FileChannel.open(path, StandardOpenOption.WRITE)) {
++            file.write(ByteBuffer.allocate(4).putInt(0x7fffffff).flip(), 0);
++            file.force(true);
++        }
++        try (var file = open(path, RegionFileVersion.VERSION_DEFLATE)) {
++            try (var input = file.getChunkDataInputStream(pos)) { assertEquals(tag, NbtIo.read(input)); }
++        }
++        try (var paths = Files.list(this.folder)) {
++            var backups = paths.filter(file -> file.getFileName().toString().endsWith(".backup")).toList();
++            assertEquals(1, backups.size());
++            assertEquals(0x7fffffff, ByteBuffer.wrap(Files.readAllBytes(backups.getFirst())).getInt());
++        }
++    }
++}
+diff --git a/src/test/java/io/papermc/paper/porting/RegionSafeRecipeCatalogTest.java b/src/test/java/io/papermc/paper/porting/RegionSafeRecipeCatalogTest.java
+index cb9a4c0d289455a562fc9bb4db77461c82040094..42351b56508de1e60b213b22fe0f833e0c2c7ae9 100644
+--- a/src/test/java/io/papermc/paper/porting/RegionSafeRecipeCatalogTest.java
++++ b/src/test/java/io/papermc/paper/porting/RegionSafeRecipeCatalogTest.java
+@@ -109,14 +109,20 @@ class RegionSafeRecipeCatalogTest {
+         var first = recipe("october_first", true);
+         manager.addRecipe(first);
+         var id = new RecipeDisplayId(0);
+-        assertSame(first, manager.getRecipeFromDisplay(id).parent());
++        assertSame(first.value(), manager.getRecipeFromDisplay(id).parent().value());
++        assertEquals(first.id(), manager.getRecipeFromDisplay(id).parent().id());
++        assertTrue(manager.getRecipeFromDisplay(id).parent().runtimeAddedRecipe());
+         manager.removeRecipe(first.id());
+         var second = recipe("october_second", true);
+         manager.addRecipe(second);
+         assertNull(manager.getRecipeFromDisplay(id));
+-        assertSame(second, manager.getRecipeFromDisplay(new RecipeDisplayId(1)).parent());
++        assertSame(second.value(), manager.getRecipeFromDisplay(new RecipeDisplayId(1)).parent().value());
++        assertEquals(second.id(), manager.getRecipeFromDisplay(new RecipeDisplayId(1)).parent().id());
++        assertTrue(manager.getRecipeFromDisplay(new RecipeDisplayId(1)).parent().runtimeAddedRecipe());
+         manager.finalizeRecipeLoading(FeatureFlags.VANILLA_SET);
+-        assertSame(second, manager.getRecipeFromDisplay(new RecipeDisplayId(1)).parent());
++        assertSame(second.value(), manager.getRecipeFromDisplay(new RecipeDisplayId(1)).parent().value());
++        assertEquals(second.id(), manager.getRecipeFromDisplay(new RecipeDisplayId(1)).parent().id());
++        assertTrue(manager.getRecipeFromDisplay(new RecipeDisplayId(1)).parent().runtimeAddedRecipe());
+     }
+ 
+     @Test

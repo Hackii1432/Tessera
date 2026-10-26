@@ -1,0 +1,1783 @@
+> Task :buildSrc:compileJava UP-TO-DATE
+> Task :buildSrc:compileGroovy NO-SOURCE
+> Task :buildSrc:processResources NO-SOURCE
+> Task :buildSrc:classes UP-TO-DATE
+> Task :buildSrc:jar UP-TO-DATE
+
+> Configure project :
+paperweight-patcher v2.0.0-beta.24 (running on 'Windows 11')
+
+> Configure project :folia-server
+paperweight-core v2.0.0-beta.24 (running on 'Windows 11')
+
+> Task :prepareSinopia
+Sinopia snapshot: 868bac30ff251ccf5698eead9c49711084a8ae0a
+
+> Task :checkoutPaperRepo
+> Task :filterPaperApiFromPaper
+
+> Task :applyPaperApiFilePatches
+Applied 0 patches
+
+> Task :applyPaperApiFeaturePatches
+> Task :applyPaperApiPatches
+> Task :filterPaperCheckstyleConfigFromPaper
+
+> Task :applyPaperCheckstyleConfigFilePatches
+Applied 0 patches
+
+> Task :applyPaperCheckstyleConfigFeaturePatches
+> Task :applyPaperCheckstyleConfigPatches
+> Task :filterPaperCheckstyleFromPaper
+
+> Task :applyPaperCheckstyleFilePatches
+Applied 0 patches
+
+> Task :applyPaperCheckstyleFeaturePatches
+> Task :applyPaperCheckstylePatches
+> Task :applyPaperSingleFilePatches UP-TO-DATE
+> Task :applyPaperPatches
+> Task :Tessera:buildSrc:compileJava UP-TO-DATE
+> Task :Tessera:buildSrc:compileGroovy NO-SOURCE
+> Task :Tessera:buildSrc:processResources NO-SOURCE
+> Task :Tessera:buildSrc:classes UP-TO-DATE
+> Task :Tessera:buildSrc:jar UP-TO-DATE
+
+> Configure project :Tessera
+paperweight-patcher v2.0.0-beta.24 (running on 'Windows 11')
+
+> Configure project :Tessera:folia-server
+paperweight-core v2.0.0-beta.24 (running on 'Windows 11')
+
+> Task :Tessera:prepareSinopia
+Sinopia snapshot: 868bac30ff251ccf5698eead9c49711084a8ae0a
+
+> Task :Tessera:checkoutPaperRepo
+> Task :Tessera:folia-server:downloadMcManifest
+> Task :Tessera:folia-server:downloadMcVersionManifest UP-TO-DATE
+> Task :Tessera:folia-server:downloadServerJar UP-TO-DATE
+> Task :Tessera:folia-server:extractFromBundler UP-TO-DATE
+> Task :Tessera:folia-server:setupMacheResources UP-TO-DATE
+> Task :Tessera:folia-server:extractMacheResources UP-TO-DATE
+> Task :Tessera:folia-server:applyPaperMinecraftResourcePatches UP-TO-DATE
+
+> Task :Tessera:folia-server:applyMinecraftResourcePatches
+Applied 0 patches
+
+> Task :Tessera:folia-server:downloadMcLibrariesSources UP-TO-DATE
+> Task :Tessera:folia-server:downloadRuntimeClasspathSources UP-TO-DATE
+> Task :Tessera:folia-server:indexLibraryFiles UP-TO-DATE
+> Task :Tessera:folia-server:importPaperLibraryFiles UP-TO-DATE
+> Task :Tessera:folia-server:macheRemapJar UP-TO-DATE
+> Task :Tessera:folia-server:macheDecompileJar UP-TO-DATE
+> Task :Tessera:folia-server:collectPaperATsFromPatches UP-TO-DATE
+> Task :Tessera:folia-server:mergePaperATs UP-TO-DATE
+> Task :Tessera:folia-server:setupMacheSources UP-TO-DATE
+> Task :Tessera:folia-server:extractMacheSources UP-TO-DATE
+> Task :Tessera:folia-server:applyPaperMinecraftSourcePatches UP-TO-DATE
+> Task :Tessera:folia-server:applyPaperMinecraftFilePatches
+> Task :Tessera:folia-server:applyPaperMinecraftFeaturePatches UP-TO-DATE
+
+> Task :Tessera:folia-server:importFoliaLibraryFiles
+Importing 2 classes from library sources...
+
+> Task :Tessera:folia-server:collectFoliaATsFromPatches
+> Task :Tessera:folia-server:mergeFoliaATs UP-TO-DATE
+> Task :Tessera:folia-server:runFoliaSetup UP-TO-DATE
+> Task :applyAllPatches
+
+> Task :Tessera:folia-server:applyMinecraftSourcePatches
+Applied 2 patches
+
+> Task :Tessera:folia-server:applyMinecraftFilePatches
+> Task :Tessera:folia-server:applyMinecraftFeaturePatches
+> Task :Tessera:folia-server:applyMinecraftPatches
+> Task :Tessera:folia-server:filterPaperServerFromPaper
+
+> Task :Tessera:folia-server:applyPaperServerFilePatches
+Applied 0 patches
+
+> Task :Tessera:folia-server:applyPaperServerFeaturePatches
+> Task :Tessera:folia-server:applyPaperServerPatches
+> Task :Tessera:folia-server:applyServerPatches
+> Task :Tessera:folia-server:applyAllServerPatches
+> Task :tessera-compiled:buildSrc:compileJava UP-TO-DATE
+> Task :tessera-compiled:buildSrc:compileGroovy NO-SOURCE
+> Task :tessera-compiled:buildSrc:processResources NO-SOURCE
+> Task :tessera-compiled:buildSrc:classes UP-TO-DATE
+> Task :tessera-compiled:buildSrc:jar UP-TO-DATE
+
+> Configure project :tessera-compiled
+paperweight-patcher v2.0.0-beta.24 (running on 'Windows 11')
+
+> Configure project :tessera-compiled:folia-server
+paperweight-core v2.0.0-beta.24 (running on 'Windows 11')
+
+> Task :tessera-compiled:compileJava NO-SOURCE
+> Task :tessera-compiled:processResources NO-SOURCE
+> Task :tessera-compiled:classes UP-TO-DATE
+> Task :tessera-compiled:jar SKIPPED
+> Task :tessera-compiled:compileTestJava NO-SOURCE
+> Task :tessera-compiled:processTestResources NO-SOURCE
+> Task :tessera-compiled:testClasses UP-TO-DATE
+> Task :tessera-compiled:test NO-SOURCE
+> Task :tessera-compiled:folia-api:compileJava UP-TO-DATE
+> Task :tessera-compiled:folia-api:processResources NO-SOURCE
+> Task :tessera-compiled:folia-api:classes UP-TO-DATE
+> Task :tessera-compiled:folia-api:generateApiVersioningFile UP-TO-DATE
+> Task :tessera-compiled:folia-api:jar UP-TO-DATE
+> Task :buildTessera
+
+> Task :tessera-compiled:folia-api:javadoc
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\co\aikar\timings\TimingHistory.java:49: Warnung: [removal] TimingsManager in co.aikar.timings ist veraltet und wurde zum Entfernen markiert
+import static co.aikar.timings.TimingsManager.FULL_SERVER_TICK;
+                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\co\aikar\timings\TimingHistory.java:50: Warnung: [removal] TimingsManager in co.aikar.timings ist veraltet und wurde zum Entfernen markiert
+import static co.aikar.timings.TimingsManager.MINUTE_REPORTS;
+                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\co\aikar\timings\TimingHistory.java:51: Warnung: [removal] JSONUtil in co.aikar.util ist veraltet und wurde zum Entfernen markiert
+import static co.aikar.util.JSONUtil.*;
+                           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\co\aikar\timings\TimingHistoryEntry.java:31: Warnung: [removal] JSONUtil in co.aikar.util ist veraltet und wurde zum Entfernen markiert
+import static co.aikar.util.JSONUtil.toArrayMapper;
+                           ^
+Warnung: Der Code, der dokumentiert wird, verwendet Packages im unbenannten Modul, aber die in https://www.javadocs.dev/com.google.code.gson/gson/2.14.0/ definierten Packages befinden sich in benannten Modulen.
+Warnung: Der Code, der dokumentiert wird, verwendet Packages im unbenannten Modul, aber die in https://jd.papermc.io/adventure/5.2.0/ definierten Packages befinden sich in benannten Modulen.
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\generated\java\com\destroystokyo\paper\entity\ai\VanillaGoal.java:73: Warnung: kein @param f�r <T>
+public interface VanillaGoal<T extends Mob> extends Goal<T> {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\command\defaults\BukkitCommand.java:9: Warnung: Keine Hauptbeschreibung
+ * @apiNote plugin developers should prefer to use the
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\com\destroystokyo\paper\entity\ai\Goal.java:11: Warnung: kein @param f�r <T>
+public interface Goal<T extends Mob> {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\com\destroystokyo\paper\event\brigadier\AsyncPlayerSendCommandsEvent.java:34: Warnung: kein @param f�r <S>
+public class AsyncPlayerSendCommandsEvent<S extends CommandSourceStack> extends PlayerEvent {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\com\destroystokyo\paper\event\brigadier\CommandRegisteredEvent.java:25: Warnung: kein @param f�r <S>
+public class CommandRegisteredEvent<S extends com.destroystokyo.paper.brigadier.BukkitBrigadierCommandSource> extends ServerEvent implements Cancellable {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\com\destroystokyo\paper\util\SneakyThrow.java:7: Warnung: Keine Hauptbeschreibung
+ * @hidden
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\com\destroystokyo\paper\util\VersionFetcher.java:44: Warnung: Keine Hauptbeschreibung
+     * @hidden
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\ban\BanListType.java:13: Warnung: kein @param f�r <T>
+public interface BanListType<T> {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\command\brigadier\argument\range\RangeProvider.java:8: Warnung: keine Beschreibung f�r @param
+ * @param <T>
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\event\world\StructuresLocateEvent.java:169: Warnung: kein @param f�r pos
+    public record Result(Position pos, Structure structure) {
+           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\event\world\StructuresLocateEvent.java:169: Warnung: kein @param f�r structure
+    public record Result(Position pos, Structure structure) {
+           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\persistence\PersistentDataKey.java:17: Warnung: leeres <p>-Tag
+ * <p>
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\plugin\lifecycle\event\handler\configuration\LifecycleEventHandlerConfiguration.java:12: Warnung: keine Beschreibung f�r @param
+ * @param <O>
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\registry\data\dialog\DialogInstancesProvider.java:31: Warnung: Keine Hauptbeschreibung
+ * @hidden
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\registry\data\InlinedRegistryBuilderProvider.java:15: Warnung: Keine Hauptbeschreibung
+ * @hidden
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\registry\tag\Tag.java:12: Warnung: keine Beschreibung f�r @param
+ * @param <T>
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\util\BoundChecker.java:7: Warnung: Keine Hauptbeschreibung
+ * @hidden
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\util\JarManifests.java:15: Warnung: Keine Hauptbeschreibung
+ * @hidden
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\world\WorldCloneResult.java:13: Warnung: kein @param f�r status
+public record WorldCloneResult(
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\world\WorldCloneResult.java:13: Warnung: kein @param f�r world
+public record WorldCloneResult(
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\world\WorldCloneResult.java:13: Warnung: kein @param f�r message
+public record WorldCloneResult(
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\world\WorldCloneResult.java:13: Warnung: kein @param f�r cause
+public record WorldCloneResult(
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\world\WorldUnloadResult.java:10: Warnung: kein @param f�r status
+public record WorldUnloadResult(
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\world\WorldUnloadResult.java:10: Warnung: kein @param f�r message
+public record WorldUnloadResult(
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\world\WorldUnloadResult.java:10: Warnung: kein @param f�r cause
+public record WorldUnloadResult(
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\command\CommandMap.java:10: Warnung: Keine Hauptbeschreibung
+ * @apiNote plugin developers should prefer to use the
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\command\FormattedCommandAlias.java:14: Warnung: Keine Hauptbeschreibung
+ * @apiNote plugin developers should prefer to use the
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\command\PluginCommandYamlParser.java:13: Warnung: Keine Hauptbeschreibung
+ * @apiNote plugin developers should prefer to use the
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\command\SimpleCommandMap.java:24: Warnung: Keine Hauptbeschreibung
+ * @apiNote plugin developers should prefer to use the
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\CopperGolem.java:137: Warnung: Keine Hauptbeschreibung
+         * @hidden
+           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\CopperGolem.java:140: Warnung: kein @param f�r time
+        record AtTimeImpl(long time) implements AtTime {}
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\event\world\AsyncStructureGenerateEvent.java:36: Warnung: leeres <p>-Tag
+ * <p>
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\inventory\MenuType.java:141: Warnung: kein @param f�r <B>
+    interface Typed<V extends InventoryView, B extends InventoryViewBuilder<V>> extends MenuType {
+    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\metadata\MetadataStore.java:14: Warnung: kein @param f�r <T>
+public interface MetadataStore<T> {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\metadata\MetadataStoreBase.java:22: Warnung: kein @param f�r <T>
+public abstract class MetadataStoreBase<T> {
+                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\plugin\java\LibraryLoader.java:39: Warnung: Keine Hauptbeschreibung
+ * @hidden
+   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\Registry.java:639: Warnung: Keine Hauptbeschreibung
+     * @hidden
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\Registry.java:642: Warnung: kein @param f�r <A>
+    abstract class NotARegistry<A extends Keyed> implements Registry<A> {
+             ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\Registry.java:586: Warnung: Keine Hauptbeschreibung
+     * @hidden
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\Registry.java:589: Warnung: kein @param f�r <T>
+    class SimpleRegistry<T extends Enum<T> & Keyed> extends NotARegistry<T> { // Paper - remove final
+    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\block\bed\package-info.java:2: Warnung: kein Kommentar
+package io.papermc.paper.block.bed;
+^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\datacomponent\item\attribute\package-info.java:3: Warnung: kein Kommentar
+package io.papermc.paper.datacomponent.item.attribute;
+^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\datacomponent\item\blocksattacks\package-info.java:3: Warnung: kein Kommentar
+package io.papermc.paper.datacomponent.item.blocksattacks;
+^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\datacomponent\item\consumable\package-info.java:3: Warnung: kein Kommentar
+package io.papermc.paper.datacomponent.item.consumable;
+^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\plugin\lifecycle\event\package-info.java:2: Warnung: kein Kommentar
+package io.papermc.paper.plugin.lifecycle.event;
+^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\plugin\lifecycle\event\handler\package-info.java:2: Warnung: kein Kommentar
+package io.papermc.paper.plugin.lifecycle.event.handler;
+^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\plugin\lifecycle\event\handler\configuration\package-info.java:2: Warnung: kein Kommentar
+package io.papermc.paper.plugin.lifecycle.event.handler.configuration;
+^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\plugin\lifecycle\event\registrar\package-info.java:2: Warnung: kein Kommentar
+package io.papermc.paper.plugin.lifecycle.event.registrar;
+^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\plugin\lifecycle\event\types\package-info.java:2: Warnung: kein Kommentar
+package io.papermc.paper.plugin.lifecycle.event.types;
+^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\registry\data\client\package-info.java:3: Warnung: kein Kommentar
+package io.papermc.paper.registry.data.client;
+^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\registry\data\dialog\package-info.java:3: Warnung: kein Kommentar
+package io.papermc.paper.registry.data.dialog;
+^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Entity.java:1221: Warnung: kein @return
+    boolean isUnderWater();
+            ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Entity.java:1226: Warnung: kein @return
+    boolean isInRain();
+            ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Entity.java:1234: Warnung: kein @return
+    default boolean isInBubbleColumn() {
+                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Entity.java:1244: Warnung: kein @return
+    default boolean isInWaterOrRain() {
+                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Entity.java:1254: Warnung: kein @return
+    default boolean isInWaterOrBubbleColumn() {
+                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Entity.java:1264: Warnung: kein @return
+    default boolean isInWaterOrRainOrBubbleColumn() {
+                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Entity.java:1271: Warnung: kein @return
+    boolean isInLava();
+            ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Entity.java:1276: Warnung: kein @return
+    boolean isTicking();
+            ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\AbstractArrow.java:231: Warnung: kein Kommentar
+    enum PickupRule {
+    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\AbstractArrow.java:233: Warnung: kein Kommentar
+        ALLOWED,
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\AbstractArrow.java:234: Warnung: kein Kommentar
+        CREATIVE_ONLY;
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\AbstractArrow.java:232: Warnung: kein Kommentar
+        DISALLOWED,
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\AbstractCubeMob.java:9: Warnung: Keine Hauptbeschreibung
+     * @return the size of the cube mob
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\AbstractNautilus.java:8: Warnung: kein Kommentar
+public interface AbstractNautilus extends Tameable, InventoryHolder, Vehicle {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\event\player\AbstractRespawnEvent.java:13: Warnung: kein Kommentar
+public abstract class AbstractRespawnEvent extends PlayerEvent {
+                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\event\player\AbstractRespawnEvent.java:15: Warnung: kein Kommentar
+    protected Location respawnLocation;
+                       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\event\player\AbstractRespawnEvent.java:22: Warnung: kein Kommentar
+    protected AbstractRespawnEvent(
+              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\event\block\Action.java:3: Warnung: kein Kommentar
+public enum Action {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\advancement\AdvancementRequirement.java:6: Warnung: kein Kommentar
+public interface AdvancementRequirement {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\block\data\type\AmethystCluster.java:6: Warnung: kein Kommentar
+public interface AmethystCluster extends Directional, Waterlogged {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\command\brigadier\argument\resolvers\AngleResolver.java:27: Warnung: kein @throws f�r com.mojang.brigadier.exceptions.CommandSyntaxException
+    float resolve(CommandSourceStack sourceStack) throws CommandSyntaxException;
+          ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\AnimalTamer.java:7: Warnung: kein Kommentar
+public interface AnimalTamer {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\com\destroystokyo\paper\event\block\AnvilDamagedEvent.java:26: Warnung: kein Kommentar
+    public AnvilDamagedEvent(final InventoryView inventory, final @Nullable BlockData blockData) {
+           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\com\destroystokyo\paper\event\block\AnvilDamagedEvent.java:91: Warnung: kein Kommentar
+    public static HandlerList getHandlerList() {
+                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\event\Event.java:66: Warnung: kein Kommentar
+    public abstract HandlerList getHandlers();
+                                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\com\destroystokyo\paper\event\block\AnvilDamagedEvent.java:102: Warnung: kein Kommentar
+        BROKEN(Material.AIR);
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\com\destroystokyo\paper\event\block\AnvilDamagedEvent.java:100: Warnung: kein Kommentar
+        CHIPPED(Material.CHIPPED_ANVIL),
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\com\destroystokyo\paper\event\block\AnvilDamagedEvent.java:101: Warnung: kein Kommentar
+        DAMAGED(Material.DAMAGED_ANVIL),
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\com\destroystokyo\paper\event\block\AnvilDamagedEvent.java:99: Warnung: kein Kommentar
+        FULL(Material.ANVIL),
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\event\entity\AreaEffectCloudApplyEvent.java:24: Warnung: kein Kommentar
+    public AreaEffectCloudApplyEvent(@NotNull final AreaEffectCloud entity, @NotNull final List<LivingEntity> affectedEntities) {
+           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\event\entity\AreaEffectCloudApplyEvent.java:67: Warnung: kein Kommentar
+    public static HandlerList getHandlerList() {
+                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\io\papermc\paper\command\brigadier\argument\resolvers\ArgumentResolver.java:23: Warnung: kein @throws f�r com.mojang.brigadier.exceptions.CommandSyntaxException
+    T resolve(CommandSourceStack sourceStack) throws CommandSyntaxException;
+      ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Armadillo.java:33: Warnung: kein Kommentar
+        IDLE,
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Armadillo.java:34: Warnung: kein Kommentar
+        ROLLING,
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Armadillo.java:35: Warnung: kein Kommentar
+        SCARED,
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Armadillo.java:36: Warnung: kein Kommentar
+        UNROLLING;
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\inventory\ArmoredHorseInventory.java:7: Warnung: kein Kommentar
+public interface ArmoredHorseInventory extends AbstractHorseInventory, ArmoredSaddledMountInventory {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\inventory\ArmoredMountInventory.java:7: Warnung: kein Kommentar
+public interface ArmoredMountInventory extends MountInventory {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\inventory\ArmoredSaddledMountInventory.java:3: Warnung: kein Kommentar
+public interface ArmoredSaddledMountInventory extends ArmoredMountInventory, SaddledMountInventory {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\inventory\meta\ItemMeta.java:1102: Warnung: kein Kommentar
+    ItemMeta clone();
+             ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\ArmorStand.java:10: Warnung: kein Kommentar
+public interface ArmorStand extends LivingEntity {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\com\destroystokyo\paper\inventory\meta\ArmorStandMeta.java:5: Warnung: kein Kommentar
+public interface ArmorStandMeta extends ItemMeta {
+       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\main\java\org\bukkit\entity\Arrow.java:12: Warnung: kein Kommentar
+public interface Arrow extends AbstractArrow {
+       ^
+100 Warnungen
+
+> Task :tessera-compiled:folia-api:javadocJar
+> Task :tessera-compiled:folia-api:sourcesJar
+
+> Task :tessera-compiled:folia-api:compileTestJava
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\io\papermc\paper\registry\TestRegistryAccess.java:12: Warnung: [removal] <T>getRegistry(Class<T>) in RegistryAccess ist veraltet und wurde zum Entfernen markiert
+    public @Nullable <T extends Keyed> Registry<T> getRegistry(final @NotNull Class<T> type) {
+                                                   ^
+  Dabei ist T eine Typvariable:
+    T erweitert Keyed, deklariert in Methode <T>getRegistry(Class<T>)
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationContextTest.java:13: Warnung: [removal] Conversable in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        Conversable conversable = new FakeConversable();
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationContextTest.java:14: Warnung: [removal] ConversationContext in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        ConversationContext context = new ConversationContext(null, conversable, new HashMap<Object, Object>());
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationContextTest.java:14: Warnung: [removal] ConversationContext in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        ConversationContext context = new ConversationContext(null, conversable, new HashMap<Object, Object>());
+                                          ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationContextTest.java:20: Warnung: [removal] Conversable in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        Conversable conversable = new FakeConversable();
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationContextTest.java:21: Warnung: [removal] ConversationContext in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        ConversationContext context = new ConversationContext(null, conversable, new HashMap<Object, Object>());
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationContextTest.java:21: Warnung: [removal] ConversationContext in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        ConversationContext context = new ConversationContext(null, conversable, new HashMap<Object, Object>());
+                                          ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationContextTest.java:27: Warnung: [removal] Conversable in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        Conversable conversable = new FakeConversable();
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationContextTest.java:30: Warnung: [removal] ConversationContext in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        ConversationContext context = new ConversationContext(null, conversable, session);
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationContextTest.java:30: Warnung: [removal] ConversationContext in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        ConversationContext context = new ConversationContext(null, conversable, session);
+                                          ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationTest.java:14: Warnung: [removal] Conversation in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        Conversation conversation = new Conversation(null, forWhom, new FirstPrompt());
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationTest.java:14: Warnung: [removal] Conversation in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        Conversation conversation = new Conversation(null, forWhom, new FirstPrompt());
+                                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationTest.java:35: Warnung: [removal] NullConversationPrefix in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        NullConversationPrefix prefix = new NullConversationPrefix();
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationTest.java:35: Warnung: [removal] NullConversationPrefix in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        NullConversationPrefix prefix = new NullConversationPrefix();
+                                            ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationTest.java:36: Warnung: [removal] ConversationFactory in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        ConversationFactory factory = new ConversationFactory(new BukkitTestPlugin("Test"))
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationTest.java:36: Warnung: [removal] ConversationFactory in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        ConversationFactory factory = new ConversationFactory(new BukkitTestPlugin("Test"))
+                                          ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationTest.java:40: Warnung: [removal] Conversation in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        Conversation conversation = factory.buildConversation(forWhom);
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationTest.java:62: Warnung: [removal] Conversation in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        Conversation conversation = new Conversation(null, forWhom, new FirstPrompt());
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationTest.java:62: Warnung: [removal] Conversation in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        Conversation conversation = new Conversation(null, forWhom, new FirstPrompt());
+                                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationTest.java:63: Warnung: [removal] ExactMatchConversationCanceller in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        conversation.addConversationCanceller(new ExactMatchConversationCanceller("bananas"));
+                                                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationTest.java:79: Warnung: [removal] ConversationFactory in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        ConversationFactory factory = new ConversationFactory(new BukkitTestPlugin("Test"))
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationTest.java:79: Warnung: [removal] ConversationFactory in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        ConversationFactory factory = new ConversationFactory(new BukkitTestPlugin("Test"))
+                                          ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationTest.java:81: Warnung: [removal] Conversation in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        Conversation conversation = factory.buildConversation(forWhom);
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationTest.java:90: Warnung: [removal] StringPrompt in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+    private class FirstPrompt extends StringPrompt {
+                                      ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationTest.java:93: Warnung: [removal] ConversationContext in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        public String getPromptText(ConversationContext context) {
+                                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationTest.java:98: Warnung: [removal] Prompt in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        public Prompt acceptInput(ConversationContext context, String input) {
+               ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationTest.java:98: Warnung: [removal] ConversationContext in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        public Prompt acceptInput(ConversationContext context, String input) {
+                                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationTest.java:105: Warnung: [removal] MessagePrompt in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+    private class SecondPrompt extends MessagePrompt {
+                                       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationTest.java:108: Warnung: [removal] Prompt in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        protected Prompt getNextPrompt(ConversationContext context) {
+                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationTest.java:108: Warnung: [removal] ConversationContext in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        protected Prompt getNextPrompt(ConversationContext context) {
+                                       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationTest.java:109: Warnung: [removal] Prompt in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+            return Prompt.END_OF_CONVERSATION;
+                   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ConversationTest.java:113: Warnung: [removal] ConversationContext in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        public String getPromptText(ConversationContext context) {
+                                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\FakeConversable.java:15: Warnung: [removal] Conversable in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+public class FakeConversable implements Conversable {
+                                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\FakeConversable.java:17: Warnung: [removal] Conversation in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+    public Conversation begunConversation;
+           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\FakeConversable.java:18: Warnung: [removal] Conversation in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+    public Conversation abandonedConversation;
+           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\FakeConversable.java:19: Warnung: [removal] ConversationAbandonedEvent in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+    public ConversationAbandonedEvent abandonedConversationEvent;
+           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\FakeConversable.java:32: Warnung: [removal] Conversation in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+    public boolean beginConversation(Conversation conversation) {
+                                     ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\FakeConversable.java:39: Warnung: [removal] Conversation in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+    public void abandonConversation(Conversation conversation) {
+                                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\FakeConversable.java:44: Warnung: [removal] Conversation in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+    public void abandonConversation(Conversation conversation, ConversationAbandonedEvent details) {
+                                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\FakeConversable.java:44: Warnung: [removal] ConversationAbandonedEvent in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+    public void abandonConversation(Conversation conversation, ConversationAbandonedEvent details) {
+                                                               ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ValidatingPromptTest.java:51: Warnung: [removal] BooleanPrompt in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+    private class TestBooleanPrompt extends BooleanPrompt {
+                                            ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ValidatingPromptTest.java:55: Warnung: [removal] Prompt in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        protected Prompt acceptValidatedInput(ConversationContext context, boolean input) {
+                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ValidatingPromptTest.java:55: Warnung: [removal] ConversationContext in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        protected Prompt acceptValidatedInput(ConversationContext context, boolean input) {
+                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ValidatingPromptTest.java:61: Warnung: [removal] ConversationContext in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        public String getPromptText(ConversationContext context) {
+                                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ValidatingPromptTest.java:66: Warnung: [removal] FixedSetPrompt in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+    private class TestFixedSetPrompt extends FixedSetPrompt {
+                                             ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ValidatingPromptTest.java:74: Warnung: [removal] Prompt in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        protected Prompt acceptValidatedInput(ConversationContext context, String input) {
+                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ValidatingPromptTest.java:74: Warnung: [removal] ConversationContext in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        protected Prompt acceptValidatedInput(ConversationContext context, String input) {
+                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ValidatingPromptTest.java:80: Warnung: [removal] ConversationContext in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        public String getPromptText(ConversationContext context) {
+                                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ValidatingPromptTest.java:85: Warnung: [removal] NumericPrompt in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+    private class TestNumericPrompt extends NumericPrompt {
+                                            ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ValidatingPromptTest.java:89: Warnung: [removal] Prompt in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        protected Prompt acceptValidatedInput(ConversationContext context, Number input) {
+                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ValidatingPromptTest.java:89: Warnung: [removal] ConversationContext in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        protected Prompt acceptValidatedInput(ConversationContext context, Number input) {
+                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ValidatingPromptTest.java:95: Warnung: [removal] ConversationContext in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        public String getPromptText(ConversationContext context) {
+                                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ValidatingPromptTest.java:100: Warnung: [removal] RegexPrompt in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+    private class TestRegexPrompt extends RegexPrompt {
+                                          ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ValidatingPromptTest.java:108: Warnung: [removal] Prompt in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        protected Prompt acceptValidatedInput(ConversationContext context, String input) {
+                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ValidatingPromptTest.java:108: Warnung: [removal] ConversationContext in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        protected Prompt acceptValidatedInput(ConversationContext context, String input) {
+                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\conversations\ValidatingPromptTest.java:114: Warnung: [removal] ConversationContext in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        public String getPromptText(ConversationContext context) {
+                                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\DyeColorTest.java:44: Warnung: [removal] Dye in org.bukkit.material ist veraltet und wurde zum Entfernen markiert
+        testColorable(new Dye(Material.LEGACY_INK_SACK, dye.getDyeData()), dye);
+                          ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\DyeColorTest.java:44: Warnung: [removal] LEGACY_INK_SACK in Material ist veraltet und wurde zum Entfernen markiert
+        testColorable(new Dye(Material.LEGACY_INK_SACK, dye.getDyeData()), dye);
+                                      ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\DyeColorTest.java:45: Warnung: [removal] Dye in org.bukkit.material ist veraltet und wurde zum Entfernen markiert
+        testColorable(new Dye(dye), dye);
+                          ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\DyeColorTest.java:51: Warnung: [removal] Wool in org.bukkit.material ist veraltet und wurde zum Entfernen markiert
+        testColorable(new Wool(Material.LEGACY_WOOL, dye.getWoolData()), dye);
+                          ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\DyeColorTest.java:51: Warnung: [removal] LEGACY_WOOL in Material ist veraltet und wurde zum Entfernen markiert
+        testColorable(new Wool(Material.LEGACY_WOOL, dye.getWoolData()), dye);
+                                       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:31: Warnung: [removal] Door in org.bukkit.material ist veraltet und wurde zum Entfernen markiert
+        Door door = new Door();
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:31: Warnung: [removal] Door in org.bukkit.material ist veraltet und wurde zum Entfernen markiert
+        Door door = new Door();
+                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:32: Warnung: [removal] LEGACY_WOODEN_DOOR in Material ist veraltet und wurde zum Entfernen markiert
+        assertThat(door.getItemType(), equalTo(Material.LEGACY_WOODEN_DOOR), "Constructed with default door type");
+                                                       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:37: Warnung: [removal] LEGACY_WOODEN_DOOR in Material ist veraltet und wurde zum Entfernen markiert
+        Material[] types = new Material[]{Material.LEGACY_WOODEN_DOOR,
+                                                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:38: Warnung: [removal] LEGACY_IRON_DOOR_BLOCK in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_IRON_DOOR_BLOCK, Material.LEGACY_SPRUCE_DOOR,
+                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:38: Warnung: [removal] LEGACY_SPRUCE_DOOR in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_IRON_DOOR_BLOCK, Material.LEGACY_SPRUCE_DOOR,
+                                                     ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:39: Warnung: [removal] LEGACY_BIRCH_DOOR in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_BIRCH_DOOR, Material.LEGACY_JUNGLE_DOOR,
+                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:39: Warnung: [removal] LEGACY_JUNGLE_DOOR in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_BIRCH_DOOR, Material.LEGACY_JUNGLE_DOOR,
+                                                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:40: Warnung: [removal] LEGACY_ACACIA_DOOR in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_ACACIA_DOOR, Material.LEGACY_DARK_OAK_DOOR};
+                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:40: Warnung: [removal] LEGACY_DARK_OAK_DOOR in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_ACACIA_DOOR, Material.LEGACY_DARK_OAK_DOOR};
+                                                 ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:47: Warnung: [removal] Door in org.bukkit.material ist veraltet und wurde zum Entfernen markiert
+                door = new Door(type, facing);
+                           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:54: Warnung: [removal] Door in org.bukkit.material ist veraltet und wurde zum Entfernen markiert
+                    door = new Door(type, facing, openState);
+                               ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:64: Warnung: [removal] Door in org.bukkit.material ist veraltet und wurde zum Entfernen markiert
+                door = new Door(type, hingeState);
+                           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:74: Warnung: [removal] Wood in org.bukkit.material ist veraltet und wurde zum Entfernen markiert
+        Wood wood = new Wood();
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:74: Warnung: [removal] Wood in org.bukkit.material ist veraltet und wurde zum Entfernen markiert
+        Wood wood = new Wood();
+                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:75: Warnung: [removal] LEGACY_WOOD in Material ist veraltet und wurde zum Entfernen markiert
+        assertThat(wood.getItemType(), equalTo(Material.LEGACY_WOOD), "Constructed with default wood type");
+                                                       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:76: Warnung: [removal] TreeSpecies in org.bukkit ist veraltet und wurde zum Entfernen markiert
+        assertThat(wood.getSpecies(), equalTo(TreeSpecies.GENERIC), "Constructed with default tree species");
+                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:78: Warnung: [removal] TreeSpecies in org.bukkit ist veraltet und wurde zum Entfernen markiert
+        TreeSpecies[] allSpecies = TreeSpecies.values();
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:78: Warnung: [removal] TreeSpecies in org.bukkit ist veraltet und wurde zum Entfernen markiert
+        TreeSpecies[] allSpecies = TreeSpecies.values();
+                                   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:79: Warnung: [removal] TreeSpecies in org.bukkit ist veraltet und wurde zum Entfernen markiert
+        for (TreeSpecies species : allSpecies) {
+             ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:80: Warnung: [removal] Wood in org.bukkit.material ist veraltet und wurde zum Entfernen markiert
+            wood = new Wood(species);
+                       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:81: Warnung: [removal] LEGACY_WOOD in Material ist veraltet und wurde zum Entfernen markiert
+            assertThat(wood.getItemType(), equalTo(Material.LEGACY_WOOD), "Constructed with default wood type");
+                                                           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:85: Warnung: [removal] LEGACY_WOOD in Material ist veraltet und wurde zum Entfernen markiert
+        Material[] types = new Material[]{Material.LEGACY_WOOD, Material.LEGACY_WOOD_DOUBLE_STEP};
+                                                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:85: Warnung: [removal] LEGACY_WOOD_DOUBLE_STEP in Material ist veraltet und wurde zum Entfernen markiert
+        Material[] types = new Material[]{Material.LEGACY_WOOD, Material.LEGACY_WOOD_DOUBLE_STEP};
+                                                                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:87: Warnung: [removal] Wood in org.bukkit.material ist veraltet und wurde zum Entfernen markiert
+            wood = new Wood(type);
+                       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:89: Warnung: [removal] TreeSpecies in org.bukkit ist veraltet und wurde zum Entfernen markiert
+            assertThat(wood.getSpecies(), equalTo(TreeSpecies.GENERIC), "Constructed with default tree species");
+                                                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:91: Warnung: [removal] TreeSpecies in org.bukkit ist veraltet und wurde zum Entfernen markiert
+            for (TreeSpecies species : allSpecies) {
+                 ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:92: Warnung: [removal] Wood in org.bukkit.material ist veraltet und wurde zum Entfernen markiert
+                wood = new Wood(type, species);
+                           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:101: Warnung: [removal] Tree in org.bukkit.material ist veraltet und wurde zum Entfernen markiert
+        Tree tree = new Tree();
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:101: Warnung: [removal] Tree in org.bukkit.material ist veraltet und wurde zum Entfernen markiert
+        Tree tree = new Tree();
+                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:102: Warnung: [removal] LEGACY_LOG in Material ist veraltet und wurde zum Entfernen markiert
+        assertThat(tree.getItemType(), equalTo(Material.LEGACY_LOG), "Constructed with default tree type");
+                                                       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:103: Warnung: [removal] TreeSpecies in org.bukkit ist veraltet und wurde zum Entfernen markiert
+        assertThat(tree.getSpecies(), equalTo(TreeSpecies.GENERIC), "Constructed with default tree species");
+                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:106: Warnung: [removal] Tree in org.bukkit.material ist veraltet und wurde zum Entfernen markiert
+        tree = new Tree(Material.LEGACY_LOG);
+                   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:106: Warnung: [removal] LEGACY_LOG in Material ist veraltet und wurde zum Entfernen markiert
+        tree = new Tree(Material.LEGACY_LOG);
+                                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:107: Warnung: [removal] LEGACY_LOG in Material ist veraltet und wurde zum Entfernen markiert
+        assertThat(tree.getItemType(), equalTo(Material.LEGACY_LOG), "Constructed with correct tree type");
+                                                       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:108: Warnung: [removal] TreeSpecies in org.bukkit ist veraltet und wurde zum Entfernen markiert
+        assertThat(tree.getSpecies(), equalTo(TreeSpecies.GENERIC), "Constructed with default tree species");
+                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:111: Warnung: [removal] LEGACY_LOG in Material ist veraltet und wurde zum Entfernen markiert
+        Material[] types = new Material[]{Material.LEGACY_LOG, Material.LEGACY_LOG_2};
+                                                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:111: Warnung: [removal] LEGACY_LOG_2 in Material ist veraltet und wurde zum Entfernen markiert
+        Material[] types = new Material[]{Material.LEGACY_LOG, Material.LEGACY_LOG_2};
+                                                                       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-api\src\test\java\org\bukkit\materials\MaterialDataTest.java:112: Warnung: [removal] TreeSpecies in org.bukkit ist veraltet und wurde zum Entfernen markiert
+        TreeSpecies[][] allSpecies = new TreeSpecies[][]{
+        ^
+Hinweis: Einige Eingabedateien verwenden oder überschreiben eine veraltete API.
+Hinweis: Wiederholen Sie die Kompilierung mit -Xlint:deprecation, um Details zu erhalten.
+Hinweis: Einige Eingabedateien verwenden oder überschreiben zusätzlich eine veraltete API, die zum Entfernen markiert ist.
+Hinweis: Einige Eingabedateien verwenden nicht geprüfte oder unsichere Vorgänge.
+Hinweis: Wiederholen Sie die Kompilierung mit -Xlint:unchecked, um Details zu erhalten.
+100 Warnungen
+
+> Task :tessera-compiled:folia-api:processTestResources UP-TO-DATE
+> Task :tessera-compiled:folia-api:testClasses
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+> Task :tessera-compiled:folia-api:test
+> Task :tessera-compiled:folia-server:compileJava
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftEntity.java:606: Warnung: [removal] setLastDamageCause(@org.jetbrains.annotations.Nullable EntityDamageEvent) in Entity ist veraltet und wurde zum Entfernen markiert
+    public void setLastDamageCause(EntityDamageEvent event) {
+                ^
+C:\Users\hunte\IdeaProjects\Tessera\folia-server\src\minecraft\java\net\minecraft\world\level\Level.java:1082: Warnung: [removal] CapturedBlockState in org.bukkit.craftbukkit.block ist veraltet und wurde zum Entfernen markiert
+                blockstate = org.bukkit.craftbukkit.block.CapturedBlockState.getTreeBlockState(this, pos, updateFlags);
+                                                         ^
+C:\Users\hunte\IdeaProjects\Tessera\folia-server\src\minecraft\java\net\minecraft\world\entity\player\Player.java:1985: Warnung: [removal] PlayerAttackEntityCooldownResetEvent in com.destroystokyo.paper.event.player ist veraltet und wurde zum Entfernen markiert
+            if (new com.destroystokyo.paper.event.player.PlayerAttackEntityCooldownResetEvent((org.bukkit.entity.Player) this.getBukkitEntity(), entity.getBukkitEntity(), this.getAttackStrengthScale(0F)).callEvent()) {
+                                                        ^
+C:\Users\hunte\IdeaProjects\Tessera\folia-server\src\minecraft\java\net\minecraft\server\level\ServerPlayer.java:3711: Warnung: [removal] PlayerSpawnChangeEvent in org.bukkit.event.player ist veraltet und wurde zum Entfernen markiert
+        org.bukkit.event.player.PlayerSpawnChangeEvent dumbEvent = new org.bukkit.event.player.PlayerSpawnChangeEvent(
+                               ^
+C:\Users\hunte\IdeaProjects\Tessera\folia-server\src\minecraft\java\net\minecraft\server\level\ServerPlayer.java:3711: Warnung: [removal] PlayerSpawnChangeEvent in org.bukkit.event.player ist veraltet und wurde zum Entfernen markiert
+        org.bukkit.event.player.PlayerSpawnChangeEvent dumbEvent = new org.bukkit.event.player.PlayerSpawnChangeEvent(
+                                                                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\folia-server\src\minecraft\java\net\minecraft\server\level\ServerPlayer.java:3716: Warnung: [removal] PlayerSpawnChangeEvent in org.bukkit.event.player ist veraltet und wurde zum Entfernen markiert
+                ? org.bukkit.event.player.PlayerSpawnChangeEvent.Cause.RESET
+                                         ^
+C:\Users\hunte\IdeaProjects\Tessera\folia-server\src\minecraft\java\net\minecraft\server\level\ServerPlayer.java:3717: Warnung: [removal] PlayerSpawnChangeEvent in org.bukkit.event.player ist veraltet und wurde zum Entfernen markiert
+                : org.bukkit.event.player.PlayerSpawnChangeEvent.Cause.valueOf(cause.name())
+                                         ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\io\papermc\paper\command\brigadier\PaperCommandSourceStack.java:20: Warnung: [removal] BukkitBrigadierCommandSource in com.destroystokyo.paper.brigadier ist veraltet und wurde zum Entfernen markiert
+public interface PaperCommandSourceStack extends CommandSourceStack, BukkitBrigadierCommandSource {
+                                                                     ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:966: Warnung: [removal] getCategory() in LivingEntity ist veraltet und wurde zum Entfernen markiert
+    public EntityCategory getCategory() {
+                          ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:347: Warnung: [removal] setItemInUseTicks(int) in LivingEntity ist veraltet und wurde zum Entfernen markiert
+    public void setItemInUseTicks(int ticks) {
+                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:342: Warnung: [removal] getItemInUseTicks() in LivingEntity ist veraltet und wurde zum Entfernen markiert
+    public int getItemInUseTicks() {
+               ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:336: Warnung: [removal] getItemInUse() in LivingEntity ist veraltet und wurde zum Entfernen markiert
+    public ItemStack getItemInUse() {
+                     ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:266: Warnung: [removal] getTargetEntityInfo(int,boolean) in LivingEntity ist veraltet und wurde zum Entfernen markiert
+    public com.destroystokyo.paper.entity.TargetEntityInfo getTargetEntityInfo(int maxDistance, boolean ignoreBlocks) {
+                                                           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:253: Warnung: [removal] getTargetBlockInfo(int,@org.jetbrains.annotations.NotNull FluidMode) in LivingEntity ist veraltet und wurde zum Entfernen markiert
+    public com.destroystokyo.paper.block.TargetBlockInfo getTargetBlockInfo(int maxDistance, com.destroystokyo.paper.block.TargetBlockInfo.FluidMode fluidMode) {
+                                                         ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:242: Warnung: [removal] getTargetBlockFace(int,@org.jetbrains.annotations.NotNull FluidMode) in LivingEntity ist veraltet und wurde zum Entfernen markiert
+    public org.bukkit.block.BlockFace getTargetBlockFace(int maxDistance, com.destroystokyo.paper.block.TargetBlockInfo.FluidMode fluidMode) {
+                                      ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:237: Warnung: [removal] getTargetBlock(int,@org.jetbrains.annotations.NotNull FluidMode) in LivingEntity ist veraltet und wurde zum Entfernen markiert
+    public Block getTargetBlock(int maxDistance, com.destroystokyo.paper.block.TargetBlockInfo.FluidMode fluidMode) {
+                 ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:237: Warnung: [removal] TargetBlockInfo in com.destroystokyo.paper.block ist veraltet und wurde zum Entfernen markiert
+    public Block getTargetBlock(int maxDistance, com.destroystokyo.paper.block.TargetBlockInfo.FluidMode fluidMode) {
+                                                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:237: Warnung: [removal] FluidMode in TargetBlockInfo ist veraltet und wurde zum Entfernen markiert
+    public Block getTargetBlock(int maxDistance, com.destroystokyo.paper.block.TargetBlockInfo.FluidMode fluidMode) {
+                                                                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:242: Warnung: [removal] TargetBlockInfo in com.destroystokyo.paper.block ist veraltet und wurde zum Entfernen markiert
+    public org.bukkit.block.BlockFace getTargetBlockFace(int maxDistance, com.destroystokyo.paper.block.TargetBlockInfo.FluidMode fluidMode) {
+                                                                                                       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:242: Warnung: [removal] FluidMode in TargetBlockInfo ist veraltet und wurde zum Entfernen markiert
+    public org.bukkit.block.BlockFace getTargetBlockFace(int maxDistance, com.destroystokyo.paper.block.TargetBlockInfo.FluidMode fluidMode) {
+                                                                                                                       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:253: Warnung: [removal] TargetBlockInfo in com.destroystokyo.paper.block ist veraltet und wurde zum Entfernen markiert
+    public com.destroystokyo.paper.block.TargetBlockInfo getTargetBlockInfo(int maxDistance, com.destroystokyo.paper.block.TargetBlockInfo.FluidMode fluidMode) {
+                                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:253: Warnung: [removal] TargetBlockInfo in com.destroystokyo.paper.block ist veraltet und wurde zum Entfernen markiert
+    public com.destroystokyo.paper.block.TargetBlockInfo getTargetBlockInfo(int maxDistance, com.destroystokyo.paper.block.TargetBlockInfo.FluidMode fluidMode) {
+                                                                                                                          ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:253: Warnung: [removal] FluidMode in TargetBlockInfo ist veraltet und wurde zum Entfernen markiert
+    public com.destroystokyo.paper.block.TargetBlockInfo getTargetBlockInfo(int maxDistance, com.destroystokyo.paper.block.TargetBlockInfo.FluidMode fluidMode) {
+                                                                                                                                          ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:256: Warnung: [removal] TargetBlockInfo in com.destroystokyo.paper.block ist veraltet und wurde zum Entfernen markiert
+            return new com.destroystokyo.paper.block.TargetBlockInfo(result.getHitBlock(), result.getHitBlockFace());
+                                                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:266: Warnung: [removal] TargetEntityInfo in com.destroystokyo.paper.entity ist veraltet und wurde zum Entfernen markiert
+    public com.destroystokyo.paper.entity.TargetEntityInfo getTargetEntityInfo(int maxDistance, boolean ignoreBlocks) {
+                                         ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:268: Warnung: [removal] TargetEntityInfo in com.destroystokyo.paper.entity ist veraltet und wurde zum Entfernen markiert
+        return rayTrace == null ? null : new com.destroystokyo.paper.entity.TargetEntityInfo(rayTrace.getEntity().getBukkitEntity(), new org.bukkit.util.Vector(rayTrace.getLocation().x, rayTrace.getLocation().y, rayTrace.getLocation().z));
+                                                                           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftHumanEntity.java:627: Warnung: [removal] setWindowProperty(Property,int) in HumanEntity ist veraltet und wurde zum Entfernen markiert
+    public boolean setWindowProperty(InventoryView.Property prop, int value) {
+                   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftHumanEntity.java:627: Warnung: [removal] Property in InventoryView ist veraltet und wurde zum Entfernen markiert
+    public boolean setWindowProperty(InventoryView.Property prop, int value) {
+                                                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftServer.java:2870: Warnung: [removal] spigot() in Server ist veraltet und wurde zum Entfernen markiert
+    public org.bukkit.Server.Spigot spigot() {
+                                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftServer.java:257: Warnung: [removal] SimplePluginManager in org.bukkit.plugin ist veraltet und wurde zum Entfernen markiert
+    private final SimplePluginManager pluginManager; // Paper - Move down
+                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftServer.java:429: Warnung: [removal] SimplePluginManager in org.bukkit.plugin ist veraltet und wurde zum Entfernen markiert
+        this.pluginManager = new SimplePluginManager(this, commandMap);
+                                 ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftServer.java:2791: Warnung: [removal] <T>getRegistry(Class<T>) in RegistryAccess ist veraltet und wurde zum Entfernen markiert
+        return io.papermc.paper.registry.RegistryAccess.registryAccess().getRegistry(aClass);
+                                                                        ^
+  Dabei ist T eine Typvariable:
+    T erweitert Keyed, deklariert in Methode <T>getRegistry(Class<T>)
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftServer.java:2831: Warnung: [removal] getConfig() in Spigot ist veraltet und wurde zum Entfernen markiert
+        public YamlConfiguration getConfig() {
+                                 ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftServer.java:2836: Warnung: [removal] getBukkitConfig() in Spigot ist veraltet und wurde zum Entfernen markiert
+        public YamlConfiguration getBukkitConfig() {
+                                 ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftServer.java:2841: Warnung: [removal] getSpigotConfig() in Spigot ist veraltet und wurde zum Entfernen markiert
+        public YamlConfiguration getSpigotConfig() {
+                                 ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftServer.java:2846: Warnung: [removal] getPaperConfig() in Spigot ist veraltet und wurde zum Entfernen markiert
+        public YamlConfiguration getPaperConfig() {
+                                 ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftServer.java:2851: Warnung: [removal] restart() in Spigot ist veraltet und wurde zum Entfernen markiert
+        public void restart() {
+                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftPlayer.java:2267: Warnung: [removal] Conversation in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+    public boolean beginConversation(Conversation conversation) {
+                                     ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftPlayer.java:2272: Warnung: [removal] Conversation in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+    public void abandonConversation(Conversation conversation) {
+                                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftPlayer.java:2273: Warnung: [removal] ConversationAbandonedEvent in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        this.conversationTracker.abandonConversation(conversation, new ConversationAbandonedEvent(conversation, new ManuallyAbandonedConversationCanceller()));
+                                                                       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftPlayer.java:2273: Warnung: [removal] ManuallyAbandonedConversationCanceller in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        this.conversationTracker.abandonConversation(conversation, new ConversationAbandonedEvent(conversation, new ManuallyAbandonedConversationCanceller()));
+                                                                                                                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftPlayer.java:2277: Warnung: [removal] Conversation in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+    public void abandonConversation(Conversation conversation, ConversationAbandonedEvent details) {
+                                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftPlayer.java:2277: Warnung: [removal] ConversationAbandonedEvent in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+    public void abandonConversation(Conversation conversation, ConversationAbandonedEvent details) {
+                                                               ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftPlayer.java:2489: Warnung: [removal] Property in InventoryView ist veraltet und wurde zum Entfernen markiert
+    public boolean setWindowProperty(Property prop, int value) {
+                                     ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\map\CraftMapCanvas.java:79: Warnung: [removal] getBasePixel(int,int) in MapCanvas ist veraltet und wurde zum Entfernen markiert
+    public byte getBasePixel(int x, int y) {
+                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\map\CraftMapCanvas.java:72: Warnung: [removal] getPixel(int,int) in MapCanvas ist veraltet und wurde zum Entfernen markiert
+    public byte getPixel(int x, int y) {
+                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\map\CraftMapCanvas.java:43: Warnung: [removal] matchColor(@org.jetbrains.annotations.NotNull Color) in MapPalette ist veraltet und wurde zum Entfernen markiert
+        this.setPixel(x, y, (color == null) ? -1 : MapPalette.matchColor(color));
+                                                             ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\map\CraftMapCanvas.java:53: Warnung: [removal] getColor(byte) in MapPalette ist veraltet und wurde zum Entfernen markiert
+        return MapPalette.getColor(pixel);
+                         ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\map\CraftMapCanvas.java:58: Warnung: [removal] getColor(byte) in MapPalette ist veraltet und wurde zum Entfernen markiert
+        return MapPalette.getColor(this.getBasePixel(x, y));
+                         ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\map\CraftMapCanvas.java:128: Warnung: [removal] imageToBytes(@org.jetbrains.annotations.NotNull Image) in MapPalette ist veraltet und wurde zum Entfernen markiert
+        byte[] bytes = MapPalette.imageToBytes(temp);
+                                 ^
+C:\Users\hunte\IdeaProjects\Tessera\folia-server\src\minecraft\java\net\minecraft\world\level\levelgen\Heightmap.java:62: Warnung: [removal] getHighestSectionPosition() in ChunkAccess ist veraltet und wurde zum Entfernen markiert
+            int highestSectionPosition = chunk.getHighestSectionPosition() + 16;
+                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\block\CraftBlockState.java:276: Warnung: [removal] setRawData(byte) in BlockState ist veraltet und wurde zum Entfernen markiert
+    public void setRawData(byte data) {
+                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\block\CraftBlockState.java:253: Warnung: [removal] getRawData() in BlockState ist veraltet und wurde zum Entfernen markiert
+    public byte getRawData() {
+                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\block\CraftBlockState.java:153: Warnung: [removal] setData(@org.jetbrains.annotations.NotNull MaterialData) in BlockState ist veraltet und wurde zum Entfernen markiert
+    public void setData(final MaterialData data) {
+                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\block\CraftBlockState.java:163: Warnung: [removal] getData() in BlockState ist veraltet und wurde zum Entfernen markiert
+    public MaterialData getData() {
+                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\block\CraftBlockState.java:153: Warnung: [removal] MaterialData in org.bukkit.material ist veraltet und wurde zum Entfernen markiert
+    public void setData(final MaterialData data) {
+                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\block\CraftBlockState.java:157: Warnung: [removal] MaterialData in org.bukkit.material ist veraltet und wurde zum Entfernen markiert
+            Preconditions.checkArgument((data.getClass() == mat.getData()) || (data.getClass() == MaterialData.class), "Provided data is not of type %s, found %s", mat.getData().getName(), data.getClass().getName());
+                                                                                                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\block\CraftBlockState.java:163: Warnung: [removal] MaterialData in org.bukkit.material ist veraltet und wurde zum Entfernen markiert
+    public MaterialData getData() {
+           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:1725: Warnung: [removal] setGameRuleValue(@org.jetbrains.annotations.NotNull String,@org.jetbrains.annotations.NotNull String) in World ist veraltet und wurde zum Entfernen markiert
+    public boolean setGameRuleValue(String rule, String value) {
+                   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:1709: Warnung: [removal] getGameRuleValue(@org.jetbrains.annotations.Nullable String) in World ist veraltet und wurde zum Entfernen markiert
+    public String getGameRuleValue(String rule) {
+                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:1390: Warnung: [removal] getAllowAnimals() in World ist veraltet und wurde zum Entfernen markiert
+    public boolean getAllowAnimals() {
+                   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:1385: Warnung: [removal] setSpawnFlags(boolean,boolean) in World ist veraltet und wurde zum Entfernen markiert
+    public void setSpawnFlags(boolean allowMonsters, boolean allowAnimals) {
+                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:1346: Warnung: [removal] spawnFallingBlock(@org.jetbrains.annotations.NotNull Location,@org.jetbrains.annotations.NotNull Material,byte) in World ist veraltet und wurde zum Entfernen markiert
+    public FallingBlock spawnFallingBlock(Location location, org.bukkit.Material material, byte data) throws IllegalArgumentException {
+                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:1340: Warnung: [removal] spawnFallingBlock(@org.jetbrains.annotations.NotNull Location,@org.jetbrains.annotations.NotNull MaterialData) in World ist veraltet und wurde zum Entfernen markiert
+    public FallingBlock spawnFallingBlock(Location location, MaterialData data) throws IllegalArgumentException {
+                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:1340: Warnung: [removal] MaterialData in org.bukkit.material ist veraltet und wurde zum Entfernen markiert
+    public FallingBlock spawnFallingBlock(Location location, MaterialData data) throws IllegalArgumentException {
+                                                             ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:1715: Warnung: [removal] <T>getByName(@org.jetbrains.annotations.NotNull String) in GameRule ist veraltet und wurde zum Entfernen markiert
+        org.bukkit.GameRule<?> bukkit = org.bukkit.GameRule.getByName(rule);
+                                                           ^
+  Dabei ist T eine Typvariable:
+    T erweitert Object, deklariert in Methode <T>getByName(@org.jetbrains.annotations.NotNull String)
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:1730: Warnung: [removal] <T>getByName(@org.jetbrains.annotations.NotNull String) in GameRule ist veraltet und wurde zum Entfernen markiert
+        org.bukkit.GameRule<?> bukkit = org.bukkit.GameRule.getByName(rule);
+                                                           ^
+  Dabei ist T eine Typvariable:
+    T erweitert Object, deklariert in Methode <T>getByName(@org.jetbrains.annotations.NotNull String)
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:1754: Warnung: [removal] <T>getByName(@org.jetbrains.annotations.NotNull String) in GameRule ist veraltet und wurde zum Entfernen markiert
+        org.bukkit.GameRule<?> bukkit = org.bukkit.GameRule.getByName(rule);
+                                                           ^
+  Dabei ist T eine Typvariable:
+    T erweitert Object, deklariert in Methode <T>getByName(@org.jetbrains.annotations.NotNull String)
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:2043: Warnung: [removal] Spigot in World ist veraltet und wurde zum Entfernen markiert
+    private final org.bukkit.World.Spigot spigot = new org.bukkit.World.Spigot() {
+                                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:2043: Warnung: [removal] Spigot in World ist veraltet und wurde zum Entfernen markiert
+    private final org.bukkit.World.Spigot spigot = new org.bukkit.World.Spigot() {
+                                                                       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:2056: Warnung: [removal] Spigot in World ist veraltet und wurde zum Entfernen markiert
+    public org.bukkit.World.Spigot spigot() {
+                           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\block\CraftBlock.java:734: Warnung: [removal] getTranslationKey() in Block ist veraltet und wurde zum Entfernen markiert
+    public String getTranslationKey() {
+                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\block\CraftBlock.java:744: Warnung: [removal] getSoundGroup() in Block ist veraltet und wurde zum Entfernen markiert
+    public com.destroystokyo.paper.block.BlockSoundGroup getSoundGroup() {
+                                                         ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\block\CraftBlock.java:759: Warnung: [removal] isValidTool(@org.jetbrains.annotations.NotNull ItemStack) in Block ist veraltet und wurde zum Entfernen markiert
+    public boolean isValidTool(ItemStack tool) {
+                   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\block\CraftBlock.java:169: Warnung: [removal] getData() in Block ist veraltet und wurde zum Entfernen markiert
+    public byte getData() {
+                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\block\CraftBlock.java:734: Warnung: [removal] getTranslationKey() in Translatable ist veraltet und wurde zum Entfernen markiert
+    public String getTranslationKey() {
+                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\block\CraftBlock.java:744: Warnung: [removal] BlockSoundGroup in com.destroystokyo.paper.block ist veraltet und wurde zum Entfernen markiert
+    public com.destroystokyo.paper.block.BlockSoundGroup getSoundGroup() {
+                                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\block\CraftBlock.java:745: Warnung: [removal] CraftBlockSoundGroup in com.destroystokyo.paper.block ist veraltet und wurde zum Entfernen markiert
+        return new com.destroystokyo.paper.block.CraftBlockSoundGroup(this.getBlockState().getSoundType());
+                                                ^
+C:\Users\hunte\IdeaProjects\Tessera\folia-server\src\minecraft\java\net\minecraft\server\network\ServerGamePacketListenerImpl.java:3620: Warnung: [removal] PlayerRecipeBookClickEvent in org.bukkit.event.player ist veraltet und wurde zum Entfernen markiert
+                            if (org.bukkit.event.player.PlayerRecipeBookClickEvent.getHandlerList().getRegisteredListeners().length > 0) {
+                                                       ^
+C:\Users\hunte\IdeaProjects\Tessera\folia-server\src\minecraft\java\net\minecraft\server\network\ServerGamePacketListenerImpl.java:3628: Warnung: [removal] PlayerRecipeBookClickEvent in org.bukkit.event.player ist veraltet und wurde zum Entfernen markiert
+                                org.bukkit.event.player.PlayerRecipeBookClickEvent event = CraftEventFactory.callRecipeBookClickEvent(this.player, bukkitRecipe, makeAll);
+                                                       ^
+C:\Users\hunte\IdeaProjects\Tessera\folia-server\src\minecraft\java\net\minecraft\world\level\biome\BiomeSpecialEffects.java:90: Warnung: [removal] BIOME_INFO_NOISE in Biome ist veraltet und wurde zum Entfernen markiert
+                double groundValue = Biome.BIOME_INFO_NOISE.get(x * 0.0225, z * 0.0225);
+                                          ^
+C:\Users\hunte\IdeaProjects\Tessera\folia-server\src\minecraft\java\net\minecraft\world\level\NaturalSpawner.java:91: Warnung: [removal] CHUNK_GEN in SpawnReason ist veraltet und wurde zum Entfernen markiert
+                            entity.spawnReason == org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.CHUNK_GEN)) {
+                                                                                                        ^
+C:\Users\hunte\IdeaProjects\Tessera\folia-server\src\minecraft\java\net\minecraft\world\level\NaturalSpawner.java:556: Warnung: [removal] CHUNK_GEN in SpawnReason ist veraltet und wurde zum Entfernen markiert
+                                        level.addFreshEntityWithPassengers(mob, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.CHUNK_GEN); // CraftBukkit
+                                                                                                                                      ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\inventory\CraftAbstractInventoryView.java:236: Warnung: [removal] Property in InventoryView ist veraltet und wurde zum Entfernen markiert
+    public boolean setProperty(@NotNull final Property prop, final int value) {
+                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\inventory\CraftAbstractInventoryView.java:237: Warnung: [removal] setWindowProperty(Property,int) in HumanEntity ist veraltet und wurde zum Entfernen markiert
+        return this.getPlayer().setWindowProperty(prop, value);
+                               ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\inventory\CraftInventoryAnvil.java:74: Warnung: [removal] setMaximumRepairCost(int) in AnvilInventory ist veraltet und wurde zum Entfernen markiert
+    public void setMaximumRepairCost(int levels) {
+                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\inventory\CraftInventoryAnvil.java:68: Warnung: [removal] getMaximumRepairCost() in AnvilInventory ist veraltet und wurde zum Entfernen markiert
+    public int getMaximumRepairCost() {
+               ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\inventory\CraftInventoryAnvil.java:62: Warnung: [removal] setRepairCost(int) in AnvilInventory ist veraltet und wurde zum Entfernen markiert
+    public void setRepairCost(int i) {
+                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\inventory\CraftInventoryAnvil.java:56: Warnung: [removal] getRepairCost() in AnvilInventory ist veraltet und wurde zum Entfernen markiert
+    public int getRepairCost() {
+               ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\inventory\CraftInventoryAnvil.java:50: Warnung: [removal] setRepairCostAmount(int) in AnvilInventory ist veraltet und wurde zum Entfernen markiert
+    public void setRepairCostAmount(int amount) {
+                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\inventory\CraftInventoryAnvil.java:44: Warnung: [removal] getRepairCostAmount() in AnvilInventory ist veraltet und wurde zum Entfernen markiert
+    public int getRepairCostAmount() {
+               ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\inventory\CraftInventoryAnvil.java:38: Warnung: [removal] getRenameText() in AnvilInventory ist veraltet und wurde zum Entfernen markiert
+    public String getRenameText() {
+                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\io\papermc\paper\plugin\manager\PaperPluginManagerImpl.java:239: Warnung: [removal] registerInterface(@org.jetbrains.annotations.NotNull Class<? extends PluginLoader>) in PluginManager ist veraltet und wurde zum Entfernen markiert
+    public void registerInterface(@NotNull Class<? extends PluginLoader> loader) throws IllegalArgumentException {
+                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\io\papermc\paper\plugin\manager\PaperPluginManagerImpl.java:37: Warnung: [removal] SimplePluginManager in org.bukkit.plugin ist veraltet und wurde zum Entfernen markiert
+    public PaperPluginManagerImpl(Server server, CommandMap commandMap, @Nullable SimplePluginManager permissionManager) {
+                                                                                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\io\papermc\paper\plugin\manager\PaperPluginManagerImpl.java:235: Warnung: [removal] Timings in co.aikar.timings ist veraltet und wurde zum Entfernen markiert
+        return co.aikar.timings.Timings.isTimingsEnabled();
+                               ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\io\papermc\paper\plugin\manager\PaperPluginManagerImpl.java:239: Warnung: [removal] PluginLoader in org.bukkit.plugin ist veraltet und wurde zum Entfernen markiert
+    public void registerInterface(@NotNull Class<? extends PluginLoader> loader) throws IllegalArgumentException {
+                                                           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\io\papermc\paper\potion\PaperPotionBrewer.java:23: Warnung: [removal] PotionBrewer in org.bukkit.potion ist veraltet und wurde zum Entfernen markiert
+public class PaperPotionBrewer implements PotionBrewer {
+                                          ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\io\papermc\paper\potion\PaperPotionBrewer.java:33: Warnung: [removal] getEffects(@org.jetbrains.annotations.NotNull PotionType,boolean,boolean) in PotionBrewer ist veraltet und wurde zum Entfernen markiert
+    public Collection<PotionEffect> getEffects(PotionType type, boolean upgraded, boolean extended) {
+                                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\io\papermc\paper\potion\PaperPotionBrewer.java:52: Warnung: [removal] resetPotionMixes() in PotionBrewer ist veraltet und wurde zum Entfernen markiert
+    public void resetPotionMixes() {
+                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\inventory\CraftItemFactory.java:230: Warnung: [removal] getI18NDisplayName(@org.jetbrains.annotations.Nullable ItemStack) in ItemFactory ist veraltet und wurde zum Entfernen markiert
+    public String getI18NDisplayName(ItemStack item) {
+                  ^
+Hinweis: Einige Eingabedateien verwenden oder überschreiben eine veraltete API.
+Hinweis: Wiederholen Sie die Kompilierung mit -Xlint:deprecation, um Details zu erhalten.
+Hinweis: Einige Eingabedateien verwenden oder überschreiben zusätzlich eine veraltete API, die zum Entfernen markiert ist.
+Hinweis: Einige Eingabedateien verwenden nicht geprüfte oder unsichere Vorgänge.
+Hinweis: Wiederholen Sie die Kompilierung mit -Xlint:unchecked, um Details zu erhalten.
+100 Warnungen
+
+> Task :tessera-compiled:folia-server:processResources UP-TO-DATE
+> Task :tessera-compiled:folia-server:classes
+> Task :tessera-compiled:folia-server:compileLog4jPluginsJava UP-TO-DATE
+> Task :tessera-compiled:folia-server:processLog4jPluginsResources NO-SOURCE
+> Task :tessera-compiled:folia-server:log4jPluginsClasses UP-TO-DATE
+> Task :tessera-compiled:folia-server:jar
+
+> Task :tessera-compiled:folia-server:compileTestJava
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\io\papermc\paper\porting\PaperBackportRegressionTest.java:77: Warnung: [removal] extra(double) in ParticleBuilder ist veraltet und wurde zum Entfernen markiert
+        builder.extra(0.25);
+               ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\entity\EntityTypesTest.java:108: Warnung: [removal] Flying in org.bukkit.entity ist veraltet und wurde zum Entfernen markiert
+            Flying.class,
+            ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:48: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        itemMeta.getCustomTagContainer().setCustomTag(DeprecatedItemMetaCustomValueTest.VALID_KEY, ItemTagType.INTEGER, 1); // We gotta set this so we at least try to compare it
+                                                                                                   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:58: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        itemMeta.getCustomTagContainer().setCustomTag(DeprecatedItemMetaCustomValueTest.VALID_KEY, ItemTagType.INTEGER, 1); //We gotta set this so we at least try to compare it
+                                                                                                   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:65: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        itemMeta.getCustomTagContainer().setCustomTag(DeprecatedItemMetaCustomValueTest.VALID_KEY, ItemTagType.INTEGER, 1);
+                                                                                                   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:66: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        assertThrows(IllegalArgumentException.class, () -> itemMeta.getCustomTagContainer().getCustomTag(VALID_KEY, ItemTagType.STRING));
+                                                                                                                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:75: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        meta.getCustomTagContainer().setCustomTag(namespacedKeyA, ItemTagType.LONG, 15L);
+                                                                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:76: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        meta.getCustomTagContainer().setCustomTag(namespacedKeyB, ItemTagType.LONG, 160L);
+                                                                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:78: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        assertEquals(15L, (long) meta.getCustomTagContainer().getCustomTag(namespacedKeyA, ItemTagType.LONG));
+                                                                                           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:79: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        assertEquals(160L, (long) meta.getCustomTagContainer().getCustomTag(namespacedKeyB, ItemTagType.LONG));
+                                                                                            ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:132: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        meta.getCustomTagContainer().setCustomTag(this.requestKey("int"), ItemTagType.STRING, "1");
+                                                                          ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:133: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        meta.getCustomTagContainer().setCustomTag(this.requestKey("double"), ItemTagType.STRING, "1.33");
+                                                                             ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:143: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        assertTrue(newStack.getItemMeta().getCustomTagContainer().hasCustomTag(this.requestKey("int"), ItemTagType.STRING));
+                                                                                                       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:144: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        assertEquals(newStack.getItemMeta().getCustomTagContainer().getCustomTag(this.requestKey("int"), ItemTagType.STRING), "1");
+                                                                                                         ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:146: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        assertTrue(newStack.getItemMeta().getCustomTagContainer().hasCustomTag(this.requestKey("double"), ItemTagType.STRING));
+                                                                                                          ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:147: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        assertEquals(newStack.getItemMeta().getCustomTagContainer().getCustomTag(this.requestKey("double"), ItemTagType.STRING), "1.33");
+                                                                                                            ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:154: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        itemMeta.getCustomTagContainer().setCustomTag(this.requestKey("custom-long"), ItemTagType.LONG, 4L); //Add random primitive values
+                                                                                      ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:155: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        itemMeta.getCustomTagContainer().setCustomTag(this.requestKey("custom-byte-array"), ItemTagType.BYTE_ARRAY, new byte[]{
+                                                                                            ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:158: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        itemMeta.getCustomTagContainer().setCustomTag(this.requestKey("custom-string"), ItemTagType.STRING, "Hello there world");
+                                                                                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:159: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        itemMeta.getCustomTagContainer().setCustomTag(this.requestKey("custom-int"), ItemTagType.INTEGER, 3);
+                                                                                     ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:160: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        itemMeta.getCustomTagContainer().setCustomTag(this.requestKey("custom-double"), ItemTagType.DOUBLE, 3.123);
+                                                                                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:162: Warnung: [removal] CustomItemTagContainer in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        CustomItemTagContainer innerContainer = itemMeta.getCustomTagContainer().getAdapterContext().newTagContainer(); //Add a inner container
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:163: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        innerContainer.setCustomTag(DeprecatedItemMetaCustomValueTest.VALID_KEY, ItemTagType.LONG, 5L);
+                                                                                 ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:164: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        itemMeta.getCustomTagContainer().setCustomTag(this.requestKey("custom-inner-compound"), ItemTagType.TAG_CONTAINER, innerContainer);
+                                                                                                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:187: Warnung: [removal] ItemTagAdapterContext in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        ItemTagAdapterContext context = meta.getCustomTagContainer().getAdapterContext();
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:189: Warnung: [removal] CustomItemTagContainer in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        CustomItemTagContainer thirdContainer = context.newTagContainer();
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:190: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        thirdContainer.setCustomTag(DeprecatedItemMetaCustomValueTest.VALID_KEY, ItemTagType.LONG, 3L);
+                                                                                 ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:192: Warnung: [removal] CustomItemTagContainer in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        CustomItemTagContainer secondContainer = context.newTagContainer();
+        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:193: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        secondContainer.setCustomTag(DeprecatedItemMetaCustomValueTest.VALID_KEY, ItemTagType.LONG, 2L);
+                                                                                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:194: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        secondContainer.setCustomTag(innerKey, ItemTagType.TAG_CONTAINER, thirdContainer);
+                                               ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:196: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        meta.getCustomTagContainer().setCustomTag(DeprecatedItemMetaCustomValueTest.VALID_KEY, ItemTagType.LONG, 1L);
+                                                                                               ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:197: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        meta.getCustomTagContainer().setCustomTag(innerKey, ItemTagType.TAG_CONTAINER, secondContainer);
+                                                            ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:202: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+                .getCustomTag(DeprecatedItemMetaCustomValueTest.VALID_KEY, ItemTagType.LONG).longValue());
+                                                                           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:201: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+                .getCustomTag(innerKey, ItemTagType.TAG_CONTAINER)
+                                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:200: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+                .getCustomTag(innerKey, ItemTagType.TAG_CONTAINER)
+                                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:206: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+                .getCustomTag(DeprecatedItemMetaCustomValueTest.VALID_KEY, ItemTagType.LONG).longValue());
+                                                                           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:205: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+                .getCustomTag(innerKey, ItemTagType.TAG_CONTAINER)
+                                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:209: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+                .getCustomTag(DeprecatedItemMetaCustomValueTest.VALID_KEY, ItemTagType.LONG).longValue());
+                                                                           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:212: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+    class UUIDItemTagType implements ItemTagType<byte[], UUID> {
+                                     ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:212: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+    class UUIDItemTagType implements ItemTagType<byte[], UUID> {
+                                     ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:225: Warnung: [removal] ItemTagAdapterContext in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        public byte[] toPrimitive(UUID complex, ItemTagAdapterContext context) {
+                                                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:233: Warnung: [removal] ItemTagAdapterContext in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        public UUID fromPrimitive(byte[] primitive, ItemTagAdapterContext context) {
+                                                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:245: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        this.testPrimitiveCustomTag(itemMeta, ItemTagType.BYTE, (byte) 1);
+                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:246: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        this.testPrimitiveCustomTag(itemMeta, ItemTagType.SHORT, (short) 1);
+                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:247: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        this.testPrimitiveCustomTag(itemMeta, ItemTagType.INTEGER, 1);
+                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:248: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        this.testPrimitiveCustomTag(itemMeta, ItemTagType.LONG, 1L);
+                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:249: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        this.testPrimitiveCustomTag(itemMeta, ItemTagType.FLOAT, 1.34F);
+                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:250: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        this.testPrimitiveCustomTag(itemMeta, ItemTagType.DOUBLE, 151.123);
+                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:252: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        this.testPrimitiveCustomTag(itemMeta, ItemTagType.STRING, "test");
+                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:254: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        this.testPrimitiveCustomTag(itemMeta, ItemTagType.BYTE_ARRAY, new byte[]{
+                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:257: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        this.testPrimitiveCustomTag(itemMeta, ItemTagType.INTEGER_ARRAY, new int[]{
+                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:260: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        this.testPrimitiveCustomTag(itemMeta, ItemTagType.LONG_ARRAY, new long[]{
+                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:265: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+    private <T, Z> void testPrimitiveCustomTag(ItemMeta meta, ItemTagType<T, Z> type, Z value) {
+                                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:286: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+    class PrimitiveTagType<T> implements ItemTagType<T, T> {
+                                         ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:286: Warnung: [removal] ItemTagType in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+    class PrimitiveTagType<T> implements ItemTagType<T, T> {
+                                         ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:305: Warnung: [removal] ItemTagAdapterContext in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        public T toPrimitive(T complex, ItemTagAdapterContext context) {
+                                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\DeprecatedItemMetaCustomValueTest.java:310: Warnung: [removal] ItemTagAdapterContext in org.bukkit.inventory.meta.tags ist veraltet und wurde zum Entfernen markiert
+        public T fromPrimitive(T primitive, ItemTagAdapterContext context) {
+                                            ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\NMSCraftItemStackTest.java:24: Warnung: [removal] getData() in ItemStack ist veraltet und wurde zum Entfernen markiert
+        assertThat(clone.getData(), is(itemStack.getData()));
+                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\inventory\NMSCraftItemStackTest.java:24: Warnung: [removal] getData() in ItemStack ist veraltet und wurde zum Entfernen markiert
+        assertThat(clone.getData(), is(itemStack.getData()));
+                                                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:181: Warnung: [removal] LEGACY_AIR in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_AIR, Material.LEGACY_DEAD_BUSH, Material.LEGACY_BURNING_FURNACE, Material.LEGACY_WALL_SIGN, Material.LEGACY_REDSTONE_TORCH_OFF, Material.LEGACY_SKULL, Material.LEGACY_REDSTONE_COMPARATOR_ON, Material.LEGACY_WALL_BANNER, Material.LEGACY_MONSTER_EGG));
+                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:181: Warnung: [removal] LEGACY_DEAD_BUSH in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_AIR, Material.LEGACY_DEAD_BUSH, Material.LEGACY_BURNING_FURNACE, Material.LEGACY_WALL_SIGN, Material.LEGACY_REDSTONE_TORCH_OFF, Material.LEGACY_SKULL, Material.LEGACY_REDSTONE_COMPARATOR_ON, Material.LEGACY_WALL_BANNER, Material.LEGACY_MONSTER_EGG));
+                                         ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:181: Warnung: [removal] LEGACY_BURNING_FURNACE in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_AIR, Material.LEGACY_DEAD_BUSH, Material.LEGACY_BURNING_FURNACE, Material.LEGACY_WALL_SIGN, Material.LEGACY_REDSTONE_TORCH_OFF, Material.LEGACY_SKULL, Material.LEGACY_REDSTONE_COMPARATOR_ON, Material.LEGACY_WALL_BANNER, Material.LEGACY_MONSTER_EGG));
+                                                                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:181: Warnung: [removal] LEGACY_WALL_SIGN in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_AIR, Material.LEGACY_DEAD_BUSH, Material.LEGACY_BURNING_FURNACE, Material.LEGACY_WALL_SIGN, Material.LEGACY_REDSTONE_TORCH_OFF, Material.LEGACY_SKULL, Material.LEGACY_REDSTONE_COMPARATOR_ON, Material.LEGACY_WALL_BANNER, Material.LEGACY_MONSTER_EGG));
+                                                                                                     ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:181: Warnung: [removal] LEGACY_REDSTONE_TORCH_OFF in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_AIR, Material.LEGACY_DEAD_BUSH, Material.LEGACY_BURNING_FURNACE, Material.LEGACY_WALL_SIGN, Material.LEGACY_REDSTONE_TORCH_OFF, Material.LEGACY_SKULL, Material.LEGACY_REDSTONE_COMPARATOR_ON, Material.LEGACY_WALL_BANNER, Material.LEGACY_MONSTER_EGG));
+                                                                                                                                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:181: Warnung: [removal] LEGACY_SKULL in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_AIR, Material.LEGACY_DEAD_BUSH, Material.LEGACY_BURNING_FURNACE, Material.LEGACY_WALL_SIGN, Material.LEGACY_REDSTONE_TORCH_OFF, Material.LEGACY_SKULL, Material.LEGACY_REDSTONE_COMPARATOR_ON, Material.LEGACY_WALL_BANNER, Material.LEGACY_MONSTER_EGG));
+                                                                                                                                                                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:181: Warnung: [removal] LEGACY_REDSTONE_COMPARATOR_ON in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_AIR, Material.LEGACY_DEAD_BUSH, Material.LEGACY_BURNING_FURNACE, Material.LEGACY_WALL_SIGN, Material.LEGACY_REDSTONE_TORCH_OFF, Material.LEGACY_SKULL, Material.LEGACY_REDSTONE_COMPARATOR_ON, Material.LEGACY_WALL_BANNER, Material.LEGACY_MONSTER_EGG));
+                                                                                                                                                                                           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:181: Warnung: [removal] LEGACY_WALL_BANNER in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_AIR, Material.LEGACY_DEAD_BUSH, Material.LEGACY_BURNING_FURNACE, Material.LEGACY_WALL_SIGN, Material.LEGACY_REDSTONE_TORCH_OFF, Material.LEGACY_SKULL, Material.LEGACY_REDSTONE_COMPARATOR_ON, Material.LEGACY_WALL_BANNER, Material.LEGACY_MONSTER_EGG));
+                                                                                                                                                                                                                                   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:181: Warnung: [removal] LEGACY_MONSTER_EGG in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_AIR, Material.LEGACY_DEAD_BUSH, Material.LEGACY_BURNING_FURNACE, Material.LEGACY_WALL_SIGN, Material.LEGACY_REDSTONE_TORCH_OFF, Material.LEGACY_SKULL, Material.LEGACY_REDSTONE_COMPARATOR_ON, Material.LEGACY_WALL_BANNER, Material.LEGACY_MONSTER_EGG));
+                                                                                                                                                                                                                                                                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:183: Warnung: [removal] LEGACY_DOUBLE_STEP in Material ist veraltet und wurde zum Entfernen markiert
+    private final Set<Material> INVERSION_FAILS = new HashSet<>(Arrays.asList(Material.LEGACY_DOUBLE_STEP, Material.LEGACY_GLOWING_REDSTONE_ORE, Material.LEGACY_DIODE_BLOCK_ON, Material.LEGACY_REDSTONE_LAMP_ON, Material.LEGACY_WOOD_DOUBLE_STEP,
+                                                                                      ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:183: Warnung: [removal] LEGACY_GLOWING_REDSTONE_ORE in Material ist veraltet und wurde zum Entfernen markiert
+    private final Set<Material> INVERSION_FAILS = new HashSet<>(Arrays.asList(Material.LEGACY_DOUBLE_STEP, Material.LEGACY_GLOWING_REDSTONE_ORE, Material.LEGACY_DIODE_BLOCK_ON, Material.LEGACY_REDSTONE_LAMP_ON, Material.LEGACY_WOOD_DOUBLE_STEP,
+                                                                                                                   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:183: Warnung: [removal] LEGACY_DIODE_BLOCK_ON in Material ist veraltet und wurde zum Entfernen markiert
+    private final Set<Material> INVERSION_FAILS = new HashSet<>(Arrays.asList(Material.LEGACY_DOUBLE_STEP, Material.LEGACY_GLOWING_REDSTONE_ORE, Material.LEGACY_DIODE_BLOCK_ON, Material.LEGACY_REDSTONE_LAMP_ON, Material.LEGACY_WOOD_DOUBLE_STEP,
+                                                                                                                                                         ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:183: Warnung: [removal] LEGACY_REDSTONE_LAMP_ON in Material ist veraltet und wurde zum Entfernen markiert
+    private final Set<Material> INVERSION_FAILS = new HashSet<>(Arrays.asList(Material.LEGACY_DOUBLE_STEP, Material.LEGACY_GLOWING_REDSTONE_ORE, Material.LEGACY_DIODE_BLOCK_ON, Material.LEGACY_REDSTONE_LAMP_ON, Material.LEGACY_WOOD_DOUBLE_STEP,
+                                                                                                                                                                                         ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:183: Warnung: [removal] LEGACY_WOOD_DOUBLE_STEP in Material ist veraltet und wurde zum Entfernen markiert
+    private final Set<Material> INVERSION_FAILS = new HashSet<>(Arrays.asList(Material.LEGACY_DOUBLE_STEP, Material.LEGACY_GLOWING_REDSTONE_ORE, Material.LEGACY_DIODE_BLOCK_ON, Material.LEGACY_REDSTONE_LAMP_ON, Material.LEGACY_WOOD_DOUBLE_STEP,
+                                                                                                                                                                                                                           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:184: Warnung: [removal] LEGACY_DAYLIGHT_DETECTOR_INVERTED in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_DAYLIGHT_DETECTOR_INVERTED, Material.LEGACY_DOUBLE_STONE_SLAB2, Material.LEGACY_PURPUR_DOUBLE_SLAB, Material.LEGACY_WHEAT, Material.LEGACY_SIGN, Material.LEGACY_WOOD_DOOR, Material.LEGACY_IRON_DOOR, Material.LEGACY_SUGAR_CANE,
+                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:184: Warnung: [removal] LEGACY_DOUBLE_STONE_SLAB2 in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_DAYLIGHT_DETECTOR_INVERTED, Material.LEGACY_DOUBLE_STONE_SLAB2, Material.LEGACY_PURPUR_DOUBLE_SLAB, Material.LEGACY_WHEAT, Material.LEGACY_SIGN, Material.LEGACY_WOOD_DOOR, Material.LEGACY_IRON_DOOR, Material.LEGACY_SUGAR_CANE,
+                                                                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:184: Warnung: [removal] LEGACY_PURPUR_DOUBLE_SLAB in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_DAYLIGHT_DETECTOR_INVERTED, Material.LEGACY_DOUBLE_STONE_SLAB2, Material.LEGACY_PURPUR_DOUBLE_SLAB, Material.LEGACY_WHEAT, Material.LEGACY_SIGN, Material.LEGACY_WOOD_DOOR, Material.LEGACY_IRON_DOOR, Material.LEGACY_SUGAR_CANE,
+                                                                                                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:184: Warnung: [removal] LEGACY_WHEAT in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_DAYLIGHT_DETECTOR_INVERTED, Material.LEGACY_DOUBLE_STONE_SLAB2, Material.LEGACY_PURPUR_DOUBLE_SLAB, Material.LEGACY_WHEAT, Material.LEGACY_SIGN, Material.LEGACY_WOOD_DOOR, Material.LEGACY_IRON_DOOR, Material.LEGACY_SUGAR_CANE,
+                                                                                                                                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:184: Warnung: [removal] LEGACY_SIGN in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_DAYLIGHT_DETECTOR_INVERTED, Material.LEGACY_DOUBLE_STONE_SLAB2, Material.LEGACY_PURPUR_DOUBLE_SLAB, Material.LEGACY_WHEAT, Material.LEGACY_SIGN, Material.LEGACY_WOOD_DOOR, Material.LEGACY_IRON_DOOR, Material.LEGACY_SUGAR_CANE,
+                                                                                                                                                               ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:184: Warnung: [removal] LEGACY_WOOD_DOOR in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_DAYLIGHT_DETECTOR_INVERTED, Material.LEGACY_DOUBLE_STONE_SLAB2, Material.LEGACY_PURPUR_DOUBLE_SLAB, Material.LEGACY_WHEAT, Material.LEGACY_SIGN, Material.LEGACY_WOOD_DOOR, Material.LEGACY_IRON_DOOR, Material.LEGACY_SUGAR_CANE,
+                                                                                                                                                                                     ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:184: Warnung: [removal] LEGACY_IRON_DOOR in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_DAYLIGHT_DETECTOR_INVERTED, Material.LEGACY_DOUBLE_STONE_SLAB2, Material.LEGACY_PURPUR_DOUBLE_SLAB, Material.LEGACY_WHEAT, Material.LEGACY_SIGN, Material.LEGACY_WOOD_DOOR, Material.LEGACY_IRON_DOOR, Material.LEGACY_SUGAR_CANE,
+                                                                                                                                                                                                                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:184: Warnung: [removal] LEGACY_SUGAR_CANE in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_DAYLIGHT_DETECTOR_INVERTED, Material.LEGACY_DOUBLE_STONE_SLAB2, Material.LEGACY_PURPUR_DOUBLE_SLAB, Material.LEGACY_WHEAT, Material.LEGACY_SIGN, Material.LEGACY_WOOD_DOOR, Material.LEGACY_IRON_DOOR, Material.LEGACY_SUGAR_CANE,
+                                                                                                                                                                                                                                           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:185: Warnung: [removal] LEGACY_CAKE in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_CAKE, Material.LEGACY_BED, Material.LEGACY_DIODE, Material.LEGACY_NETHER_STALK, Material.LEGACY_BREWING_STAND_ITEM, Material.LEGACY_CAULDRON_ITEM, Material.LEGACY_REDSTONE_COMPARATOR, Material.LEGACY_SPRUCE_DOOR_ITEM,
+                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:185: Warnung: [removal] LEGACY_BED in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_CAKE, Material.LEGACY_BED, Material.LEGACY_DIODE, Material.LEGACY_NETHER_STALK, Material.LEGACY_BREWING_STAND_ITEM, Material.LEGACY_CAULDRON_ITEM, Material.LEGACY_REDSTONE_COMPARATOR, Material.LEGACY_SPRUCE_DOOR_ITEM,
+                                          ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:185: Warnung: [removal] LEGACY_DIODE in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_CAKE, Material.LEGACY_BED, Material.LEGACY_DIODE, Material.LEGACY_NETHER_STALK, Material.LEGACY_BREWING_STAND_ITEM, Material.LEGACY_CAULDRON_ITEM, Material.LEGACY_REDSTONE_COMPARATOR, Material.LEGACY_SPRUCE_DOOR_ITEM,
+                                                               ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:185: Warnung: [removal] LEGACY_NETHER_STALK in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_CAKE, Material.LEGACY_BED, Material.LEGACY_DIODE, Material.LEGACY_NETHER_STALK, Material.LEGACY_BREWING_STAND_ITEM, Material.LEGACY_CAULDRON_ITEM, Material.LEGACY_REDSTONE_COMPARATOR, Material.LEGACY_SPRUCE_DOOR_ITEM,
+                                                                                      ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:185: Warnung: [removal] LEGACY_BREWING_STAND_ITEM in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_CAKE, Material.LEGACY_BED, Material.LEGACY_DIODE, Material.LEGACY_NETHER_STALK, Material.LEGACY_BREWING_STAND_ITEM, Material.LEGACY_CAULDRON_ITEM, Material.LEGACY_REDSTONE_COMPARATOR, Material.LEGACY_SPRUCE_DOOR_ITEM,
+                                                                                                                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:185: Warnung: [removal] LEGACY_CAULDRON_ITEM in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_CAKE, Material.LEGACY_BED, Material.LEGACY_DIODE, Material.LEGACY_NETHER_STALK, Material.LEGACY_BREWING_STAND_ITEM, Material.LEGACY_CAULDRON_ITEM, Material.LEGACY_REDSTONE_COMPARATOR, Material.LEGACY_SPRUCE_DOOR_ITEM,
+                                                                                                                                                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:185: Warnung: [removal] LEGACY_REDSTONE_COMPARATOR in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_CAKE, Material.LEGACY_BED, Material.LEGACY_DIODE, Material.LEGACY_NETHER_STALK, Material.LEGACY_BREWING_STAND_ITEM, Material.LEGACY_CAULDRON_ITEM, Material.LEGACY_REDSTONE_COMPARATOR, Material.LEGACY_SPRUCE_DOOR_ITEM,
+                                                                                                                                                                                       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:185: Warnung: [removal] LEGACY_SPRUCE_DOOR_ITEM in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_CAKE, Material.LEGACY_BED, Material.LEGACY_DIODE, Material.LEGACY_NETHER_STALK, Material.LEGACY_BREWING_STAND_ITEM, Material.LEGACY_CAULDRON_ITEM, Material.LEGACY_REDSTONE_COMPARATOR, Material.LEGACY_SPRUCE_DOOR_ITEM,
+                                                                                                                                                                                                                            ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:186: Warnung: [removal] LEGACY_BIRCH_DOOR_ITEM in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_BIRCH_DOOR_ITEM, Material.LEGACY_JUNGLE_DOOR_ITEM, Material.LEGACY_ACACIA_DOOR_ITEM, Material.LEGACY_DARK_OAK_DOOR_ITEM, Material.LEGACY_STATIONARY_LAVA, Material.LEGACY_STATIONARY_WATER));
+                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:186: Warnung: [removal] LEGACY_JUNGLE_DOOR_ITEM in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_BIRCH_DOOR_ITEM, Material.LEGACY_JUNGLE_DOOR_ITEM, Material.LEGACY_ACACIA_DOOR_ITEM, Material.LEGACY_DARK_OAK_DOOR_ITEM, Material.LEGACY_STATIONARY_LAVA, Material.LEGACY_STATIONARY_WATER));
+                                                     ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:186: Warnung: [removal] LEGACY_ACACIA_DOOR_ITEM in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_BIRCH_DOOR_ITEM, Material.LEGACY_JUNGLE_DOOR_ITEM, Material.LEGACY_ACACIA_DOOR_ITEM, Material.LEGACY_DARK_OAK_DOOR_ITEM, Material.LEGACY_STATIONARY_LAVA, Material.LEGACY_STATIONARY_WATER));
+                                                                                       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:186: Warnung: [removal] LEGACY_DARK_OAK_DOOR_ITEM in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_BIRCH_DOOR_ITEM, Material.LEGACY_JUNGLE_DOOR_ITEM, Material.LEGACY_ACACIA_DOOR_ITEM, Material.LEGACY_DARK_OAK_DOOR_ITEM, Material.LEGACY_STATIONARY_LAVA, Material.LEGACY_STATIONARY_WATER));
+                                                                                                                         ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:186: Warnung: [removal] LEGACY_STATIONARY_LAVA in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_BIRCH_DOOR_ITEM, Material.LEGACY_JUNGLE_DOOR_ITEM, Material.LEGACY_ACACIA_DOOR_ITEM, Material.LEGACY_DARK_OAK_DOOR_ITEM, Material.LEGACY_STATIONARY_LAVA, Material.LEGACY_STATIONARY_WATER));
+                                                                                                                                                             ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:186: Warnung: [removal] LEGACY_STATIONARY_WATER in Material ist veraltet und wurde zum Entfernen markiert
+            Material.LEGACY_BIRCH_DOOR_ITEM, Material.LEGACY_JUNGLE_DOOR_ITEM, Material.LEGACY_ACACIA_DOOR_ITEM, Material.LEGACY_DARK_OAK_DOOR_ITEM, Material.LEGACY_STATIONARY_LAVA, Material.LEGACY_STATIONARY_WATER));
+                                                                                                                                                                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:192: Warnung: [removal] MaterialData in org.bukkit.material ist veraltet und wurde zum Entfernen markiert
+                MaterialData converted = CraftLegacy.toLegacyData(material);
+                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:194: Warnung: [removal] LEGACY_AIR in Material ist veraltet und wurde zum Entfernen markiert
+                assertNotEquals(Material.LEGACY_AIR, converted.getItemType(), "Could not toLegacy " + material);
+                                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:205: Warnung: [removal] LEGACY_AIR in Material ist veraltet und wurde zum Entfernen markiert
+        assertEquals(Material.LEGACY_AIR, CraftLegacy.toLegacy(Material.AIR), "Could not toLegacy Air");
+                             ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\test\java\org\bukkit\craftbukkit\legacy\LegacyTest.java:222: Warnung: [removal] LEGACY_AIR in Material ist veraltet und wurde zum Entfernen markiert
+        assertEquals(Material.AIR, CraftLegacy.fromLegacy(Material.LEGACY_AIR), "Could not fromLegacy Air");
+                                                                  ^
+Hinweis: Einige Eingabedateien verwenden oder überschreiben eine veraltete API.
+Hinweis: Wiederholen Sie die Kompilierung mit -Xlint:deprecation, um Details zu erhalten.
+Hinweis: Einige Eingabedateien verwenden nicht geprüfte oder unsichere Vorgänge.
+Hinweis: Wiederholen Sie die Kompilierung mit -Xlint:unchecked, um Details zu erhalten.
+99 Warnungen
+
+> Task :tessera-compiled:folia-server:processTestResources UP-TO-DATE
+> Task :tessera-compiled:folia-server:testClasses
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[14:59:52 INFO]: Found new data pack paper, loading it automatically
+[14:59:55 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[14:59:56 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[14:59:56 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+> Task :tessera-compiled:folia-server:test
+
+[15:00:09 INFO]: Found new data pack paper, loading it automatically
+[15:00:11 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[15:00:13 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[15:00:13 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+[15:00:25 INFO]: Found new data pack paper, loading it automatically
+[15:00:27 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[15:00:28 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[15:00:29 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+[15:00:40 INFO]: Found new data pack paper, loading it automatically
+[15:00:43 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[15:00:44 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[15:00:44 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+[15:00:59 INFO]: Found new data pack paper, loading it automatically
+[15:01:01 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[15:01:03 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[15:01:03 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+[33;1m[15:01:08 WARN]: [org.bukkit.craftbukkit.legacy.CraftLegacy] Initializing Legacy Material Support. Unless you have legacy plugins and/or data this is a bug!
+[m[15:01:21 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Initialising converters for DataConverter...
+[15:01:22 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Finished initialising converters for DataConverter in 1.021,5ms
+[31;1m[15:01:28 ERROR]: Failed to read field (Status="minecraft:noise"): Unknown registry key in ResourceKey[minecraft:root / minecraft:chunk_status]: minecraft:noise
+[m[33;1m[15:01:30 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 1f0b6c06-e553-4ef1-8391-ad3ab82837fe (entity world: minecraft:overworld); aborting the respawn sequence
+[m[33;1m[15:01:30 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 1f28d187-7eaa-4e34-b7b5-5b4bc2ae4661 (entity world: minecraft:overworld); aborting the respawn sequence
+[m[33;1m[15:01:30 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 60294b81-f957-4b90-aad2-fa2c9cbb6e62 (entity world: minecraft:the_end); aborting the respawn sequence
+[m[33;1m[15:01:30 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal d811b476-752c-49e1-8519-028bff4f63f6 (entity world: minecraft:the_end); aborting the respawn sequence
+[m[33;1m[15:01:30 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 9ac6c6a6-e775-47d8-b8c3-547e4a07315f (entity world: minecraft:the_end); aborting the respawn sequence
+[m[33;1m[15:01:30 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal d2a81198-d124-404b-aa78-a97367327a27 (entity world: minecraft:the_end); aborting the respawn sequence
+[m[33;1m[15:01:30 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 3d075f7a-0ef3-41cf-8ce1-a7b61cbe8c98 (entity world: minecraft:overworld); leaving the transferred crystal untouched
+[m[33;1m[15:01:30 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 61c198ff-6842-4a96-ba70-21c1e303af63 (entity world: minecraft:overworld); aborting the respawn sequence
+[m[33;1m[15:01:30 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal d1b41762-f24a-43e3-920c-3429c0b2ba06 (entity world: minecraft:overworld); aborting the respawn sequence
+[m[33;1m[15:01:30 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal c527cc0a-c615-4703-b951-5fec89ecb436 (entity world: minecraft:overworld); aborting the respawn sequence
+[m[33;1m[15:01:30 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal c588676e-d032-47ba-b227-b997f12f8c33 (entity world: minecraft:overworld); aborting the respawn sequence
+[m[33;1m[15:01:30 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal f0288c59-c5fd-4e02-a167-f579f4ec2bfb (entity world: minecraft:the_end); aborting the respawn sequence
+[m[33;1m[15:01:30 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal beaa6228-cf75-4fdd-92d8-59e92d0b814a (entity world: minecraft:the_end); aborting the respawn sequence
+[m[33;1m[15:01:30 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal dc461c68-c245-4379-b712-da8a577cb2da (entity world: minecraft:the_end); aborting the respawn sequence
+[m[33;1m[15:01:30 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 97d740d9-4b8f-4643-9bb7-18dcf5d7be08 (entity world: minecraft:the_end); leaving the transferred crystal untouched
+[m[33;1m[15:01:30 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal e7c87343-fe02-45b2-9b3a-113a97bd0d8a (entity world: minecraft:the_end); leaving the transferred crystal untouched
+[m[33;1m[15:01:30 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 4833a5e8-22c2-42d0-95ca-b56efe25558a (entity world: minecraft:the_end); aborting the respawn sequence
+[m[33;1m[15:01:36 WARN]: Skipping Entity with id null
+[m[33;1m[15:01:37 WARN]: Skipping Entity with id null
+[m[33;1m[15:01:37 WARN]: Skipping Entity with id null
+[m[33;1m[15:01:37 WARN]: Skipping Entity with id null
+[m[33;1m[15:01:37 WARN]: Skipping Entity with id null
+[m[15:01:57 INFO]: Found new data pack paper, loading it automatically
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[15:01:59 INFO]: Loaded 1866 advancements
+[15:02:01 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[15:02:01 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+[33;1m[15:02:02 WARN]: [org.bukkit.craftbukkit.legacy.CraftLegacy] Initializing Legacy Material Support. Unless you have legacy plugins and/or data this is a bug!
+[m[15:02:14 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Initialising converters for DataConverter...
+[15:02:15 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Finished initialising converters for DataConverter in 984,1ms
+[15:02:27 INFO]: Found new data pack paper, loading it automatically
+[15:02:30 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[15:02:31 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[15:02:31 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+[15:02:32 INFO]: Environment: Environment[discoveryUrl=https://discovery.minecraftservices.com/minecraft/client, name=PROD]
+[15:02:44 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Initialising converters for DataConverter...
+[15:02:45 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Finished initialising converters for DataConverter in 1.075,2ms
+[33;1m[15:02:50 WARN]: Saving oversized chunk [2, 2] (2097518 bytes} to external file C:\Users\hunte\AppData\Local\Temp\junit-15469170075907728098\c.2.2.mcc
+[m[33;1m[15:02:50 WARN]: Region file C:\Users\hunte\AppData\Local\Temp\junit-7878536352379464183\r.0.0.mca has an invalid sector at index: 0; sector 8388607 is out of bounds
+[m[31;1m[15:02:50 ERROR]: Invalid allocation by local chunk (0,0) in regionfile C:\Users\hunte\AppData\Local\Temp\junit-7878536352379464183\r.0.0.mca: sector 8388607, length 1 sectors, file size 12288 bytes
+[m[31;1m[15:02:50 ERROR]: Recalculating regionfile C:\Users\hunte\AppData\Local\Temp\junit-7878536352379464183\r.0.0.mca, header gave erroneous offsets & locations
+[m[33;1m[15:02:50 WARN]: Corrupt regionfile header detected! Attempting to re-calculate header offsets for regionfile C:\Users\hunte\AppData\Local\Temp\junit-7878536352379464183\r.0.0.mca
+java.lang.Throwable
+	at net.minecraft.world.level.chunk.storage.RegionFile.moonrise$recalculateHeader(RegionFile.java:219) ~[main/:?]
+	at net.minecraft.world.level.chunk.storage.RegionFile.<init>(RegionFile.java:533) ~[main/:?]
+	at io.papermc.paper.porting.PaperOctober22NbtAndRegionTest.open(PaperOctober22NbtAndRegionTest.java:116) ~[test/:?]
+	at io.papermc.paper.porting.PaperOctober22NbtAndRegionTest.corruptHeaderRecoveryKeepsPayloadAndBacksUpOriginalBytes(PaperOctober22NbtAndRegionTest.java:153) ~[test/:?]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[?:?]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[?:?]
+	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:701) ~[junit-platform-commons-6.0.3.jar:6.0.3]
+	at org.junit.platform.commons.support.ReflectionSupport.invokeMethod(ReflectionSupport.java:502) ~[junit-platform-commons-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.support.MethodReflectionUtils.invoke(MethodReflectionUtils.java:45) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:61) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:124) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:163) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:148) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestMethod(TimeoutExtension.java:86) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:123) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:105) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:99) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:66) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:47) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:39) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:104) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:98) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invokeVoid(InterceptingExecutableInvoker.java:71) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$0(TestMethodTestDescriptor.java:219) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:215) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:157) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:70) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:176) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604) ~[?:?]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604) ~[?:?]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:36) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:52) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:58) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.executeEngine(EngineExecutionOrchestrator.java:246) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.failOrExecuteEngine(EngineExecutionOrchestrator.java:218) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:179) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:108) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:89) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.suite.engine.SuiteLauncher.execute(SuiteLauncher.java:65) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.suite.engine.SuiteTestDescriptor.executeTests(SuiteTestDescriptor.java:208) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.suite.engine.SuiteTestDescriptor.execute(SuiteTestDescriptor.java:173) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.suite.engine.SuiteTestEngine.lambda$execute$0(SuiteTestEngine.java:78) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186) ~[?:?]
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214) ~[?:?]
+	at java.base/java.util.Iterator.forEachRemaining(Iterator.java:133) ~[?:?]
+	at java.base/java.util.Spliterators$IteratorSpliterator.forEachRemaining(Spliterators.java:1939) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:570) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:560) ~[?:?]
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:153) ~[?:?]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:176) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:265) ~[?:?]
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:632) ~[?:?]
+	at org.junit.platform.suite.engine.SuiteTestEngine.execute(SuiteTestEngine.java:78) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.executeEngine(EngineExecutionOrchestrator.java:246) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.failOrExecuteEngine(EngineExecutionOrchestrator.java:218) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:179) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:108) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:66) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:157) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:65) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:125) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:114) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:93) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:48) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.lambda$execute$0(InterceptingLauncher.java:41) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.ClasspathAlignmentCheckingLauncherInterceptor.intercept(ClasspathAlignmentCheckingLauncherInterceptor.java:25) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:40) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:48) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor$CollectThenExecuteTestDefinitionConsumer.processAllTestDefinitions(JUnitPlatformTestDefinitionProcessor.java:206) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor$CollectThenExecuteTestDefinitionConsumer.access$000(JUnitPlatformTestDefinitionProcessor.java:123) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor.stop(JUnitPlatformTestDefinitionProcessor.java:117) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.SuiteTestDefinitionProcessor.stop(SuiteTestDefinitionProcessor.java:63) ~[?:?]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[?:?]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[?:?]
+	at org.gradle.internal.dispatch.MethodInvocation.invokeOn(MethodInvocation.java:77) ~[?:?]
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:28) ~[?:?]
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:19) ~[?:?]
+	at org.gradle.internal.dispatch.ContextClassLoaderDispatch.dispatch(ContextClassLoaderDispatch.java:33) ~[?:?]
+	at org.gradle.internal.dispatch.ProxyDispatchAdapter$DispatchingInvocationHandler.invoke(ProxyDispatchAdapter.java:88) ~[?:?]
+	at jdk.proxy1/jdk.proxy1.$Proxy4.stop(Unknown Source) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker$3.run(TestWorker.java:195) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.executeAndMaintainThreadName(TestWorker.java:126) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:103) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:63) ~[?:?]
+	at org.gradle.process.internal.worker.child.ActionExecutionWorker.execute(ActionExecutionWorker.java:56) ~[?:?]
+	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:122) ~[?:?]
+	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:72) ~[?:?]
+	at worker.org.gradle.process.internal.worker.GradleWorkerMain.run(GradleWorkerMain.java:69) ~[gradle-worker.jar:?]
+	at worker.org.gradle.process.internal.worker.GradleWorkerMain.main(GradleWorkerMain.java:74) ~[gradle-worker.jar:?]
+[m[33;1m[15:02:50 WARN]: Backing up regionfile "C:\Users\hunte\AppData\Local\Temp\junit-7878536352379464183\r.0.0.mca" to C:\Users\hunte\AppData\Local\Temp\junit-7878536352379464183\r.0.0.mca.17959436475334590871.backup
+[m[33;1m[15:02:50 WARN]: Backed up the regionfile to C:\Users\hunte\AppData\Local\Temp\junit-7878536352379464183\r.0.0.mca.17959436475334590871.backup
+[m[15:02:50 INFO]: Starting summary of changes for regionfile C:\Users\hunte\AppData\Local\Temp\junit-7878536352379464183\r.0.0.mca
+[15:02:50 INFO]: Local chunk (0,0) changed to point to newer data or correct chunk in regionfile C:\Users\hunte\AppData\Local\Temp\junit-7878536352379464183\r.0.0.mca
+[15:02:50 INFO]: End of change summary for regionfile C:\Users\hunte\AppData\Local\Temp\junit-7878536352379464183\r.0.0.mca
+[15:02:50 INFO]: Successfully wrote new header to disk for regionfile C:\Users\hunte\AppData\Local\Temp\junit-7878536352379464183\r.0.0.mca
+[33;1m[15:02:54 WARN]: [io.papermc.paper.command.WhitelistProfileLookup] Whitelist profile lookup failed for smokelower: java.util.concurrent.TimeoutException
+[m[33;1m[15:02:55 WARN]: [io.papermc.paper.command.WhitelistProfileLookup] Whitelist profile lookup failed for smokelower: java.util.concurrent.TimeoutException
+[m[33;1m[15:02:55 WARN]: [io.papermc.paper.command.WhitelistProfileLookup] Whitelist profile lookup failed for smokelower: java.lang.IllegalStateException: injected unavailable service
+[m[33;1m[15:02:55 WARN]: [io.papermc.paper.command.WhitelistProfileLookup] Whitelist profile lookup failed for smokelower: java.util.concurrent.RejectedExecutionException: full
+[m[33;1m[15:02:55 WARN]: [io.papermc.paper.command.WhitelistProfileLookup] Whitelist profile lookup failed for smokelower: java.lang.IllegalStateException: Profile service returned a different player identity
+[m[31;1m[15:02:58 ERROR]: Error while scanning chunk [2, 3] in world 'minecraft:overworld':
+java.lang.RuntimeException: visitor failed
+	at net.minecraft.nbt.Tag.acceptAsRoot(Tag.java:45) ~[main/:?]
+	at net.minecraft.server.level.ChunkMap.lambda$chunkScanner$1(ChunkMap.java:1073) ~[main/:?]
+	at io.papermc.paper.porting.TesseraBetaBackportTest.chunkScannerCompletesAfterIoAndPropagatesReadAndVisitorFailures(TesseraBetaBackportTest.java:120) ~[test/:?]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[?:?]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[?:?]
+	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:701) ~[junit-platform-commons-6.0.3.jar:6.0.3]
+	at org.junit.platform.commons.support.ReflectionSupport.invokeMethod(ReflectionSupport.java:502) ~[junit-platform-commons-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.support.MethodReflectionUtils.invoke(MethodReflectionUtils.java:45) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:61) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:124) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:163) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:148) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestMethod(TimeoutExtension.java:86) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:123) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:105) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:99) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:66) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:47) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:39) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:104) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:98) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invokeVoid(InterceptingExecutableInvoker.java:71) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$0(TestMethodTestDescriptor.java:219) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:215) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:157) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:70) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:176) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604) ~[?:?]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604) ~[?:?]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:36) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:52) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:58) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.executeEngine(EngineExecutionOrchestrator.java:246) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.failOrExecuteEngine(EngineExecutionOrchestrator.java:218) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:179) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:108) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:89) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.suite.engine.SuiteLauncher.execute(SuiteLauncher.java:65) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.suite.engine.SuiteTestDescriptor.executeTests(SuiteTestDescriptor.java:208) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.suite.engine.SuiteTestDescriptor.execute(SuiteTestDescriptor.java:173) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.suite.engine.SuiteTestEngine.lambda$execute$0(SuiteTestEngine.java:78) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186) ~[?:?]
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214) ~[?:?]
+	at java.base/java.util.Iterator.forEachRemaining(Iterator.java:133) ~[?:?]
+	at java.base/java.util.Spliterators$IteratorSpliterator.forEachRemaining(Spliterators.java:1939) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:570) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:560) ~[?:?]
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:153) ~[?:?]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:176) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:265) ~[?:?]
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:632) ~[?:?]
+	at org.junit.platform.suite.engine.SuiteTestEngine.execute(SuiteTestEngine.java:78) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.executeEngine(EngineExecutionOrchestrator.java:246) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.failOrExecuteEngine(EngineExecutionOrchestrator.java:218) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:179) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:108) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:66) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:157) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:65) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:125) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:114) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:93) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:48) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.lambda$execute$0(InterceptingLauncher.java:41) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.ClasspathAlignmentCheckingLauncherInterceptor.intercept(ClasspathAlignmentCheckingLauncherInterceptor.java:25) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:40) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:48) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor$CollectThenExecuteTestDefinitionConsumer.processAllTestDefinitions(JUnitPlatformTestDefinitionProcessor.java:206) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor$CollectThenExecuteTestDefinitionConsumer.access$000(JUnitPlatformTestDefinitionProcessor.java:123) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor.stop(JUnitPlatformTestDefinitionProcessor.java:117) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.SuiteTestDefinitionProcessor.stop(SuiteTestDefinitionProcessor.java:63) ~[?:?]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[?:?]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[?:?]
+	at org.gradle.internal.dispatch.MethodInvocation.invokeOn(MethodInvocation.java:77) ~[?:?]
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:28) ~[?:?]
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:19) ~[?:?]
+	at org.gradle.internal.dispatch.ContextClassLoaderDispatch.dispatch(ContextClassLoaderDispatch.java:33) ~[?:?]
+	at org.gradle.internal.dispatch.ProxyDispatchAdapter$DispatchingInvocationHandler.invoke(ProxyDispatchAdapter.java:88) ~[?:?]
+	at jdk.proxy1/jdk.proxy1.$Proxy4.stop(Unknown Source) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker$3.run(TestWorker.java:195) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.executeAndMaintainThreadName(TestWorker.java:126) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:103) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:63) ~[?:?]
+	at org.gradle.process.internal.worker.child.ActionExecutionWorker.execute(ActionExecutionWorker.java:56) ~[?:?]
+	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:122) ~[?:?]
+	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:72) ~[?:?]
+	at worker.org.gradle.process.internal.worker.GradleWorkerMain.run(GradleWorkerMain.java:69) ~[gradle-worker.jar:?]
+	at worker.org.gradle.process.internal.worker.GradleWorkerMain.main(GradleWorkerMain.java:74) ~[gradle-worker.jar:?]
+[m[15:03:13 INFO]: Found new data pack paper, loading it automatically
+[15:03:15 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[15:03:17 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[15:03:17 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+[15:03:18 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Initialising converters for DataConverter...
+[15:03:19 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Finished initialising converters for DataConverter in 934,6ms
+[33;1m[15:03:19 WARN]: [org.bukkit.craftbukkit.legacy.CraftLegacy] Initializing Legacy Material Support. Unless you have legacy plugins and/or data this is a bug!
+[m
+> Task :tessera-compiled:paper-checkstyle:compileJava FROM-CACHE
+> Task :tessera-compiled:paper-checkstyle:processResources
+> Task :tessera-compiled:paper-checkstyle:classes
+> Task :tessera-compiled:paper-checkstyle:jar
+> Task :tessera-compiled:paper-checkstyle:compileTestDataJava FROM-CACHE
+> Task :tessera-compiled:paper-checkstyle:processTestDataResources NO-SOURCE
+> Task :tessera-compiled:paper-checkstyle:testDataClasses UP-TO-DATE
+> Task :tessera-compiled:paper-checkstyle:compileTestJava FROM-CACHE
+> Task :tessera-compiled:paper-checkstyle:processTestResources NO-SOURCE
+> Task :tessera-compiled:paper-checkstyle:testClasses UP-TO-DATE
+> Task :tessera-compiled:paper-checkstyle:test FROM-CACHE
+
+> Task :tessera-compiled:test-plugin:compileJava
+C:\Users\hunte\IdeaProjects\Tessera\test-plugin\src\main\java\dev\tessera\smoke\RuntimeWorldLifecycleSmokePlugin.java:378: Warnung: [removal] DO_DAYLIGHT_CYCLE in GameRule ist veraltet und wurde zum Entfernen markiert
+                this.template.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
+                                                  ^
+C:\Users\hunte\IdeaProjects\Tessera\test-plugin\src\main\java\dev\tessera\smoke\RuntimeWorldLifecycleSmokePlugin.java:499: Warnung: [removal] DO_DAYLIGHT_CYCLE in GameRule ist veraltet und wurde zum Entfernen markiert
+            first.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, true);
+                                      ^
+C:\Users\hunte\IdeaProjects\Tessera\test-plugin\src\main\java\dev\tessera\smoke\RuntimeWorldLifecycleSmokePlugin.java:501: Warnung: [removal] DO_DAYLIGHT_CYCLE in GameRule ist veraltet und wurde zum Entfernen markiert
+            second.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
+                                       ^
+C:\Users\hunte\IdeaProjects\Tessera\test-plugin\src\main\java\dev\tessera\smoke\RuntimeWorldLifecycleSmokePlugin.java:503: Warnung: [removal] DO_DAYLIGHT_CYCLE in GameRule ist veraltet und wurde zum Entfernen markiert
+                Boolean.TRUE.equals(first.getGameRuleValue(GameRule.DO_DAYLIGHT_CYCLE))
+                                                                   ^
+C:\Users\hunte\IdeaProjects\Tessera\test-plugin\src\main\java\dev\tessera\smoke\RuntimeWorldLifecycleSmokePlugin.java:504: Warnung: [removal] DO_DAYLIGHT_CYCLE in GameRule ist veraltet und wurde zum Entfernen markiert
+                    && Boolean.FALSE.equals(second.getGameRuleValue(GameRule.DO_DAYLIGHT_CYCLE)),
+                                                                            ^
+C:\Users\hunte\IdeaProjects\Tessera\test-plugin\src\main\java\dev\tessera\smoke\RuntimeWorldLifecycleSmokePlugin.java:506: Warnung: [removal] DO_DAYLIGHT_CYCLE in GameRule ist veraltet und wurde zum Entfernen markiert
+                "first=" + first.getGameRuleValue(GameRule.DO_DAYLIGHT_CYCLE)
+                                                          ^
+C:\Users\hunte\IdeaProjects\Tessera\test-plugin\src\main\java\dev\tessera\smoke\RuntimeWorldLifecycleSmokePlugin.java:507: Warnung: [removal] DO_DAYLIGHT_CYCLE in GameRule ist veraltet und wurde zum Entfernen markiert
+                    + ", second=" + second.getGameRuleValue(GameRule.DO_DAYLIGHT_CYCLE)
+                                                                    ^
+Hinweis: Einige Eingabedateien verwenden oder überschreiben eine veraltete API.
+Hinweis: Wiederholen Sie die Kompilierung mit -Xlint:deprecation, um Details zu erhalten.
+Hinweis: Einige Eingabedateien verwenden nicht geprüfte oder unsichere Vorgänge.
+Hinweis: Wiederholen Sie die Kompilierung mit -Xlint:unchecked, um Details zu erhalten.
+7 Warnungen
+
+> Task :tessera-compiled:test-plugin:processResources UP-TO-DATE
+> Task :tessera-compiled:test-plugin:classes
+> Task :tessera-compiled:test-plugin:jar
+> Task :tessera-compiled:test-plugin:compileTestJava NO-SOURCE
+> Task :tessera-compiled:test-plugin:processTestResources NO-SOURCE
+> Task :tessera-compiled:test-plugin:testClasses UP-TO-DATE
+> Task :tessera-compiled:test-plugin:test NO-SOURCE
+> Task :tessera-compiled:assemble UP-TO-DATE
+> Task :tessera-compiled:check UP-TO-DATE
+> Task :tessera-compiled:build UP-TO-DATE
+> Task :tessera-compiled:folia-api:assemble
+> Task :tessera-compiled:folia-api:mergeCheckstyleConfigs UP-TO-DATE
+> Task :tessera-compiled:folia-api:checkstyleTest
+> Task :tessera-compiled:folia-api:checkstyleMain
+> Task :tessera-compiled:folia-server:downloadMcManifest
+> Task :tessera-compiled:folia-server:downloadMcVersionManifest UP-TO-DATE
+> Task :tessera-compiled:folia-server:downloadServerJar UP-TO-DATE
+> Task :tessera-compiled:folia-server:extractFromBundler UP-TO-DATE
+> Task :tessera-compiled:folia-api:scanJarForBadCalls
+> Task :tessera-compiled:folia-server:createBundlerJar
+> Task :tessera-compiled:folia-api:check
+> Task :tessera-compiled:folia-api:build
+> Task :tessera-compiled:folia-server:createPaperclipJar
+> Task :tessera-compiled:folia-server:assemble
+> Task :tessera-compiled:paper-checkstyle:assemble
+> Task :tessera-compiled:paper-checkstyle:mergeCheckstyleConfigs
+> Task :tessera-compiled:paper-checkstyle:checkstyleMain
+> Task :tessera-compiled:paper-checkstyle:checkstyleTest
+> Task :tessera-compiled:paper-checkstyle:checkstyleTestData
+> Task :tessera-compiled:paper-checkstyle:check
+> Task :tessera-compiled:paper-checkstyle:build
+> Task :tessera-compiled:test-plugin:assemble
+> Task :tessera-compiled:test-plugin:check UP-TO-DATE
+> Task :tessera-compiled:test-plugin:build
+> Task :tessera-compiled:folia-server:scanJarForBadCalls
+> Task :tessera-compiled:folia-server:check
+> Task :tessera-compiled:folia-server:build
+
+BUILD SUCCESSFUL in 12m 4s
+16 actionable tasks: 13 executed, 3 up-to-date

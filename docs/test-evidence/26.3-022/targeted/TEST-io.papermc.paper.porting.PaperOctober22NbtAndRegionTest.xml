@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.papermc.paper.porting.PaperOctober22NbtAndRegionTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-26T13:45:16.345Z" hostname="ENGINE0" time="15.586">
+  <properties/>
+  <testcase name="everyTagAndModifiedUtfMatchTheVanillaDataInputFallback()" classname="io.papermc.paper.porting.PaperOctober22NbtAndRegionTest" time="0.194"/>
+  <testcase name="normalAndExternalOversizedChunksSurviveCloseAndReopen()" classname="io.papermc.paper.porting.PaperOctober22NbtAndRegionTest" time="0.053"/>
+  <testcase name="corruptHeaderRecoveryKeepsPayloadAndBacksUpOriginalBytes()" classname="io.papermc.paper.porting.PaperOctober22NbtAndRegionTest" time="0.114"/>
+  <testcase name="nestingLimitStillProtectsTheOptimizedParser()" classname="io.papermc.paper.porting.PaperOctober22NbtAndRegionTest" time="0.013"/>
+  <testcase name="truncatedStreamsAndHeapQuotasNeverReturnPartialData()" classname="io.papermc.paper.porting.PaperOctober22NbtAndRegionTest" time="0.303"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[Okt. 26, 2026 2:45:16 PM org.bukkit.support.extension.BaseExtension isTestCase
+INFORMATION: Running tests with environment: Normal
+Okt. 26, 2026 2:45:31 PM org.bukkit.Bukkit setServer
+INFORMATION: This server is running org.bukkit.support.DummyServerHelper version 26.3-DEV (2026-10-26T13:45:29Z) (Implementing API version 26.3.build.022-beta)
+]]></system-err>
+</testsuite>

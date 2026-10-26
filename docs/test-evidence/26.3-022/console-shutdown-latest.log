@@ -1,0 +1,637 @@
+[15:12:44] [ServerMain/INFO]: [bootstrap] Running Java 25 (Java HotSpot(TM) 64-Bit Server VM 25.0.3+9-LTS-195; Oracle Corporation null) on Windows 11 10.0 (amd64)
+[15:12:44] [ServerMain/INFO]: [bootstrap] Loading Tessera 26.3-22-ver/26.3.x@c1f9128 (2026-10-26T13:55:12Z) for Minecraft 26.3
+[15:12:44] [ServerMain/INFO]: [PluginInitializerManager] Initializing plugins...
+[15:12:44] [ServerMain/INFO]: [PluginInitializerManager] Initialized 1 plugin
+[15:12:44] [ServerMain/INFO]: [PluginInitializerManager] Bukkit plugins (1):
+ - TesseraRuntimeWorldSmoke (1.0.0)
+[15:12:45] [CrashReport preload thread/ERROR]: [oshi.driver.windows.registry.HkeyPerformanceDataUtil] Unable to locate English counter names in registry Perflib 009. Counters may need to be rebuilt: 
+com.sun.jna.platform.win32.Win32Exception: Falscher Parameter.
+	at com.sun.jna.platform.win32.Advapi32Util.registryGetStringArray(Advapi32Util.java:921) ~[jna-platform-5.17.0.jar:5.17.0 (b0)]
+	at com.sun.jna.platform.win32.Advapi32Util.registryGetStringArray(Advapi32Util.java:898) ~[jna-platform-5.17.0.jar:5.17.0 (b0)]
+	at oshi.driver.windows.registry.HkeyPerformanceDataUtil.mapCounterIndicesFromRegistry(HkeyPerformanceDataUtil.java:274) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.driver.windows.registry.HkeyPerformanceDataUtil.<clinit>(HkeyPerformanceDataUtil.java:51) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.driver.windows.registry.ProcessPerformanceData.buildProcessMapFromRegistry(ProcessPerformanceData.java:45) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.software.os.windows.WindowsOperatingSystem.queryProcessMapFromRegistry(WindowsOperatingSystem.java:328) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.util.Memoizer$1.get(Memoizer.java:65) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.software.os.windows.WindowsOperatingSystem.processMapToList(WindowsOperatingSystem.java:298) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.software.os.windows.WindowsOperatingSystem.getProcess(WindowsOperatingSystem.java:292) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.software.os.OperatingSystem.getCurrentProcess(OperatingSystem.java:246) ~[oshi-core-6.9.0.jar:6.9.0]
+	at net.minecraft.SystemReport.lambda$putSoftware$0(SystemReport.java:115) ~[folia-26.3.jar:26.3-022-c1f9128]
+	at net.minecraft.SystemReport.ignoreErrors(SystemReport.java:120) ~[folia-26.3.jar:26.3-022-c1f9128]
+	at net.minecraft.SystemReport.putSoftware(SystemReport.java:115) ~[folia-26.3.jar:26.3-022-c1f9128]
+	at net.minecraft.SystemReport.lambda$new$7(SystemReport.java:68) ~[folia-26.3.jar:26.3-022-c1f9128]
+	at net.minecraft.SystemReport.ignoreErrors(SystemReport.java:120) ~[folia-26.3.jar:26.3-022-c1f9128]
+	at net.minecraft.SystemReport.<init>(SystemReport.java:68) ~[folia-26.3.jar:26.3-022-c1f9128]
+	at net.minecraft.CrashReport.<init>(CrashReport.java:32) ~[folia-26.3.jar:26.3-022-c1f9128]
+	at net.minecraft.CrashReport.preload(CrashReport.java:240) ~[folia-26.3.jar:26.3-022-c1f9128]
+	at java.base/java.lang.Thread.run(Thread.java:1474) ~[?:?]
+[15:12:45] [CrashReport preload thread/WARN]: [oshi.util.platform.windows.PerfCounterQuery] Unable to locate English counter names in registry Perflib 009. Assuming English counters. Error 0x80070057. See https://support.microsoft.com/en-us/help/300956/how-to-manually-rebuild-performance-counter-library-values
+[15:12:45] [CrashReport preload thread/WARN]: [oshi.util.platform.windows.PerfCounterWildcardQuery] Failed to locate performance object for Process in the registry. Performance counters may be corrupt. Pdh call failed with error code 0xC0000BB8
+[15:12:45] [CrashReport preload thread/INFO]: [oshi.util.platform.windows.PerfCounterWildcardQuery] Disabling further attempts to query Process.
+[15:12:49] [DataConverter MCTypeRegistry init thread/INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Initialising converters for DataConverter...
+[15:12:49] [ServerMain/INFO]: [com.destroystokyo.paper.profile.PaperServicesDiscoveryService] Environment: Environment[discoveryUrl=https://discovery.minecraftservices.com/minecraft/client, name=PROD]
+[15:12:50] [DataConverter MCTypeRegistry init thread/INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Finished initialising converters for DataConverter in 483,6ms
+[15:12:50] [ServerMain/INFO]: Found new data pack paper, loading it automatically
+[15:12:51] [Worker-Main-1/INFO]: No existing world data, creating new world
+[15:12:52] [Worker-Main-1/INFO]: Loaded 1866 advancements
+[15:12:52] [Server thread/INFO]: Starting minecraft server version 26.3
+[15:12:52] [Server thread/INFO]: Loading properties
+[15:12:52] [Server thread/INFO]: This server is running Tessera version 26.3-22-ver/26.3.x@c1f9128 (2026-10-26T13:55:12Z) (Implementing API version 26.3.build.022-beta)
+[15:12:52] [Server thread/INFO]: [spark] This server bundles the spark profiler. For more information please visit https://docs.papermc.io/paper/profiling
+[15:12:52] [Server thread/INFO]: Server Ping Player Sample Count: 12
+[15:12:52] [Server thread/INFO]: Using 4 threads for Netty based IO
+[15:12:53] [Server thread/INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 4 target thread(s)
+[15:12:53] [Server thread/INFO]: [MoonriseCommon] Paper is using 1 worker threads, 1 I/O threads
+[15:12:53] [Server thread/INFO]: Default game type: SURVIVAL
+[15:12:53] [Server thread/INFO]: Generating keypair
+[15:12:53] [Server thread/INFO]: Starting Minecraft server on 127.0.0.1:58167
+[15:12:53] [Server thread/INFO]: Paper: Using Java compression from Velocity.
+[15:12:53] [Server thread/INFO]: Paper: Using Java cipher from Velocity.
+[15:12:53] [Server thread/INFO]: [TesseraRuntimeWorldSmoke] Loading server plugin TesseraRuntimeWorldSmoke v1.0.0
+[15:12:53] [Server thread/WARN]: **** SERVER IS RUNNING IN OFFLINE/INSECURE MODE!
+[15:12:53] [Server thread/WARN]: The server will make no attempt to authenticate usernames. Beware.
+[15:12:53] [Server thread/WARN]: While this makes the game possible to play without internet access, it also opens up the ability for hackers to connect with any username they choose.
+[15:12:53] [Server thread/WARN]: To change this, set "online-mode" to "true" in the server.properties file.
+[15:12:53] [Server thread/INFO]: Preparing level "world"
+[15:12:53] [Server thread/INFO]: Selecting spawn point for level 'minecraft:overworld'...
+[15:12:54] [Server thread/INFO]: Selecting spawn point for level 'minecraft:the_nether'...
+[15:12:55] [Server thread/INFO]: Selecting spawn point for level 'minecraft:the_end'...
+[15:12:55] [Server thread/INFO]: Loading 0 persistent chunks for level 'minecraft:overworld'...
+[15:12:55] [Server thread/INFO]: Preparing spawn area: 100%
+[15:12:55] [Server thread/INFO]: Prepared spawn area in 1433 ms
+[15:12:55] [Server thread/INFO]: Loading 0 persistent chunks for level 'minecraft:the_nether'...
+[15:12:55] [Server thread/INFO]: Preparing spawn area: 100%
+[15:12:55] [Server thread/INFO]: Prepared spawn area in 949 ms
+[15:12:55] [Server thread/INFO]: Loading 0 persistent chunks for level 'minecraft:the_end'...
+[15:12:55] [Server thread/INFO]: Preparing spawn area: 100%
+[15:12:55] [Server thread/INFO]: Prepared spawn area in 231 ms
+[15:12:55] [Server thread/INFO]: Done preparing level "world" (1.677s)
+[15:12:55] [Server thread/INFO]: [TesseraRuntimeWorldSmoke] Enabling TesseraRuntimeWorldSmoke v1.0.0
+[15:12:55] [Server thread/INFO]: [spark] The spark profiler will not be enabled because it is currently disabled in the configuration.
+[15:12:55] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:overworld
+[15:12:55] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_nether
+[15:12:55] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_end
+[15:12:55] [Server thread/INFO]: Done (12.494s)! For help, type "help"
+[15:12:57] [Folia Region Scheduler Thread #3/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_READY terminal=org.jline.terminal.impl.ffm.NativeWinSysTerminal windows=true reader=true
+[15:13:28] [Folia Region Scheduler Thread #3/INFO]: System Chat: Stopping the server
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Awaiting scheduler termination for 60s...
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Scheduler halted
+[15:13:28] [Region shutdown thread/INFO]: Stopping server
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] Disabling TesseraRuntimeWorldSmoke v1.0.0
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 1/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 2/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 3/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 4/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 5/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 6/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 7/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 8/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 9/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 10/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 11/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 12/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 13/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 14/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 15/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 16/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 17/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 18/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 19/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 20/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 21/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 22/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 23/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 24/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 25/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 26/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 27/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 28/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 29/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 30/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 31/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 32/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 33/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 34/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 35/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 36/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 37/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 38/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 39/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 40/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 41/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 42/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 43/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 44/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 45/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 46/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 47/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 48/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 49/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 50/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 51/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 52/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 53/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 54/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 55/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 56/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 57/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 58/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 59/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 60/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 61/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 62/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 63/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 64/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 65/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 66/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 67/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 68/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 69/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 70/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 71/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 72/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 73/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 74/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 75/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 76/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 77/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 78/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 79/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 80/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 81/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 82/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 83/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 84/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 85/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 86/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 87/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 88/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 89/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 90/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 91/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 92/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 93/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 94/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 95/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 96/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 97/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 98/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 99/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 100/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 101/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 102/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 103/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 104/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 105/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 106/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 107/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 108/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 109/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 110/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 111/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 112/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 113/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 114/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 115/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 116/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 117/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 118/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 119/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 120/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 121/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 122/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 123/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 124/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 125/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 126/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 127/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 128/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 129/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 130/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 131/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 132/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 133/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 134/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 135/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 136/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 137/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 138/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 139/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 140/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 141/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 142/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 143/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 144/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 145/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 146/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 147/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 148/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 149/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 150/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 151/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 152/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 153/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 154/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 155/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 156/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 157/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 158/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 159/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 160/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 161/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 162/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 163/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 164/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 165/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 166/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 167/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 168/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 169/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 170/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 171/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 172/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 173/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 174/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 175/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 176/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 177/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 178/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 179/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 180/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 181/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 182/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 183/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 184/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 185/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 186/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 187/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 188/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 189/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 190/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 191/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 192/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 193/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 194/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 195/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 196/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 197/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 198/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 199/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 200/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 201/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 202/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 203/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 204/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 205/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 206/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 207/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 208/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 209/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 210/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 211/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 212/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 213/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 214/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 215/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 216/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 217/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 218/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 219/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 220/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 221/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 222/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 223/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 224/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 225/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 226/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 227/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 228/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 229/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 230/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 231/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 232/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 233/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 234/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 235/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 236/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 237/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 238/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 239/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 240/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 241/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 242/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 243/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 244/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 245/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 246/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 247/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 248/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 249/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 250/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 251/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 252/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 253/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 254/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 255/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 256/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 257/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 258/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 259/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 260/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 261/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 262/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 263/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 264/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 265/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 266/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 267/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 268/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 269/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 270/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 271/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 272/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 273/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 274/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 275/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 276/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 277/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 278/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 279/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 280/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 281/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 282/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 283/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 284/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 285/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 286/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 287/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 288/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 289/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 290/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 291/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 292/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 293/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 294/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 295/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 296/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 297/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 298/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 299/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 300/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 301/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 302/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 303/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 304/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 305/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 306/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 307/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 308/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 309/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 310/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 311/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 312/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 313/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 314/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 315/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 316/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 317/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 318/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 319/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 320/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 321/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 322/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 323/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 324/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 325/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 326/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 327/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 328/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 329/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 330/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 331/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 332/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 333/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 334/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 335/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 336/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 337/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 338/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 339/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 340/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 341/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 342/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 343/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 344/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 345/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 346/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 347/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 348/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 349/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 350/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 351/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 352/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 353/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 354/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 355/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 356/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 357/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 358/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 359/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 360/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 361/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 362/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 363/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 364/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 365/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 366/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 367/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 368/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 369/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 370/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 371/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 372/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 373/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 374/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 375/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 376/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 377/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 378/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 379/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 380/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 381/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 382/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 383/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 384/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 385/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 386/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 387/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 388/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 389/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 390/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 391/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 392/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 393/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 394/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 395/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 396/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 397/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 398/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 399/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 400/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 401/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 402/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 403/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 404/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 405/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 406/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 407/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 408/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 409/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 410/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 411/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 412/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 413/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 414/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 415/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 416/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 417/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 418/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 419/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 420/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 421/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 422/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 423/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 424/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 425/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 426/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 427/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 428/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 429/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 430/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 431/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 432/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 433/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 434/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 435/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 436/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 437/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 438/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 439/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 440/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 441/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 442/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 443/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 444/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 445/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 446/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 447/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 448/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 449/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 450/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 451/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 452/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 453/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 454/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 455/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 456/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 457/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 458/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 459/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 460/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 461/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 462/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 463/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 464/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 465/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 466/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 467/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 468/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 469/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 470/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 471/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 472/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 473/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 474/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 475/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 476/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 477/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 478/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 479/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 480/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 481/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 482/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 483/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 484/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 485/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 486/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 487/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 488/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 489/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 490/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 491/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 492/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 493/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 494/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 495/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 496/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 497/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 498/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 499/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 500/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 501/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 502/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 503/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 504/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 505/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 506/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 507/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 508/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 509/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 510/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 511/512
+[15:13:28] [Region shutdown thread/INFO]: [TesseraRuntimeWorldSmoke] CONSOLE_SHUTDOWN_BURST 512/512
+[15:13:28] [Region shutdown thread/WARN]: Failed to flush log messages before plugin unload.
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Halting chunk systems...
+[15:13:28] [Region shutdown thread/INFO]: [ChunkHolderManager] Waiting 60s for chunk system to halt for world 'minecraft:overworld'
+[15:13:28] [Region shutdown thread/INFO]: [ChunkHolderManager] Halted chunk system for world 'minecraft:overworld'
+[15:13:28] [Region shutdown thread/INFO]: [ChunkHolderManager] Waiting 60s for chunk system to halt for world 'minecraft:the_nether'
+[15:13:28] [Region shutdown thread/INFO]: [ChunkHolderManager] Halted chunk system for world 'minecraft:the_nether'
+[15:13:28] [Region shutdown thread/INFO]: [ChunkHolderManager] Waiting 60s for chunk system to halt for world 'minecraft:the_end'
+[15:13:28] [Region shutdown thread/INFO]: [ChunkHolderManager] Halted chunk system for world 'minecraft:the_end'
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Halted chunk systems
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Finishing pending teleports...
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Finished pending teleports
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Saving all worlds
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Saving world data for world 'minecraft:overworld'
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Closing player inventories...
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Closed player inventories
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Saving chunks...
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Saved chunks
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Saving level data...
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Saved level data
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Saved world data for world 'minecraft:overworld'
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Saving world data for world 'minecraft:the_nether'
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Closing player inventories...
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Closed player inventories
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Saving chunks...
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Saved chunks
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Saving level data...
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Saved level data
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Saved world data for world 'minecraft:the_nether'
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Saving world data for world 'minecraft:the_end'
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Closing player inventories...
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Closed player inventories
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Saving chunks...
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Saved chunks
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Saving level data...
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Saved level data
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Saved world data for world 'minecraft:the_end'
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Saved all worlds
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Saving global world data...
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Saved global world data.
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Saving all player data...
+[15:13:28] [Region shutdown thread/INFO]: [RegionShutdownThread] Saved all player data
+[15:13:28] [Region shutdown thread/INFO]: Waiting for all RegionFile I/O tasks to complete...
+[15:13:28] [Region shutdown thread/INFO]: All RegionFile I/O tasks to complete
+[15:13:28] [Region shutdown thread/INFO]: [MoonriseCommon] Awaiting termination of worker pool for up to 60s...
+[15:13:28] [Region shutdown thread/INFO]: [MoonriseCommon] Awaiting termination of I/O pool for up to 60s...

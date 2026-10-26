@@ -3,14 +3,17 @@ title: "Mob-, SulfurCube- und Poplar-APIs"
 description: "Übernommene Paper-APIs für Waffen, Entity-Physik, Friedlich-Despawn, SulfurCube-Ausrüstung und Poplar-Bäume mit Tesseras Regionsregeln."
 navTitle: "Entities und Bäume"
 order: 115
-updated: 2026-10-11
+updated: 2026-10-26
 minecraftVersion: "26.3"
 badge: "Paper-Kompatibilität"
 ---
 
 Diese APIs stammen aus Paper. Mob-/Cube-/Poplar-Ergänzungen stammen aus Build
-011, die allgemeinen Waffen-/Physik-Getter aus Build 019. Die drei farbigen Poplar-Konstanten sind
-zusätzliche Sinopia-Erweiterungen. Alle Entity-Zugriffe gehören auf den aktuellen
+011, die allgemeinen Waffen-/Physik-Getter aus Build 019. Die drei farbigen
+Poplar-Konstanten wurden ursprünglich in Sinopia ergänzt und sind ab Build 022
+auch mit Paper abgeglichen; der allgemeine `POPLAR`-Alias bleibt als lokale
+Kompatibilität erhalten. Neue Allianz-, Krit-, Schadens- und Animationsmethoden
+stehen unter [Paper-APIs 022](paper-api-022.md). Alle Entity-Zugriffe gehören auf den aktuellen
 [Entity-Owner](ownership.md); Baumgenerierung gehört auf den zuständigen
 Regions-Thread. Eine vorhandene Java-Referenz ist kein Ownership-Nachweis.
 

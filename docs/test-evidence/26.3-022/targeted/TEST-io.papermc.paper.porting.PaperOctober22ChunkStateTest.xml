@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.papermc.paper.porting.PaperOctober22ChunkStateTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-26T13:44:58.674Z" hostname="ENGINE0" time="16.086">
+  <properties/>
+  <testcase name="absentPartialAndFullMetadataAreDistinguished()" classname="io.papermc.paper.porting.PaperOctober22ChunkStateTest" time="0.048"/>
+  <testcase name="oldRelocatedAndFutureVersionsAreNotSilentlyTreatedAsCurrent()" classname="io.papermc.paper.porting.PaperOctober22ChunkStateTest" time="0.003"/>
+  <testcase name="tickAndNettyThreadsRejectDiskFallbackWithoutSubmittingIo()" classname="io.papermc.paper.porting.PaperOctober22ChunkStateTest" time="1.159"/>
+  <testcase name="rejectedLifecycleAdmissionCompletesTheAsyncFutureExceptionally()" classname="io.papermc.paper.porting.PaperOctober22ChunkStateTest" time="0.016"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[Okt. 26, 2026 2:44:58 PM org.bukkit.support.extension.BaseExtension isTestCase
+INFORMATION: Running tests with environment: AllFeatures
+Okt. 26, 2026 2:45:13 PM org.bukkit.Bukkit setServer
+INFORMATION: This server is running org.bukkit.support.DummyServerHelper version 26.3-DEV (2026-10-26T13:45:11Z) (Implementing API version 26.3.build.022-beta)
+]]></system-err>
+</testsuite>

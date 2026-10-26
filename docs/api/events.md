@@ -3,7 +3,7 @@ title: "Events bei Welt-Lifecycle, Portalen und Respawn"
 description: "Geerbte Events im tatsächlichen Tessera-Threadkontext und der operationsgebundene Restore-Teleport-Scope."
 navTitle: "Events"
 order: 100
-updated: 2026-10-08
+updated: 2026-10-26
 minecraftVersion: "26.3"
 badge: "Referenz"
 ---
@@ -12,6 +12,11 @@ Tessera verwendet vorhandene Bukkit-/Paper-/Folia-Events. Es gibt keine neue
 öffentliche Familie von „TesseraRestoreEvent“- oder internen Queue-Events.
 Listener laufen im Kontext des jeweiligen Dispatchs, nicht automatisch auf
 einem universellen Bukkit-Main-Thread.
+
+Ab Build 022 ergänzen geerbte Paper-Events Hopper-Slotauswahl, Bundle-Auswahl,
+Mob-Sortierentscheidungen und Schwefel-Geysir-Launches. Ihre Methoden,
+Kopier-/Live-Referenzen und Callback-Grenzen stehen unter
+[Inventar- und Entity-Ereignisse](paper-api-022.md#inventarereignisse-und-entity-ereignisse).
 
 ## Serverinitialisierung
 

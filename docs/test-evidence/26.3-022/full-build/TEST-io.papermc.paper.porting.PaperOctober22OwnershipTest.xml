@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.papermc.paper.porting.PaperOctober22OwnershipTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-26T14:02:46.979Z" hostname="ENGINE0" time="0.194">
+  <properties/>
+  <testcase name="playerHandleOverrideDoesNotBypassNewRuleAndDamageOwnerChecks()" classname="io.papermc.paper.porting.PaperOctober22OwnershipTest" time="0.026"/>
+  <testcase name="ownerRuleViewRemainsLiveUnmodifiableAndNamespaceRemovalIsScoped()" classname="io.papermc.paper.porting.PaperOctober22OwnershipTest" time="0.004"/>
+  <testcase name="staleBlockContainersAreRejectedBeforeWorldReads()" classname="io.papermc.paper.porting.PaperOctober22OwnershipTest" time="0.164"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

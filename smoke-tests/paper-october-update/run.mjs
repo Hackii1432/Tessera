@@ -73,6 +73,17 @@ const packetCounts = Object.fromEntries(['UpdateAlpha', 'UpdateBeta'].map(name =
 }]));
 const passed = code === 0 && !timedOut && clientFailure === null && log.includes('UPDATE_PASS')
   && joins === 2 && kicks === 0 && disconnects === 0
+  && ['unloaded metadata query without generation', 'metadata query did not load chunk',
+    'scheduler callback cancellation final state 0', 'scheduler callback cancellation final state 1',
+    'scheduler callback cancellation final state 2', 'scheduler callback cancellation final state 3',
+    'metadata I/O completes while gameplay frozen', 'owner loaded generation snapshot',
+    'region disk query rejected before blocking', 'native additional alliance rule', 'alliance rule removal',
+    'marked invulnerability getter', 'source-specific invulnerability getter', 'critical query matches native predicate',
+    'native enchantment offers', 'native hopper transfer selected allowed slot',
+    'hopper callback excluded dirt and moved stone', 'fluidless native bucket event accepted',
+    'fluidless bucket nested callback result remains invocation scoped', 'metadata query world unloaded through real lifecycle',
+    'no pending metadata future after world unload', 'closed world async metadata admission rejected',
+    'closed world sync metadata admission rejected'].every(prefix => checks?.includes(prefix))
   && ['two distinct native player regions', 'deterministic complete block palettes and biomes in region 0', 'deterministic complete block palettes and biomes in region 128', 'cancelled SulfurCube explosion restored damageability', 'ignite callback retirement left fuse unchanged', 'explosion callback retirement stopped further ticking', 'explosion callback transfer stopped old-owner ticking', 'transferred cube cancellation on destination owner', 'batch recipes published', 'batch remove during tick freeze', 'duplicate batch left no partial recipe', 'native owner resource work ran during freeze', 'recipe refresh followed a dimension transfer', 'clients remained connected throughout native update'].every(prefix => checks?.includes(prefix))
   && Object.values(packetCounts).every(count => count.recipes >= 3 && count.recipeResets >= 3 && count.postEffects >= 2)
   && !/UPDATE_FAIL|failed to tick:|Thread failed main thread check|ConcurrentModificationException/.test(log);

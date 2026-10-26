@@ -1,0 +1,97 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <build@tessera.invalid>
+Date: Mon, 26 Oct 2026 14:29:53 +0100
+Subject: [PATCH] Revalidate bundle air and sorting callbacks on current owners
+
+
+diff --git a/io/papermc/paper/threadedregions/scheduler/FoliaRegionScheduler.java b/io/papermc/paper/threadedregions/scheduler/FoliaRegionScheduler.java
+index 2253e1e2b51c9f166f0bd5ac8212537b8e4f687f..e36639f38a33f5f6f713994265fef8db36973a47 100644
+--- a/io/papermc/paper/threadedregions/scheduler/FoliaRegionScheduler.java
++++ b/io/papermc/paper/threadedregions/scheduler/FoliaRegionScheduler.java
+@@ -330,6 +330,9 @@ public final class FoliaRegionScheduler implements RegionScheduler {
+         public void run() {
+             if (!this.plugin.isEnabled()) {
+                 // don't execute if the plugin is disabled
++                this.setStateVolatile(STATE_CANCELLED);
++                this.run = null;
++                this.world = null;
+                 return;
+             }
+ 
+diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 507fa15a9b546504c1a820fa545bc60c775e11b0..f2ba7964e6aba9c720a36da89453ce875c8b550a 100644
+--- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -904,7 +904,11 @@ public class ServerGamePacketListenerImpl
+     @Override
+     public void handleBundleItemSelectedPacket(final ServerboundSelectBundleItemPacket packet) {
+         PacketUtils.ensureRunningOnSameThread(packet, this, this.player.level());
++        final net.minecraft.server.level.ServerLevel ownerLevel = this.player.level();
++        final net.minecraft.world.inventory.AbstractContainerMenu originalMenu = this.player.containerMenu;
+         CraftEventFactory.callPlayerBundleItemSelectEvent(this.player, packet.slotId(), packet.selectedItemIndex()); // Paper - PlayerBundleItemSelectEvent
++        if (this.player.isRemoved() || this.player.level() != ownerLevel || this.player.containerMenu != originalMenu
++            || !ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this.player)) return;
+         this.player.containerMenu.setSelectedBundleItemIndex(packet.slotId(), packet.selectedItemIndex());
+     }
+ 
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index 64aa8902694ba9b0969ebbda20ae791ba37d7d4b..17c96bd4e852aeae24393e4b306a510d369d1586 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -3913,11 +3913,12 @@ public abstract class Entity
+         int newAmount = supply;
+         // Suppress during worldgen
+         if (this.valid && org.bukkit.event.entity.EntityAirChangeEvent.getHandlerList().hasListeners() && this.getAirSupply() != supply) {
++            final Level ownerLevel = this.level();
+             final org.bukkit.event.entity.EntityAirChangeEvent event = new org.bukkit.event.entity.EntityAirChangeEvent(this.getBukkitEntity(), supply);
+             if (!event.callEvent()) {
+                 return;
+             }
+-
++            if (this.isRemoved() || this.level() != ownerLevel || !ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(this)) return;
+             newAmount = event.getAmount();
+         }
+ 
+diff --git a/net/minecraft/world/entity/ai/behavior/TransportItemsBetweenContainers.java b/net/minecraft/world/entity/ai/behavior/TransportItemsBetweenContainers.java
+index 2cb4ad2199c4ab2f3243d738ccd69c10febc80d0..38796f1ef2e28c5eceb7bfb233a4bfa89656c34a 100644
+--- a/net/minecraft/world/entity/ai/behavior/TransportItemsBetweenContainers.java
++++ b/net/minecraft/world/entity/ai/behavior/TransportItemsBetweenContainers.java
+@@ -534,6 +534,7 @@ public class TransportItemsBetweenContainers extends Behavior<PathfinderMob> {
+         final Level ownerLevel = body.level();
+         sortEvent.callEvent();
+         if (body.isRemoved() || body.level() != ownerLevel || !ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(body)) return false;
++        if (!net.minecraft.world.level.block.entity.HopperBlockEntity.tessera$isOwnedContainer(ownerLevel, container)) return false;
+         if (sortEvent.getResult() != org.bukkit.event.Event.Result.DEFAULT) {
+             return sortEvent.getResult() == org.bukkit.event.Event.Result.ALLOW;
+         }
+diff --git a/net/minecraft/world/item/MobBucketItem.java b/net/minecraft/world/item/MobBucketItem.java
+index 5a7357c65f62c85003acc51743b02e49c00dc9e8..5ff6181ae823cecb349ac025ff31df992c27bca0 100644
+--- a/net/minecraft/world/item/MobBucketItem.java
++++ b/net/minecraft/world/item/MobBucketItem.java
+@@ -64,12 +64,12 @@ public class MobBucketItem extends BucketItem {
+             // Paper start - call PlayerBucketEmptyEvent for mobs in buckets without fluids
+             if (user instanceof net.minecraft.world.entity.player.Player player) {
+                 org.bukkit.event.player.PlayerBucketEmptyEvent event = org.bukkit.craftbukkit.event.CraftEventFactory.callPlayerBucketEmptyEvent(level, player, pos, clicked, direction, itemStack, hand);
++                if (player.isRemoved() || player.level() != level || !ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(player)) return false;
+                 if (event.isCancelled()) {
+                     player.containerMenu.sendAllDataToRemote(); // SPIGOT-4541
+                     return false;
+                 }
+                 // Plugins may remove/transfer the user during the callback. Never mutate its old owner.
+-                if (player.isRemoved() || player.level() != level || !ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(player)) return false;
+                 result.setResult(event.getItemStack() != null ? event.getItemStack().equals(org.bukkit.inventory.ItemStack.of(org.bukkit.Material.BUCKET)) ? null : org.bukkit.craftbukkit.inventory.CraftItemStack.asNMSCopy(event.getItemStack()) : ItemStack.EMPTY);
+             }
+             // Paper end
+diff --git a/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+index 2e364cc8f67f89d72d9d8e16882342bc3539d813..805ef77afc63d2ef455842b622779b903bfc245f 100644
+--- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+@@ -448,7 +448,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+         return event.getDisallowedSlots();
+     }
+ 
+-    private static boolean tessera$isOwnedContainer(final Level level, final Container container) {
++    public static boolean tessera$isOwnedContainer(final Level level, final Container container) {
+         if (container instanceof net.minecraft.world.CompoundContainer combined) {
+             return tessera$isOwnedContainer(level, combined.container1) && tessera$isOwnedContainer(level, combined.container2);
+         }

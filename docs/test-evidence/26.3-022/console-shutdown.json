@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "negativeControl": false,
+  "fixture": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\console-shutdown-1793023957016",
+  "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.022-beta.jar",
+  "sha256": "d65513f45a1f8a94ac642f3a11ffbe3f6c01abff0561147729e9124344944532",
+  "exitCode": 0,
+  "nativeWindows": true,
+  "normalDisable": true,
+  "terminalChecks": "burst=512\nterminal=org.jline.terminal.impl.ffm.NativeWinSysTerminal\nwindows=true\nreader=true\nnormal-disable=true",
+  "burstCount": 512,
+  "completeBurst": true,
+  "saved": true,
+  "terminalErrors": 0,
+  "knownRace": false,
+  "noNativeFaults": true
+}

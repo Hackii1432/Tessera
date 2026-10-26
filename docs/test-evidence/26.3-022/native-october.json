@@ -1,0 +1,414 @@
+{
+  "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\libs\\tessera-server-26.3.build.022-beta.jar",
+  "sha256": "d65513f45a1f8a94ac642f3a11ffbe3f6c01abff0561147729e9124344944532",
+  "work": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\paper-october-update-1793023538158",
+  "port": 61670,
+  "code": 0,
+  "passed": true,
+  "timedOut": false,
+  "clientFailure": null,
+  "joins": 2,
+  "kicks": 0,
+  "disconnects": 0,
+  "checks": "clients connected\nnative noise world created update_normal\nnative noise world created update_mirror\nnative noise world created update_nether\ndeterministic complete block palettes and biomes in region 0\ndeterministic complete block palettes and biomes in region 128\ntwo distinct native player regions\nentity API current owner\ntyped player PDC store\ntyped player PDC remove and default\nentity API current owner\ntyped player PDC store\ntyped player PDC remove and default\nentity weapon getter\nentity weapon getter\nweapon getter returns a copy\nweapon getter returns a copy\ngravity and drag getters\ngravity and drag getters\neffective gravity respects disabled gravity\neffective gravity respects disabled gravity\nunloaded metadata query without generation\nmetadata query did not load chunk\nowner loaded generation snapshot\nregion disk query rejected before blocking\nowner loaded generation snapshot\nregion disk query rejected before blocking\nnative additional alliance rule\nnative additional alliance rule\nalliance rule removal\nalliance rule removal\nmarked invulnerability getter\nmarked invulnerability getter\nsource-specific invulnerability getter\nsource-specific invulnerability getter\ncritical query matches native predicate\ncritical query matches native predicate\nnative enchantment offers\nnative enchantment offers\nfluidless native bucket event accepted\nfluidless native bucket event accepted\nfluidless bucket nested callback result remains invocation scoped\nfluidless bucket nested callback result remains invocation scoped\nnative hopper transfer selected allowed slot\nnative hopper transfer selected allowed slot\nhopper callback excluded dirt and moved stone\nhopper callback excluded dirt and moved stone\nscheduler callback cancellation final state 0\nscheduler callback cancellation final state 1\nscheduler callback cancellation final state 2\nscheduler callback cancellation final state 3\nmetadata I/O completes while gameplay frozen\ncallback cube equipment accepted\ncube explosive equipment ready\ncube ignition accepted\ncancelled SulfurCube explosion restored damageability\ncallback cube equipment accepted\nignite callback retirement left fuse unchanged\ncallback cube equipment accepted\nretirement cube ignition accepted\nexplosion callback retirement stopped further ticking\ncallback cube equipment accepted\ntransfer cube ignition accepted\nexplosion callback dimension transfer completed\nexplosion callback transfer stopped old-owner ticking\ntransferred cube cancellation on destination owner\nbatch recipes published\nbatch recipes queryable\nplayer recipe discovery on owner\nrecipe region writer rejected without mutation\nplayer recipe discovery on owner\nrecipe region writer rejected without mutation\nbatch remove during tick freeze\ncatalog removal published during freeze\nduplicate batch left no partial recipe\nnative owner resource work ran during freeze\nnative owner resource work ran during freeze\nrecipe refresh followed a dimension transfer\nentity API current owner\ntyped player PDC store\ntyped player PDC remove and default\nentity weapon getter\nweapon getter returns a copy\ngravity and drag getters\neffective gravity respects disabled gravity\nclients remained connected throughout native update",
+  "packetCounts": {
+    "UpdateAlpha": {
+      "recipes": 5,
+      "recipeResets": 5,
+      "postEffects": 3
+    },
+    "UpdateBeta": {
+      "recipes": 5,
+      "recipeResets": 5,
+      "postEffects": 4
+    }
+  },
+  "observations": [
+    {
+      "type": "login",
+      "username": "UpdateBeta"
+    },
+    {
+      "type": "login",
+      "username": "UpdateAlpha"
+    },
+    {
+      "type": "recipes",
+      "username": "UpdateAlpha"
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateAlpha",
+      "reset": true
+    },
+    {
+      "type": "teleport",
+      "username": "UpdateAlpha",
+      "id": 1,
+      "position": [
+        -0.5,
+        -60,
+        5.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "post_effects",
+      "username": "UpdateAlpha"
+    },
+    {
+      "type": "recipes",
+      "username": "UpdateBeta"
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": true
+    },
+    {
+      "type": "teleport",
+      "username": "UpdateBeta",
+      "id": 1,
+      "position": [
+        4.5,
+        -60,
+        -3.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "post_effects",
+      "username": "UpdateBeta"
+    },
+    {
+      "type": "teleport",
+      "username": "UpdateAlpha",
+      "id": 2,
+      "position": [
+        -0.5,
+        -60,
+        5.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "teleport",
+      "username": "UpdateBeta",
+      "id": 2,
+      "position": [
+        4.5,
+        -60,
+        -3.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateAlpha",
+      "reset": false
+    },
+    {
+      "type": "advancements",
+      "username": "UpdateAlpha",
+      "reset": true
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": false
+    },
+    {
+      "type": "advancements",
+      "username": "UpdateBeta",
+      "reset": true
+    },
+    {
+      "type": "teleport",
+      "username": "UpdateAlpha",
+      "id": 3,
+      "position": [
+        8.5,
+        200,
+        8.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "teleport",
+      "username": "UpdateBeta",
+      "id": 3,
+      "position": [
+        2056.5,
+        200,
+        8.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "post_effects",
+      "username": "UpdateBeta"
+    },
+    {
+      "type": "post_effects",
+      "username": "UpdateAlpha"
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": false
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": false
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": false
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": false
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": false
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": false
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": false
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": false
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": false
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": false
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": false
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": false
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": false
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": false
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": false
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": false
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": false
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": false
+    },
+    {
+      "type": "advancements",
+      "username": "UpdateBeta",
+      "reset": false
+    },
+    {
+      "type": "recipes",
+      "username": "UpdateAlpha"
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateAlpha",
+      "reset": true
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateAlpha",
+      "reset": false
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateAlpha",
+      "reset": false
+    },
+    {
+      "type": "recipes",
+      "username": "UpdateBeta"
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": true
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": false
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": false
+    },
+    {
+      "type": "recipes",
+      "username": "UpdateAlpha"
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateAlpha",
+      "reset": true
+    },
+    {
+      "type": "recipes",
+      "username": "UpdateAlpha"
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateAlpha",
+      "reset": true
+    },
+    {
+      "type": "post_effects",
+      "username": "UpdateAlpha"
+    },
+    {
+      "type": "advancements",
+      "username": "UpdateAlpha",
+      "reset": false
+    },
+    {
+      "type": "recipes",
+      "username": "UpdateBeta"
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": true
+    },
+    {
+      "type": "recipes",
+      "username": "UpdateBeta"
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": true
+    },
+    {
+      "type": "post_effects",
+      "username": "UpdateBeta"
+    },
+    {
+      "type": "advancements",
+      "username": "UpdateBeta",
+      "reset": false
+    },
+    {
+      "type": "teleport",
+      "username": "UpdateBeta",
+      "id": 4,
+      "position": [
+        8.5,
+        200,
+        8.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "advancements",
+      "username": "UpdateBeta",
+      "reset": false
+    },
+    {
+      "type": "recipes",
+      "username": "UpdateBeta"
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateBeta",
+      "reset": true
+    },
+    {
+      "type": "post_effects",
+      "username": "UpdateBeta"
+    },
+    {
+      "type": "recipes",
+      "username": "UpdateAlpha"
+    },
+    {
+      "type": "recipe_book",
+      "username": "UpdateAlpha",
+      "reset": true
+    },
+    {
+      "type": "advancements",
+      "username": "UpdateBeta",
+      "reset": false
+    }
+  ]
+}

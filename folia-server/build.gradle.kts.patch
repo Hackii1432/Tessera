@@ -56,17 +56,18 @@
  configurations.named(log4jPlugins.compileClasspathConfigurationName) {
      extendsFrom(configurations.compileClasspath.get())
  }
-@@ -109,9 +_,10 @@
+@@ -109,10 +_,11 @@
  }
  
  dependencies {
 -    implementation(project(":paper-api"))
 +    implementation(project(":folia-api"))
-     implementation(platform("ca.spottedleaf.leafpile:bom:1.2.4"))
+     implementation(platform("ca.spottedleaf.leafpile:bom:1.3.2"))
      implementation("ca.spottedleaf.leafpile:common")
      implementation("ca.spottedleaf.leafpile:concurrentutil")
      implementation("ca.spottedleaf.leafpile:converter")
 +    implementation("ca.spottedleaf.leafpile:profiler") // Folia - regional profiler
+     implementation("ca.spottedleaf.leafpile:ioutil")
      implementation("org.jline:jline-terminal-ffm:4.4.6")
 @@ -163,27 +_,29 @@
      manifest {

@@ -1,0 +1,353 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera <build@tessera.invalid>
+Date: Mon, 26 Oct 2026 14:50:14 +0100
+Subject: [PATCH] Test October API ownership recipe priority and vanilla
+ generation order
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 04ad79fa2995c97291dd184999fe06fcdc72f238..a228485e1163993d8704d5667ed58343954b4cb4 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -1948,6 +1948,8 @@ public final class CraftServer implements Server {
+         Preconditions.checkArgument(mapIcon != null, "mapIcon cannot be null");
+ 
+         final ServerLevel level = ((CraftWorld) world).getHandle();
++        level.tessera$ensureAcceptingApiTasks("explorer maps");
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(level, CraftLocation.toBlockPos(location), "Explorer map searches require the origin region owner");
+         final StructureSearchResult structureSearchResult = world.locateNearestStructure(location, structureType, radius, findUnexplored);
+         if (structureSearchResult == null) {
+             return null;
+@@ -1964,6 +1966,8 @@ public final class CraftServer implements Server {
+         Preconditions.checkArgument(mapIcon != null, "mapIcon cannot be null");
+ 
+         final ServerLevel level = ((CraftWorld) world).getHandle();
++        level.tessera$ensureAcceptingApiTasks("explorer maps");
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(level, CraftLocation.toBlockPos(location), "Explorer map searches require the origin region owner");
+         final StructureSearchResult structureSearchResult = world.locateNearestStructure(location, structure, radius, findUnexplored);
+         if (structureSearchResult == null) {
+             return null;
+diff --git a/src/test/java/io/papermc/paper/command/WhitelistProfileLookupTest.java b/src/test/java/io/papermc/paper/command/WhitelistProfileLookupTest.java
+index 8ddb9772b12afecda4975238a536880c0e18d48d..cd7471e4840b282104bf9cc4815ba977b0866541 100644
+--- a/src/test/java/io/papermc/paper/command/WhitelistProfileLookupTest.java
++++ b/src/test/java/io/papermc/paper/command/WhitelistProfileLookupTest.java
+@@ -310,7 +310,8 @@ class WhitelistProfileLookupTest {
+             .withArgument("targets", new ParsedArgument<>(0, 10, target)).withCommand(command).build("whitelist " + operation + " SmokeLower");
+         var error = assertThrows(CommandSyntaxException.class, () -> command.run(context));
+         assertTrue(error.getRawMessage().getString().contains("cancelled or rejected"));
+-        verify(source, never()).sendSuccess(any(), anyBoolean());
++        verify(source, never()).sendSuccess(any(java.util.function.Supplier.class), anyBoolean());
++        verify(source, never()).sendSuccess(any(net.kyori.adventure.text.ComponentLike.class), anyBoolean());
+         verify(server, never()).kickUnlistedPlayers();
+         if (alreadyListed) verify(whitelist).remove(any(UserWhiteListEntry.class));
+         else verify(whitelist).add(any(UserWhiteListEntry.class));
+diff --git a/src/test/java/io/papermc/paper/porting/ClockCommandBackportTest.java b/src/test/java/io/papermc/paper/porting/ClockCommandBackportTest.java
+index 7ae2745acf69305b58f629a812c97f180e372fab..3139d8a63e4efdb80da5a9c05912214225dc91f8 100644
+--- a/src/test/java/io/papermc/paper/porting/ClockCommandBackportTest.java
++++ b/src/test/java/io/papermc/paper/porting/ClockCommandBackportTest.java
+@@ -55,7 +55,7 @@ class ClockCommandBackportTest {
+             doAnswer(invocation -> { this.ticks.set(invocation.getArgument(1)); return null; })
+                 .when(this.clocks).setTotalTicks(eq(this.clock), anyLong());
+             doAnswer(invocation -> { this.messages.add(invocation.<Supplier<Component>>getArgument(0).get()); return null; })
+-                .when(this.source).sendSuccess(any(), eq(true));
++                .when(this.source).sendSuccess(any(Supplier.class), eq(true));
+         }
+ 
+         int set(int value) throws Exception {
+diff --git a/src/test/java/io/papermc/paper/porting/GameRuleCommandRegressionTest.java b/src/test/java/io/papermc/paper/porting/GameRuleCommandRegressionTest.java
+index 98b40d41e052105a3f9606463d3a0ebeda6f7539..a44411a7a7819c00e38703bb1d67917de3053e53 100644
+--- a/src/test/java/io/papermc/paper/porting/GameRuleCommandRegressionTest.java
++++ b/src/test/java/io/papermc/paper/porting/GameRuleCommandRegressionTest.java
+@@ -60,7 +60,7 @@ class GameRuleCommandRegressionTest {
+                 this.messages.add(invocation.<Supplier<Component>>getArgument(0).get());
+                 this.broadcasts.add(invocation.getArgument(1));
+                 return null;
+-            }).when(this.source).sendSuccess(any(), anyBoolean());
++            }).when(this.source).sendSuccess(any(Supplier.class), anyBoolean());
+             this.dispatcher.setConsumer((context, success, result) -> this.completions.add(new Completion(success, result)));
+             CommandBuildContext buildContext = mock(CommandBuildContext.class);
+             when(buildContext.enabledFeatures()).thenReturn(FeatureFlags.REGISTRY.allFlags());
+diff --git a/src/test/java/io/papermc/paper/porting/PaperMainRuntimeTest.java b/src/test/java/io/papermc/paper/porting/PaperMainRuntimeTest.java
+index f88fc7486eb3d10b5095143aa42460fd7dfd61e3..9ba3f5fe691dff8599f9ee6cf3291ad8ddbe09b6 100644
+--- a/src/test/java/io/papermc/paper/porting/PaperMainRuntimeTest.java
++++ b/src/test/java/io/papermc/paper/porting/PaperMainRuntimeTest.java
+@@ -29,7 +29,7 @@ import org.junit.jupiter.params.provider.ValueSource;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
+ 
+-@Normal
++@org.bukkit.support.environment.AllFeatures
+ class PaperMainRuntimeTest {
+     @ParameterizedTest
+     @ValueSource(ints = {0, 1, 128})
+@@ -107,27 +107,31 @@ class PaperMainRuntimeTest {
+     }
+ 
+     @Test
+-    void localizedCodecCachesStayBoundedUnderParallelUse() throws Exception {
++    void localizedOpsKeepPerCallLocaleAndRemainingCacheBoundedUnderParallelUse() throws Exception {
+         try (var executor = Executors.newFixedThreadPool(4)) {
+             var tasks = new java.util.ArrayList<java.util.concurrent.Callable<Void>>();
+             for (int index = 0; index < 1024; index++) {
+                 final Locale locale = new Locale.Builder().setLanguage("en").setVariant("test" + index).build();
+                 tasks.add(() -> {
+                     assertNotNull(PaperAdventure.localizedCodec(locale));
+-                    assertNotNull(ComponentSerialization.localizedCodec(locale));
++                    var ops = new io.papermc.paper.adventure.LocaleAwareOps.Delegating<>(com.mojang.serialization.JsonOps.INSTANCE, locale);
++                    assertSame(locale, ops.locale());
++                    var input = PaperAdventure.asVanilla(net.kyori.adventure.text.Component.translatable("test.missing")
++                        .append(net.kyori.adventure.text.Component.text(locale.toLanguageTag())));
++                    assertTrue(ComponentSerialization.CODEC.encodeStart(ops, input).getOrThrow().toString().contains(locale.toLanguageTag()));
+                     return null;
+                 });
+             }
+             for (var task : executor.invokeAll(tasks)) task.get();
+         }
+-        for (Class<?> owner : List.of(PaperAdventure.class, ComponentSerialization.class)) {
++        for (Class<?> owner : List.of(PaperAdventure.class)) {
+             Field field = owner.getDeclaredField("LOCALIZED_CODECS");
+             field.setAccessible(true);
+             LoadingCache<?, ?> cache = (LoadingCache<?, ?>) field.get(null);
+             cache.cleanUp();
+             assertTrue(cache.size() <= 256, owner.getSimpleName());
+         }
+-        assertSame(ComponentSerialization.CODEC, ComponentSerialization.localizedCodec(null));
++        assertThrows(NoSuchFieldException.class, () -> ComponentSerialization.class.getDeclaredField("LOCALIZED_CODECS"));
+         assertNotNull(PaperAdventure.localizedCodec(null));
+     }
+ }
+diff --git a/src/test/java/io/papermc/paper/porting/PaperOctober22ChunkStateTest.java b/src/test/java/io/papermc/paper/porting/PaperOctober22ChunkStateTest.java
+index cc68ea5b2cf5c525fa212b74668f90a21b617b08..5172b106775cee1e8078c5395ee2331e8d517986 100644
+--- a/src/test/java/io/papermc/paper/porting/PaperOctober22ChunkStateTest.java
++++ b/src/test/java/io/papermc/paper/porting/PaperOctober22ChunkStateTest.java
+@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
+ import static org.junit.jupiter.api.Assertions.*;
+ import static org.mockito.Mockito.*;
+ 
+-@Normal
++@org.bukkit.support.environment.AllFeatures
+ class PaperOctober22ChunkStateTest {
+     private static ChunkGenerationState classify(CompoundTag tag) throws Exception {
+         var method = FeatureHooks.class.getDeclaredMethod("classifyChunkGenerationState", CompoundTag.class, int.class, int.class);
+diff --git a/src/test/java/io/papermc/paper/porting/PaperOctober22GenerationTest.java b/src/test/java/io/papermc/paper/porting/PaperOctober22GenerationTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d6baac27fc5c4c01458f68018d25b5187d151397
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/porting/PaperOctober22GenerationTest.java
+@@ -0,0 +1,54 @@
++package io.papermc.paper.porting;
++
++import java.lang.reflect.Modifier;
++import java.util.ArrayList;
++import java.util.List;
++import java.util.concurrent.atomic.AtomicInteger;
++import net.minecraft.core.BlockPos;
++import net.minecraft.core.registries.Registries;
++import net.minecraft.world.level.biome.Biomes;
++import net.minecraft.world.level.chunk.LevelChunkSection;
++import net.minecraft.world.level.chunk.PalettedContainerFactory;
++import net.minecraft.world.level.levelgen.structure.Structure;
++import net.minecraft.world.level.levelgen.structure.pieces.StructurePiecesBuilder;
++import org.bukkit.support.RegistryHelper;
++import org.bukkit.support.environment.AllFeatures;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.*;
++
++@AllFeatures
++class PaperOctober22GenerationTest {
++    @Test
++    void statefulBiomeSamplerUsesExactlyVanillaXyzOrderWithoutSamplingOriginTwice() {
++        var registries = RegistryHelper.registryAccess();
++        var biomes = registries.lookupOrThrow(Registries.BIOME);
++        var plains = biomes.getOrThrow(Biomes.PLAINS);
++        var desert = biomes.getOrThrow(Biomes.DESERT);
++        var section = new LevelChunkSection(PalettedContainerFactory.create(registries), null, null, 0);
++        List<BlockPos> calls = new ArrayList<>();
++        AtomicInteger sequence = new AtomicInteger();
++        section.fillBiomesFromNoise((x, y, z) -> {
++            calls.add(new BlockPos(x, y, z));
++            return (sequence.getAndIncrement() & 1) == 0 ? plains : desert;
++        }, -8, 4, -16);
++        List<BlockPos> vanilla = new ArrayList<>();
++        for (int x = 0; x < 4; ++x) for (int y = 0; y < 4; ++y) for (int z = 0; z < 4; ++z) {
++            vanilla.add(new BlockPos(x - 8, y + 4, z - 16));
++            assertSame((vanilla.size() & 1) == 1 ? plains : desert, section.getNoiseBiome(x, y, z));
++        }
++        assertEquals(vanilla, calls);
++        assertEquals(64, sequence.get());
++    }
++
++    @Test
++    void bothStaticStructurePieceWeightOwnersAreSerialized() throws Exception {
++        for (Class<?> structure : List.of(
++            net.minecraft.world.level.levelgen.structure.structures.StrongholdStructure.class,
++            net.minecraft.world.level.levelgen.structure.structures.NetherFortressStructure.class)) {
++            var method = structure.getDeclaredMethod("generatePieces", StructurePiecesBuilder.class, Structure.GenerationContext.class);
++            assertTrue(Modifier.isStatic(method.getModifiers()));
++            assertTrue(Modifier.isSynchronized(method.getModifiers()), structure.getSimpleName());
++        }
++    }
++}
+diff --git a/src/test/java/io/papermc/paper/porting/PaperOctober22NbtAndRegionTest.java b/src/test/java/io/papermc/paper/porting/PaperOctober22NbtAndRegionTest.java
+index 7834b260945a745bad9e556dab2b045a17f75969..bf1b5cb820536e3023a8f668a500e3b658b57085 100644
+--- a/src/test/java/io/papermc/paper/porting/PaperOctober22NbtAndRegionTest.java
++++ b/src/test/java/io/papermc/paper/porting/PaperOctober22NbtAndRegionTest.java
+@@ -29,6 +29,7 @@ import org.junit.jupiter.api.io.TempDir;
+ import static org.junit.jupiter.api.Assertions.*;
+ import static org.mockito.AdditionalAnswers.delegatesTo;
+ import static org.mockito.Mockito.mock;
++import static org.mockito.Mockito.mockConstruction;
+ 
+ @Normal
+ class PaperOctober22NbtAndRegionTest {
+@@ -75,10 +76,14 @@ class PaperOctober22NbtAndRegionTest {
+     @Test
+     void truncatedStreamsAndHeapQuotasNeverReturnPartialData() throws Exception {
+         byte[] bytes = encode(payload());
++        // Malformed payloads construct CrashReport/SystemReport. Hardware probing is not
++        // part of the NBT contract and Windows Perflib may hang on the test machine.
++        try (var hardware = mockConstruction(net.minecraft.SystemReport.class)) {
+         for (int length = 0; length < bytes.length; ++length) {
+             byte[] truncated = Arrays.copyOf(bytes, length);
+             assertThrows(Exception.class, () -> FastNBTParser.nbtIoReadStream(new ByteArrayInputStream(truncated), NbtAccounter.unlimitedHeap()), "length " + length);
+         }
++        }
+         assertThrows(net.minecraft.nbt.NbtAccounterException.class,
+             () -> FastNBTParser.nbtIoReadStream(new ByteArrayInputStream(bytes), NbtAccounter.create(8)));
+     }
+diff --git a/src/test/java/io/papermc/paper/porting/PaperOctober22OwnershipTest.java b/src/test/java/io/papermc/paper/porting/PaperOctober22OwnershipTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..617b7368f9bca2ca4c862cc09e40c553dce6e124
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/porting/PaperOctober22OwnershipTest.java
+@@ -0,0 +1,86 @@
++package io.papermc.paper.porting;
++
++import ca.spottedleaf.moonrise.common.util.TickThread;
++import java.util.HashMap;
++import java.util.Map;
++import java.util.function.Predicate;
++import net.kyori.adventure.key.Key;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.Container;
++import net.minecraft.world.entity.Entity;
++import net.minecraft.world.level.block.entity.BlockEntity;
++import net.minecraft.world.level.block.entity.HopperBlockEntity;
++import org.bukkit.craftbukkit.entity.CraftEntity;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.support.environment.Normal;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.Mockito.*;
++
++@Normal
++class PaperOctober22OwnershipTest {
++    private static CraftPlayer player(Map<Key, Predicate<org.bukkit.entity.Entity>> rules) throws Exception {
++        var player = mock(CraftPlayer.class, CALLS_REAL_METHODS);
++        var entity = CraftEntity.class.getDeclaredField("entity");
++        entity.setAccessible(true);
++        entity.set(player, mock(ServerPlayer.class));
++        var map = CraftEntity.class.getDeclaredField("additionalAlliedRules");
++        map.setAccessible(true);
++        map.set(player, rules);
++        return player;
++    }
++
++    @Test
++    void playerHandleOverrideDoesNotBypassNewRuleAndDamageOwnerChecks() throws Exception {
++        var rules = new HashMap<Key, Predicate<org.bukkit.entity.Entity>>();
++        var player = player(rules);
++        var key = Key.key("test", "ally");
++        try (var ticks = mockStatic(TickThread.class)) {
++            ticks.when(() -> TickThread.ensureTickThread(any(Entity.class), anyString())).thenThrow(new IllegalStateException("wrong owner"));
++            assertThrows(IllegalStateException.class, player::getAdditionalAlliedRules);
++            assertThrows(IllegalStateException.class, () -> player.addAdditionalAlliedRule(key, ignored -> true));
++            assertThrows(IllegalStateException.class, () -> player.removeAdditionalAlliedRule(key));
++            assertThrows(IllegalStateException.class, () -> player.considersEntityAsAlly0(player));
++            assertThrows(IllegalStateException.class, () -> player.isAlliedTo(player));
++            assertThrows(IllegalStateException.class, player::isMarkedInvulnerable);
++            assertTrue(rules.isEmpty());
++        }
++    }
++
++    @Test
++    void ownerRuleViewRemainsLiveUnmodifiableAndNamespaceRemovalIsScoped() throws Exception {
++        var rules = new HashMap<Key, Predicate<org.bukkit.entity.Entity>>();
++        var player = player(rules);
++        var key = Key.key("test", "ally");
++        var other = Key.key("other", "ally");
++        try (var ticks = mockStatic(TickThread.class)) {
++            var view = player.getAdditionalAlliedRules();
++            player.addAdditionalAlliedRule(key, ignored -> true);
++            player.addAdditionalAlliedRule(other, ignored -> false);
++            assertEquals(2, view.size());
++            assertTrue(player.considersEntityAsAlly0(player));
++            assertThrows(UnsupportedOperationException.class, view::clear);
++            player.removeAdditionalAlliedRule((net.kyori.adventure.key.Namespaced)key);
++            assertEquals(java.util.Set.of(other), view.keySet());
++            assertFalse(player.considersEntityAsAlly0(player));
++        }
++    }
++
++    @Test
++    void staleBlockContainersAreRejectedBeforeWorldReads() {
++        var world = mock(ServerLevel.class);
++        var block = mock(HopperBlockEntity.class);
++        when(block.isRemoved()).thenReturn(true);
++        assertFalse(HopperBlockEntity.tessera$isOwnedContainer(world, block));
++        verify(world, never()).getBlockEntity(any());
++        when(block.isRemoved()).thenReturn(false);
++        when(block.getLevel()).thenReturn(world);
++        when(block.getBlockPos()).thenReturn(net.minecraft.core.BlockPos.ZERO);
++        try (var ticks = mockStatic(TickThread.class)) {
++            assertFalse(HopperBlockEntity.tessera$isOwnedContainer(world, block));
++            verify(world, never()).getBlockEntity(any());
++        }
++    }
++}
+diff --git a/src/test/java/io/papermc/paper/porting/RegionSafeRecipeCatalogTest.java b/src/test/java/io/papermc/paper/porting/RegionSafeRecipeCatalogTest.java
+index 42351b56508de1e60b213b22fe0f833e0c2c7ae9..c160a4ba3ab095e66af600ecb55fce9f3c27870f 100644
+--- a/src/test/java/io/papermc/paper/porting/RegionSafeRecipeCatalogTest.java
++++ b/src/test/java/io/papermc/paper/porting/RegionSafeRecipeCatalogTest.java
+@@ -102,6 +102,38 @@ class RegionSafeRecipeCatalogTest {
+         assertTrue(manager.getLearnableRecipes().isEmpty());
+     }
+ 
++    @Test
++    @SuppressWarnings({"unchecked", "rawtypes"})
++    void vanillaOrderAndRuntimeInsertionPriorityUseThePublishedCatalog() {
++        var manager = manager();
++        var vanillaFirst = recipe("vanilla_first", false);
++        var vanillaSecond = recipe("vanilla_second", false);
++        var input = mock(net.minecraft.world.item.crafting.CraftingInput.class);
++        var level = mock(net.minecraft.world.level.Level.class);
++        for (var holder : List.of(vanillaFirst, vanillaSecond)) when(((Recipe)holder.value()).matches(input, level)).thenReturn(true);
++        var map = manager.recipes.tessera$mutableCopy();
++        for (var holder : List.of(vanillaFirst, vanillaSecond)) {
++            map.byType.put(RecipeType.CRAFTING, holder);
++            map.byKey.put(holder.id(), holder);
++        }
++        manager.recipes = map;
++        manager.finalizeRecipeLoading();
++        assertSame(vanillaFirst, manager.getRecipeFor(RecipeType.CRAFTING, input, level).orElseThrow());
++        var runtimeFirst = recipe("runtime_first", false);
++        var runtimeLast = recipe("runtime_last", false);
++        for (var holder : List.of(runtimeFirst, runtimeLast)) when(((Recipe)holder.value()).matches(input, level)).thenReturn(true);
++        manager.tessera$addRecipes(List.of(runtimeFirst, runtimeLast));
++        var selected = manager.getRecipeFor(RecipeType.CRAFTING, input, level).orElseThrow();
++        assertEquals(runtimeLast.id(), selected.id());
++        assertSame(runtimeLast.value(), selected.value());
++        assertTrue(selected.runtimeAddedRecipe());
++        assertFalse(vanillaFirst.runtimeAddedRecipe());
++        manager.removeRecipe(runtimeLast.id());
++        assertEquals(runtimeFirst.id(), manager.getRecipeFor(RecipeType.CRAFTING, input, level).orElseThrow().id());
++        manager.removeRecipe(runtimeFirst.id());
++        assertSame(vanillaFirst, manager.getRecipeFor(RecipeType.CRAFTING, input, level).orElseThrow());
++    }
++
+     @Test
+     void removedDisplayIdsCannotResolveToAnUnrelatedRecipe() {
+         var manager = manager();

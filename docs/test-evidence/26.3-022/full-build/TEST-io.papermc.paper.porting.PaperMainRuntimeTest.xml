@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.papermc.paper.porting.PaperMainRuntimeTest" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-10-26T14:01:35.588Z" hostname="ENGINE0" time="0.511">
+  <properties/>
+  <testcase name="localizedOpsKeepPerCallLocaleAndRemainingCacheBoundedUnderParallelUse()" classname="io.papermc.paper.porting.PaperMainRuntimeTest" time="0.102"/>
+  <testcase name="jsonAndEntityChunkUseTheSameMemoryMigration()" classname="io.papermc.paper.porting.PaperMainRuntimeTest" time="0.328"/>
+  <testcase name="[1] start = 0" classname="io.papermc.paper.porting.PaperMainRuntimeTest" time="0.005"/>
+  <testcase name="[2] start = 1" classname="io.papermc.paper.porting.PaperMainRuntimeTest" time="0.0"/>
+  <testcase name="[3] start = 2" classname="io.papermc.paper.porting.PaperMainRuntimeTest" time="0.001"/>
+  <testcase name="[1] size = 0" classname="io.papermc.paper.porting.PaperMainRuntimeTest" time="0.025"/>
+  <testcase name="[2] size = 1" classname="io.papermc.paper.porting.PaperMainRuntimeTest" time="0.009"/>
+  <testcase name="[3] size = 128" classname="io.papermc.paper.porting.PaperMainRuntimeTest" time="0.015"/>
+  <testcase name="[1] size = 129" classname="io.papermc.paper.porting.PaperMainRuntimeTest" time="0.002"/>
+  <testcase name="[2] size = 1000000" classname="io.papermc.paper.porting.PaperMainRuntimeTest" time="0.0"/>
+  <testcase name="[3] size = 2147483647" classname="io.papermc.paper.porting.PaperMainRuntimeTest" time="0.001"/>
+  <testcase name="[1] from = 4903" classname="io.papermc.paper.porting.PaperMainRuntimeTest" time="0.006"/>
+  <testcase name="[2] from = 5008" classname="io.papermc.paper.porting.PaperMainRuntimeTest" time="0.01"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

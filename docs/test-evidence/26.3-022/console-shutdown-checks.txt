@@ -1,0 +1,5 @@
+burst=512
+terminal=org.jline.terminal.impl.ffm.NativeWinSysTerminal
+windows=true
+reader=true
+normal-disable=true

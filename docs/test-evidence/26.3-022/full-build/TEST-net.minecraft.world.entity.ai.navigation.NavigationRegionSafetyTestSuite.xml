@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="net.minecraft.world.entity.ai.navigation.NavigationRegionSafetyTestSuite" tests="18" skipped="0" failures="0" errors="0" timestamp="2026-10-26T14:00:31.864Z" hostname="ENGINE0" time="15.574">
+  <properties/>
+  <testcase name="suppliedForeignPathIsRejectedBeforeTrimReadsVisitedNodes()" classname="net.minecraft.world.entity.ai.navigation.NavigationRegionSafetyTestSuite" time="2.222"/>
+  <testcase name="horseWidthCannotMoveTheEntityWaypointIntoAForeignChunk()" classname="net.minecraft.world.entity.ai.navigation.NavigationRegionSafetyTestSuite" time="0.016"/>
+  <testcase name="flyingOverrideRevalidatesAnAdvancedWaypoint()" classname="net.minecraft.world.entity.ai.navigation.NavigationRegionSafetyTestSuite" time="0.114"/>
+  <testcase name="delayedForeignRecomputationIsClearedBeforePathfinding()" classname="net.minecraft.world.entity.ai.navigation.NavigationRegionSafetyTestSuite" time="0.007"/>
+  <testcase name="flyingOverrideRejectsAForeignWaypointBeforeFollowing()" classname="net.minecraft.world.entity.ai.navigation.NavigationRegionSafetyTestSuite" time="0.007"/>
+  <testcase name="invalidationDoesNotEraseRiderMovementOrMomentum()" classname="net.minecraft.world.entity.ai.navigation.NavigationRegionSafetyTestSuite" time="0.009"/>
+  <testcase name="ownedLoadedNavigationKeepsVanillaGroundHeightAndSteering()" classname="net.minecraft.world.entity.ai.navigation.NavigationRegionSafetyTestSuite" time="0.01"/>
+  <testcase name="ownedButUnloadedWaypointIsRejectedWithoutWorldReads()" classname="net.minecraft.world.entity.ai.navigation.NavigationRegionSafetyTestSuite" time="0.007"/>
+  <testcase name="recomputationCacheNeverObtainsAForeignLoadedChunk()" classname="net.minecraft.world.entity.ai.navigation.NavigationRegionSafetyTestSuite" time="0.016"/>
+  <testcase name="negativeCoordinatesUseFloorChunkCoordinates()" classname="net.minecraft.world.entity.ai.navigation.NavigationRegionSafetyTestSuite" time="0.008"/>
+  <testcase name="noPathDoesNotReadChunksOrChangeSteering()" classname="net.minecraft.world.entity.ai.navigation.NavigationRegionSafetyTestSuite" time="0.004"/>
+  <testcase name="suppliedOwnedPathStillUsesVanillaTrimming()" classname="net.minecraft.world.entity.ai.navigation.NavigationRegionSafetyTestSuite" time="0.006"/>
+  <testcase name="climberRetainsItsOwnedLoadedFallback()" classname="net.minecraft.world.entity.ai.navigation.NavigationRegionSafetyTestSuite" time="0.006"/>
+  <testcase name="advancementIsRevalidatedBeforeTheGroundHeightRead()" classname="net.minecraft.world.entity.ai.navigation.NavigationRegionSafetyTestSuite" time="0.027"/>
+  <testcase name="climberDiscardsAForeignFallbackWithoutIssuingSteering()" classname="net.minecraft.world.entity.ai.navigation.NavigationRegionSafetyTestSuite" time="0.007"/>
+  <testcase name="aWrongMobOwnerFailsBeforeAnyNavigationMutation()" classname="net.minecraft.world.entity.ai.navigation.NavigationRegionSafetyTestSuite" time="0.011"/>
+  <testcase name="foreignLoadedWaypointIsRejectedBeforeAnyChunkOrBlockRead()" classname="net.minecraft.world.entity.ai.navigation.NavigationRegionSafetyTestSuite" time="0.004"/>
+  <testcase name="foreignUnloadedWaypointCannotTriggerASynchronousLoad()" classname="net.minecraft.world.entity.ai.navigation.NavigationRegionSafetyTestSuite" time="0.005"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[Okt. 26, 2026 3:00:31 PM org.bukkit.support.extension.BaseExtension isTestCase
+INFORMATION: Running tests with environment: VanillaFeature
+Okt. 26, 2026 3:00:44 PM org.bukkit.Bukkit setServer
+INFORMATION: This server is running org.bukkit.support.DummyServerHelper version 26.3-DEV (2026-10-26T14:00:43Z) (Implementing API version 26.3.build.022-beta)
+]]></system-err>
+</testsuite>

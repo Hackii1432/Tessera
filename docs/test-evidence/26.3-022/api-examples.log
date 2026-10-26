@@ -1,0 +1,23 @@
+> Task :buildSrc:compileJava UP-TO-DATE
+> Task :buildSrc:compileGroovy NO-SOURCE
+> Task :buildSrc:processResources NO-SOURCE
+> Task :buildSrc:classes UP-TO-DATE
+> Task :buildSrc:jar UP-TO-DATE
+
+> Configure project :
+paperweight-patcher v2.0.0-beta.24 (running on 'Windows 11')
+
+> Configure project :folia-server
+paperweight-core v2.0.0-beta.24 (running on 'Windows 11')
+
+> Task :folia-api:compileJava UP-TO-DATE
+> Task :folia-api:processResources NO-SOURCE
+> Task :folia-api:classes UP-TO-DATE
+> Task :folia-api:generateApiVersioningFile UP-TO-DATE
+> Task :folia-api:jar UP-TO-DATE
+
+> Task :folia-api:checkApiDocumentationExamples
+Compiled 15 complete API examples against supplied classpath: C:\Users\hunte\IdeaProjects\Tessera\build\docs-api-examples\check-IUOM9g
+
+BUILD SUCCESSFUL in 4s
+6 actionable tasks: 1 executed, 5 up-to-date

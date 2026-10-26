@@ -3,7 +3,7 @@ title: "Rezeptkataloge und Batch-APIs"
 description: "Paper-Rezepte in Tessera atomar auf dem Global-Besitzer ändern und Clients auf ihren aktuellen Entity-Besitzern aktualisieren."
 navTitle: "Rezepte"
 order: 135
-updated: 2026-10-11
+updated: 2026-10-26
 minecraftVersion: "26.3"
 badge: "Paper-Kompatibilität"
 ---
@@ -50,6 +50,13 @@ einzelnem Rezept. Spieler entdecken neue Rezepte weiterhin ausdrücklich, etwa
 über `Player#discoverRecipe`, auf ihrem eigenen Besitzer.
 
 ## Globaler Schreiber und parallele Leser
+
+Ab Build 022 verwendet die Auswahl unter passenden nativen Rezepten wieder die
+Vanilla-Reihenfolge. Während der Laufzeit hinzugefügte Rezepte haben Vorrang;
+unter ihnen gewinnt das zuletzt passend eingefügte Rezept. Das gilt auch für
+Einzel-, Batch- und Ersetzungsoperationen. Die zusätzliche Prioritätsmarkierung
+ändert weder Rezeptschlüssel noch die Unveränderlichkeit veröffentlichter Kataloge.
+Ein Reset auf den nativen Basiskatalog übernimmt keine alten Runtime-Markierungen.
 
 Nach Serverinitialisierung müssen **alle** Katalogmutationen auf dem
 GlobalRegionScheduler laufen: auch bisheriges `addRecipe`, `removeRecipe`,

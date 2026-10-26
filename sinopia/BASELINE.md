@@ -182,3 +182,29 @@ ursprüngliche `paperRef`-Importprovenienz bleiben unverändert.
 
 Quellen, Folia-Anpassungen und Prüfumfang:
 [Paper-Integration 019](../docs/PAPER-INTEGRATION-2026-10-11.md).
+
+## Fachliche Paper-/Moonrise-Integration vom 26. Oktober 2026
+
+Der geprüfte Bereich nach `99867f8f9207d3164696e469435a067330473743`
+bis `e415f5e030435d3108d7b623b41b9e47901e9d12` umfasst 54 Commits.
+Die empfohlenen Laufzeitkorrekturen und öffentlichen APIs sowie beide großen
+Moonrise-Updates sind in Tessera `022-beta` integriert. Leafpile verwendet
+`1.3.2` einschließlich `ioutil` und des weiterhin benötigten Folia-Profilers.
+Minecraft/Mache, API 26.3, Java 25 und der Beta-Kanal bleiben unverändert.
+Papers Stable-Promotion wird nicht als Tessera-Stable-Freigabe übernommen.
+
+Die nativen Änderungen liegen als eigene Tessera-Minecraft-Patches vor;
+API-/Adapterquellen sind direkt in dieser Basis versioniert. Der Quellvergleich
+wurde aus vollständig angewendeten alten und neuen Paper-Patches gewonnen,
+nicht durch Ersetzen der Folia-Implementierung. Die Spieler-/Regionsbesitzer,
+atomaren globalen Rezeptkataloge, lokalen Baumgenerator-Kontexte, Map-Sperren,
+Restore-Schreibschranken und Runtime-Weltbindungen bleiben erhalten.
+
+Chunk-Statusabfragen verwenden veröffentlichte Metadaten und asynchrones I/O,
+keine synchronen Fremdregions- oder Global-Weltzugriffe. JLine-Hooks laufen erst
+nach dem Log-Drain; der bisherige idempotente Shutdown bleibt aktiv. Der
+Scheduler-Abbruchfix gilt auch für den echten Folia-Regionsscheduler.
+
+Herkunft, vollständige Commitzuordnung und tatsächlich ausgeführte Prüfungen:
+[Paper-Integration 022](../docs/PAPER-INTEGRATION-2026-10-26.md) und
+[Buildbericht 022](../docs/BUILD-26.3-022.md).
