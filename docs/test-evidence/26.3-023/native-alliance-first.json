@@ -1,0 +1,149 @@
+{
+  "jar": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\alliance-023\\first-candidate.jar",
+  "sha256": "aa0db3c1b16a37cd4f55fb1666e9d4b2ad0552b45f6deeade9891294d21fb5bf",
+  "work": "C:\\Users\\hunte\\IdeaProjects\\Tessera\\build\\native-alliance-1793053334030",
+  "port": 52779,
+  "code": 0,
+  "passed": true,
+  "timedOut": false,
+  "clientFailure": null,
+  "joins": 2,
+  "kicks": 0,
+  "disconnects": 0,
+  "checks": "two connected clients\nnative transfer AllianceAlpha world 8.5\nnative transfer AllianceBeta world 10.5\nnative transfer AllianceBeta world 2056.5\ntwo distinct native regions\nstale Warden target rejected remote region\nremote anger live handle retired remote region\nremote anger UUID retained remote region\nstale Creaking memory rejected remote region\nstale retaliation attacker rejected remote region\nalliance predicate runs on both owners\nremote pet owner rules not executed remote region WOLF\nremote pet owner UUID retained remote region WOLF\npet retained remote region WOLF\nalliance predicate runs on both owners\nremote pet owner rules not executed remote region CAT\nremote pet owner UUID retained remote region CAT\npet retained remote region CAT\nalliance predicate runs on both owners\nremote pet owner rules not executed remote region PARROT\nremote pet owner UUID retained remote region PARROT\npet retained remote region PARROT\nalliance predicate runs on both owners\nremote pet owner rules not executed remote region NAUTILUS\nremote pet owner UUID retained remote region NAUTILUS\npet retained remote region NAUTILUS\nfangs live owner unavailable remote region\nfangs native magic damage with remote owner remote region\nfangs owner UUID retained remote region\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nnatural Warden darkness AllianceAlpha\nnatural ElderGuardian fatigue AllianceAlpha\nvanilla fatigue amplifier AllianceAlpha\nnatural Warden darkness AllianceBeta\nnatural ElderGuardian fatigue AllianceBeta\nvanilla fatigue amplifier AllianceBeta\nfirst region mobs survive natural aura ticks\nsecond region mobs survive natural aura ticks\nnative aura alliance callbacks observed\nnative transfer AllianceBeta world_nether 8.5\nstale Warden target rejected other dimension\nremote anger live handle retired other dimension\nremote anger UUID retained other dimension\nstale Creaking memory rejected other dimension\nstale retaliation attacker rejected other dimension\nalliance predicate runs on both owners\nremote pet owner rules not executed other dimension WOLF\nremote pet owner UUID retained other dimension WOLF\npet retained other dimension WOLF\nalliance predicate runs on both owners\nremote pet owner rules not executed other dimension CAT\nremote pet owner UUID retained other dimension CAT\npet retained other dimension CAT\nalliance predicate runs on both owners\nremote pet owner rules not executed other dimension PARROT\nremote pet owner UUID retained other dimension PARROT\npet retained other dimension PARROT\nalliance predicate runs on both owners\nremote pet owner rules not executed other dimension NAUTILUS\nremote pet owner UUID retained other dimension NAUTILUS\npet retained other dimension NAUTILUS\nfangs live owner unavailable other dimension\nfangs native magic damage with remote owner other dimension\nfangs owner UUID retained other dimension\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nnative sword sweep damages local target beside remote-owned pets\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nnative mace knockback beside remote-owned pets\nlocal retaliation still uses vanilla selection\nlocal retaliation target retained\nnative piglin group alarm retains local target\npiglin alliance callback retirement stops group mutation\nalliance predicate runs on both owners\neffect source retirement stops old-owner application\neffect callback actually retired source\nalliance predicate runs on both owners\nElderGuardian appearance veto still suppresses fatigue\npotion target retirement vetoes mutation\nretired target effect map unchanged\nalliance predicate runs on both owners\nalliance callback retirement stops reverse evaluation\npush callback retirement leaves velocity unchanged\nnative transfer AllianceBeta world 10.5\nalliance predicate runs on both owners\nowner alliance resumes WOLF\nowner alliance resumes CAT\nowner alliance resumes PARROT\nowner alliance resumes NAUTILUS\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nalliance predicate runs on both owners\nWarden anger resolves again after owner return\nowner UUID retained after return WOLF\nowner UUID retained after return CAT\nowner UUID retained after return PARROT\nowner UUID retained after return NAUTILUS\nclients remained connected after repeated transfers",
+  "observations": [
+    {
+      "type": "login",
+      "username": "AllianceAlpha"
+    },
+    {
+      "type": "login",
+      "username": "AllianceBeta"
+    },
+    {
+      "type": "teleport",
+      "username": "AllianceBeta",
+      "id": 1,
+      "position": [
+        -8.5,
+        -60,
+        1.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "advancements",
+      "username": "AllianceBeta",
+      "reset": true
+    },
+    {
+      "type": "teleport",
+      "username": "AllianceAlpha",
+      "id": 1,
+      "position": [
+        -11.5,
+        -60,
+        -12.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "advancements",
+      "username": "AllianceAlpha",
+      "reset": true
+    },
+    {
+      "type": "teleport",
+      "username": "AllianceAlpha",
+      "id": 2,
+      "position": [
+        8.5,
+        4,
+        8.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "teleport",
+      "username": "AllianceBeta",
+      "id": 2,
+      "position": [
+        10.5,
+        4,
+        8.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "teleport",
+      "username": "AllianceBeta",
+      "id": 3,
+      "position": [
+        2056.5,
+        4,
+        8.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "teleport",
+      "username": "AllianceBeta",
+      "id": 4,
+      "position": [
+        8.5,
+        4,
+        8.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    },
+    {
+      "type": "advancements",
+      "username": "AllianceBeta",
+      "reset": false
+    },
+    {
+      "type": "advancements",
+      "username": "AllianceBeta",
+      "reset": false
+    },
+    {
+      "type": "teleport",
+      "username": "AllianceBeta",
+      "id": 5,
+      "position": [
+        10.5,
+        4,
+        8.5
+      ],
+      "rotation": [
+        0,
+        0
+      ],
+      "acknowledged": true
+    }
+  ]
+}

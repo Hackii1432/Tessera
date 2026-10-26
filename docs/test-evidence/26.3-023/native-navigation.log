@@ -1,0 +1,675 @@
+NAV_FIXTURE C:\Users\hunte\IdeaProjects\Tessera\build\native-navigation-1793055107488 PORT 51697 SHA256 26702a8332a2ac6681abce5ce8cab86a6d08006397105e6ee90d7d9db0a43b83
+Applying patches
+Starting org.bukkit.craftbukkit.Main
+[23:51:56 INFO]: [bootstrap] Running Java 25 (Java HotSpot(TM) 64-Bit Server VM 25.0.3+9-LTS-195; Oracle Corporation null) on Windows 11 10.0 (amd64)
+[23:51:56 INFO]: [bootstrap] Loading Tessera 26.3-23-ver/26.3.x@5731a91 (2026-10-26T22:43:57Z) for Minecraft 26.3
+[23:51:56 INFO]: [PluginInitializerManager] Initializing plugins...
+[23:51:57 INFO]: [PluginInitializerManager] Initialized 1 plugin
+[23:51:57 INFO]: [PluginInitializerManager] Bukkit plugins (1):
+ - TesseraRuntimeWorldSmoke (1.0.0)
+[31;1m[23:51:59 ERROR]: [oshi.driver.windows.registry.HkeyPerformanceDataUtil] Unable to locate English counter names in registry Perflib 009. Counters may need to be rebuilt: 
+com.sun.jna.platform.win32.Win32Exception: Falscher Parameter.
+	at com.sun.jna.platform.win32.Advapi32Util.registryGetStringArray(Advapi32Util.java:921) ~[jna-platform-5.17.0.jar:5.17.0 (b0)]
+	at com.sun.jna.platform.win32.Advapi32Util.registryGetStringArray(Advapi32Util.java:898) ~[jna-platform-5.17.0.jar:5.17.0 (b0)]
+	at oshi.driver.windows.registry.HkeyPerformanceDataUtil.mapCounterIndicesFromRegistry(HkeyPerformanceDataUtil.java:274) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.driver.windows.registry.HkeyPerformanceDataUtil.<clinit>(HkeyPerformanceDataUtil.java:51) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.driver.windows.registry.ProcessPerformanceData.buildProcessMapFromRegistry(ProcessPerformanceData.java:45) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.software.os.windows.WindowsOperatingSystem.queryProcessMapFromRegistry(WindowsOperatingSystem.java:328) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.util.Memoizer$1.get(Memoizer.java:65) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.software.os.windows.WindowsOperatingSystem.processMapToList(WindowsOperatingSystem.java:298) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.software.os.windows.WindowsOperatingSystem.getProcess(WindowsOperatingSystem.java:292) ~[oshi-core-6.9.0.jar:6.9.0]
+	at oshi.software.os.OperatingSystem.getCurrentProcess(OperatingSystem.java:246) ~[oshi-core-6.9.0.jar:6.9.0]
+	at net.minecraft.SystemReport.lambda$putSoftware$0(SystemReport.java:115) ~[folia-26.3.jar:26.3-023-5731a91]
+	at net.minecraft.SystemReport.ignoreErrors(SystemReport.java:120) ~[folia-26.3.jar:26.3-023-5731a91]
+	at net.minecraft.SystemReport.putSoftware(SystemReport.java:115) ~[folia-26.3.jar:26.3-023-5731a91]
+	at net.minecraft.SystemReport.lambda$new$7(SystemReport.java:68) ~[folia-26.3.jar:26.3-023-5731a91]
+	at net.minecraft.SystemReport.ignoreErrors(SystemReport.java:120) ~[folia-26.3.jar:26.3-023-5731a91]
+	at net.minecraft.SystemReport.<init>(SystemReport.java:68) ~[folia-26.3.jar:26.3-023-5731a91]
+	at net.minecraft.CrashReport.<init>(CrashReport.java:32) ~[folia-26.3.jar:26.3-023-5731a91]
+	at net.minecraft.CrashReport.preload(CrashReport.java:240) ~[folia-26.3.jar:26.3-023-5731a91]
+	at java.base/java.lang.Thread.run(Thread.java:1474) ~[?:?]
+[m[33;1m[23:51:59 WARN]: [oshi.util.platform.windows.PerfCounterQuery] Unable to locate English counter names in registry Perflib 009. Assuming English counters. Error 0x80070057. See https://support.microsoft.com/en-us/help/300956/how-to-manually-rebuild-performance-counter-library-values
+[m[33;1m[23:51:59 WARN]: [oshi.util.platform.windows.PerfCounterWildcardQuery] Failed to locate performance object for Process in the registry. Performance counters may be corrupt. Pdh call failed with error code 0xC0000BB8
+[m[23:51:59 INFO]: [oshi.util.platform.windows.PerfCounterWildcardQuery] Disabling further attempts to query Process.
+[23:52:04 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Initialising converters for DataConverter...
+[23:52:04 INFO]: [com.destroystokyo.paper.profile.PaperServicesDiscoveryService] Environment: Environment[discoveryUrl=https://discovery.minecraftservices.com/minecraft/client, name=PROD]
+[23:52:05 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Finished initialising converters for DataConverter in 629,3ms
+[23:52:05 INFO]: Found new data pack paper, loading it automatically
+[23:52:07 INFO]: No existing world data, creating new world
+[23:52:08 INFO]: Loaded 1866 advancements
+[23:52:08 INFO]: Starting minecraft server version 26.3
+[23:52:08 INFO]: Loading properties
+[23:52:08 INFO]: This server is running Tessera version 26.3-23-ver/26.3.x@5731a91 (2026-10-26T22:43:57Z) (Implementing API version 26.3.build.023-beta)
+[23:52:09 INFO]: [spark] This server bundles the spark profiler. For more information please visit https://docs.papermc.io/paper/profiling
+[23:52:09 INFO]: Server Ping Player Sample Count: 12
+[23:52:09 INFO]: Using 4 threads for Netty based IO
+[23:52:09 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 4 target thread(s)
+[23:52:09 INFO]: [MoonriseCommon] Paper is using 1 worker threads, 1 I/O threads
+[23:52:09 INFO]: Default game type: CREATIVE
+[23:52:09 INFO]: Generating keypair
+> 
+  
+[23:52:09 INFO]: Starting Minecraft server on 127.0.0.1:51697
+> 
+  
+[23:52:09 INFO]: Paper: Using Java compression from Velocity.
+> 
+  
+[23:52:09 INFO]: Paper: Using Java cipher from Velocity.
+> 
+  
+[23:52:10 INFO]: [TesseraRuntimeWorldSmoke] Loading server plugin TesseraRuntimeWorldSmoke v1.0.0
+> 
+  
+[33;1m[23:52:10 WARN]: **** SERVER IS RUNNING IN OFFLINE/INSECURE MODE!
+[m> 
+  
+[33;1m[23:52:10 WARN]: The server will make no attempt to authenticate usernames. Beware.
+[m> 
+  
+[33;1m[23:52:10 WARN]: While this makes the game possible to play without internet access, it also opens up the ability for hackers to connect with any username they choose.
+[m> 
+  
+[33;1m[23:52:10 WARN]: To change this, set "online-mode" to "true" in the server.properties file.
+[m> 
+  
+[23:52:10 INFO]: Preparing level "world"
+> 
+  
+[23:52:10 INFO]: Selecting spawn point for level 'minecraft:overworld'...
+> 
+  
+[23:52:11 INFO]: Selecting spawn point for level 'minecraft:the_nether'...
+> 
+  
+[23:52:11 INFO]: Selecting spawn point for level 'minecraft:the_end'...
+> 
+  
+[23:52:12 INFO]: Loading 0 persistent chunks for level 'minecraft:overworld'...
+> 
+  
+[23:52:12 INFO]: Preparing spawn area: 100%
+> 
+  
+[23:52:12 INFO]: Prepared spawn area in 1834 ms
+> 
+  
+[23:52:12 INFO]: Loading 0 persistent chunks for level 'minecraft:the_nether'...
+> 
+  
+[23:52:12 INFO]: Preparing spawn area: 100%
+> 
+  
+[23:52:12 INFO]: Prepared spawn area in 1252 ms
+> 
+  
+[23:52:12 INFO]: Loading 0 persistent chunks for level 'minecraft:the_end'...
+> 
+  
+[23:52:12 INFO]: Preparing spawn area: 100%
+> 
+  
+[23:52:12 INFO]: Prepared spawn area in 263 ms
+> 
+  
+[23:52:12 INFO]: Done preparing level "world" (2.156s)
+> 
+  
+[23:52:12 INFO]: [TesseraRuntimeWorldSmoke] Enabling TesseraRuntimeWorldSmoke v1.0.0
+> 
+  
+[23:52:12 INFO]: [TesseraRuntimeWorldSmoke] NAV_READY_CLIENTS
+> 
+  
+[23:52:12 INFO]: [spark] The spark profiler will not be enabled because it is currently disabled in the configuration.
+> 
+  
+[23:52:12 INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:overworld
+> 
+  
+[23:52:12 INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_nether
+> 
+  
+[23:52:12 INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_end
+> 
+  
+[23:52:12 INFO]: Done (17.323s)! For help, type "help"
+> 
+  
+[23:52:12 INFO]: UUID of player NavBeta is 70be98fd-0b71-3244-9f7d-5d5bf4c52411
+> 
+  
+[23:52:12 INFO]: UUID of player NavAlpha is 1985b1d3-273e-393e-b95c-de34577f1325
+> CLIENT_PLAY NavAlpha
+CLIENT_PLAY NavBeta
+
+  
+[23:52:15 INFO]: System Chat: [93mNavAlpha joined the game[0m
+> 
+  
+[23:52:15 INFO]: NavAlpha[/127.0.0.1:60229] logged in with entity id 1 at ([minecraft:overworld]-10.5, -60.0, -6.5)
+> 
+  
+[23:52:15 INFO]: System Chat: [93mNavBeta joined the game[0m
+> 
+  
+[23:52:15 INFO]: NavBeta[/127.0.0.1:60228] logged in with entity id 2 at ([minecraft:overworld]-0.5, -60.0, -14.5)
+> 
+  
+[23:52:15 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK two protocol clients connected
+> 
+  
+[23:52:16 INFO]: System Chat: NavAlpha has made the advancement [92m[We Need to Go Deeper][0m
+> 
+  
+[23:52:16 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK first client transferred to Nether roof
+> 
+  
+[23:52:17 INFO]: System Chat: NavBeta has made the advancement [92m[We Need to Go Deeper][0m
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK second client transferred to distant Nether region
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK player mounted a tamed equipped horse on its owner
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK player mounted a tamed equipped horse on its owner
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK two mounted riders are on distinct native regions
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK reported distant waypoint is not owned
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK reported distant waypoint is initially unloaded
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK original ground navigation accepts a valid local path
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK reported unloaded stale path is cleared without discarding horse
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse identity and live state preserved
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK rider remains on the same horse
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse ownership preserved
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK saddle and horse armor preserved
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK reported stale path does not load its distant chunk
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK second parallel foreign loaded path: local route installed before invalidation
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK first parallel foreign loaded path: local route installed before invalidation
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK first parallel foreign loaded path: cleared before any ground read
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK second parallel foreign loaded path: cleared before any ground read
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK first parallel foreign loaded path: stale AI steering cancelled
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK second parallel foreign loaded path: stale AI steering cancelled
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse identity and live state preserved
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse identity and live state preserved
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK rider remains on the same horse
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK rider remains on the same horse
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse ownership preserved
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse ownership preserved
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK saddle and horse armor preserved
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK saddle and horse armor preserved
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK foreign waypoint after native advancement: local route installed before invalidation
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK foreign waypoint after native advancement: cleared before any ground read
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK foreign waypoint after native advancement: stale AI steering cancelled
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse identity and live state preserved
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK rider remains on the same horse
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse ownership preserved
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK saddle and horse armor preserved
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK owned but unloaded waypoint available in native region footprint
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK owned unloaded path: local route installed before invalidation
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK owned unloaded path: cleared before any ground read
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK owned unloaded path: stale AI steering cancelled
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse identity and live state preserved
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK rider remains on the same horse
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse ownership preserved
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK saddle and horse armor preserved
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK owned unloaded path does not synchronously load a chunk
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK native recomputation cache omits foreign loaded chunk
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK supplied foreign path rejected before trimming
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK supplied foreign path never reads ground
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK valid local navigation accepted
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK valid local navigation retains Vanilla ground read and live path
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK valid local navigation retains Vanilla movement control
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse identity and live state preserved
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK rider remains on the same horse
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse ownership preserved
+> 
+  
+[23:52:17 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK saddle and horse armor preserved
+> 
+  
+[23:52:18 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK mounted horse transfers across native regions
+> 
+  
+[23:52:18 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK rider and horse reached a new native region
+> 
+  
+[23:52:18 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse identity and live state preserved
+> 
+  
+[23:52:18 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK rider remains on the same horse
+> 
+  
+[23:52:18 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse ownership preserved
+> 
+  
+[23:52:18 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK saddle and horse armor preserved
+> 
+  
+[23:52:18 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK old waypoint after region transfer: local route installed before invalidation
+> 
+  
+[23:52:18 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK old waypoint after region transfer: cleared before any ground read
+> 
+  
+[23:52:18 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK old waypoint after region transfer: stale AI steering cancelled
+> 
+  
+[23:52:18 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse identity and live state preserved
+> 
+  
+[23:52:18 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK rider remains on the same horse
+> 
+  
+[23:52:18 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse ownership preserved
+> 
+  
+[23:52:18 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK saddle and horse armor preserved
+> 
+  
+[23:52:18 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK valid local navigation accepted
+> 
+  
+[23:52:18 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK valid local navigation retains Vanilla ground read and live path
+> 
+  
+[23:52:18 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK valid local navigation retains Vanilla movement control
+> 
+  
+[23:52:18 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse identity and live state preserved
+> 
+  
+[23:52:18 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK rider remains on the same horse
+> 
+  
+[23:52:18 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse ownership preserved
+> 
+  
+[23:52:18 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK saddle and horse armor preserved
+> 
+  
+[23:52:18 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK second rider dismounts explicitly before dimension transfer
+> 
+  
+[23:52:18 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse transfers to another dimension
+> 
+  
+[23:52:18 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK second client transfers without reconnect
+> 
+  
+[23:52:19 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK rider remounts preserved horse in target dimension
+> 
+  
+[23:52:19 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse identity and live state preserved
+> 
+  
+[23:52:19 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK rider remains on the same horse
+> 
+  
+[23:52:19 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse ownership preserved
+> 
+  
+[23:52:19 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK saddle and horse armor preserved
+> 
+  
+[23:52:19 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK navigation uses destination ServerLevel after dimension transfer
+> 
+  
+[23:52:19 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK stale coordinates in destination dimension: local route installed before invalidation
+> 
+  
+[23:52:19 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK stale coordinates in destination dimension: cleared before any ground read
+> 
+  
+[23:52:19 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK stale coordinates in destination dimension: stale AI steering cancelled
+> 
+  
+[23:52:19 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse identity and live state preserved
+> 
+  
+[23:52:19 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK rider remains on the same horse
+> 
+  
+[23:52:19 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse ownership preserved
+> 
+  
+[23:52:19 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK saddle and horse armor preserved
+> 
+  
+[23:52:19 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK valid local navigation accepted
+> 
+  
+[23:52:19 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK valid local navigation retains Vanilla ground read and live path
+> 
+  
+[23:52:19 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK valid local navigation retains Vanilla movement control
+> 
+  
+[23:52:19 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse identity and live state preserved
+> 
+  
+[23:52:19 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK rider remains on the same horse
+> 
+  
+[23:52:19 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse ownership preserved
+> 
+  
+[23:52:19 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK saddle and horse armor preserved
+> 
+  
+[23:52:21 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse identity and live state preserved
+> 
+  
+[23:52:21 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK rider remains on the same horse
+> 
+  
+[23:52:21 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse ownership preserved
+> 
+  
+[23:52:21 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK saddle and horse armor preserved
+> 
+  
+[23:52:21 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse identity and live state preserved
+> 
+  
+[23:52:21 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK rider remains on the same horse
+> 
+  
+[23:52:21 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK horse ownership preserved
+> 
+  
+[23:52:21 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK saddle and horse armor preserved
+> 
+  
+[23:52:21 INFO]: [TesseraRuntimeWorldSmoke] NAV_CHECK both riders remain connected after natural entity ticks
+> 
+  
+[23:52:21 INFO]: [TesseraRuntimeWorldSmoke] NAV_PASS
+> 
+  
+[23:52:21 INFO]: [RegionShutdownThread] Awaiting scheduler termination for 60s...
+> 
+  
+[23:52:21 INFO]: [RegionShutdownThread] Scheduler halted
+> 
+  
+[23:52:21 INFO]: Stopping server
+> 
+  
+[23:52:21 INFO]: [TesseraRuntimeWorldSmoke] Disabling TesseraRuntimeWorldSmoke v1.0.0
+> 
+  
+[23:52:21 INFO]: [RegionShutdownThread] Halting chunk systems...
+> 
+  
+[23:52:21 INFO]: [ChunkHolderManager] Waiting 60s for chunk system to halt for world 'minecraft:overworld'
+> 
+  
+[23:52:21 INFO]: [ChunkHolderManager] Halted chunk system for world 'minecraft:overworld'
+> 
+  
+CLIENT_CLOSED NavAlpha
+CLIENT_CLOSED NavBeta
+[23:52:21 INFO]: [ChunkHolderManager] Waiting 60s for chunk system to halt for world 'minecraft:the_nether'
+> 
+  
+[23:52:21 INFO]: [ChunkHolderManager] Halted chunk system for world 'minecraft:the_nether'
+> 
+  
+[23:52:21 INFO]: [ChunkHolderManager] Waiting 60s for chunk system to halt for world 'minecraft:the_end'
+> 
+  
+[23:52:21 INFO]: [ChunkHolderManager] Halted chunk system for world 'minecraft:the_end'
+> 
+  
+[23:52:21 INFO]: [RegionShutdownThread] Halted chunk systems
+> 
+  
+[23:52:21 INFO]: [RegionShutdownThread] Finishing pending teleports...
+> 
+  
+[23:52:21 INFO]: [RegionShutdownThread] Finished pending teleports
+> 
+  
+[23:52:21 INFO]: [RegionShutdownThread] Saving all worlds
+> 
+  
+[23:52:21 INFO]: [RegionShutdownThread] Saving world data for world 'minecraft:overworld'
+> 
+  
+[23:52:21 INFO]: [RegionShutdownThread] Closing player inventories...
+> 
+  
+[23:52:21 INFO]: [RegionShutdownThread] Closed player inventories
+> 
+  
+[23:52:21 INFO]: [RegionShutdownThread] Saving chunks...
+> 
+  
+[23:52:21 INFO]: [RegionShutdownThread] Saving chunks around region around chunk [-1, -1] in world 'world'
+> 
+  
+[23:52:21 INFO]: [ChunkHolderManager] Saved 1044 block chunks, 77 entity chunks, 0 poi chunks in world 'minecraft:overworld' in 0,18s
+> 
+  
+[23:52:21 INFO]: [RegionShutdownThread] Saving chunks around region around chunk [129, 0] in world 'world'
+> 
+  
+[23:52:22 INFO]: [ChunkHolderManager] Saved 1055 block chunks, 72 entity chunks, 0 poi chunks in world 'minecraft:overworld' in 0,26s
+> 
+  
+[23:52:22 INFO]: [ChunkHolderManager] Waiting 60s for chunk I/O to halt for world 'minecraft:overworld'
+> 
+  
+[23:52:22 INFO]: [ChunkHolderManager] Halted I/O scheduler for world 'minecraft:overworld'
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Saved chunks
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Saving level data...
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Saved level data
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Saved world data for world 'minecraft:overworld'
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Saving world data for world 'minecraft:the_nether'
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Closing player inventories...
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Closed player inventories
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Saving chunks...
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Saving chunks around region around chunk [256, 0] in world 'world_nether'
+> 
+  
+[23:52:22 INFO]: [ChunkHolderManager] Saved 1058 block chunks, 87 entity chunks, 0 poi chunks in world 'minecraft:the_nether' in 0,38s
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Saving chunks around region around chunk [128, 0] in world 'world_nether'
+> 
+  
+[23:52:22 INFO]: [ChunkHolderManager] Saved 721 block chunks, 17 entity chunks, 0 poi chunks in world 'minecraft:the_nether' in 0,18s
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Saving chunks around region around chunk [-23, -90] in world 'world_nether'
+> 
+  
+[23:52:22 INFO]: [ChunkHolderManager] Saved 729 block chunks, 25 entity chunks, 0 poi chunks in world 'minecraft:the_nether' in 0,24s
+> 
+  
+[23:52:22 INFO]: [ChunkHolderManager] Waiting 60s for chunk I/O to halt for world 'minecraft:the_nether'
+> 
+  
+[23:52:22 INFO]: [ChunkHolderManager] Halted I/O scheduler for world 'minecraft:the_nether'
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Saved chunks
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Saving level data...
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Saved level data
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Saved world data for world 'minecraft:the_nether'
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Saving world data for world 'minecraft:the_end'
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Closing player inventories...
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Closed player inventories
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Saving chunks...
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Saved chunks
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Saving level data...
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Saved level data
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Saved world data for world 'minecraft:the_end'
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Saved all worlds
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Saving global world data...
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Saved global world data.
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Saving all player data...
+> 
+  
+[23:52:22 INFO]: [RegionShutdownThread] Saved all player data
+> 
+  
+[23:52:22 INFO]: Waiting for all RegionFile I/O tasks to complete...
+> 
+  
+[23:52:22 INFO]: All RegionFile I/O tasks to complete
+> 
+  
+[23:52:22 INFO]: [MoonriseCommon] Awaiting termination of worker pool for up to 60s...
+> 
+  
+[23:52:22 INFO]: [MoonriseCommon] Awaiting termination of I/O pool for up to 60s...
+> NAV_RESULT true C:\Users\hunte\IdeaProjects\Tessera\build\native-navigation-1793055107488\result.json

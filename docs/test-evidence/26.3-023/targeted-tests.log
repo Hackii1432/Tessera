@@ -1,0 +1,275 @@
+> Task :buildSrc:compileJava UP-TO-DATE
+> Task :buildSrc:compileGroovy NO-SOURCE
+> Task :buildSrc:processResources NO-SOURCE
+> Task :buildSrc:classes UP-TO-DATE
+> Task :buildSrc:jar UP-TO-DATE
+
+> Configure project :
+paperweight-patcher v2.0.0-beta.24 (running on 'Windows 11')
+
+> Configure project :folia-server
+paperweight-core v2.0.0-beta.24 (running on 'Windows 11')
+
+> Task :folia-api:compileJava UP-TO-DATE
+> Task :folia-api:processResources NO-SOURCE
+> Task :folia-api:classes UP-TO-DATE
+> Task :folia-api:generateApiVersioningFile UP-TO-DATE
+> Task :folia-api:jar UP-TO-DATE
+
+> Task :folia-server:compileJava
+C:\Users\hunte\IdeaProjects\Tessera\folia-server\src\minecraft\java\net\minecraft\world\entity\player\Player.java:1991: Warnung: [removal] PlayerAttackEntityCooldownResetEvent in com.destroystokyo.paper.event.player ist veraltet und wurde zum Entfernen markiert
+            if (new com.destroystokyo.paper.event.player.PlayerAttackEntityCooldownResetEvent((org.bukkit.entity.Player) this.getBukkitEntity(), entity.getBukkitEntity(), this.getAttackStrengthScale(0F)).callEvent()) {
+                                                        ^
+C:\Users\hunte\IdeaProjects\Tessera\folia-server\src\minecraft\java\net\minecraft\server\level\ServerPlayer.java:3711: Warnung: [removal] PlayerSpawnChangeEvent in org.bukkit.event.player ist veraltet und wurde zum Entfernen markiert
+        org.bukkit.event.player.PlayerSpawnChangeEvent dumbEvent = new org.bukkit.event.player.PlayerSpawnChangeEvent(
+                               ^
+C:\Users\hunte\IdeaProjects\Tessera\folia-server\src\minecraft\java\net\minecraft\server\level\ServerPlayer.java:3711: Warnung: [removal] PlayerSpawnChangeEvent in org.bukkit.event.player ist veraltet und wurde zum Entfernen markiert
+        org.bukkit.event.player.PlayerSpawnChangeEvent dumbEvent = new org.bukkit.event.player.PlayerSpawnChangeEvent(
+                                                                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\folia-server\src\minecraft\java\net\minecraft\server\level\ServerPlayer.java:3716: Warnung: [removal] PlayerSpawnChangeEvent in org.bukkit.event.player ist veraltet und wurde zum Entfernen markiert
+                ? org.bukkit.event.player.PlayerSpawnChangeEvent.Cause.RESET
+                                         ^
+C:\Users\hunte\IdeaProjects\Tessera\folia-server\src\minecraft\java\net\minecraft\server\level\ServerPlayer.java:3717: Warnung: [removal] PlayerSpawnChangeEvent in org.bukkit.event.player ist veraltet und wurde zum Entfernen markiert
+                : org.bukkit.event.player.PlayerSpawnChangeEvent.Cause.valueOf(cause.name())
+                                         ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:966: Warnung: [removal] getCategory() in LivingEntity ist veraltet und wurde zum Entfernen markiert
+    public EntityCategory getCategory() {
+                          ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:347: Warnung: [removal] setItemInUseTicks(int) in LivingEntity ist veraltet und wurde zum Entfernen markiert
+    public void setItemInUseTicks(int ticks) {
+                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:342: Warnung: [removal] getItemInUseTicks() in LivingEntity ist veraltet und wurde zum Entfernen markiert
+    public int getItemInUseTicks() {
+               ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:336: Warnung: [removal] getItemInUse() in LivingEntity ist veraltet und wurde zum Entfernen markiert
+    public ItemStack getItemInUse() {
+                     ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:266: Warnung: [removal] getTargetEntityInfo(int,boolean) in LivingEntity ist veraltet und wurde zum Entfernen markiert
+    public com.destroystokyo.paper.entity.TargetEntityInfo getTargetEntityInfo(int maxDistance, boolean ignoreBlocks) {
+                                                           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:253: Warnung: [removal] getTargetBlockInfo(int,@org.jetbrains.annotations.NotNull FluidMode) in LivingEntity ist veraltet und wurde zum Entfernen markiert
+    public com.destroystokyo.paper.block.TargetBlockInfo getTargetBlockInfo(int maxDistance, com.destroystokyo.paper.block.TargetBlockInfo.FluidMode fluidMode) {
+                                                         ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:242: Warnung: [removal] getTargetBlockFace(int,@org.jetbrains.annotations.NotNull FluidMode) in LivingEntity ist veraltet und wurde zum Entfernen markiert
+    public org.bukkit.block.BlockFace getTargetBlockFace(int maxDistance, com.destroystokyo.paper.block.TargetBlockInfo.FluidMode fluidMode) {
+                                      ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:237: Warnung: [removal] getTargetBlock(int,@org.jetbrains.annotations.NotNull FluidMode) in LivingEntity ist veraltet und wurde zum Entfernen markiert
+    public Block getTargetBlock(int maxDistance, com.destroystokyo.paper.block.TargetBlockInfo.FluidMode fluidMode) {
+                 ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:237: Warnung: [removal] TargetBlockInfo in com.destroystokyo.paper.block ist veraltet und wurde zum Entfernen markiert
+    public Block getTargetBlock(int maxDistance, com.destroystokyo.paper.block.TargetBlockInfo.FluidMode fluidMode) {
+                                                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:237: Warnung: [removal] FluidMode in TargetBlockInfo ist veraltet und wurde zum Entfernen markiert
+    public Block getTargetBlock(int maxDistance, com.destroystokyo.paper.block.TargetBlockInfo.FluidMode fluidMode) {
+                                                                                              ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:242: Warnung: [removal] TargetBlockInfo in com.destroystokyo.paper.block ist veraltet und wurde zum Entfernen markiert
+    public org.bukkit.block.BlockFace getTargetBlockFace(int maxDistance, com.destroystokyo.paper.block.TargetBlockInfo.FluidMode fluidMode) {
+                                                                                                       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:242: Warnung: [removal] FluidMode in TargetBlockInfo ist veraltet und wurde zum Entfernen markiert
+    public org.bukkit.block.BlockFace getTargetBlockFace(int maxDistance, com.destroystokyo.paper.block.TargetBlockInfo.FluidMode fluidMode) {
+                                                                                                                       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:253: Warnung: [removal] TargetBlockInfo in com.destroystokyo.paper.block ist veraltet und wurde zum Entfernen markiert
+    public com.destroystokyo.paper.block.TargetBlockInfo getTargetBlockInfo(int maxDistance, com.destroystokyo.paper.block.TargetBlockInfo.FluidMode fluidMode) {
+                                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:253: Warnung: [removal] TargetBlockInfo in com.destroystokyo.paper.block ist veraltet und wurde zum Entfernen markiert
+    public com.destroystokyo.paper.block.TargetBlockInfo getTargetBlockInfo(int maxDistance, com.destroystokyo.paper.block.TargetBlockInfo.FluidMode fluidMode) {
+                                                                                                                          ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:253: Warnung: [removal] FluidMode in TargetBlockInfo ist veraltet und wurde zum Entfernen markiert
+    public com.destroystokyo.paper.block.TargetBlockInfo getTargetBlockInfo(int maxDistance, com.destroystokyo.paper.block.TargetBlockInfo.FluidMode fluidMode) {
+                                                                                                                                          ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:256: Warnung: [removal] TargetBlockInfo in com.destroystokyo.paper.block ist veraltet und wurde zum Entfernen markiert
+            return new com.destroystokyo.paper.block.TargetBlockInfo(result.getHitBlock(), result.getHitBlockFace());
+                                                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:266: Warnung: [removal] TargetEntityInfo in com.destroystokyo.paper.entity ist veraltet und wurde zum Entfernen markiert
+    public com.destroystokyo.paper.entity.TargetEntityInfo getTargetEntityInfo(int maxDistance, boolean ignoreBlocks) {
+                                         ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftLivingEntity.java:268: Warnung: [removal] TargetEntityInfo in com.destroystokyo.paper.entity ist veraltet und wurde zum Entfernen markiert
+        return rayTrace == null ? null : new com.destroystokyo.paper.entity.TargetEntityInfo(rayTrace.getEntity().getBukkitEntity(), new org.bukkit.util.Vector(rayTrace.getLocation().x, rayTrace.getLocation().y, rayTrace.getLocation().z));
+                                                                           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftPlayer.java:2267: Warnung: [removal] Conversation in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+    public boolean beginConversation(Conversation conversation) {
+                                     ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftPlayer.java:2272: Warnung: [removal] Conversation in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+    public void abandonConversation(Conversation conversation) {
+                                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftPlayer.java:2273: Warnung: [removal] ConversationAbandonedEvent in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        this.conversationTracker.abandonConversation(conversation, new ConversationAbandonedEvent(conversation, new ManuallyAbandonedConversationCanceller()));
+                                                                       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftPlayer.java:2273: Warnung: [removal] ManuallyAbandonedConversationCanceller in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+        this.conversationTracker.abandonConversation(conversation, new ConversationAbandonedEvent(conversation, new ManuallyAbandonedConversationCanceller()));
+                                                                                                                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftPlayer.java:2277: Warnung: [removal] Conversation in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+    public void abandonConversation(Conversation conversation, ConversationAbandonedEvent details) {
+                                    ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftPlayer.java:2277: Warnung: [removal] ConversationAbandonedEvent in org.bukkit.conversations ist veraltet und wurde zum Entfernen markiert
+    public void abandonConversation(Conversation conversation, ConversationAbandonedEvent details) {
+                                                               ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftPlayer.java:2489: Warnung: [removal] Property in InventoryView ist veraltet und wurde zum Entfernen markiert
+    public boolean setWindowProperty(Property prop, int value) {
+                                     ^
+C:\Users\hunte\IdeaProjects\Tessera\folia-server\src\minecraft\java\net\minecraft\world\entity\boss\enderdragon\EnderDragon.java:542: Warnung: [removal] TNTPrimeEvent in com.destroystokyo.paper.event.block ist veraltet und wurde zum Entfernen markiert
+                if (!new com.destroystokyo.paper.event.block.TNTPrimeEvent(tntBlock, com.destroystokyo.paper.event.block.TNTPrimeEvent.PrimeReason.EXPLOSION, explosionSource.getIndirectSourceEntity().getBukkitEntity()).callEvent())
+                                                            ^
+C:\Users\hunte\IdeaProjects\Tessera\folia-server\src\minecraft\java\net\minecraft\world\entity\boss\enderdragon\EnderDragon.java:542: Warnung: [removal] TNTPrimeEvent in com.destroystokyo.paper.event.block ist veraltet und wurde zum Entfernen markiert
+                if (!new com.destroystokyo.paper.event.block.TNTPrimeEvent(tntBlock, com.destroystokyo.paper.event.block.TNTPrimeEvent.PrimeReason.EXPLOSION, explosionSource.getIndirectSourceEntity().getBukkitEntity()).callEvent())
+                                                                                                                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:1725: Warnung: [removal] setGameRuleValue(@org.jetbrains.annotations.NotNull String,@org.jetbrains.annotations.NotNull String) in World ist veraltet und wurde zum Entfernen markiert
+    public boolean setGameRuleValue(String rule, String value) {
+                   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:1709: Warnung: [removal] getGameRuleValue(@org.jetbrains.annotations.Nullable String) in World ist veraltet und wurde zum Entfernen markiert
+    public String getGameRuleValue(String rule) {
+                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:1390: Warnung: [removal] getAllowAnimals() in World ist veraltet und wurde zum Entfernen markiert
+    public boolean getAllowAnimals() {
+                   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:1385: Warnung: [removal] setSpawnFlags(boolean,boolean) in World ist veraltet und wurde zum Entfernen markiert
+    public void setSpawnFlags(boolean allowMonsters, boolean allowAnimals) {
+                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:1346: Warnung: [removal] spawnFallingBlock(@org.jetbrains.annotations.NotNull Location,@org.jetbrains.annotations.NotNull Material,byte) in World ist veraltet und wurde zum Entfernen markiert
+    public FallingBlock spawnFallingBlock(Location location, org.bukkit.Material material, byte data) throws IllegalArgumentException {
+                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:1340: Warnung: [removal] spawnFallingBlock(@org.jetbrains.annotations.NotNull Location,@org.jetbrains.annotations.NotNull MaterialData) in World ist veraltet und wurde zum Entfernen markiert
+    public FallingBlock spawnFallingBlock(Location location, MaterialData data) throws IllegalArgumentException {
+                        ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:1340: Warnung: [removal] MaterialData in org.bukkit.material ist veraltet und wurde zum Entfernen markiert
+    public FallingBlock spawnFallingBlock(Location location, MaterialData data) throws IllegalArgumentException {
+                                                             ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:1715: Warnung: [removal] <T>getByName(@org.jetbrains.annotations.NotNull String) in GameRule ist veraltet und wurde zum Entfernen markiert
+        org.bukkit.GameRule<?> bukkit = org.bukkit.GameRule.getByName(rule);
+                                                           ^
+  Dabei ist T eine Typvariable:
+    T erweitert Object, deklariert in Methode <T>getByName(@org.jetbrains.annotations.NotNull String)
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:1730: Warnung: [removal] <T>getByName(@org.jetbrains.annotations.NotNull String) in GameRule ist veraltet und wurde zum Entfernen markiert
+        org.bukkit.GameRule<?> bukkit = org.bukkit.GameRule.getByName(rule);
+                                                           ^
+  Dabei ist T eine Typvariable:
+    T erweitert Object, deklariert in Methode <T>getByName(@org.jetbrains.annotations.NotNull String)
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:1754: Warnung: [removal] <T>getByName(@org.jetbrains.annotations.NotNull String) in GameRule ist veraltet und wurde zum Entfernen markiert
+        org.bukkit.GameRule<?> bukkit = org.bukkit.GameRule.getByName(rule);
+                                                           ^
+  Dabei ist T eine Typvariable:
+    T erweitert Object, deklariert in Methode <T>getByName(@org.jetbrains.annotations.NotNull String)
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:2043: Warnung: [removal] Spigot in World ist veraltet und wurde zum Entfernen markiert
+    private final org.bukkit.World.Spigot spigot = new org.bukkit.World.Spigot() {
+                                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:2043: Warnung: [removal] Spigot in World ist veraltet und wurde zum Entfernen markiert
+    private final org.bukkit.World.Spigot spigot = new org.bukkit.World.Spigot() {
+                                                                       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\CraftWorld.java:2056: Warnung: [removal] Spigot in World ist veraltet und wurde zum Entfernen markiert
+    public org.bukkit.World.Spigot spigot() {
+                           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftBoat.java:28: Warnung: [removal] setWoodType(@org.jetbrains.annotations.NotNull TreeSpecies) in Boat ist veraltet und wurde zum Entfernen markiert
+    public void setWoodType(TreeSpecies species) {
+                ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftBoat.java:23: Warnung: [removal] getWoodType() in Boat ist veraltet und wurde zum Entfernen markiert
+    public TreeSpecies getWoodType() {
+                       ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftBoat.java:23: Warnung: [removal] TreeSpecies in org.bukkit ist veraltet und wurde zum Entfernen markiert
+    public TreeSpecies getWoodType() {
+           ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftBoat.java:28: Warnung: [removal] TreeSpecies in org.bukkit ist veraltet und wurde zum Entfernen markiert
+    public void setWoodType(TreeSpecies species) {
+                            ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftBoat.java:158: Warnung: [removal] TreeSpecies in org.bukkit ist veraltet und wurde zum Entfernen markiert
+    public static TreeSpecies getTreeSpecies(EntityType<?> boatType) {
+                  ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftBoat.java:160: Warnung: [removal] TreeSpecies in org.bukkit ist veraltet und wurde zum Entfernen markiert
+            return TreeSpecies.REDWOOD;
+                   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftBoat.java:164: Warnung: [removal] TreeSpecies in org.bukkit ist veraltet und wurde zum Entfernen markiert
+            return TreeSpecies.BIRCH;
+                   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftBoat.java:168: Warnung: [removal] TreeSpecies in org.bukkit ist veraltet und wurde zum Entfernen markiert
+            return TreeSpecies.JUNGLE;
+                   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftBoat.java:172: Warnung: [removal] TreeSpecies in org.bukkit ist veraltet und wurde zum Entfernen markiert
+            return TreeSpecies.ACACIA;
+                   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftBoat.java:176: Warnung: [removal] TreeSpecies in org.bukkit ist veraltet und wurde zum Entfernen markiert
+            return TreeSpecies.DARK_OAK;
+                   ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\entity\CraftBoat.java:179: Warnung: [removal] TreeSpecies in org.bukkit ist veraltet und wurde zum Entfernen markiert
+        return TreeSpecies.GENERIC;
+               ^
+C:\Users\hunte\IdeaProjects\Tessera\paper-server\src\main\java\org\bukkit\craftbukkit\inventory\CraftMetaTropicalFishBucket.java:237: Warnung: [removal] hasVariant() in TropicalFishBucketMeta ist veraltet und wurde zum Entfernen markiert
+    public boolean hasVariant() {
+                   ^
+C:\Users\hunte\IdeaProjects\Tessera\folia-server\src\minecraft\java\net\minecraft\world\level\block\entity\TheEndGatewayBlockEntity.java:449: Warnung: [removal] getHighestSectionPosition() in ChunkAccess ist veraltet und wurde zum Entfernen markiert
+        int maxY = chunk.getHighestSectionPosition() + 16 - 1;
+                        ^
+C:\Users\hunte\IdeaProjects\Tessera\folia-server\src\minecraft\java\net\minecraft\world\level\levelgen\structure\structures\SwampHutPiece.java:106: Warnung: [removal] CHUNK_GEN in SpawnReason ist veraltet und wurde zum Entfernen markiert
+                        level.addFreshEntityWithPassengers(witch, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.CHUNK_GEN); // CraftBukkit - add SpawnReason
+                                                                                                                        ^
+C:\Users\hunte\IdeaProjects\Tessera\folia-server\src\minecraft\java\net\minecraft\world\level\levelgen\structure\structures\SwampHutPiece.java:125: Warnung: [removal] CHUNK_GEN in SpawnReason ist veraltet und wurde zum Entfernen markiert
+                    level.addFreshEntityWithPassengers(cat, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.CHUNK_GEN); // CraftBukkit - add SpawnReason
+                                                                                                                  ^
+Hinweis: Einige Eingabedateien verwenden oder überschreiben eine veraltete API.
+Hinweis: Wiederholen Sie die Kompilierung mit -Xlint:deprecation, um Details zu erhalten.
+Hinweis: Einige Eingabedateien verwenden nicht geprüfte oder unsichere Vorgänge.
+Hinweis: Wiederholen Sie die Kompilierung mit -Xlint:unchecked, um Details zu erhalten.
+60 Warnungen
+
+> Task :folia-server:processResources UP-TO-DATE
+> Task :folia-server:classes
+> Task :folia-server:compileLog4jPluginsJava UP-TO-DATE
+
+> Task :folia-server:compileTestJava
+Hinweis: Einige Eingabedateien verwenden oder überschreiben eine veraltete API.
+Hinweis: Wiederholen Sie die Kompilierung mit -Xlint:deprecation, um Details zu erhalten.
+
+> Task :folia-server:processLog4jPluginsResources NO-SOURCE
+> Task :folia-server:log4jPluginsClasses UP-TO-DATE
+> Task :folia-server:processTestResources UP-TO-DATE
+> Task :folia-server:testClasses
+[23:39:09 INFO]: Found new data pack paper, loading it automatically
+[23:39:11 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[23:39:14 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[23:39:14 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+> Task :folia-server:test
+
+[23:39:32 INFO]: Found new data pack paper, loading it automatically
+[23:39:35 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[23:39:37 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[23:39:37 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+[23:39:53 INFO]: Found new data pack paper, loading it automatically
+[23:39:56 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[23:39:58 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[23:39:58 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+
+> Task :test-plugin:compileJava
+C:\Users\hunte\IdeaProjects\Tessera\test-plugin\src\main\java\dev\tessera\smoke\RuntimeWorldLifecycleSmokePlugin.java:382: Warnung: [removal] DO_DAYLIGHT_CYCLE in GameRule ist veraltet und wurde zum Entfernen markiert
+                this.template.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
+                                                  ^
+C:\Users\hunte\IdeaProjects\Tessera\test-plugin\src\main\java\dev\tessera\smoke\RuntimeWorldLifecycleSmokePlugin.java:503: Warnung: [removal] DO_DAYLIGHT_CYCLE in GameRule ist veraltet und wurde zum Entfernen markiert
+            first.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, true);
+                                      ^
+C:\Users\hunte\IdeaProjects\Tessera\test-plugin\src\main\java\dev\tessera\smoke\RuntimeWorldLifecycleSmokePlugin.java:505: Warnung: [removal] DO_DAYLIGHT_CYCLE in GameRule ist veraltet und wurde zum Entfernen markiert
+            second.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
+                                       ^
+C:\Users\hunte\IdeaProjects\Tessera\test-plugin\src\main\java\dev\tessera\smoke\RuntimeWorldLifecycleSmokePlugin.java:507: Warnung: [removal] DO_DAYLIGHT_CYCLE in GameRule ist veraltet und wurde zum Entfernen markiert
+                Boolean.TRUE.equals(first.getGameRuleValue(GameRule.DO_DAYLIGHT_CYCLE))
+                                                                   ^
+C:\Users\hunte\IdeaProjects\Tessera\test-plugin\src\main\java\dev\tessera\smoke\RuntimeWorldLifecycleSmokePlugin.java:508: Warnung: [removal] DO_DAYLIGHT_CYCLE in GameRule ist veraltet und wurde zum Entfernen markiert
+                    && Boolean.FALSE.equals(second.getGameRuleValue(GameRule.DO_DAYLIGHT_CYCLE)),
+                                                                            ^
+C:\Users\hunte\IdeaProjects\Tessera\test-plugin\src\main\java\dev\tessera\smoke\RuntimeWorldLifecycleSmokePlugin.java:510: Warnung: [removal] DO_DAYLIGHT_CYCLE in GameRule ist veraltet und wurde zum Entfernen markiert
+                "first=" + first.getGameRuleValue(GameRule.DO_DAYLIGHT_CYCLE)
+                                                          ^
+C:\Users\hunte\IdeaProjects\Tessera\test-plugin\src\main\java\dev\tessera\smoke\RuntimeWorldLifecycleSmokePlugin.java:511: Warnung: [removal] DO_DAYLIGHT_CYCLE in GameRule ist veraltet und wurde zum Entfernen markiert
+                    + ", second=" + second.getGameRuleValue(GameRule.DO_DAYLIGHT_CYCLE)
+                                                                    ^
+Hinweis: Einige Eingabedateien verwenden oder überschreiben eine veraltete API.
+Hinweis: Wiederholen Sie die Kompilierung mit -Xlint:deprecation, um Details zu erhalten.
+7 Warnungen
+
+> Task :test-plugin:processResources UP-TO-DATE
+> Task :test-plugin:classes
+> Task :test-plugin:jar
+
+[Incubating] Problems report is available at: file:///C:/Users/hunte/IdeaProjects/Tessera/build/reports/problems/problems-report.html
+
+BUILD SUCCESSFUL in 2m 26s
+14 actionable tasks: 5 executed, 9 up-to-date

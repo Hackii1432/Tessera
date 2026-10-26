@@ -1,0 +1,364 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Mon, 26 Oct 2026 23:07:03 +0100
+Subject: [PATCH] Revalidate alliance callbacks and test region-safe native
+ entity access
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+index cd86a87262ec54e16adeff50fdc427d61952869d..d473c0f422f4fc258df424ca8dc42c9b47618d01 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+@@ -1447,10 +1447,23 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+ 
+     public boolean considersEntityAsAlly0(final @NotNull org.bukkit.entity.Entity entity) {
+         this.tessera$ensureExtendedEntityOwner();
++        final CraftEntity other = (CraftEntity) entity;
++        other.tessera$ensureExtendedEntityOwner();
+         if (this.additionalAlliedRules.isEmpty()) {
+             return false;
+         }
+-        return this.additionalAlliedRules.values().stream().anyMatch(entityPredicate -> entityPredicate.test(entity));
++        final net.minecraft.world.level.Level ownerLevel = this.entity.level();
++        // Predicates may change rules or transfer/remove either participant. Never evaluate the next
++        // callback on a stale owner, and do not expose HashMap iteration to reentrant rule changes.
++        for (final Predicate<org.bukkit.entity.Entity> rule : new java.util.ArrayList<>(this.additionalAlliedRules.values())) {
++            if (!net.minecraft.world.entity.Entity.tessera$isOwnedEntity(this.entity, ownerLevel)
++                || !net.minecraft.world.entity.Entity.tessera$isOwnedEntity(other.entity, ownerLevel)) return false;
++            final boolean allied = rule.test(entity);
++            if (!net.minecraft.world.entity.Entity.tessera$isOwnedEntity(this.entity, ownerLevel)
++                || !net.minecraft.world.entity.Entity.tessera$isOwnedEntity(other.entity, ownerLevel)) return false;
++            if (allied) return true;
++        }
++        return false;
+     }
+ 
+     @Override
+diff --git a/src/test/java/io/papermc/paper/porting/PaperOctober22OwnershipTest.java b/src/test/java/io/papermc/paper/porting/PaperOctober22OwnershipTest.java
+index 617b7368f9bca2ca4c862cc09e40c553dce6e124..6d6332341058a100985209f929ac6d1243b53190 100644
+--- a/src/test/java/io/papermc/paper/porting/PaperOctober22OwnershipTest.java
++++ b/src/test/java/io/papermc/paper/porting/PaperOctober22OwnershipTest.java
+@@ -56,6 +56,7 @@ class PaperOctober22OwnershipTest {
+         var key = Key.key("test", "ally");
+         var other = Key.key("other", "ally");
+         try (var ticks = mockStatic(TickThread.class)) {
++            ticks.when(() -> TickThread.isTickThreadFor(any(Entity.class))).thenReturn(true);
+             var view = player.getAdditionalAlliedRules();
+             player.addAdditionalAlliedRule(key, ignored -> true);
+             player.addAdditionalAlliedRule(other, ignored -> false);
+diff --git a/src/test/java/io/papermc/paper/porting/RegionSafeAllianceTest.java b/src/test/java/io/papermc/paper/porting/RegionSafeAllianceTest.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..45dda8a3ac6768567be2afbd51f854416a5456c4
+--- /dev/null
++++ b/src/test/java/io/papermc/paper/porting/RegionSafeAllianceTest.java
+@@ -0,0 +1,310 @@
++package io.papermc.paper.porting;
++
++import ca.spottedleaf.moonrise.common.util.TickThread;
++import java.lang.reflect.Field;
++import java.util.HashMap;
++import java.util.HashSet;
++import java.util.List;
++import java.util.Set;
++import java.util.UUID;
++import java.util.concurrent.atomic.AtomicInteger;
++import java.util.function.Predicate;
++import net.kyori.adventure.key.Key;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.effect.MobEffectInstance;
++import net.minecraft.world.effect.MobEffectUtil;
++import net.minecraft.world.effect.MobEffects;
++import net.minecraft.world.entity.Entity;
++import net.minecraft.world.entity.LivingEntity;
++import net.minecraft.world.entity.PathfinderMob;
++import net.minecraft.world.entity.TamableAnimal;
++import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
++import net.minecraft.world.entity.ai.targeting.TargetingConditions;
++import net.minecraft.world.entity.monster.warden.AngerManagement;
++import net.minecraft.world.item.MaceItem;
++import net.minecraft.world.phys.Vec3;
++import org.bukkit.craftbukkit.entity.CraftEntity;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.event.entity.EntityPotionEffectEvent;
++import org.bukkit.support.environment.Normal;
++import org.junit.jupiter.api.AfterEach;
++import org.junit.jupiter.api.BeforeEach;
++import org.junit.jupiter.api.Test;
++import org.mockito.MockedStatic;
++
++import static org.junit.jupiter.api.Assertions.*;
++import static org.mockito.Mockito.*;
++
++@Normal
++class RegionSafeAllianceTest {
++    private final ServerLevel level = mock(ServerLevel.class);
++    private final Set<Entity> owned = new HashSet<>();
++    private MockedStatic<TickThread> ticks;
++
++    @BeforeEach
++    void ownerContext() {
++        this.ticks = mockStatic(TickThread.class);
++        this.ticks.when(() -> TickThread.isTickThreadFor(any(Entity.class)))
++            .thenAnswer(call -> this.owned.contains(call.getArgument(0)));
++    }
++
++    @AfterEach
++    void closeContext() { this.ticks.close(); }
++
++    private static void field(Object object, Class<?> type, String name, Object value) throws Exception {
++        Field field = type.getDeclaredField(name);
++        field.setAccessible(true);
++        field.set(object, value);
++    }
++
++    private <T extends LivingEntity> T entity(Class<T> type) throws Exception {
++        T entity = mock(type, CALLS_REAL_METHODS);
++        doReturn(this.level).when(entity).level();
++        doReturn(UUID.randomUUID()).when(entity).getUUID();
++        Class<? extends CraftEntity> craftType = type.getMethod("getBukkitEntity").getReturnType().asSubclass(CraftEntity.class);
++        CraftEntity craft = mock(craftType, CALLS_REAL_METHODS);
++        field(craft, CraftEntity.class, "entity", entity);
++        field(craft, CraftEntity.class, "additionalAlliedRules", new HashMap<>());
++        doReturn(entity).when(craft).getHandleRaw();
++        doReturn(craft).when(entity).getBukkitEntity();
++        this.owned.add(entity);
++        return entity;
++    }
++
++    @Test
++    void creakingCallerDoesNotWriteMovementAfterPredicateRetiresSource() throws Exception {
++        var creaking = entity(net.minecraft.world.entity.monster.creaking.Creaking.class);
++        var data = mock(net.minecraft.network.syncher.SynchedEntityData.class);
++        field(creaking, Entity.class, "entityData", data);
++        doReturn(false).when(data).get(any());
++        doAnswer(call -> { this.owned.remove(creaking); return true; }).when(creaking).checkCanMove();
++        creaking.aiStep();
++        verify(data, never()).set(any(), any());
++    }
++
++    @Test
++    void groupAlertRetirementDoesNotResetGoalOnOldOwner() throws Exception {
++        PathfinderMob mob = entity(PathfinderMob.class);
++        LivingEntity attacker = entity(LivingEntity.class);
++        doReturn(attacker).when(mob).getLastHurtByMob();
++        doReturn(true).when(mob).setTarget(eq(attacker), any(org.bukkit.event.entity.EntityTargetEvent.TargetReason.class));
++        var goal = new HurtByTargetGoal(mob) {
++            @Override protected void alertOthers() { owned.remove(mob); }
++        }.setAlertOthers();
++        field(goal, net.minecraft.world.entity.ai.goal.target.TargetGoal.class, "reachCache", 77);
++        goal.start();
++        Field cache = net.minecraft.world.entity.ai.goal.target.TargetGoal.class.getDeclaredField("reachCache");
++        cache.setAccessible(true);
++        assertEquals(77, cache.getInt(goal));
++    }
++
++    @Test
++    void ownedReferenceLookupRejectsRemoteCacheBeforeLifecycleReads() throws Exception {
++        LivingEntity owner = entity(LivingEntity.class);
++        var reference = net.minecraft.world.entity.EntityReference.<LivingEntity>of(owner);
++        when(this.level.getEntity(owner.getUUID())).thenReturn(owner);
++        this.owned.remove(owner);
++        clearInvocations(owner);
++        assertNull(net.minecraft.world.entity.EntityReference.tessera$getOwnedLivingEntity(reference, this.level));
++        verify(owner, never()).isRemoved();
++        verify(owner, never()).level();
++        assertEquals(reference.getUUID(), owner.getUUID());
++    }
++
++    @Test
++    void ownedReferenceLookupRetainsLocalCachedOwnerBeforeIndexInsertion() throws Exception {
++        LivingEntity owner = entity(LivingEntity.class);
++        var reference = net.minecraft.world.entity.EntityReference.<LivingEntity>of(owner);
++        assertSame(owner, net.minecraft.world.entity.EntityReference.tessera$getOwnedLivingEntity(reference, this.level));
++        verify(this.level, never()).getEntity(any(UUID.class));
++    }
++
++    @Test
++    void spawnWarningsRejectRemoteTriggerBeforeWorldOrPlayerStateReads() throws Exception {
++        ServerPlayer trigger = entity(ServerPlayer.class);
++        this.owned.remove(trigger);
++        assertTrue(net.minecraft.world.entity.monster.warden.WardenSpawnTracker.tryWarn(this.level, net.minecraft.core.BlockPos.ZERO, trigger).isEmpty());
++        verifyNoInteractions(this.level);
++        verify(trigger, never()).getWardenSpawnTracker();
++    }
++
++    @Test
++    void spawnWarningsStillAdvanceLocalVanillaTracker() throws Exception {
++        ServerPlayer trigger = entity(ServerPlayer.class);
++        var tracker = new net.minecraft.world.entity.monster.warden.WardenSpawnTracker();
++        doReturn(tracker).when(trigger).getWardenSpawnTracker();
++        this.ticks.when(() -> TickThread.isTickThreadFor(this.level, net.minecraft.core.BlockPos.ZERO)).thenReturn(true);
++        when(this.level.getLocalPlayers()).thenReturn(List.of());
++        assertEquals(1, net.minecraft.world.entity.monster.warden.WardenSpawnTracker.tryWarn(this.level, net.minecraft.core.BlockPos.ZERO, trigger).orElseThrow());
++        assertEquals(1, tracker.getWarningLevel());
++    }
++
++    @Test
++    void nativeForeignAllianceNeverReadsForeignTeamOrWrapper() throws Exception {
++        LivingEntity source = entity(LivingEntity.class), foreign = entity(LivingEntity.class);
++        this.owned.remove(foreign);
++        clearInvocations(foreign);
++        assertFalse(source.isAlliedTo(foreign));
++        verify(foreign, never()).getTeam();
++        verify(foreign, never()).getBukkitEntity();
++        verify(foreign, never()).isRemoved();
++    }
++
++    @Test
++    void localAlliancesRemainSymmetric() throws Exception {
++        LivingEntity one = entity(LivingEntity.class), two = entity(LivingEntity.class);
++        two.getBukkitEntity().addAdditionalAlliedRule(Key.key("test", "symmetric"), ignored -> true);
++        assertTrue(one.isAlliedTo(two));
++        assertTrue(two.isAlliedTo(one));
++    }
++
++    @Test
++    void callbackRetirementStopsFurtherRulesAndReverseEvaluation() throws Exception {
++        LivingEntity one = entity(LivingEntity.class), two = entity(LivingEntity.class);
++        AtomicInteger calls = new AtomicInteger();
++        Predicate<org.bukkit.entity.Entity> retire = ignored -> {
++            calls.incrementAndGet(); this.owned.remove(two); return false;
++        };
++        one.getBukkitEntity().addAdditionalAlliedRule(Key.key("test", "one"), retire);
++        one.getBukkitEntity().addAdditionalAlliedRule(Key.key("test", "two"), retire);
++        assertFalse(one.isAlliedTo(two));
++        assertEquals(1, calls.get());
++    }
++
++    @Test
++    void callbackRuleMutationDoesNotInvalidateIteration() throws Exception {
++        LivingEntity one = entity(LivingEntity.class), two = entity(LivingEntity.class);
++        one.getBukkitEntity().addAdditionalAlliedRule(Key.key("test", "mutate"), ignored -> {
++            one.getBukkitEntity().removeAdditionalAlliedRule((net.kyori.adventure.key.Namespaced) Key.key("test", "all"));
++            return false;
++        });
++        one.getBukkitEntity().addAdditionalAlliedRule(Key.key("test", "other"), ignored -> false);
++        assertFalse(one.isAlliedTo(two));
++        assertTrue(one.getBukkitEntity().getAdditionalAlliedRules().isEmpty());
++    }
++
++    @Test
++    void targetingRejectsForeignCandidatesBeforeSelectors() throws Exception {
++        LivingEntity source = entity(LivingEntity.class), target = entity(LivingEntity.class);
++        this.owned.remove(target);
++        AtomicInteger calls = new AtomicInteger();
++        assertFalse(TargetingConditions.forCombat().selector((e, l) -> { calls.incrementAndGet(); return true; })
++            .test(this.level, source, target));
++        assertEquals(0, calls.get());
++        verify(target, never()).canBeSeenByAnyone();
++    }
++
++    @Test
++    void selectorTransferStopsBeforeCombatReads() throws Exception {
++        LivingEntity source = entity(LivingEntity.class), target = entity(LivingEntity.class);
++        doReturn(true).when(target).canBeSeenByAnyone();
++        assertFalse(TargetingConditions.forCombat().selector((e, l) -> { this.owned.remove(target); return true; })
++            .test(this.level, source, target));
++        verify(source, never()).canAttack(target);
++    }
++
++    @Test
++    void remotePetOwnerIsNotReadAndBindingSurvives() throws Exception {
++        TamableAnimal pet = entity(TamableAnimal.class);
++        LivingEntity owner = entity(LivingEntity.class), target = entity(LivingEntity.class);
++        doReturn(true).when(pet).isTame();
++        doReturn(owner).when(pet).getRootOwner();
++        this.owned.remove(owner);
++        clearInvocations(owner);
++        assertNull(pet.getTeam());
++        assertFalse(pet.isAlliedTo(target));
++        verify(owner, never()).getTeam();
++        verify(owner, never()).getBukkitEntity();
++        assertSame(owner, pet.getRootOwner());
++        this.owned.add(owner);
++        assertTrue(pet.isAlliedTo(owner));
++    }
++
++    @Test
++    void staleRetaliationAttackerIsNotInspected() throws Exception {
++        PathfinderMob mob = entity(PathfinderMob.class);
++        LivingEntity attacker = entity(LivingEntity.class);
++        doReturn(attacker).when(mob).getLastHurtByMob();
++        doReturn(10).when(mob).getLastHurtByMobTimestamp();
++        this.owned.remove(attacker);
++        assertFalse(new HurtByTargetGoal(mob).canUse());
++        verify(attacker, never()).getTeam();
++        verify(attacker, never()).canBeSeenByAnyone();
++    }
++
++    @Test
++    void areaEffectsNeverEnumerateDimensionWidePlayers() {
++        ServerPlayer foreign = mock(ServerPlayer.class);
++        when(this.level.getLocalPlayers()).thenReturn(List.of(foreign));
++        assertTrue(MobEffectUtil.addEffectToPlayersAround(this.level, null, Vec3.ZERO, 20,
++            new MobEffectInstance(MobEffects.DARKNESS, 260), 200).isEmpty());
++        verify(this.level, never()).getPlayers(any());
++        verify(foreign, never()).position();
++        verify(foreign, never()).hasEffect(any());
++    }
++
++    @Test
++    void remoteAngerBecomesUuidAndCanResolveAgainWithoutLosingBinding() throws Exception {
++        LivingEntity suspect = entity(LivingEntity.class);
++        AtomicInteger callbacks = new AtomicInteger();
++        AngerManagement anger = new AngerManagement(e -> { callbacks.incrementAndGet(); return true; }, List.of());
++        anger.increaseAnger(suspect, 100);
++        this.owned.remove(suspect);
++        anger.tick(this.level, e -> { throw new AssertionError("remote suspect reached predicate"); });
++        assertTrue(anger.getActiveEntity().isEmpty());
++        when(this.level.getEntity(suspect.getUUID())).thenReturn(suspect);
++        this.owned.add(suspect);
++        for (int i = 0; i < 3; ++i) anger.tick(this.level, e -> true);
++        assertSame(suspect, anger.getActiveEntity().orElseThrow());
++        assertTrue(anger.getActiveAnger(suspect) >= 95 && anger.getActiveAnger(suspect) < 100);
++        assertTrue(callbacks.get() > 0);
++    }
++
++    @Test
++    void normallyKilledLocalSuspectDoesNotBecomePersistentAnger() throws Exception {
++        LivingEntity suspect = entity(LivingEntity.class);
++        AngerManagement anger = new AngerManagement(e -> true, List.of());
++        anger.increaseAnger(suspect, 100);
++        doReturn(true).when(suspect).isRemoved();
++        doReturn(Entity.RemovalReason.KILLED).when(suspect).getRemovalReason();
++        anger.tick(this.level, e -> { throw new AssertionError("killed suspect reached filter"); });
++        assertTrue(anger.getActiveEntity().isEmpty());
++        Field uuidField = AngerManagement.class.getDeclaredField("angerByUuid");
++        uuidField.setAccessible(true);
++        assertTrue(((java.util.Map<?, ?>)uuidField.get(anger)).isEmpty());
++    }
++
++    @Test
++    void potionCallbackTransferDoesNotMutateOldEffectMap() throws Exception {
++        LivingEntity target = entity(LivingEntity.class), source = entity(LivingEntity.class);
++        doReturn(true).when(target).canBeAffected(any());
++        doReturn(false).when(target).hasNullCallback();
++        var effects = new HashMap<>();
++        field(target, LivingEntity.class, "activeEffects", effects);
++        MobEffectInstance effect = new MobEffectInstance(MobEffects.DARKNESS, 260);
++        try (var events = mockStatic(CraftEventFactory.class)) {
++            events.when(() -> CraftEventFactory.callEntityPotionEffectChangeEvent(target, null, effect, source,
++                EntityPotionEffectEvent.Cause.WARDEN, null, false)).thenAnswer(call -> {
++                    this.owned.remove(target);
++                    return mock(EntityPotionEffectEvent.class);
++                });
++            assertFalse(target.addEffect(effect, source, EntityPotionEffectEvent.Cause.WARDEN));
++        }
++        assertTrue(effects.isEmpty());
++    }
++
++    @Test
++    @SuppressWarnings("unchecked")
++    void macePredicateRevalidatesAllianceCallbacks() throws Exception {
++        LivingEntity attacker = entity(LivingEntity.class), victim = entity(LivingEntity.class), nearby = entity(LivingEntity.class);
++        attacker.getBukkitEntity().addAdditionalAlliedRule(Key.key("test", "move"), ignored -> {
++            this.owned.remove(attacker); return false;
++        });
++        var method = MaceItem.class.getDeclaredMethod("knockbackPredicate", Entity.class, Entity.class);
++        method.setAccessible(true);
++        Predicate<LivingEntity> predicate = (Predicate<LivingEntity>) method.invoke(null, attacker, victim);
++        assertFalse(predicate.test(nearby));
++        verify(victim, never()).distanceToSqr(nearby);
++    }
++}

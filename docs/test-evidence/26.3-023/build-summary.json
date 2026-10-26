@@ -1,0 +1,144 @@
+{
+  "build": "26.3-023-beta",
+  "generatedAt": "2026-10-26T22:58:53.383Z",
+  "java": "25.0.3",
+  "minecraftApi": "26.3",
+  "source": {
+    "branch": "ver/26.3.x",
+    "baseCommit": "5731a919dbc85aa6a39f3f11b7cf1d089ef81f64",
+    "workingTreeRequired": true,
+    "automaticRootCommitOrPush": false,
+    "nativeHead": "61e686884e7ef35878e1b84f4b37139576d59037",
+    "serverHead": "2a7125ec81d5631b10b3a855a1769692c0782f87",
+    "apiHead": "9251e8570e84797c3901838723267f0f5aef5a4d"
+  },
+  "artifact": {
+    "path": "build/libs/tessera-server-26.3.build.023-beta.jar",
+    "bytes": 56728942,
+    "sha256": "26702a8332a2ac6681abce5ce8cab86a6d08006397105e6ee90d7d9db0a43b83"
+  },
+  "buildTessera": {
+    "passed": true,
+    "duration": "9m 46s",
+    "patchReapplication": true,
+    "checkstyle": true,
+    "badCalls": true,
+    "modules": {
+      "folia-server": {
+        "files": 192,
+        "tests": 10453,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 87,
+        "passed": 10366
+      },
+      "folia-api": {
+        "files": 42,
+        "tests": 529,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 2,
+        "passed": 527
+      },
+      "paper-checkstyle": {
+        "files": 3,
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 3
+      }
+    },
+    "total": {
+      "tests": 10985,
+      "passed": 10896,
+      "skipped": 89,
+      "failures": 0,
+      "errors": 0
+    }
+  },
+  "targeted": {
+    "files": 3,
+    "tests": 82,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "passed": 82
+  },
+  "native": {
+    "native-alliance": {
+      "passed": true,
+      "checks": 171,
+      "joins": 2,
+      "kicks": 0,
+      "disconnects": 0,
+      "evidence": "native-alliance.json"
+    },
+    "native-navigation": {
+      "passed": true,
+      "checks": 107,
+      "joins": 2,
+      "kicks": 0,
+      "disconnects": 0,
+      "evidence": "native-navigation.json"
+    },
+    "native-restore": {
+      "passed": true,
+      "contractVersion": 1,
+      "clients": [
+        {
+          "username": "RestoreOne",
+          "logins": 1,
+          "kicks": 0,
+          "disconnects": 0,
+          "teleports": 37,
+          "statsResets": 8,
+          "advancementResets": 12
+        },
+        {
+          "username": "RestoreTwo",
+          "logins": 1,
+          "kicks": 0,
+          "disconnects": 0,
+          "teleports": 35,
+          "statsResets": 8,
+          "advancementResets": 12
+        }
+      ],
+      "evidence": "native-restore.json"
+    }
+  },
+  "release": {
+    "version": "0.0.23",
+    "minecraftVersion": "26.3",
+    "title": "26.3 – Regionsichere Mob-Effekte und Allianzprüfungen",
+    "description": "Tessera Build 023 – behebt fremde Regionszugriffe bei Wardens, Ältesten Wächtern, Tierbesitzern und gespeicherten KI-Zielen.",
+    "date": "2026-10-26",
+    "status": "beta",
+    "breaking": false,
+    "tags": [
+      "Tessera",
+      "Folia",
+      "Fehlerbehebung",
+      "Mobs",
+      "Threading"
+    ]
+  },
+  "patchSha256": {
+    "folia-server/minecraft-patches/features/0071-Guard-native-alliances-area-effects-and-cached-AI-ta.patch": "6a505e5429ab20041fc8ad8f9d5bdd098a79e16aab7cacfa68cb8f75a07046b3",
+    "folia-server/paper-patches/features/0064-Revalidate-alliance-callbacks-and-test-region-safe-n.patch": "6beb22236bb46be77a5f01163c78c2d8fc34e9807232b072b3b9461eb9c3578c"
+  },
+  "documentation": {
+    "validatorTests": 57,
+    "apiArticles": 23,
+    "localApiLinks": 75,
+    "compiledJavaExamples": 15
+  },
+  "limits": [
+    "Protocol clients do not render Vanilla visuals",
+    "Natural Warden/ElderGuardian AI is exercised; some other AI/combat paths are invoked directly with controlled native state",
+    "No complete MCC/MVE/TAB/LuckPerms integration rerun and no product-plugin changes",
+    "No production load/Internet latency benchmark",
+    "Already discarded mobs are not automatically resurrected"
+  ]
+}

@@ -18,6 +18,26 @@ Mob-Sortierentscheidungen und Schwefel-Geysir-Launches. Ihre Methoden,
 Kopier-/Live-Referenzen und Callback-Grenzen stehen unter
 [Inventar- und Entity-Ereignisse](paper-api-022.md#inventarereignisse-und-entity-ereignisse).
 
+## Mob-Effekte und Rückstoß
+
+`EntityPotionEffectEvent` läuft synchron auf dem Besitzer der betroffenen Entity.
+Ein Veto verhindert die Änderung. Bei der nativen Warden-Dunkelheit und dem
+Mining-Fatigue-Effekt Ältester Wächter werden ab Build 023 nur aktuelle lokale
+Spieler ausgewertet; `ElderGuardianAppearanceEvent` wird weiterhin vor der
+Effektanwendung ausgelöst und kann diese für den Spieler verhindern.
+
+Entfernt oder transferiert ein solcher Callback das Ziel oder die zuvor lokal
+besessene Effektquelle, setzt Tessera die Effektmutation nicht auf dem alten
+Besitzer fort. Dies erzeugt keinen Ersatz-Join oder -Quit. Für weitere Arbeiten
+den aktuellen [EntityScheduler](scheduler.md#entityscheduler) verwenden und im
+Listener keinen Transfer-Future synchron abwarten.
+
+Für die betroffenen nativen Schwert-/Keulenpfade gelten entsprechende
+Nachprüfungen nach Allianz-, Push- und Knockback-Callbacks. Ein Event ist keine
+Erlaubnis, fremde Entities zu lesen oder zu mutieren; ein Ergebnis vor einem
+Transfer bleibt kein gültiger Ownership-Nachweis für spätere Arbeit. Diese
+Absicherung ist keine pauschale Sicherheitszusage für alle Drittplugin-Listener.
+
 ## Serverinitialisierung
 
 `io.papermc.paper.threadedregions.RegionizedServerInitEvent` wird nach der

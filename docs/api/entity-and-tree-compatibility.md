@@ -218,6 +218,30 @@ Region sein; diese neue Konstante umgeht keine bestehenden Grenzen.
 
 ## Plattformgrenzen
 
+### Evoker-Fangs und verfügbare Besitzer
+
+Die geerbten Methoden auf `org.bukkit.entity.EvokerFangs` bleiben binär gleich:
+
+```java
+LivingEntity getOwner(); // nullable
+void setOwner(LivingEntity owner); // nullable
+```
+
+Ab Build 023 liefert `getOwner()` nur einen aktuell verfügbaren lebenden Besitzer
+derselben Welt/Region, sonst `null`, entsprechend Folias nativer
+Projektileigentümer-Behandlung. Ein `null`-Ergebnis bedeutet deshalb nicht, dass
+die gespeicherte Bindung gelöscht wurde. Die native Besitzer-UUID bleibt bei
+Regions-/Dimensionswechseln gespeichert und kann nach der Rückkehr wieder
+aufgelöst werden. Nur `setOwner(null)` löscht die Bindung ausdrücklich.
+
+Beide Aufrufe gehören auf den aktuellen Besitzer der Fangs. Das Setzen einer
+Besitzerreferenz ist keine Erlaubnis, deren lebenden Zustand zusätzlich fremd
+auszulesen; vorhandene Handle-/Threadprüfungen gelten unverändert. Ein Getter
+ist ebenfalls keine Erlaubnis zu fremden Entity-Zugriffen. Für spätere Arbeit den
+[EntityScheduler](scheduler.md#entityscheduler) verwenden und nach Transfer oder
+Retirement keine Mutation auf dem alten Besitzer nachholen. Das normale
+Angriffsfenster und der Magieschaden werden dadurch nicht neu konfiguriert.
+
 ### Spawn-Passagiere und DragonBattle
 
 Ab Build 016 übernimmt der geerbte `RegionAccessor#spawn`-Pfad auch natürliche

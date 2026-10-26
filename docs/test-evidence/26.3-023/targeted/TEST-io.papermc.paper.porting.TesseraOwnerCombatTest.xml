@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.papermc.paper.porting.TesseraOwnerCombatTest" tests="60" skipped="0" failures="0" errors="0" timestamp="2026-10-26T22:39:42.434Z" hostname="ENGINE0" time="19.127">
+  <properties/>
+  <testcase name="[1] kind = DEFEND" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="2.412"/>
+  <testcase name="[2] kind = ASSIST" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.036"/>
+  <testcase name="[1] kind = DEFEND" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.031"/>
+  <testcase name="[2] kind = ASSIST" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.025"/>
+  <testcase name="[1] kind = DEFEND" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.023"/>
+  <testcase name="[2] kind = ASSIST" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.012"/>
+  <testcase name="[1] kind = DEFEND, change = &quot;owner-region&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.079"/>
+  <testcase name="[2] kind = DEFEND, change = &quot;owner-world&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.02"/>
+  <testcase name="[3] kind = DEFEND, change = &quot;owner-removed&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.014"/>
+  <testcase name="[4] kind = DEFEND, change = &quot;owner-replaced&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.015"/>
+  <testcase name="[5] kind = DEFEND, change = &quot;target-region&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.013"/>
+  <testcase name="[6] kind = DEFEND, change = &quot;target-world&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.021"/>
+  <testcase name="[7] kind = DEFEND, change = &quot;target-removed&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.017"/>
+  <testcase name="[8] kind = DEFEND, change = &quot;target-replaced&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.035"/>
+  <testcase name="[9] kind = DEFEND, change = &quot;pet-region&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.01"/>
+  <testcase name="[10] kind = DEFEND, change = &quot;pet-removed&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.01"/>
+  <testcase name="[11] kind = DEFEND, change = &quot;new-attack&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.009"/>
+  <testcase name="[12] kind = DEFEND, change = &quot;sitting&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.007"/>
+  <testcase name="[13] kind = DEFEND, change = &quot;untamed&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.006"/>
+  <testcase name="[14] kind = ASSIST, change = &quot;owner-region&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.006"/>
+  <testcase name="[15] kind = ASSIST, change = &quot;owner-world&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.007"/>
+  <testcase name="[16] kind = ASSIST, change = &quot;owner-removed&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.005"/>
+  <testcase name="[17] kind = ASSIST, change = &quot;owner-replaced&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.007"/>
+  <testcase name="[18] kind = ASSIST, change = &quot;target-region&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.005"/>
+  <testcase name="[19] kind = ASSIST, change = &quot;target-world&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.005"/>
+  <testcase name="[20] kind = ASSIST, change = &quot;target-removed&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.006"/>
+  <testcase name="[21] kind = ASSIST, change = &quot;target-replaced&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.006"/>
+  <testcase name="[22] kind = ASSIST, change = &quot;pet-region&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.007"/>
+  <testcase name="[23] kind = ASSIST, change = &quot;pet-removed&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.005"/>
+  <testcase name="[24] kind = ASSIST, change = &quot;new-attack&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.005"/>
+  <testcase name="[25] kind = ASSIST, change = &quot;sitting&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.007"/>
+  <testcase name="[26] kind = ASSIST, change = &quot;untamed&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.006"/>
+  <testcase name="[1] kind = DEFEND, state = &quot;dimension&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.005"/>
+  <testcase name="[2] kind = DEFEND, state = &quot;region&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.005"/>
+  <testcase name="[3] kind = DEFEND, state = &quot;removed&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.005"/>
+  <testcase name="[4] kind = DEFEND, state = &quot;missing&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.005"/>
+  <testcase name="[5] kind = ASSIST, state = &quot;dimension&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.003"/>
+  <testcase name="[6] kind = ASSIST, state = &quot;region&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.005"/>
+  <testcase name="[7] kind = ASSIST, state = &quot;removed&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.005"/>
+  <testcase name="[8] kind = ASSIST, state = &quot;missing&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.004"/>
+  <testcase name="damageTimeoutAndNoWolfRetaliationTagRemainEffective()" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.005"/>
+  <testcase name="[1] kind = DEFEND" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.006"/>
+  <testcase name="[2] kind = ASSIST" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.005"/>
+  <testcase name="[1] kind = DEFEND, state = &quot;dimension&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.003"/>
+  <testcase name="[2] kind = DEFEND, state = &quot;region&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.004"/>
+  <testcase name="[3] kind = DEFEND, state = &quot;removed&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.003"/>
+  <testcase name="[4] kind = DEFEND, state = &quot;missing&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.004"/>
+  <testcase name="[5] kind = ASSIST, state = &quot;dimension&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.004"/>
+  <testcase name="[6] kind = ASSIST, state = &quot;region&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.004"/>
+  <testcase name="[7] kind = ASSIST, state = &quot;removed&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.004"/>
+  <testcase name="[8] kind = ASSIST, state = &quot;missing&quot;" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.003"/>
+  <testcase name="[1] kind = DEFEND" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.008"/>
+  <testcase name="[2] kind = ASSIST" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.007"/>
+  <testcase name="[1] kind = DEFEND" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.007"/>
+  <testcase name="[2] kind = ASSIST" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.006"/>
+  <testcase name="originalWorldMismatchPathIsNotReachedAndCanResumeAfterReturn()" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.006"/>
+  <testcase name="[1] kind = DEFEND" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.004"/>
+  <testcase name="[2] kind = ASSIST" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.004"/>
+  <testcase name="[1] kind = DEFEND" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.006"/>
+  <testcase name="[2] kind = ASSIST" classname="io.papermc.paper.porting.TesseraOwnerCombatTest" time="0.006"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[Okt. 26, 2026 11:39:42 PM org.bukkit.support.extension.BaseExtension isTestCase
+INFORMATION: Running tests with environment: Normal
+Okt. 26, 2026 11:39:58 PM org.bukkit.Bukkit setServer
+INFORMATION: This server is running org.bukkit.support.DummyServerHelper version 26.3-DEV (2026-10-26T22:39:56Z) (Implementing API version 26.3.build.023-beta)
+]]></system-err>
+</testsuite>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.papermc.paper.porting.PaperOctober22OwnershipTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-26T22:39:22.038Z" hostname="ENGINE0" time="18.795">
+  <properties/>
+  <testcase name="playerHandleOverrideDoesNotBypassNewRuleAndDamageOwnerChecks()" classname="io.papermc.paper.porting.PaperOctober22OwnershipTest" time="2.238"/>
+  <testcase name="ownerRuleViewRemainsLiveUnmodifiableAndNamespaceRemovalIsScoped()" classname="io.papermc.paper.porting.PaperOctober22OwnershipTest" time="0.044"/>
+  <testcase name="staleBlockContainersAreRejectedBeforeWorldReads()" classname="io.papermc.paper.porting.PaperOctober22OwnershipTest" time="0.81"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[Okt. 26, 2026 11:39:22 PM org.bukkit.support.extension.BaseExtension isTestCase
+INFORMATION: Running tests with environment: Normal
+Okt. 26, 2026 11:39:37 PM org.bukkit.Bukkit setServer
+INFORMATION: This server is running org.bukkit.support.DummyServerHelper version 26.3-DEV (2026-10-26T22:39:35Z) (Implementing API version 26.3.build.023-beta)
+]]></system-err>
+</testsuite>

@@ -1,0 +1,702 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hackii1432 <hunter122@hotmail.de>
+Date: Mon, 26 Oct 2026 23:07:02 +0100
+Subject: [PATCH] Guard native alliances area effects and cached AI targets by
+ region ownership
+
+
+diff --git a/net/minecraft/world/effect/MobEffectUtil.java b/net/minecraft/world/effect/MobEffectUtil.java
+index f1c57bc4310784999784d77678ea88912d6e41db..d4226080e876294c83a5c8d6bb5ad526b31731d1 100644
+--- a/net/minecraft/world/effect/MobEffectUtil.java
++++ b/net/minecraft/world/effect/MobEffectUtil.java
+@@ -86,26 +86,40 @@ public final class MobEffectUtil {
+         // Paper end - Add ElderGuardianAppearanceEvent
+         // CraftBukkit end
+         Holder<MobEffect> effect = effectInstance.getEffect();
+-        List<ServerPlayer> players = level.getPlayers(
++        // Tessera start - inspect effects only on their owner; predicates may transfer participants
++        ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(level, net.minecraft.core.BlockPos.containing(position), "Cannot apply area effects off-region");
++        if (source != null && !Entity.tessera$isOwnedEntity(source, level)) return List.of();
++        List<ServerPlayer> candidates = new java.util.ArrayList<>();
++        for (ServerPlayer input : List.copyOf(level.getLocalPlayers())) {
++            if (source != null && !Entity.tessera$isOwnedEntity(source, level)) break;
++            if (!Entity.tessera$isOwnedEntity(input, level)) continue;
+             // Paper start - Add ElderGuardianAppearanceEvent
+-            input -> {
+                 final boolean condition = input.gameMode.isSurvival()
+-                && (source == null || !source.isAlliedTo(input))
+                 && position.closerThan(input.position(), radius)
++                && (source == null || !source.isAlliedTo(input))
++                && Entity.tessera$isOwnedEntity(input, level)
++                && (source == null || Entity.tessera$isOwnedEntity(source, level))
+                 && (
+                     !input.hasEffect(effect)
+                         || input.getEffect(effect).getAmplifier() < effectInstance.getAmplifier()
+                         || input.getEffect(effect).endsWithin(displayEffectLimit - 1)
+                 );
+-                if (condition) {
+-                    return playerPredicate == null || playerPredicate.test(input); // Only test the player AFTER it is true
+-                } else {
+-                    return false;
++                if (condition && (playerPredicate == null || playerPredicate.test(input))
++                    && Entity.tessera$isOwnedEntity(input, level)
++                    && (source == null || Entity.tessera$isOwnedEntity(source, level))) {
++                    candidates.add(input);
+                 }
+-            }
+-        );
++        }
+         // Paper end - Add ElderGuardianAppearanceEvent
+-        players.forEach(player -> player.addEffect(new MobEffectInstance(effectInstance), source, cause)); // CraftBukkit
++        List<ServerPlayer> players = new java.util.ArrayList<>();
++        for (ServerPlayer input : candidates) {
++            if (source != null && !Entity.tessera$isOwnedEntity(source, level)) break;
++            if (!Entity.tessera$isOwnedEntity(input, level)) continue;
++            input.addEffect(new MobEffectInstance(effectInstance), source, cause);
++            if (Entity.tessera$isOwnedEntity(input, level)
++                && (source == null || Entity.tessera$isOwnedEntity(source, level))) players.add(input);
++        }
++        // Tessera end - inspect effects only on their owner; predicates may transfer participants
+         return players;
+     }
+ }
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index 17c96bd4e852aeae24393e4b306a510d369d1586..c6a9d10d1108c4f46c9ed353300b4bb91a33cedf 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -2519,11 +2519,14 @@ public abstract class Entity
+             // Paper start - Add EntityKnockbackByEntityEvent and EntityPushedByEntityAttackEvent
+             org.bukkit.util.Vector delta = new org.bukkit.util.Vector(xa, ya, za);
+             if (pushingEntity != null) {
++                final Level ownerLevel = this.level();
++                if (!tessera$isOwnedEntity(this, ownerLevel) || !tessera$isOwnedEntity(pushingEntity, ownerLevel)) return; // Tessera
+                 io.papermc.paper.event.entity.EntityPushedByEntityAttackEvent event = new io.papermc.paper.event.entity.EntityPushedByEntityAttackEvent(this.getBukkitEntity(), io.papermc.paper.event.entity.EntityKnockbackEvent.Cause.PUSH, pushingEntity.getBukkitEntity(), delta);
+                 if (!event.callEvent()) {
+                     return;
+                 }
+                 delta = event.getKnockback();
++                if (!tessera$isOwnedEntity(this, ownerLevel) || !tessera$isOwnedEntity(pushingEntity, ownerLevel)) return; // Tessera - a push callback may transfer either participant
+             }
+             this.setDeltaMovement(this.getDeltaMovement().add(delta.getX(), delta.getY(), delta.getZ()));
+             // Paper end - Add EntityKnockbackByEntityEvent and EntityPushedByEntityAttackEvent
+@@ -3868,10 +3871,30 @@ public abstract class Entity
+     }
+ 
+     public final boolean isAlliedTo(final @Nullable Entity other) {
+-        return other != null && (this == other || this.considersEntityAsAlly(other) || other.considersEntityAsAlly(this));
++        // Tessera start - native alliance evaluation may invoke plugin predicates
++        if (other == null) return false;
++        if (this == other) return true;
++        if (!tessera$isOwnedEntity(this)) return false;
++        final Level ownerLevel = this.level();
++        if (!tessera$isOwnedEntity(other, ownerLevel)) return false;
++        boolean allied = this.considersEntityAsAlly(other);
++        if (!tessera$isOwnedEntity(this, ownerLevel) || !tessera$isOwnedEntity(other, ownerLevel)) return false;
++        if (!allied) allied = other.considersEntityAsAlly(this);
++        return tessera$isOwnedEntity(this, ownerLevel) && tessera$isOwnedEntity(other, ownerLevel) && allied;
++        // Tessera end - native alliance evaluation may invoke plugin predicates
++    }
++
++    // Tessera - internal admission checks; never load a chunk or block for a handoff.
++    public static boolean tessera$isOwnedEntity(final @Nullable Entity entity) {
++        return entity != null && ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(entity) && !entity.isRemoved();
++    }
++
++    public static boolean tessera$isOwnedEntity(final @Nullable Entity entity, final Level level) {
++        return tessera$isOwnedEntity(entity) && entity.level() == level;
+     }
+ 
+     protected boolean considersEntityAsAlly(final Entity other) {
++        if (!tessera$isOwnedEntity(this) || !tessera$isOwnedEntity(other, this.level())) return false; // Tessera - also called by owner/illager overrides
+         return this.isAlliedTo(other.getTeam()) || this.getBukkitEntity().considersEntityAsAlly0(other.getBukkitEntity()); // Paper - Allies API
+     }
+ 
+diff --git a/net/minecraft/world/entity/EntityReference.java b/net/minecraft/world/entity/EntityReference.java
+index 55a80fbb0a57ce6b930effcf421e48191f233309..11c57e5a00177b8360b13b2221579987d8378bb9 100644
+--- a/net/minecraft/world/entity/EntityReference.java
++++ b/net/minecraft/world/entity/EntityReference.java
+@@ -113,6 +113,20 @@ public final class EntityReference<StoredEntityType extends Entity> { // Folia -
+         return get(reference, level, LivingEntity.class);
+     }
+ 
++    // Tessera - owner-sensitive AI must check admission BEFORE even reading cached lifecycle state.
++    // This does not alter general reference resolution (pearls, persistence and transfers keep their contracts).
++    public static @Nullable LivingEntity tessera$getOwnedLivingEntity(final @Nullable EntityReference<LivingEntity> reference, final Level level) {
++        if (reference == null) return null;
++        final org.bukkit.craftbukkit.entity.CraftEntity cached = reference.entity.right().orElse(null);
++        if (cached != null) {
++            final Entity candidate = cached.getHandleRaw();
++            if (candidate instanceof LivingEntity living && Entity.tessera$isOwnedEntity(living, level)) return living;
++        }
++        // UUID lookup reads the concurrent entity index, not chunks or a foreign entity's mutable state.
++        final Entity candidate = level.getEntity(reference.getUUID());
++        return candidate instanceof LivingEntity living && Entity.tessera$isOwnedEntity(living, level) ? living : null;
++    }
++
+     public static @Nullable Player getPlayer(final @Nullable EntityReference<Player> reference, final Level level) {
+         return get(reference, level, Player.class);
+     }
+diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
+index 966baafef48422bfcd854b5bb1103b3928e56f38..9bbc4ef3afe6cb5fed591df78b9a4579259ba761 100644
+--- a/net/minecraft/world/entity/LivingEntity.java
++++ b/net/minecraft/world/entity/LivingEntity.java
+@@ -1201,6 +1201,9 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+             addAsHiddenEffect = effect.getAmplifier() > newEffect.getAmplifier() && effect.isShorterDurationThan(newEffect);
+         }
+ 
++        final Level tessera$effectLevel = this.level();
++        final boolean tessera$trackedEffectTarget = !this.hasNullCallback();
++        final boolean tessera$ownedEffectSource = Entity.tessera$isOwnedEntity(source, tessera$effectLevel);
+         if (fireEvent) {
+             EntityPotionEffectEvent event = CraftEventFactory.callEntityPotionEffectChangeEvent(this, effect, newEffect, source, cause, null, override);
+             override = event.isOverride();
+@@ -1208,6 +1211,9 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+                 return false;
+             }
+         }
++        if (this.level() != tessera$effectLevel || this.isRemoved()
++            || tessera$trackedEffectTarget && !Entity.tessera$isOwnedEntity(this, tessera$effectLevel)
++            || tessera$ownedEffectSource && !Entity.tessera$isOwnedEntity(source, tessera$effectLevel)) return false; // Tessera - never resume effect mutation on an old owner after a plugin callback
+         // Paper end
+         if (effect == null) {
+             this.activeEffects.put(newEffect.getEffect(), newEffect);
+@@ -2107,11 +2113,15 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+             );
+             // Paper start - knockback events
+             Vec3 knockback = targetMovement.subtract(deltaMovement);
++            final Level ownerLevel = this.level();
+             io.papermc.paper.event.entity.EntityKnockbackEvent event = CraftEventFactory.callEntityKnockbackEvent((org.bukkit.craftbukkit.entity.CraftLivingEntity) this.getBukkitEntity(), attacker, attacker, eventCause, power, knockback);
+             if (event.isCancelled()) {
+                 return;
+             }
+ 
++            if (!Entity.tessera$isOwnedEntity(this, ownerLevel)
++                || attacker != null && !Entity.tessera$isOwnedEntity(attacker, ownerLevel)) return; // Tessera - never apply callback results to an old combat owner
++
+             this.needsSync = true;
+             this.setDeltaMovement(deltaMovement.add(event.getKnockback().getX(), event.getKnockback().getY(), event.getKnockback().getZ()));
+             // Paper end - knockback events
+diff --git a/net/minecraft/world/entity/OwnableEntity.java b/net/minecraft/world/entity/OwnableEntity.java
+index 614c98c86b3bb650b2abebf45d222b9b2aa036c0..1561f17c364d797b1c881652ac0dae87b3e01fc7 100644
+--- a/net/minecraft/world/entity/OwnableEntity.java
++++ b/net/minecraft/world/entity/OwnableEntity.java
+@@ -16,12 +16,12 @@ public interface OwnableEntity {
+ 
+     default @Nullable LivingEntity getRootOwner() {
+         Set<Object> seen = new ObjectArraySet<>();
+-        LivingEntity owner = this.getOwner();
++        LivingEntity owner = EntityReference.tessera$getOwnedLivingEntity(this.getOwnerReference(), this.level()); // Tessera - no foreign cached-state read
+         seen.add(this);
+ 
+-        while (owner instanceof OwnableEntity) {
++        while (owner instanceof OwnableEntity && Entity.tessera$isOwnedEntity(owner, this.level())) { // Tessera - do not traverse a live remote owner chain
+             OwnableEntity ownableOwner = (OwnableEntity)owner;
+-            LivingEntity ownersOwner = ownableOwner.getOwner();
++            LivingEntity ownersOwner = EntityReference.tessera$getOwnedLivingEntity(ownableOwner.getOwnerReference(), this.level()); // Tessera
+             if (seen.contains(ownersOwner)) {
+                 return null;
+             }
+diff --git a/net/minecraft/world/entity/TamableAnimal.java b/net/minecraft/world/entity/TamableAnimal.java
+index b4fb28dea2f2fc2bbb33e94495eb9b96c5eda4f5..acf147011619a7891b7f8e2444a2083e606e8998 100644
+--- a/net/minecraft/world/entity/TamableAnimal.java
++++ b/net/minecraft/world/entity/TamableAnimal.java
+@@ -202,7 +202,7 @@ public abstract class TamableAnimal extends Animal implements OwnableEntity {
+ 
+         if (this.isTame()) {
+             LivingEntity owner = this.getRootOwner();
+-            if (owner != null) {
++            if (Entity.tessera$isOwnedEntity(owner, this.level())) { // Tessera - preserve the owner reference, not a foreign team read
+                 return owner.getTeam();
+             }
+         }
+@@ -212,6 +212,7 @@ public abstract class TamableAnimal extends Animal implements OwnableEntity {
+ 
+     @Override
+     protected boolean considersEntityAsAlly(final Entity other) {
++        if (!Entity.tessera$isOwnedEntity(this) || !Entity.tessera$isOwnedEntity(other, this.level())) return false; // Tessera
+         if (this.isTame()) {
+             LivingEntity owner = this.getRootOwner();
+             if (other == owner) {
+@@ -219,7 +220,7 @@ public abstract class TamableAnimal extends Animal implements OwnableEntity {
+             }
+ 
+             if (owner != null) {
+-                return owner.considersEntityAsAlly(other);
++                return Entity.tessera$isOwnedEntity(owner, this.level()) && owner.considersEntityAsAlly(other); // Tessera - no remote arbitrary plugin predicate
+             }
+         }
+ 
+diff --git a/net/minecraft/world/entity/ai/goal/target/HurtByTargetGoal.java b/net/minecraft/world/entity/ai/goal/target/HurtByTargetGoal.java
+index 750eb5bb01958023c7c266f28f70f5f71f0d8bea..b61a8c4f4b3e5a0570a5d9af2936e754a9ce2408 100644
+--- a/net/minecraft/world/entity/ai/goal/target/HurtByTargetGoal.java
++++ b/net/minecraft/world/entity/ai/goal/target/HurtByTargetGoal.java
+@@ -31,9 +31,10 @@ public class HurtByTargetGoal extends TargetGoal {
+ 
+     @Override
+     public boolean canUse() {
++        if (!net.minecraft.world.entity.Entity.tessera$isOwnedEntity(this.mob)) return false; // Tessera
+         int timestamp = this.mob.getLastHurtByMobTimestamp();
+         LivingEntity lastHurtByMob = this.mob.getLastHurtByMob();
+-        if (timestamp != this.timestamp && lastHurtByMob != null) {
++        if (timestamp != this.timestamp && net.minecraft.world.entity.Entity.tessera$isOwnedEntity(lastHurtByMob, this.mob.level())) { // Tessera - cached attacker may have transferred
+             if (lastHurtByMob.is(EntityTypes.PLAYER) && getServerLevel(this.mob).getGameRules().get(GameRules.UNIVERSAL_ANGER)) {
+                 return false;
+             }
+@@ -58,7 +59,10 @@ public class HurtByTargetGoal extends TargetGoal {
+ 
+     @Override
+     public void start() {
++        if (!net.minecraft.world.entity.Entity.tessera$isOwnedEntity(this.mob)
++            || !net.minecraft.world.entity.Entity.tessera$isOwnedEntity(this.mob.getLastHurtByMob(), this.mob.level())) return; // Tessera
+         this.mob.setTarget(this.mob.getLastHurtByMob(), org.bukkit.event.entity.EntityTargetEvent.TargetReason.TARGET_ATTACKED_ENTITY); // CraftBukkit - reason
++        if (!net.minecraft.world.entity.Entity.tessera$isOwnedEntity(this.mob)) return; // Tessera - target event may transfer the mob
+         this.targetMob = this.mob.getTarget();
+         this.timestamp = this.mob.getLastHurtByMobTimestamp();
+         this.unseenMemoryTicks = 300;
+@@ -66,10 +70,12 @@ public class HurtByTargetGoal extends TargetGoal {
+             this.alertOthers();
+         }
+ 
++        if (!net.minecraft.world.entity.Entity.tessera$isOwnedEntity(this.mob)) return; // Tessera - a group alert callback may have retired the source
+         super.start();
+     }
+ 
+     protected void alertOthers() {
++        if (!net.minecraft.world.entity.Entity.tessera$isOwnedEntity(this.mob)) return; // Tessera
+         double within = this.getFollowDistance();
+         AABB searchAabb = AABB.unitCubeFromLowerCorner(this.mob.position()).inflate(within, 10.0, within);
+         List<? extends Mob> nearby = this.mob.level().getEntitiesOfClass((Class<? extends Mob>)this.mob.getClass(), searchAabb, EntitySelector.NO_SPECTATORS);
+@@ -83,6 +89,9 @@ public class HurtByTargetGoal extends TargetGoal {
+                 }
+ 
+                 other = (Mob)var5.next();
++                if (!net.minecraft.world.entity.Entity.tessera$isOwnedEntity(this.mob)
++                    || !net.minecraft.world.entity.Entity.tessera$isOwnedEntity(this.mob.getLastHurtByMob(), this.mob.level())) return; // Tessera
++                if (!net.minecraft.world.entity.Entity.tessera$isOwnedEntity(other, this.mob.level())) continue;
+                 if (this.mob != other
+                     && other.getTarget() == null
+                     && (!(this.mob instanceof TamableAnimal tamableAnimal) || tamableAnimal.getOwner() == ((TamableAnimal)other).getOwner())
+@@ -111,6 +120,9 @@ public class HurtByTargetGoal extends TargetGoal {
+     }
+ 
+     protected void alertOther(final Mob other, final LivingEntity hurtByMob) {
++        if (!net.minecraft.world.entity.Entity.tessera$isOwnedEntity(this.mob)
++            || !net.minecraft.world.entity.Entity.tessera$isOwnedEntity(other, this.mob.level())
++            || !net.minecraft.world.entity.Entity.tessera$isOwnedEntity(hurtByMob, this.mob.level())) return; // Tessera - after alliance callbacks
+         other.setTarget(hurtByMob, org.bukkit.event.entity.EntityTargetEvent.TargetReason.TARGET_ATTACKED_NEARBY_ENTITY); // CraftBukkit - reason
+     }
+ }
+diff --git a/net/minecraft/world/entity/ai/goal/target/TargetGoal.java b/net/minecraft/world/entity/ai/goal/target/TargetGoal.java
+index 89765d720fdd810545e8c2010e05a002f87b0c7f..ee1e2dabcc81e238779671105da99688fab6880a 100644
+--- a/net/minecraft/world/entity/ai/goal/target/TargetGoal.java
++++ b/net/minecraft/world/entity/ai/goal/target/TargetGoal.java
+@@ -35,18 +35,22 @@ public abstract class TargetGoal extends Goal {
+ 
+     @Override
+     public boolean canContinueToUse() {
++        if (!net.minecraft.world.entity.Entity.tessera$isOwnedEntity(this.mob)) return false; // Tessera - do not prune targets on a retired source
+         LivingEntity target = this.mob.getTarget();
+         if (target == null) {
+             target = this.targetMob;
+         }
+ 
+-        if (target == null) {
++        if (!net.minecraft.world.entity.Entity.tessera$isOwnedEntity(this.mob)
++            || !net.minecraft.world.entity.Entity.tessera$isOwnedEntity(target, this.mob.level())) {
+             return false;
+         }
+ 
+         if (!this.mob.canAttack(target)) {
+             return false;
+         }
++        if (!net.minecraft.world.entity.Entity.tessera$isOwnedEntity(this.mob)
++            || !net.minecraft.world.entity.Entity.tessera$isOwnedEntity(target, this.mob.level())) return false; // Tessera - canAttack may evaluate plugin alliance rules
+ 
+         Team mobTeam = this.mob.getTeam();
+         Team targetTeam = target.getTeam();
+@@ -89,13 +93,16 @@ public abstract class TargetGoal extends Goal {
+     }
+ 
+     protected boolean canAttack(final @Nullable LivingEntity target, final TargetingConditions targetConditions) {
+-        if (target == null) {
++        if (!net.minecraft.world.entity.Entity.tessera$isOwnedEntity(this.mob)
++            || !net.minecraft.world.entity.Entity.tessera$isOwnedEntity(target, this.mob.level())) {
+             return false;
+         }
+ 
+         if (!targetConditions.test(getServerLevel(this.mob), this.mob, target)) {
+             return false;
+         }
++        if (!net.minecraft.world.entity.Entity.tessera$isOwnedEntity(this.mob)
++            || !net.minecraft.world.entity.Entity.tessera$isOwnedEntity(target, this.mob.level())) return false; // Tessera - after plugin predicates
+ 
+         if (!this.mob.isWithinHome(target.blockPosition())) {
+             return false;
+diff --git a/net/minecraft/world/entity/ai/targeting/TargetingConditions.java b/net/minecraft/world/entity/ai/targeting/TargetingConditions.java
+index bd6d9fdeb468428bdf35e888be141293088228a4..4550dda2f094718eafd8a7611830e907e8d55033 100644
+--- a/net/minecraft/world/entity/ai/targeting/TargetingConditions.java
++++ b/net/minecraft/world/entity/ai/targeting/TargetingConditions.java
+@@ -57,6 +57,8 @@ public class TargetingConditions {
+     }
+ 
+     public boolean test(final ServerLevel level, final @Nullable LivingEntity targeter, final LivingEntity target) {
++        if (!net.minecraft.world.entity.Entity.tessera$isOwnedEntity(target, level)
++            || targeter != null && !net.minecraft.world.entity.Entity.tessera$isOwnedEntity(targeter, level)) return false; // Tessera - reject stale candidates before selectors and combat reads
+         if (targeter == target) {
+             return false;
+         }
+@@ -68,6 +70,8 @@ public class TargetingConditions {
+         if (this.selector != null && !this.selector.test(target, level)) {
+             return false;
+         }
++        if (!net.minecraft.world.entity.Entity.tessera$isOwnedEntity(target, level)
++            || targeter != null && !net.minecraft.world.entity.Entity.tessera$isOwnedEntity(targeter, level)) return false; // Tessera - callback revalidation
+ 
+         if (targeter == null) {
+             if (this.isCombat && (!target.canBeSeenAsEnemy() || level.getDifficulty() == Difficulty.PEACEFUL)) {
+@@ -77,6 +81,8 @@ public class TargetingConditions {
+             if (this.isCombat && (!targeter.canAttack(target) || targeter.isAlliedTo(target))) {
+                 return false;
+             }
++            if (!net.minecraft.world.entity.Entity.tessera$isOwnedEntity(targeter, level)
++                || !net.minecraft.world.entity.Entity.tessera$isOwnedEntity(target, level)) return false; // Tessera - alliance callbacks may transfer participants
+ 
+             if (this.range > 0.0) {
+                 double modifier = this.testInvisible ? target.getVisibilityPercent(level, targeter) : 1.0;
+diff --git a/net/minecraft/world/entity/monster/ElderGuardian.java b/net/minecraft/world/entity/monster/ElderGuardian.java
+index b3d0dc020027c626b6e9661a8d54095385c2f8b6..1de846bfd13b723918e428e9a4518e9a341fbfe5 100644
+--- a/net/minecraft/world/entity/monster/ElderGuardian.java
++++ b/net/minecraft/world/entity/monster/ElderGuardian.java
+@@ -67,6 +67,7 @@ public class ElderGuardian extends Guardian {
+         if ((this.tickCount + this.getId()) % 1200 == 0) {
+             MobEffectInstance miningFatigue = new MobEffectInstance(MobEffects.MINING_FATIGUE, 6000, 2);
+             List<ServerPlayer> affectedPlayers = MobEffectUtil.addEffectToPlayersAround(level, this, this.position(), 50.0, miningFatigue, 1200, org.bukkit.event.entity.EntityPotionEffectEvent.Cause.ATTACK, player -> new io.papermc.paper.event.entity.ElderGuardianAppearanceEvent((org.bukkit.entity.ElderGuardian)this.getBukkitEntity(), player.getBukkitEntity()).callEvent()); // CraftBukkit // Paper - Add ElderGuardianAppearanceEvent
++            if (!net.minecraft.world.entity.Entity.tessera$isOwnedEntity(this, level)) return; // Tessera - appearance/effect callbacks can retire the source
+             affectedPlayers.forEach(
+                 player -> player.connection
+                     .send(new ClientboundGameEventPacket(ClientboundGameEventPacket.GUARDIAN_ELDER_EFFECT, this.isSilent() ? 0.0F : 1.0F))
+diff --git a/net/minecraft/world/entity/monster/creaking/Creaking.java b/net/minecraft/world/entity/monster/creaking/Creaking.java
+index ed5a38579d5d31967a58a5c965378169a9e0b70d..211134f6dee616f14b35d88aadd2d527b61b565d 100644
+--- a/net/minecraft/world/entity/monster/creaking/Creaking.java
++++ b/net/minecraft/world/entity/monster/creaking/Creaking.java
+@@ -226,6 +226,7 @@ public class Creaking extends Monster {
+         if (!this.level().isClientSide()) {
+             boolean canMove = this.entityData.get(CAN_MOVE);
+             boolean nowCanMove = this.checkCanMove();
++            if (!Entity.tessera$isOwnedEntity(this)) return; // Tessera - an alliance callback can retire/transfer the source before data, sounds or game events
+             if (nowCanMove != canMove) {
+                 this.gameEvent(GameEvent.ENTITY_ACTION);
+                 if (nowCanMove) {
+@@ -467,7 +468,9 @@ public class Creaking extends Monster {
+             boolean hasPotentialTarget = false;
+ 
+             for (Player player : players) {
+-                if (this.canAttack(player) && !this.isAlliedTo(player)) {
++                if (!Entity.tessera$isOwnedEntity(this)) return true; // Tessera - source may transfer in a rule callback
++                if (Entity.tessera$isOwnedEntity(player, this.level()) && this.canAttack(player) && !this.isAlliedTo(player)
++                    && Entity.tessera$isOwnedEntity(this) && Entity.tessera$isOwnedEntity(player, this.level())) {
+                     hasPotentialTarget = true;
+                     if ((!active || LivingEntity.PLAYER_NOT_WEARING_DISGUISE_ITEM.test(player))
+                         && this.isLookingAtMe(
+@@ -485,6 +488,7 @@ public class Creaking extends Monster {
+                 }
+             }
+ 
++            if (!Entity.tessera$isOwnedEntity(this)) return true; // Tessera - do not deactivate a transferred source
+             if (!hasPotentialTarget && active) {
+                 this.deactivate();
+             }
+diff --git a/net/minecraft/world/entity/monster/illager/Evoker.java b/net/minecraft/world/entity/monster/illager/Evoker.java
+index 44a3f5a2f5fef29c542e7820acb2b7d36cfc63d4..25dda0d1dc05d4a1a8589f31cae1635f61fc51bf 100644
+--- a/net/minecraft/world/entity/monster/illager/Evoker.java
++++ b/net/minecraft/world/entity/monster/illager/Evoker.java
+@@ -90,7 +90,7 @@ public class Evoker extends SpellcasterIllager {
+ 
+         if (other instanceof Vex vex) {
+             LivingEntity rootOwner = vex.getRootOwner();
+-            if (rootOwner != null && (rootOwner == this || super.considersEntityAsAlly(rootOwner))) {
++            if (rootOwner != null && (rootOwner == this || Entity.tessera$isOwnedEntity(rootOwner, this.level()) && super.considersEntityAsAlly(rootOwner))) { // Tessera - no remote live rule input
+                 return true;
+             }
+         }
+diff --git a/net/minecraft/world/entity/monster/warden/AngerManagement.java b/net/minecraft/world/entity/monster/warden/AngerManagement.java
+index 163e92ec0e970e74627873e7a5ab05b4b45c9402..18807bfb1e779d1edb9444cd6381178d990dc6f5 100644
+--- a/net/minecraft/world/entity/monster/warden/AngerManagement.java
++++ b/net/minecraft/world/entity/monster/warden/AngerManagement.java
+@@ -72,6 +72,11 @@ public class AngerManagement {
+     }
+ 
+     public void tick(final ServerLevel level, final Predicate<Entity> validEntity) {
++        this.tick(level, validEntity, null);
++    }
++
++    public void tick(final ServerLevel level, final Predicate<Entity> validEntity, final @Nullable Entity owner) {
++        if (owner != null && !Entity.tessera$isOwnedEntity(owner, level)) return; // Tessera
+         this.conversionDelay--;
+         if (this.conversionDelay <= 0) {
+             this.convertFromUuids(level);
+@@ -93,16 +98,29 @@ public class AngerManagement {
+         ObjectIterator<Entry<Entity>> iterator = this.angerBySuspect.object2IntEntrySet().iterator();
+ 
+         while (iterator.hasNext()) {
++            if (owner != null && !Entity.tessera$isOwnedEntity(owner, level)) return; // Tessera - stop after a source-transfer callback
+             Entry<Entity> entry = iterator.next();
+             int anger = entry.getIntValue();
+             Entity entity = entry.getKey();
++            // Tessera start - retire only the live handle, not saved anger, when its region changes
++            if (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(entity) || entity.level() != level) {
++                this.suspects.remove(entity);
++                iterator.remove();
++                if (anger > 1) this.angerByUuid.mergeInt(entity.getUUID(), anger - 1, Math::max);
++                continue;
++            }
++            // Tessera end - retire only the live handle, not saved anger, when its region changes
+             Entity.RemovalReason removalReason = entity.getRemovalReason();
+-            if (anger > 1 && validEntity.test(entity) && removalReason == null) {
++            final boolean valid = anger > 1 && removalReason == null && validEntity.test(entity);
++            if (owner != null && !Entity.tessera$isOwnedEntity(owner, level)) return;
++            if (valid && Entity.tessera$isOwnedEntity(entity, level)) {
+                 entry.setValue(anger - 1);
+             } else {
+                 this.suspects.remove(entity);
+                 iterator.remove();
+-                if (anger > 1 && removalReason != null) {
++                if (anger > 1 && (!ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(entity) || entity.level() != level)) {
++                    this.angerByUuid.mergeInt(entity.getUUID(), anger - 1, Math::max); // Tessera - a predicate may transfer its input
++                } else if (anger > 1 && removalReason != null) {
+                     switch (removalReason) {
+                         case CHANGED_DIMENSION:
+                         case UNLOADED_TO_CHUNK:
+@@ -131,7 +149,7 @@ public class AngerManagement {
+             Entry<UUID> entry = iterator.next();
+             int anger = entry.getIntValue();
+             Entity entity = level.getEntity(entry.getKey());
+-            if (entity != null) {
++            if (Entity.tessera$isOwnedEntity(entity, level)) { // Tessera - UUID lookup is not permission to inspect a foreign entity
+                 this.angerBySuspect.put(entity, anger);
+                 this.suspects.add(entity);
+                 iterator.remove();
+@@ -160,7 +178,8 @@ public class AngerManagement {
+     }
+ 
+     private @Nullable Entity getTopSuspect() {
+-        return this.suspects.stream().filter(this.filter).findFirst().orElse(null);
++        return this.suspects.stream().filter(Entity::tessera$isOwnedEntity).filter(this.filter)
++            .filter(Entity::tessera$isOwnedEntity).findFirst().orElse(null); // Tessera - recheck callbacks and never pass remote suspects to the filter
+     }
+ 
+     public int getActiveAnger(final @Nullable Entity currentTarget) {
+diff --git a/net/minecraft/world/entity/monster/warden/Warden.java b/net/minecraft/world/entity/monster/warden/Warden.java
+index 28fab6b47bccccfb02ca171142e71d0ce4130e79..2beb9bda357ddf89f9591703b92ff7d16e75b945 100644
+--- a/net/minecraft/world/entity/monster/warden/Warden.java
++++ b/net/minecraft/world/entity/monster/warden/Warden.java
+@@ -294,10 +294,12 @@ public class Warden extends Monster implements VibrationSystem {
+         super.customServerAiStep(level);
+         if ((this.tickCount + this.getId()) % 120 == 0) {
+             applyDarknessAround(level, this.position(), this, 20);
++            if (!Entity.tessera$isOwnedEntity(this, level)) return; // Tessera - effect callbacks may retire the source
+         }
+ 
+         if (this.tickCount % 20 == 0) {
+-            this.angerManagement.tick(level, this::canTargetEntity);
++            this.angerManagement.tick(level, this::canTargetEntity, this); // Tessera - callback-safe anger ownership
++            if (!Entity.tessera$isOwnedEntity(this, level)) return;
+             this.syncClientAngerLevel();
+         }
+ 
+@@ -397,9 +399,11 @@ public class Warden extends Monster implements VibrationSystem {
+     @Contract("null->false")
+     public boolean canTargetEntity(final @Nullable Entity entity) {
+         return entity instanceof LivingEntity livingEntity
++            && Entity.tessera$isOwnedEntity(this) && Entity.tessera$isOwnedEntity(entity, this.level()) // Tessera - anger memories may outlive their owner's region
+             && this.level() == entity.level()
+             && EntitySelector.NO_CREATIVE_OR_SPECTATOR.test(entity)
+             && !this.isAlliedTo(entity)
++            && Entity.tessera$isOwnedEntity(this) && Entity.tessera$isOwnedEntity(entity, this.level()) // Tessera - after plugin rule evaluation
+             && !livingEntity.is(EntityTypes.ARMOR_STAND)
+             && !livingEntity.is(EntityTypes.WARDEN)
+             && !livingEntity.isInvulnerable()
+diff --git a/net/minecraft/world/entity/monster/warden/WardenSpawnTracker.java b/net/minecraft/world/entity/monster/warden/WardenSpawnTracker.java
+index 6583ba9dba5e89cf64d3d9b40538373d2f7dcb47..976c634f9777d6e5f974ebeb4a422cf08b3acd8a 100644
+--- a/net/minecraft/world/entity/monster/warden/WardenSpawnTracker.java
++++ b/net/minecraft/world/entity/monster/warden/WardenSpawnTracker.java
+@@ -62,6 +62,8 @@ public class WardenSpawnTracker {
+     }
+ 
+     public static OptionalInt tryWarn(final ServerLevel level, final BlockPos pos, final ServerPlayer triggerPlayer) {
++        if (!net.minecraft.world.entity.Entity.tessera$isOwnedEntity(triggerPlayer, level)
++            || !ca.spottedleaf.moonrise.common.util.TickThread.isTickThreadFor(level, pos)) return OptionalInt.empty(); // Tessera - queued triggers may have changed owners too
+         if (hasNearbyWarden(level, pos)) {
+             return OptionalInt.empty();
+         }
+@@ -99,7 +101,10 @@ public class WardenSpawnTracker {
+ 
+     private static List<ServerPlayer> getNearbyPlayers(final ServerLevel level, final BlockPos pos) {
+         Vec3 origin = Vec3.atCenterOf(pos);
+-        return level.getPlayers(player -> !player.isSpectator() && player.position().closerThan(origin, 16.0) && player.isAlive());
++        List<ServerPlayer> players = new java.util.ArrayList<>(level.getLocalPlayers());
++        players.removeIf(player -> !net.minecraft.world.entity.Entity.tessera$isOwnedEntity(player, level)
++            || player.isSpectator() || !player.position().closerThan(origin, 16.0) || !player.isAlive());
++        return players; // Tessera - local spawn-warning recipients, not a dimension-wide live-state scan
+     }
+ 
+     public void increaseWarningLevel() {
+diff --git a/net/minecraft/world/entity/monster/zombie/ZombifiedPiglin.java b/net/minecraft/world/entity/monster/zombie/ZombifiedPiglin.java
+index a806369361bf18e2729ba634d7508f8f68882b36..a605d09837da23d9d96cad90c4a5e8b3b901e3ee 100644
+--- a/net/minecraft/world/entity/monster/zombie/ZombifiedPiglin.java
++++ b/net/minecraft/world/entity/monster/zombie/ZombifiedPiglin.java
+@@ -138,15 +138,23 @@ public class ZombifiedPiglin extends Zombie implements NeutralMob {
+     }
+ 
+     private void alertOthers() {
++        if (!net.minecraft.world.entity.Entity.tessera$isOwnedEntity(this)) return; // Tessera
+         double within = this.getAttributeValue(Attributes.FOLLOW_RANGE);
+         AABB searchAabb = AABB.unitCubeFromLowerCorner(this.position()).inflate(within, 10.0, within);
+-        this.level()
+-            .getEntitiesOfClass(ZombifiedPiglin.class, searchAabb, EntitySelector.NO_SPECTATORS)
+-            .stream()
+-            .filter(other -> other != this)
+-            .filter(other -> other.getTarget() == null)
+-            .filter(other -> !other.isAlliedTo(this.getTarget()))
+-            .forEach(other -> other.setTarget(this.getTarget(), org.bukkit.event.entity.EntityTargetEvent.TargetReason.TARGET_ATTACKED_NEARBY_ENTITY)); // CraftBukkit
++        final net.minecraft.world.level.Level ownerLevel = this.level();
++        final LivingEntity target = this.getTarget();
++        if (!net.minecraft.world.entity.Entity.tessera$isOwnedEntity(target, ownerLevel)) return;
++        for (ZombifiedPiglin other : ownerLevel.getEntitiesOfClass(ZombifiedPiglin.class, searchAabb, EntitySelector.NO_SPECTATORS)) {
++            if (!net.minecraft.world.entity.Entity.tessera$isOwnedEntity(this, ownerLevel)
++                || !net.minecraft.world.entity.Entity.tessera$isOwnedEntity(target, ownerLevel)) break;
++            if (other != this && net.minecraft.world.entity.Entity.tessera$isOwnedEntity(other, ownerLevel)
++                && other.getTarget() == null && !other.isAlliedTo(target)
++                && net.minecraft.world.entity.Entity.tessera$isOwnedEntity(this, ownerLevel)
++                && net.minecraft.world.entity.Entity.tessera$isOwnedEntity(other, ownerLevel)
++                && net.minecraft.world.entity.Entity.tessera$isOwnedEntity(target, ownerLevel)) {
++                other.setTarget(target, org.bukkit.event.entity.EntityTargetEvent.TargetReason.TARGET_ATTACKED_NEARBY_ENTITY);
++            }
++        } // Tessera - a callback for an earlier piglin may invalidate the remaining group
+     }
+ 
+     private void playAngerSound() {
+diff --git a/net/minecraft/world/entity/player/Player.java b/net/minecraft/world/entity/player/Player.java
+index 547f43e169560a2caeeb70ace8025538275efeab..71dcadf1f021307989617e503cfd157c5fdf02fe 100644
+--- a/net/minecraft/world/entity/player/Player.java
++++ b/net/minecraft/world/entity/player/Player.java
+@@ -1256,29 +1256,35 @@ public abstract class Player extends Avatar implements ContainerUser {
+     }
+ 
+     private void doSweepAttack(final Entity entity, final float baseDamage, final DamageSource damageSource, final float attackStrengthScale) {
++        if (!Entity.tessera$isOwnedEntity(this) || !Entity.tessera$isOwnedEntity(entity, this.level())) return; // Tessera - primary attack callbacks may transfer combatants
+         this.playServerSideSound(SoundEvents.PLAYER_ATTACK_SWEEP);
+         if (this.level() instanceof ServerLevel serverLevel) {
+             float var12 = 1.0F + (float)this.getAttributeValue(Attributes.SWEEPING_DAMAGE_RATIO) * baseDamage;
+ 
+             for (LivingEntity nearby : this.level().getEntitiesOfClass(LivingEntity.class, entity.getBoundingBox().inflate(1.0, 0.25, 1.0))) {
++                if (!Entity.tessera$isOwnedEntity(this, serverLevel) || !Entity.tessera$isOwnedEntity(entity, serverLevel)) return; // Tessera
+                 if (nearby != this
+                     && nearby != entity
++                    && Entity.tessera$isOwnedEntity(nearby, serverLevel)
+                     && !this.isAlliedTo(nearby)
++                    && Entity.tessera$isOwnedEntity(this, serverLevel) && Entity.tessera$isOwnedEntity(nearby, serverLevel)
+                     && !(nearby instanceof ArmorStand armorStand && armorStand.isMarker())
+                     && this.distanceToSqr(nearby) < 9.0) {
+                     float enchantedDamage = this.getEnchantedDamage(nearby, var12, damageSource) * attackStrengthScale;
+                     // Paper start - Only apply knockback if the event is not canceled
+                     nearby.lastDamageCancelled = false;
+-                    if (nearby.hurtServer(serverLevel, damageSource.knownCause(org.bukkit.event.entity.EntityDamageEvent.DamageCause.ENTITY_SWEEP_ATTACK), enchantedDamage) && !nearby.lastDamageCancelled) {
++                    if (nearby.hurtServer(serverLevel, damageSource.knownCause(org.bukkit.event.entity.EntityDamageEvent.DamageCause.ENTITY_SWEEP_ATTACK), enchantedDamage)
++                        && Entity.tessera$isOwnedEntity(this, serverLevel) && Entity.tessera$isOwnedEntity(nearby, serverLevel) && !nearby.lastDamageCancelled) {
+                         // Paper end - Only apply knockback if the event is not canceled
+                         nearby.knockback(
+                             0.4F, Mth.sin(this.getYRot() * Mth.DEG_TO_RAD), -Mth.cos(this.getYRot() * Mth.DEG_TO_RAD), damageSource, enchantedDamage, this, io.papermc.paper.event.entity.EntityKnockbackEvent.Cause.SWEEP_ATTACK // Paper - knockback events
+                         );
+-                        EnchantmentHelper.doPostAttackEffects(serverLevel, nearby, damageSource);
++                        if (Entity.tessera$isOwnedEntity(this, serverLevel) && Entity.tessera$isOwnedEntity(nearby, serverLevel)) EnchantmentHelper.doPostAttackEffects(serverLevel, nearby, damageSource);
+                     }
+                 }
+             }
+ 
++            if (!Entity.tessera$isOwnedEntity(this, serverLevel)) return; // Tessera - the final sweep callback may have transferred the attacker
+             double dx = -Mth.sin(this.getYRot() * Mth.DEG_TO_RAD);
+             double dz = Mth.cos(this.getYRot() * Mth.DEG_TO_RAD);
+             serverLevel.sendParticles(ParticleTypes.SWEEP_ATTACK, this.getX() + dx, this.getY(0.5), this.getZ() + dz, 0, dx, 0.0, dz, 0.0);
+diff --git a/net/minecraft/world/entity/projectile/EvokerFangs.java b/net/minecraft/world/entity/projectile/EvokerFangs.java
+index 91366122bd075c1b29b8e7ee4ebcdd5d8229d102..993b0193e22eeb6b2c0f1bdb8b04f869c1b2994c 100644
+--- a/net/minecraft/world/entity/projectile/EvokerFangs.java
++++ b/net/minecraft/world/entity/projectile/EvokerFangs.java
+@@ -54,7 +54,7 @@ public class EvokerFangs extends Entity implements TraceableEntity {
+ 
+     @Override
+     public @Nullable LivingEntity getOwner() {
+-        return EntityReference.getLivingEntity(this.owner, this.level());
++        return EntityReference.tessera$getOwnedLivingEntity(this.owner, this.level()); // Tessera - Folia projectile owner contract, without deleting its UUID
+     }
+ 
+     @Override
+@@ -91,6 +91,7 @@ public class EvokerFangs extends Entity implements TraceableEntity {
+             if (this.warmupDelayTicks == -8) {
+                 for (LivingEntity entity : this.level().getEntitiesOfClass(LivingEntity.class, this.getBoundingBox().inflate(0.2, 0.0, 0.2))) {
+                     this.dealDamageTo(entity);
++                    if (!Entity.tessera$isOwnedEntity(this)) return; // Tessera - damage callbacks may remove/transfer the fangs
+                 }
+             }
+ 
+@@ -106,6 +107,9 @@ public class EvokerFangs extends Entity implements TraceableEntity {
+     }
+ 
+     private void dealDamageTo(final LivingEntity entity) {
++        final Level ownerLevel = this.level();
++        if (!Entity.tessera$isOwnedEntity(this, ownerLevel) || !Entity.tessera$isOwnedEntity(entity, ownerLevel)
++            || this.owner != null && this.owner.matches(entity)) return; // Tessera - stale targets and bound-owner identity
+         LivingEntity currentOwner = this.getOwner();
+         if (entity.isAlive() && !entity.isInvulnerable() && entity != currentOwner) {
+             if (currentOwner == null) {
+@@ -115,8 +119,12 @@ public class EvokerFangs extends Entity implements TraceableEntity {
+                     return;
+                 }
+ 
++                if (!Entity.tessera$isOwnedEntity(this, ownerLevel) || !Entity.tessera$isOwnedEntity(entity, ownerLevel)
++                    || !Entity.tessera$isOwnedEntity(currentOwner, ownerLevel)) return; // Tessera - revalidate after alliance callbacks
+                 DamageSource damageSource = this.damageSources().indirectMagic(this, currentOwner);
+-                if (this.level() instanceof ServerLevel serverLevel && entity.hurtServer(serverLevel, damageSource, 6.0F)) {
++                if (this.level() instanceof ServerLevel serverLevel && entity.hurtServer(serverLevel, damageSource, 6.0F)
++                    && Entity.tessera$isOwnedEntity(this, ownerLevel) && Entity.tessera$isOwnedEntity(entity, ownerLevel)
++                    && Entity.tessera$isOwnedEntity(currentOwner, ownerLevel)) {
+                     EnchantmentHelper.doPostAttackEffects(serverLevel, entity, damageSource);
+                 }
+             }
+diff --git a/net/minecraft/world/item/MaceItem.java b/net/minecraft/world/item/MaceItem.java
+index 681ef7b4f6f987b1779859ed1d9bcd6e5670adab..52c22205f076b045849ba02b6d23d7ac9cb41279 100644
+--- a/net/minecraft/world/item/MaceItem.java
++++ b/net/minecraft/world/item/MaceItem.java
+@@ -124,14 +124,17 @@ public class MaceItem extends Item {
+     }
+ 
+     private static void knockback(final Level level, final Entity attacker, final Entity entity) {
++        if (!Entity.tessera$isOwnedEntity(attacker, level) || !Entity.tessera$isOwnedEntity(entity, level)) return; // Tessera - primary damage callbacks may transfer combatants
+         level.levelEvent(LevelEvent.PARTICLES_SMASH_ATTACK, entity.getOnPos(), 750);
+         level.getEntitiesOfClass(LivingEntity.class, entity.getBoundingBox().inflate(3.5), knockbackPredicate(attacker, entity)).forEach(nearby -> {
++            if (!Entity.tessera$isOwnedEntity(attacker, level) || !Entity.tessera$isOwnedEntity(entity, level)
++                || !Entity.tessera$isOwnedEntity(nearby, level)) return; // Tessera - an earlier push callback may retire participants
+             Vec3 direction = nearby.position().subtract(entity.position());
+             double knockbackPower = getKnockbackPower(attacker, nearby, direction);
+             Vec3 knockbackVector = direction.normalize().scale(knockbackPower);
+             if (knockbackPower > 0.0) {
+                 nearby.push(knockbackVector.x, 0.7F, knockbackVector.z, attacker); // Paper - Add EntityKnockbackByEntityEvent and EntityPushedByEntityAttackEvent
+-                if (nearby instanceof ServerPlayer otherPlayer) {
++                if (nearby instanceof ServerPlayer otherPlayer && Entity.tessera$isOwnedEntity(otherPlayer, level)) {
+                     otherPlayer.connection.send(new ClientboundSetEntityMotionPacket(otherPlayer));
+                 }
+             }
+@@ -140,9 +143,13 @@ public class MaceItem extends Item {
+ 
+     private static Predicate<LivingEntity> knockbackPredicate(final Entity attacker, final Entity entity) {
+         return nearby -> {
++            if (!Entity.tessera$isOwnedEntity(attacker) || !Entity.tessera$isOwnedEntity(entity, attacker.level())
++                || !Entity.tessera$isOwnedEntity(nearby, attacker.level())) return false; // Tessera
+             boolean notSpectator = !nearby.isSpectator();
+             boolean notPlayer = nearby != attacker && nearby != entity;
+             boolean notAlliedToPlayer = !attacker.isAlliedTo(nearby);
++            if (!Entity.tessera$isOwnedEntity(attacker) || !Entity.tessera$isOwnedEntity(entity, attacker.level())
++                || !Entity.tessera$isOwnedEntity(nearby, attacker.level())) return false; // Tessera - after plugin rules
+             boolean notTamedByPlayer = !(
+                 nearby instanceof TamableAnimal animal && entity instanceof LivingEntity livingAttacker && animal.isTame() && animal.isOwnedBy(livingAttacker)
+             );

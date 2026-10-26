@@ -1,0 +1,543 @@
+Reusing configuration cache.
+
+> Task :prepareSinopia
+Sinopia snapshot: 868bac30ff251ccf5698eead9c49711084a8ae0a
+
+> Task :checkoutPaperRepo
+> Task :filterPaperCheckstyleConfigFromPaper
+
+> Task :applyPaperCheckstyleConfigFilePatches
+Applied 0 patches
+
+> Task :applyPaperCheckstyleConfigFeaturePatches
+> Task :applyPaperCheckstyleConfigPatches
+> Task :filterPaperCheckstyleFromPaper
+
+> Task :applyPaperCheckstyleFilePatches
+Applied 0 patches
+
+> Task :applyPaperCheckstyleFeaturePatches
+> Task :applyPaperCheckstylePatches
+> Task :applyPaperSingleFilePatches UP-TO-DATE
+> Task :filterPaperApiFromPaper
+
+> Task :applyPaperApiFilePatches
+Applied 0 patches
+
+> Task :applyPaperApiFeaturePatches
+> Task :applyPaperApiPatches
+> Task :applyPaperPatches
+> Task :Tessera:buildSrc:compileJava UP-TO-DATE
+> Task :Tessera:buildSrc:compileGroovy NO-SOURCE
+> Task :Tessera:buildSrc:processResources NO-SOURCE
+> Task :Tessera:buildSrc:classes UP-TO-DATE
+> Task :Tessera:buildSrc:jar UP-TO-DATE
+
+> Configure project :Tessera
+paperweight-patcher v2.0.0-beta.24 (running on 'Windows 11')
+
+> Configure project :Tessera:folia-server
+paperweight-core v2.0.0-beta.24 (running on 'Windows 11')
+
+> Task :Tessera:prepareSinopia
+Sinopia snapshot: 868bac30ff251ccf5698eead9c49711084a8ae0a
+
+> Task :Tessera:checkoutPaperRepo
+> Task :Tessera:folia-server:downloadMcManifest
+> Task :Tessera:folia-server:downloadMcVersionManifest UP-TO-DATE
+> Task :Tessera:folia-server:downloadServerJar UP-TO-DATE
+> Task :Tessera:folia-server:extractFromBundler UP-TO-DATE
+> Task :Tessera:folia-server:setupMacheResources UP-TO-DATE
+> Task :Tessera:folia-server:extractMacheResources UP-TO-DATE
+> Task :Tessera:folia-server:applyPaperMinecraftResourcePatches UP-TO-DATE
+> Task :applyAllPatches
+
+> Task :Tessera:folia-server:applyMinecraftResourcePatches
+Applied 0 patches
+
+> Task :Tessera:folia-server:downloadMcLibrariesSources UP-TO-DATE
+> Task :Tessera:folia-server:downloadRuntimeClasspathSources UP-TO-DATE
+> Task :Tessera:folia-server:indexLibraryFiles UP-TO-DATE
+> Task :Tessera:folia-server:importPaperLibraryFiles UP-TO-DATE
+> Task :Tessera:folia-server:macheRemapJar UP-TO-DATE
+> Task :Tessera:folia-server:macheDecompileJar UP-TO-DATE
+> Task :Tessera:folia-server:collectPaperATsFromPatches UP-TO-DATE
+> Task :Tessera:folia-server:mergePaperATs UP-TO-DATE
+> Task :Tessera:folia-server:setupMacheSources UP-TO-DATE
+> Task :Tessera:folia-server:extractMacheSources UP-TO-DATE
+> Task :Tessera:folia-server:applyPaperMinecraftSourcePatches UP-TO-DATE
+> Task :Tessera:folia-server:applyPaperMinecraftFilePatches
+> Task :Tessera:folia-server:applyPaperMinecraftFeaturePatches UP-TO-DATE
+
+> Task :Tessera:folia-server:importFoliaLibraryFiles
+Importing 2 classes from library sources...
+
+> Task :Tessera:folia-server:collectFoliaATsFromPatches
+> Task :Tessera:folia-server:mergeFoliaATs UP-TO-DATE
+> Task :Tessera:folia-server:runFoliaSetup UP-TO-DATE
+
+> Task :Tessera:folia-server:applyMinecraftSourcePatches
+Applied 2 patches
+
+> Task :Tessera:folia-server:applyMinecraftFilePatches
+> Task :Tessera:folia-server:applyMinecraftFeaturePatches
+> Task :Tessera:folia-server:applyMinecraftPatches
+> Task :Tessera:folia-server:filterPaperServerFromPaper
+
+> Task :Tessera:folia-server:applyPaperServerFilePatches
+Applied 0 patches
+
+> Task :Tessera:folia-server:applyPaperServerFeaturePatches
+> Task :Tessera:folia-server:applyPaperServerPatches
+> Task :Tessera:folia-server:applyServerPatches
+> Task :Tessera:folia-server:applyAllServerPatches
+> Task :tessera-compiled:buildSrc:compileJava UP-TO-DATE
+> Task :tessera-compiled:buildSrc:compileGroovy NO-SOURCE
+> Task :tessera-compiled:buildSrc:processResources NO-SOURCE
+> Task :tessera-compiled:buildSrc:classes UP-TO-DATE
+> Task :tessera-compiled:buildSrc:jar UP-TO-DATE
+
+> Configure project :tessera-compiled
+paperweight-patcher v2.0.0-beta.24 (running on 'Windows 11')
+
+> Configure project :tessera-compiled:folia-server
+paperweight-core v2.0.0-beta.24 (running on 'Windows 11')
+
+> Task :tessera-compiled:compileJava NO-SOURCE
+> Task :tessera-compiled:processResources NO-SOURCE
+> Task :tessera-compiled:classes UP-TO-DATE
+> Task :tessera-compiled:jar SKIPPED
+> Task :tessera-compiled:compileTestJava NO-SOURCE
+> Task :tessera-compiled:processTestResources NO-SOURCE
+> Task :tessera-compiled:testClasses UP-TO-DATE
+> Task :tessera-compiled:test NO-SOURCE
+> Task :tessera-compiled:folia-api:compileJava UP-TO-DATE
+> Task :tessera-compiled:folia-api:processResources NO-SOURCE
+> Task :tessera-compiled:folia-api:classes UP-TO-DATE
+> Task :tessera-compiled:folia-api:generateApiVersioningFile UP-TO-DATE
+> Task :tessera-compiled:folia-api:jar UP-TO-DATE
+> Task :tessera-compiled:folia-api:javadoc UP-TO-DATE
+> Task :tessera-compiled:folia-api:javadocJar UP-TO-DATE
+> Task :tessera-compiled:folia-api:sourcesJar UP-TO-DATE
+> Task :tessera-compiled:folia-api:compileTestJava UP-TO-DATE
+> Task :tessera-compiled:folia-api:processTestResources UP-TO-DATE
+> Task :tessera-compiled:folia-api:testClasses UP-TO-DATE
+> Task :tessera-compiled:folia-api:test UP-TO-DATE
+> Task :tessera-compiled:folia-server:compileJava UP-TO-DATE
+> Task :tessera-compiled:folia-server:processResources UP-TO-DATE
+> Task :tessera-compiled:folia-server:classes UP-TO-DATE
+> Task :tessera-compiled:folia-server:compileLog4jPluginsJava UP-TO-DATE
+> Task :tessera-compiled:folia-server:processLog4jPluginsResources NO-SOURCE
+> Task :tessera-compiled:folia-server:log4jPluginsClasses UP-TO-DATE
+> Task :tessera-compiled:folia-server:jar
+> Task :tessera-compiled:folia-server:compileTestJava UP-TO-DATE
+> Task :tessera-compiled:folia-server:processTestResources UP-TO-DATE
+> Task :tessera-compiled:folia-server:testClasses UP-TO-DATE
+> Task :buildTessera
+
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[23:44:49 INFO]: Found new data pack paper, loading it automatically
+[23:44:52 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[23:44:55 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[23:44:55 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+
+> Task :tessera-compiled:folia-server:test
+
+[23:45:10 INFO]: Found new data pack paper, loading it automatically
+[23:45:13 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[23:45:15 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[23:45:15 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+[23:45:30 INFO]: Found new data pack paper, loading it automatically
+[23:45:33 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[23:45:35 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[23:45:35 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+[23:45:50 INFO]: Found new data pack paper, loading it automatically
+[23:45:52 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[23:45:54 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[23:45:54 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+[23:46:12 INFO]: Found new data pack paper, loading it automatically
+[23:46:14 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[23:46:16 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[23:46:16 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+[33;1m[23:46:23 WARN]: [org.bukkit.craftbukkit.legacy.CraftLegacy] Initializing Legacy Material Support. Unless you have legacy plugins and/or data this is a bug!
+[m[23:46:44 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Initialising converters for DataConverter...
+[23:46:45 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Finished initialising converters for DataConverter in 1.180,0ms
+[31;1m[23:46:52 ERROR]: Failed to read field (Status="minecraft:noise"): Unknown registry key in ResourceKey[minecraft:root / minecraft:chunk_status]: minecraft:noise
+[m[33;1m[23:46:55 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 603cdc4f-d892-4840-b53a-37f6f1702f49 (entity world: minecraft:overworld); aborting the respawn sequence
+[m[33;1m[23:46:55 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal dd7ed7db-5ca1-401c-8614-ef19c4ada8bb (entity world: minecraft:overworld); aborting the respawn sequence
+[m[33;1m[23:46:55 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal c839f6c8-1bda-4fe4-811c-ab8b7ac3caf4 (entity world: minecraft:the_end); aborting the respawn sequence
+[m[33;1m[23:46:55 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal ebd8a83c-3e8e-4fe2-851e-6a0207672e0a (entity world: minecraft:the_end); aborting the respawn sequence
+[m[33;1m[23:46:55 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 6ee81813-ef6b-4e4e-a600-8fc245f01d91 (entity world: minecraft:the_end); aborting the respawn sequence
+[m[33;1m[23:46:55 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 2d0ac28f-6b31-4f49-a28d-edcbbab7aead (entity world: minecraft:the_end); aborting the respawn sequence
+[m[33;1m[23:46:55 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 4b38c3e2-127a-4592-97f8-815425a1d419 (entity world: minecraft:overworld); leaving the transferred crystal untouched
+[m[33;1m[23:46:55 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 36194c0a-85f1-4432-a0ce-a249b00443b2 (entity world: minecraft:overworld); aborting the respawn sequence
+[m[33;1m[23:46:55 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 9da3f1d7-ef86-497b-bc72-4a8105ed91c4 (entity world: minecraft:overworld); aborting the respawn sequence
+[m[33;1m[23:46:55 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 05ba3d28-b2e1-4e9b-9686-8aaa738a5831 (entity world: minecraft:overworld); aborting the respawn sequence
+[m[33;1m[23:46:55 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 5b3ada97-aa02-4422-bd20-febe957e4079 (entity world: minecraft:overworld); aborting the respawn sequence
+[m[33;1m[23:46:55 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 0eec2344-8610-4f59-b78b-8682e1b944cb (entity world: minecraft:the_end); aborting the respawn sequence
+[m[33;1m[23:46:55 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 432b26cb-133c-488e-8070-93ef3a278e7f (entity world: minecraft:the_end); aborting the respawn sequence
+[m[33;1m[23:46:55 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal f6dba77c-6fb5-45fe-8cec-43a937fdf209 (entity world: minecraft:the_end); aborting the respawn sequence
+[m[33;1m[23:46:55 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal cdd6e4c0-65b6-4c92-b1da-6601a354a81a (entity world: minecraft:the_end); leaving the transferred crystal untouched
+[m[33;1m[23:46:55 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal f965668d-8058-4e47-811f-cbff9e9cffa2 (entity world: minecraft:the_end); leaving the transferred crystal untouched
+[m[33;1m[23:46:55 WARN]: Dragon respawn in minecraft:the_end lost ownership of crystal 67ce6014-89aa-483a-b90b-051fa52b311d (entity world: minecraft:the_end); aborting the respawn sequence
+[m[33;1m[23:47:03 WARN]: Skipping Entity with id null
+[m[33;1m[23:47:04 WARN]: Skipping Entity with id null
+[m[33;1m[23:47:04 WARN]: Skipping Entity with id null
+[m[33;1m[23:47:04 WARN]: Skipping Entity with id null
+[m[33;1m[23:47:04 WARN]: Skipping Entity with id null
+[m[23:47:29 INFO]: Found new data pack paper, loading it automatically
+[23:47:31 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[23:47:33 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[23:47:33 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+[33;1m[23:47:34 WARN]: [org.bukkit.craftbukkit.legacy.CraftLegacy] Initializing Legacy Material Support. Unless you have legacy plugins and/or data this is a bug!
+[m[23:47:52 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Initialising converters for DataConverter...
+[23:47:53 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Finished initialising converters for DataConverter in 1.198,4ms
+[23:48:08 INFO]: Found new data pack paper, loading it automatically
+[23:48:11 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[23:48:13 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[23:48:13 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+[23:48:14 INFO]: Environment: Environment[discoveryUrl=https://discovery.minecraftservices.com/minecraft/client, name=PROD]
+[23:48:30 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Initialising converters for DataConverter...
+[23:48:31 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Finished initialising converters for DataConverter in 1.207,8ms
+[33;1m[23:48:37 WARN]: Saving oversized chunk [2, 2] (2097518 bytes} to external file C:\Users\hunte\AppData\Local\Temp\junit-958910750242198915\c.2.2.mcc
+[m[33;1m[23:48:37 WARN]: Region file C:\Users\hunte\AppData\Local\Temp\junit-6723413656597953287\r.0.0.mca has an invalid sector at index: 0; sector 8388607 is out of bounds
+[m[31;1m[23:48:37 ERROR]: Invalid allocation by local chunk (0,0) in regionfile C:\Users\hunte\AppData\Local\Temp\junit-6723413656597953287\r.0.0.mca: sector 8388607, length 1 sectors, file size 12288 bytes
+[m[31;1m[23:48:37 ERROR]: Recalculating regionfile C:\Users\hunte\AppData\Local\Temp\junit-6723413656597953287\r.0.0.mca, header gave erroneous offsets & locations
+[m[33;1m[23:48:37 WARN]: Corrupt regionfile header detected! Attempting to re-calculate header offsets for regionfile C:\Users\hunte\AppData\Local\Temp\junit-6723413656597953287\r.0.0.mca
+java.lang.Throwable
+	at net.minecraft.world.level.chunk.storage.RegionFile.moonrise$recalculateHeader(RegionFile.java:219) ~[main/:?]
+	at net.minecraft.world.level.chunk.storage.RegionFile.<init>(RegionFile.java:533) ~[main/:?]
+	at io.papermc.paper.porting.PaperOctober22NbtAndRegionTest.open(PaperOctober22NbtAndRegionTest.java:116) ~[test/:?]
+	at io.papermc.paper.porting.PaperOctober22NbtAndRegionTest.corruptHeaderRecoveryKeepsPayloadAndBacksUpOriginalBytes(PaperOctober22NbtAndRegionTest.java:153) ~[test/:?]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[?:?]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[?:?]
+	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:701) ~[junit-platform-commons-6.0.3.jar:6.0.3]
+	at org.junit.platform.commons.support.ReflectionSupport.invokeMethod(ReflectionSupport.java:502) ~[junit-platform-commons-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.support.MethodReflectionUtils.invoke(MethodReflectionUtils.java:45) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:61) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:124) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:163) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:148) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestMethod(TimeoutExtension.java:86) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:123) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:105) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:99) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:66) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:47) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:39) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:104) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:98) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invokeVoid(InterceptingExecutableInvoker.java:71) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$0(TestMethodTestDescriptor.java:219) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:215) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:157) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:70) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:176) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604) ~[?:?]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604) ~[?:?]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:36) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:52) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:58) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.executeEngine(EngineExecutionOrchestrator.java:246) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.failOrExecuteEngine(EngineExecutionOrchestrator.java:218) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:179) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:108) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:89) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.suite.engine.SuiteLauncher.execute(SuiteLauncher.java:65) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.suite.engine.SuiteTestDescriptor.executeTests(SuiteTestDescriptor.java:208) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.suite.engine.SuiteTestDescriptor.execute(SuiteTestDescriptor.java:173) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.suite.engine.SuiteTestEngine.lambda$execute$0(SuiteTestEngine.java:78) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186) ~[?:?]
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214) ~[?:?]
+	at java.base/java.util.Iterator.forEachRemaining(Iterator.java:133) ~[?:?]
+	at java.base/java.util.Spliterators$IteratorSpliterator.forEachRemaining(Spliterators.java:1939) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:570) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:560) ~[?:?]
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:153) ~[?:?]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:176) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:265) ~[?:?]
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:632) ~[?:?]
+	at org.junit.platform.suite.engine.SuiteTestEngine.execute(SuiteTestEngine.java:78) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.executeEngine(EngineExecutionOrchestrator.java:246) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.failOrExecuteEngine(EngineExecutionOrchestrator.java:218) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:179) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:108) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:66) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:157) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:65) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:125) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:114) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:93) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:48) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.lambda$execute$0(InterceptingLauncher.java:41) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.ClasspathAlignmentCheckingLauncherInterceptor.intercept(ClasspathAlignmentCheckingLauncherInterceptor.java:25) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:40) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:48) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor$CollectThenExecuteTestDefinitionConsumer.processAllTestDefinitions(JUnitPlatformTestDefinitionProcessor.java:206) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor$CollectThenExecuteTestDefinitionConsumer.access$000(JUnitPlatformTestDefinitionProcessor.java:123) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor.stop(JUnitPlatformTestDefinitionProcessor.java:117) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.SuiteTestDefinitionProcessor.stop(SuiteTestDefinitionProcessor.java:63) ~[?:?]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[?:?]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[?:?]
+	at org.gradle.internal.dispatch.MethodInvocation.invokeOn(MethodInvocation.java:77) ~[?:?]
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:28) ~[?:?]
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:19) ~[?:?]
+	at org.gradle.internal.dispatch.ContextClassLoaderDispatch.dispatch(ContextClassLoaderDispatch.java:33) ~[?:?]
+	at org.gradle.internal.dispatch.ProxyDispatchAdapter$DispatchingInvocationHandler.invoke(ProxyDispatchAdapter.java:88) ~[?:?]
+	at jdk.proxy1/jdk.proxy1.$Proxy4.stop(Unknown Source) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker$3.run(TestWorker.java:195) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.executeAndMaintainThreadName(TestWorker.java:126) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:103) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:63) ~[?:?]
+	at org.gradle.process.internal.worker.child.ActionExecutionWorker.execute(ActionExecutionWorker.java:56) ~[?:?]
+	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:122) ~[?:?]
+	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:72) ~[?:?]
+	at worker.org.gradle.process.internal.worker.GradleWorkerMain.run(GradleWorkerMain.java:69) ~[gradle-worker.jar:?]
+	at worker.org.gradle.process.internal.worker.GradleWorkerMain.main(GradleWorkerMain.java:74) ~[gradle-worker.jar:?]
+[m[33;1m[23:48:37 WARN]: Backing up regionfile "C:\Users\hunte\AppData\Local\Temp\junit-6723413656597953287\r.0.0.mca" to C:\Users\hunte\AppData\Local\Temp\junit-6723413656597953287\r.0.0.mca.892798022415486897.backup
+[m[33;1m[23:48:37 WARN]: Backed up the regionfile to C:\Users\hunte\AppData\Local\Temp\junit-6723413656597953287\r.0.0.mca.892798022415486897.backup
+[m[23:48:37 INFO]: Starting summary of changes for regionfile C:\Users\hunte\AppData\Local\Temp\junit-6723413656597953287\r.0.0.mca
+[23:48:37 INFO]: Local chunk (0,0) changed to point to newer data or correct chunk in regionfile C:\Users\hunte\AppData\Local\Temp\junit-6723413656597953287\r.0.0.mca
+[23:48:37 INFO]: End of change summary for regionfile C:\Users\hunte\AppData\Local\Temp\junit-6723413656597953287\r.0.0.mca
+[23:48:37 INFO]: Successfully wrote new header to disk for regionfile C:\Users\hunte\AppData\Local\Temp\junit-6723413656597953287\r.0.0.mca
+[33;1m[23:48:41 WARN]: [io.papermc.paper.command.WhitelistProfileLookup] Whitelist profile lookup failed for smokelower: java.util.concurrent.TimeoutException
+[m[33;1m[23:48:42 WARN]: [io.papermc.paper.command.WhitelistProfileLookup] Whitelist profile lookup failed for smokelower: java.util.concurrent.TimeoutException
+[m[33;1m[23:48:42 WARN]: [io.papermc.paper.command.WhitelistProfileLookup] Whitelist profile lookup failed for smokelower: java.lang.IllegalStateException: injected unavailable service
+[m[33;1m[23:48:42 WARN]: [io.papermc.paper.command.WhitelistProfileLookup] Whitelist profile lookup failed for smokelower: java.util.concurrent.RejectedExecutionException: full
+[m[33;1m[23:48:42 WARN]: [io.papermc.paper.command.WhitelistProfileLookup] Whitelist profile lookup failed for smokelower: java.lang.IllegalStateException: Profile service returned a different player identity
+[m[31;1m[23:48:46 ERROR]: Error while scanning chunk [2, 3] in world 'minecraft:overworld':
+java.lang.RuntimeException: visitor failed
+	at net.minecraft.nbt.Tag.acceptAsRoot(Tag.java:45) ~[main/:?]
+	at net.minecraft.server.level.ChunkMap.lambda$chunkScanner$1(ChunkMap.java:1073) ~[main/:?]
+	at io.papermc.paper.porting.TesseraBetaBackportTest.chunkScannerCompletesAfterIoAndPropagatesReadAndVisitorFailures(TesseraBetaBackportTest.java:120) ~[test/:?]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[?:?]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[?:?]
+	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:701) ~[junit-platform-commons-6.0.3.jar:6.0.3]
+	at org.junit.platform.commons.support.ReflectionSupport.invokeMethod(ReflectionSupport.java:502) ~[junit-platform-commons-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.support.MethodReflectionUtils.invoke(MethodReflectionUtils.java:45) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:61) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:124) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:163) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:148) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestMethod(TimeoutExtension.java:86) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:123) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:105) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:99) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:66) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:47) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:39) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:104) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:98) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invokeVoid(InterceptingExecutableInvoker.java:71) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$0(TestMethodTestDescriptor.java:219) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:215) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:157) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:70) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:176) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604) ~[?:?]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604) ~[?:?]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:36) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:52) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:58) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.executeEngine(EngineExecutionOrchestrator.java:246) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.failOrExecuteEngine(EngineExecutionOrchestrator.java:218) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:179) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:108) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:89) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.suite.engine.SuiteLauncher.execute(SuiteLauncher.java:65) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.suite.engine.SuiteTestDescriptor.executeTests(SuiteTestDescriptor.java:208) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.suite.engine.SuiteTestDescriptor.execute(SuiteTestDescriptor.java:173) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.suite.engine.SuiteTestEngine.lambda$execute$0(SuiteTestEngine.java:78) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186) ~[?:?]
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214) ~[?:?]
+	at java.base/java.util.Iterator.forEachRemaining(Iterator.java:133) ~[?:?]
+	at java.base/java.util.Spliterators$IteratorSpliterator.forEachRemaining(Spliterators.java:1939) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:570) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:560) ~[?:?]
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:153) ~[?:?]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:176) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:265) ~[?:?]
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:632) ~[?:?]
+	at org.junit.platform.suite.engine.SuiteTestEngine.execute(SuiteTestEngine.java:78) ~[junit-platform-suite-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.executeEngine(EngineExecutionOrchestrator.java:246) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.failOrExecuteEngine(EngineExecutionOrchestrator.java:218) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:179) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:108) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:66) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:157) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:65) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:125) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:114) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:93) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:48) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.lambda$execute$0(InterceptingLauncher.java:41) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.ClasspathAlignmentCheckingLauncherInterceptor.intercept(ClasspathAlignmentCheckingLauncherInterceptor.java:25) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:40) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:48) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor$CollectThenExecuteTestDefinitionConsumer.processAllTestDefinitions(JUnitPlatformTestDefinitionProcessor.java:206) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor$CollectThenExecuteTestDefinitionConsumer.access$000(JUnitPlatformTestDefinitionProcessor.java:123) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor.stop(JUnitPlatformTestDefinitionProcessor.java:117) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.SuiteTestDefinitionProcessor.stop(SuiteTestDefinitionProcessor.java:63) ~[?:?]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[?:?]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[?:?]
+	at org.gradle.internal.dispatch.MethodInvocation.invokeOn(MethodInvocation.java:77) ~[?:?]
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:28) ~[?:?]
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:19) ~[?:?]
+	at org.gradle.internal.dispatch.ContextClassLoaderDispatch.dispatch(ContextClassLoaderDispatch.java:33) ~[?:?]
+	at org.gradle.internal.dispatch.ProxyDispatchAdapter$DispatchingInvocationHandler.invoke(ProxyDispatchAdapter.java:88) ~[?:?]
+	at jdk.proxy1/jdk.proxy1.$Proxy4.stop(Unknown Source) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker$3.run(TestWorker.java:195) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.executeAndMaintainThreadName(TestWorker.java:126) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:103) ~[?:?]
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:63) ~[?:?]
+	at org.gradle.process.internal.worker.child.ActionExecutionWorker.execute(ActionExecutionWorker.java:56) ~[?:?]
+	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:122) ~[?:?]
+	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:72) ~[?:?]
+	at worker.org.gradle.process.internal.worker.GradleWorkerMain.run(GradleWorkerMain.java:69) ~[gradle-worker.jar:?]
+	at worker.org.gradle.process.internal.worker.GradleWorkerMain.main(GradleWorkerMain.java:74) ~[gradle-worker.jar:?]
+[m[23:49:04 INFO]: Found new data pack paper, loading it automatically
+[23:49:06 INFO]: Loaded 1866 advancements
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[23:49:08 INFO]: [MoonriseCommon] Paper is using 5 worker threads, 1 I/O threads
+[23:49:08 INFO]: [io.papermc.paper.threadedregions.TickRegions] Initialised EDF Folia scheduler with initial 2 target thread(s)
+[23:49:10 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Initialising converters for DataConverter...
+[23:49:11 INFO]: [ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry] Finished initialising converters for DataConverter in 1.084,8ms
+[33;1m[23:49:11 WARN]: [org.bukkit.craftbukkit.legacy.CraftLegacy] Initializing Legacy Material Support. Unless you have legacy plugins and/or data this is a bug!
+[m
+> Task :tessera-compiled:paper-checkstyle:compileJava FROM-CACHE
+> Task :tessera-compiled:paper-checkstyle:processResources
+> Task :tessera-compiled:paper-checkstyle:classes
+> Task :tessera-compiled:paper-checkstyle:jar
+> Task :tessera-compiled:paper-checkstyle:compileTestDataJava FROM-CACHE
+> Task :tessera-compiled:paper-checkstyle:processTestDataResources NO-SOURCE
+> Task :tessera-compiled:paper-checkstyle:testDataClasses UP-TO-DATE
+> Task :tessera-compiled:paper-checkstyle:compileTestJava FROM-CACHE
+> Task :tessera-compiled:paper-checkstyle:processTestResources NO-SOURCE
+> Task :tessera-compiled:paper-checkstyle:testClasses UP-TO-DATE
+> Task :tessera-compiled:paper-checkstyle:test FROM-CACHE
+
+> Task :tessera-compiled:test-plugin:compileJava
+C:\Users\hunte\IdeaProjects\Tessera\test-plugin\src\main\java\dev\tessera\smoke\RuntimeWorldLifecycleSmokePlugin.java:382: Warnung: [removal] DO_DAYLIGHT_CYCLE in GameRule ist veraltet und wurde zum Entfernen markiert
+                this.template.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
+                                                  ^
+C:\Users\hunte\IdeaProjects\Tessera\test-plugin\src\main\java\dev\tessera\smoke\RuntimeWorldLifecycleSmokePlugin.java:503: Warnung: [removal] DO_DAYLIGHT_CYCLE in GameRule ist veraltet und wurde zum Entfernen markiert
+            first.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, true);
+                                      ^
+C:\Users\hunte\IdeaProjects\Tessera\test-plugin\src\main\java\dev\tessera\smoke\RuntimeWorldLifecycleSmokePlugin.java:505: Warnung: [removal] DO_DAYLIGHT_CYCLE in GameRule ist veraltet und wurde zum Entfernen markiert
+            second.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
+                                       ^
+C:\Users\hunte\IdeaProjects\Tessera\test-plugin\src\main\java\dev\tessera\smoke\RuntimeWorldLifecycleSmokePlugin.java:507: Warnung: [removal] DO_DAYLIGHT_CYCLE in GameRule ist veraltet und wurde zum Entfernen markiert
+                Boolean.TRUE.equals(first.getGameRuleValue(GameRule.DO_DAYLIGHT_CYCLE))
+                                                                   ^
+C:\Users\hunte\IdeaProjects\Tessera\test-plugin\src\main\java\dev\tessera\smoke\RuntimeWorldLifecycleSmokePlugin.java:508: Warnung: [removal] DO_DAYLIGHT_CYCLE in GameRule ist veraltet und wurde zum Entfernen markiert
+                    && Boolean.FALSE.equals(second.getGameRuleValue(GameRule.DO_DAYLIGHT_CYCLE)),
+                                                                            ^
+C:\Users\hunte\IdeaProjects\Tessera\test-plugin\src\main\java\dev\tessera\smoke\RuntimeWorldLifecycleSmokePlugin.java:510: Warnung: [removal] DO_DAYLIGHT_CYCLE in GameRule ist veraltet und wurde zum Entfernen markiert
+                "first=" + first.getGameRuleValue(GameRule.DO_DAYLIGHT_CYCLE)
+                                                          ^
+C:\Users\hunte\IdeaProjects\Tessera\test-plugin\src\main\java\dev\tessera\smoke\RuntimeWorldLifecycleSmokePlugin.java:511: Warnung: [removal] DO_DAYLIGHT_CYCLE in GameRule ist veraltet und wurde zum Entfernen markiert
+                    + ", second=" + second.getGameRuleValue(GameRule.DO_DAYLIGHT_CYCLE)
+                                                                    ^
+7 Warnungen
+
+> Task :tessera-compiled:test-plugin:processResources UP-TO-DATE
+> Task :tessera-compiled:test-plugin:classes
+> Task :tessera-compiled:test-plugin:jar
+> Task :tessera-compiled:test-plugin:compileTestJava NO-SOURCE
+> Task :tessera-compiled:test-plugin:processTestResources NO-SOURCE
+> Task :tessera-compiled:test-plugin:testClasses UP-TO-DATE
+> Task :tessera-compiled:test-plugin:test NO-SOURCE
+> Task :tessera-compiled:assemble UP-TO-DATE
+> Task :tessera-compiled:check UP-TO-DATE
+> Task :tessera-compiled:build UP-TO-DATE
+> Task :tessera-compiled:folia-api:assemble UP-TO-DATE
+> Task :tessera-compiled:folia-api:mergeCheckstyleConfigs UP-TO-DATE
+> Task :tessera-compiled:folia-api:checkstyleMain UP-TO-DATE
+> Task :tessera-compiled:folia-api:checkstyleTest UP-TO-DATE
+> Task :tessera-compiled:folia-api:scanJarForBadCalls UP-TO-DATE
+> Task :tessera-compiled:folia-api:check UP-TO-DATE
+> Task :tessera-compiled:folia-api:build UP-TO-DATE
+> Task :tessera-compiled:folia-server:downloadMcManifest
+> Task :tessera-compiled:folia-server:downloadMcVersionManifest UP-TO-DATE
+> Task :tessera-compiled:folia-server:downloadServerJar UP-TO-DATE
+> Task :tessera-compiled:folia-server:extractFromBundler UP-TO-DATE
+> Task :tessera-compiled:folia-server:createBundlerJar
+> Task :tessera-compiled:folia-server:createPaperclipJar
+> Task :tessera-compiled:folia-server:assemble
+> Task :tessera-compiled:paper-checkstyle:assemble
+> Task :tessera-compiled:paper-checkstyle:mergeCheckstyleConfigs
+> Task :tessera-compiled:paper-checkstyle:checkstyleMain
+> Task :tessera-compiled:paper-checkstyle:checkstyleTest
+> Task :tessera-compiled:paper-checkstyle:checkstyleTestData
+> Task :tessera-compiled:paper-checkstyle:check
+> Task :tessera-compiled:paper-checkstyle:build
+> Task :tessera-compiled:test-plugin:assemble
+> Task :tessera-compiled:test-plugin:check UP-TO-DATE
+> Task :tessera-compiled:test-plugin:build
+> Task :tessera-compiled:folia-server:scanJarForBadCalls
+> Task :tessera-compiled:folia-server:check
+> Task :tessera-compiled:folia-server:build
+
+BUILD SUCCESSFUL in 9m 46s
+14 actionable tasks: 13 executed, 1 up-to-date
+Configuration cache entry reused.

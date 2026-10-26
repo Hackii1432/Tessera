@@ -102,6 +102,10 @@ public final class RuntimeWorldLifecycleSmokePlugin extends JavaPlugin {
             new NativePaperOctoberUpdateSmoke(this).start();
             return;
         }
+        if (this.mode.equals("alliance-ownership")) {
+            new NativeAllianceOwnershipSmoke(this).start();
+            return;
+        }
         if (this.mode.equals("disconnect-lifecycle")) {
             new NativeDisconnectSmoke(this).start();
             return;

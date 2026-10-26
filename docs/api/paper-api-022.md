@@ -43,6 +43,21 @@ ist eine nicht veränderbare **lebende Ansicht**, kein threadsicherer Snapshot.
 Prädikate müssen kurz, nicht blockierend und frei von fremden Weltzugriffen sein.
 Keine Scheduler-Aufträge aus einem Prädikat synchron abwarten.
 
+Ab Build 023 grenzt auch die native KI ihre Kandidaten vor der Auswertung auf
+den aktuellen Besitzer ein. Bei gezähmten Tieren bleibt die Besitzerbindung
+auch über Regions-/Dimensionswechsel erhalten. Zusätzliche Plugin-Prädikate
+eines entfernten Besitzers werden dabei **nicht** auf dem Thread des Tiers
+ausgeführt; nach Rückkehr in dieselbe Region stehen sie wieder zur Verfügung.
+Das ist keine asynchrone Auswertung fremder Allianzregeln.
+
+Für einen einzelnen Regelaufruf werden die Prädikate vor der Iteration kopiert.
+Änderungen am Regelbestand bleiben über die lebende Map-Ansicht sichtbar, machen
+aber die laufende Iteration nicht ungültig; neu hinzugefügte Regeln gelten erst
+bei einer folgenden Auswertung. Entfernt oder transferiert ein Prädikat einen
+Beteiligten, beendet Tessera die alte Auswertung und verwendet ihr Ergebnis
+nicht zur Fortsetzung einer Mutation auf dem alten Besitzer. Die direkten
+öffentlichen API-Aufrufe bleiben bei anfänglich fremden Entities unzulässig.
+
 Regeln liegen im Bukkit-Wrapper, werden nicht als dauerhafte NBT-Regeln gespeichert
 und nicht automatisch einem Plugin zugeordnet. UUID/Wrapper bleiben bei den
 unterstützten Entity-Transfers erhalten; eigene zeitweilige Regeln vor Disable

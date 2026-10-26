@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.papermc.paper.porting.RegionSafeAllianceTest" tests="19" skipped="0" failures="0" errors="0" timestamp="2026-10-26T22:38:58.598Z" hostname="ENGINE0" time="20.335">
+  <properties/>
+  <testcase name="callbackRetirementStopsFurtherRulesAndReverseEvaluation()" classname="io.papermc.paper.porting.RegionSafeAllianceTest" time="1.655"/>
+  <testcase name="nativeForeignAllianceNeverReadsForeignTeamOrWrapper()" classname="io.papermc.paper.porting.RegionSafeAllianceTest" time="0.035"/>
+  <testcase name="targetingRejectsForeignCandidatesBeforeSelectors()" classname="io.papermc.paper.porting.RegionSafeAllianceTest" time="0.042"/>
+  <testcase name="localAlliancesRemainSymmetric()" classname="io.papermc.paper.porting.RegionSafeAllianceTest" time="0.076"/>
+  <testcase name="areaEffectsNeverEnumerateDimensionWidePlayers()" classname="io.papermc.paper.porting.RegionSafeAllianceTest" time="0.472"/>
+  <testcase name="callbackRuleMutationDoesNotInvalidateIteration()" classname="io.papermc.paper.porting.RegionSafeAllianceTest" time="0.017"/>
+  <testcase name="selectorTransferStopsBeforeCombatReads()" classname="io.papermc.paper.porting.RegionSafeAllianceTest" time="0.006"/>
+  <testcase name="ownedReferenceLookupRejectsRemoteCacheBeforeLifecycleReads()" classname="io.papermc.paper.porting.RegionSafeAllianceTest" time="0.01"/>
+  <testcase name="potionCallbackTransferDoesNotMutateOldEffectMap()" classname="io.papermc.paper.porting.RegionSafeAllianceTest" time="0.373"/>
+  <testcase name="remoteAngerBecomesUuidAndCanResolveAgainWithoutLosingBinding()" classname="io.papermc.paper.porting.RegionSafeAllianceTest" time="0.02"/>
+  <testcase name="ownedReferenceLookupRetainsLocalCachedOwnerBeforeIndexInsertion()" classname="io.papermc.paper.porting.RegionSafeAllianceTest" time="0.005"/>
+  <testcase name="creakingCallerDoesNotWriteMovementAfterPredicateRetiresSource()" classname="io.papermc.paper.porting.RegionSafeAllianceTest" time="0.368"/>
+  <testcase name="staleRetaliationAttackerIsNotInspected()" classname="io.papermc.paper.porting.RegionSafeAllianceTest" time="0.043"/>
+  <testcase name="normallyKilledLocalSuspectDoesNotBecomePersistentAnger()" classname="io.papermc.paper.porting.RegionSafeAllianceTest" time="0.005"/>
+  <testcase name="remotePetOwnerIsNotReadAndBindingSurvives()" classname="io.papermc.paper.porting.RegionSafeAllianceTest" time="0.183"/>
+  <testcase name="spawnWarningsRejectRemoteTriggerBeforeWorldOrPlayerStateReads()" classname="io.papermc.paper.porting.RegionSafeAllianceTest" time="0.608"/>
+  <testcase name="groupAlertRetirementDoesNotResetGoalOnOldOwner()" classname="io.papermc.paper.porting.RegionSafeAllianceTest" time="0.007"/>
+  <testcase name="macePredicateRevalidatesAllianceCallbacks()" classname="io.papermc.paper.porting.RegionSafeAllianceTest" time="0.01"/>
+  <testcase name="spawnWarningsStillAdvanceLocalVanillaTracker()" classname="io.papermc.paper.porting.RegionSafeAllianceTest" time="0.005"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[Okt. 26, 2026 11:38:58 PM org.bukkit.support.extension.BaseExtension isTestCase
+INFORMATION: Running tests with environment: Normal
+Okt. 26, 2026 11:39:14 PM org.bukkit.Bukkit setServer
+INFORMATION: This server is running org.bukkit.support.DummyServerHelper version 26.3-DEV (2026-10-26T22:39:11Z) (Implementing API version 26.3.build.023-beta)
+]]></system-err>
+</testsuite>
