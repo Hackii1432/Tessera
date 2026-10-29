@@ -16,4 +16,5 @@ experimental-options:
   sensor-local-conditions: true
   poi-scratch: true
   poi-reservation-check: true
+  automatic-shop: false
   work-timings: false

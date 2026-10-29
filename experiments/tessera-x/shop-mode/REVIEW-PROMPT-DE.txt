@@ -1,0 +1,61 @@
+Review und Portierung: automatischer 1x1-Shopmodus aus Tessera-X
+
+Bitte prüfe den Feature-Patch
+folia-server/minecraft-patches/features/0076-Automatically-memoize-empty-POI-searches-in-strict-1x.patch
+auf dem Branch ver/tessera-Xperimental von Hackii1432/Tessera.
+Basis dieser Implementierung ist Build 019. Bitte bewerte und portiere sie gegen
+euren aktuellen Quellstand; sie ist kein fertig geprüfter Patch für spätere Builds.
+Die Ergebnisse und reproduzierbaren Labortests liegen unter
+experiments/tessera-x/shop-mode/RESULTS-2026-10-29.md und evidence-2026-10-29/.
+
+Ziel und tatsächliche Umsetzung:
+- Automatisch erwachsene Villager in geometrisch bewiesenen horizontalen 1x1-Zellen erkennen.
+- Drei Wände + offener Eingang + obere Falltür am dritten Block zählen mit,
+  wenn die tatsächliche Kollision den Ausgang blockiert. Arbeitsplatz kann im Boden liegen.
+- OPEN/CLOSED allein darf keine Erkennungsregel sein. Echter 2x1-Raum bleibt normal.
+- Native Brain-, Sensor-, Arbeits-, Handels- und Restock-Ticks vollständig weiterlaufen lassen.
+- Ausschließlich leere HOME-/MEETING-AcquirePoi-Abfragen memoizieren, bei denen
+  kein Positionsfilter ausgeführt wurde. Dieser Filter kann Retry/RNG verändern.
+- Public/custom AcquirePoi-Factories bleiben unverändert; nur native reine Typfilter optieren ein.
+- Originale Suchplanung, RNG-Aufrufe, Retry-Listen, Pfadwahl und POI-Tickets behalten.
+- Vor Wiederverwendung Besitz der gesamten Suchfläche, aktuelle Kollisionsgeometrie
+  und 49 geladene POI-Chunk-Identitäten/-Revisionen prüfen.
+- Alle Ticketänderungen sowie POI-Typ-/Positionsänderungen müssen invalidieren;
+  neue Chunk-Identität nach Unload/Reload muss den Puffer verwerfen.
+- Keine Welt-Chunks für die Erkennung nachladen. Keine async Weltzugriffe.
+- Nur primitive IDs und Revisionen behalten; keine Welt-/Chunk-Referenzen im Puffer.
+- experimental-options.automatic-shop bleibt standardmäßig false; Master-Schalter
+  und Neustartpflicht beibehalten. Keine manuellen Shop-Tags pro Villager.
+
+Bitte besonders kritisch prüfen:
+1. Werden alle POI-Mutationen auf eurem aktuellen Stand über die instrumentierte
+   Dirty-Route erfasst, einschließlich Claim/Release, Konsistenzprüfung und Reload?
+2. Ist die geladene/regionsgebundene Snapshot-Fläche identisch zur nativen Suche?
+3. Bleiben position/type predicate side effects und Retry-RNG vollständig erhalten?
+4. Ist die Geometrie konservativ, auch bei Falltürorientierung, Decken, Kanten,
+   Attribut-/Größenänderungen, Fahrzeugen und ungewöhnlichen Bewegungszuständen?
+5. Kann die Erkennung in euren Scheduler-/Chunk-Ladepfaden unbeabsichtigt laden,
+   Regionen zusammenhalten, nach Region-Migration falsch lesen oder Referenzen behalten?
+6. Wie hoch ist der Nettoaufwand bei 2x1-Räumen, vorhandenen POIs und starkem Churn?
+   Bitte keinen universellen Performancegewinn aus weniger Suchaufrufen ableiten.
+
+Zusätzlicher Reviewpunkt: Bei überlasteten 019-Regionen stieg die Anzahl nativer
+POI-Abfragen pro ausgeführtem Tick stark gegenüber Vanilla. Die globale Zeitbasis
+und die native AcquirePoi-Suchplanung könnten das erklären. Bitte prüfe diese
+Inferenz getrennt; der vorliegende Patch verändert keine Uhr oder Retry-Intervalle.
+
+Reproduziere die nativen Fälle mit regulären autonomen Ticks: Restock zweifach
+mit natürlichem Cooldown und am Folgetag, Arbeitsplatz-/Berufswechsel,
+Ticketfreigabe ohne Blockänderung, Falltür entfernen/schalten, 1x1 nach 2x1 und zurück.
+Nutze Vanilla, Option aus und Option an. Villager müssen in allen Varianten voll
+aktiv sein. Messe Welt-/Region-Zeit, Gesamtprozess-CPU/GC und Allokationen inklusive
+Erkennung/Invalidierung. Prüfe auch viele nicht geeignete Villager. Der 4096-Test
+ist ein kurzer Überlasttest; geringe Kontrollstichproben sind keine p99-Messung.
+Unsere Shoptests bilden Trade-Verbrauch über native Offer-Uses ab; echter Spieler-
+GUI-Handel und komplexe Plugins benötigen eine zusätzliche eigene Prüfung.
+
+Bei vernünftigem Mehrwert kannst du die kleine Implementierung als Basis verwenden
+und nach eurem Review in einen kommenden Patch übernehmen. Änderungen am gesamten
+Brain oder ein NoAI-Modus sind nicht Bestandteil dieses geprüften Experiments.
+Kein Kontakt und keine Änderungen am produktiven Server smp.mosaikdev.com.
+In diesem Workspace ausschließlich ver/tessera-Xperimental bearbeiten/pushen.

@@ -1,0 +1,481 @@
+{
+  "status": "PASS",
+  "date": "2026-10-29",
+  "base": "Tessera 26.3 build 019",
+  "manifest": {
+    "vanillaSha256": "d052f14d7a173734fba553711e5b570162e2f2a313267ee31a21b975a679be64",
+    "tesseraSha256": "7693288e1d6cb73499b06f259cbdb12d67b13627c309aaefe749aa2bafc6ad8f",
+    "scope": "Normal autonomous ticks; no replacement Brain/entity ticks, clocks or RNG. Lab observers and scene input only. No production contact.",
+    "sources": {
+      "src\\PatchShopLab.java": "1a780c1598c6ae7fbb45f668199de52230a2d05dc81180b868260d88ba0fcff8",
+      "src\\ShopPlugin.java": "2d460443e2cb3dab442c9286d47842de6f48ac31fdf712622ba1b00936f9489f",
+      "src\\shoplab\\ShopLab.java": "ccd406ded83676ea4f639cdf135905c2e8896280a3242b724570b60388d10b50"
+    }
+  },
+  "groups": {
+    "baseline": [
+      "final-b2-baseline",
+      "final-b3-baseline"
+    ],
+    "shop": [
+      "final-s2-shop",
+      "final-s3-shop"
+    ],
+    "vanilla": [
+      "final-v2-vanilla",
+      "final-v3-vanilla"
+    ]
+  },
+  "functionalRuns": [
+    "final-b1-baseline",
+    "final-s3-shop",
+    "final-v3-vanilla"
+  ],
+  "summary": {
+    "baseline": {
+      "cells-256": {
+        "worldWallMeanMs": 8.438902823920266,
+        "worldCpuMeanMs": 7.215531561461794,
+        "processCpuMsPerTick": 9.966777408637874,
+        "allocatedBytesPerTick": 2746703.2823920264,
+        "nativePoiQueriesPerTick": 17.242524916943523,
+        "memoHitsPerTick": 0.0,
+        "memoMissesPerTick": 0.0,
+        "observedWorldTicksPerSecond": 20.00031730286106,
+        "samplesPerRun": [
+          301,
+          301
+        ],
+        "worldWallMeanMsPerRun": [
+          8.50804950166113,
+          8.369756146179402
+        ]
+      },
+      "cells-1024": {
+        "worldWallMeanMs": 38.78316777408638,
+        "worldCpuMeanMs": 35.532599667774086,
+        "processCpuMsPerTick": 38.64721760797342,
+        "allocatedBytesPerTick": 11119622.086378738,
+        "nativePoiQueriesPerTick": 69.29568106312291,
+        "memoHitsPerTick": 0.0,
+        "memoMissesPerTick": 0.0,
+        "observedWorldTicksPerSecond": 20.001608929528608,
+        "samplesPerRun": [
+          301,
+          301
+        ],
+        "worldWallMeanMsPerRun": [
+          38.17891760797342,
+          39.38741794019934
+        ]
+      },
+      "cells-4096": {
+        "worldWallMeanMs": 1060.9296026190477,
+        "worldCpuMeanMs": 992.5223214285714,
+        "processCpuMsPerTick": 1227.3809523809523,
+        "allocatedBytesPerTick": 342534005.3904762,
+        "nativePoiQueriesPerTick": 4355.630952380952,
+        "memoHitsPerTick": 0.0,
+        "memoMissesPerTick": 0.0,
+        "observedWorldTicksPerSecond": 0.944324178493724,
+        "samplesPerRun": [
+          14,
+          15
+        ],
+        "worldWallMeanMsPerRun": [
+          1108.3236785714287,
+          1013.5355266666667
+        ]
+      },
+      "redstone-and-poi-churn-256": {
+        "worldWallMeanMs": 7.9252682724252494,
+        "worldCpuMeanMs": 6.774294019933555,
+        "processCpuMsPerTick": 8.798795681063122,
+        "allocatedBytesPerTick": 2763091.109634551,
+        "nativePoiQueriesPerTick": 17.358803986710964,
+        "memoHitsPerTick": 0.0,
+        "memoMissesPerTick": 0.0,
+        "observedWorldTicksPerSecond": 19.996785145036938,
+        "samplesPerRun": [
+          301,
+          301
+        ],
+        "worldWallMeanMsPerRun": [
+          8.215318936877077,
+          7.635217607973422
+        ]
+      },
+      "rooms-2x1-1024": {
+        "worldWallMeanMs": 38.49940083333333,
+        "worldCpuMeanMs": 35.88541666666667,
+        "processCpuMsPerTick": 40.28645833333333,
+        "allocatedBytesPerTick": 11365447.626666665,
+        "nativePoiQueriesPerTick": 69.43333333333334,
+        "memoHitsPerTick": 0.0,
+        "memoMissesPerTick": 0.0,
+        "observedWorldTicksPerSecond": 19.972860462627462,
+        "samplesPerRun": [
+          300,
+          300
+        ],
+        "worldWallMeanMsPerRun": [
+          39.86539966666667,
+          37.133402
+        ]
+      }
+    },
+    "shop": {
+      "cells-256": {
+        "worldWallMeanMs": 4.920123415282392,
+        "worldCpuMeanMs": 4.265555786267996,
+        "processCpuMsPerTick": 7.700287236987818,
+        "allocatedBytesPerTick": 1507469.4584717609,
+        "nativePoiQueriesPerTick": 0.0,
+        "memoHitsPerTick": 17.366057585825025,
+        "memoMissesPerTick": 0.0,
+        "observedWorldTicksPerSecond": 19.999557108997138,
+        "samplesPerRun": [
+          300,
+          301
+        ],
+        "worldWallMeanMsPerRun": [
+          5.597195999999999,
+          4.243050830564784
+        ]
+      },
+      "cells-1024": {
+        "worldWallMeanMs": 19.816108139534883,
+        "worldCpuMeanMs": 18.791528239202655,
+        "processCpuMsPerTick": 21.179401993355484,
+        "allocatedBytesPerTick": 6126376.65116279,
+        "nativePoiQueriesPerTick": 0.0,
+        "memoHitsPerTick": 69.40863787375415,
+        "memoMissesPerTick": 0.0,
+        "observedWorldTicksPerSecond": 20.007443938115202,
+        "samplesPerRun": [
+          301,
+          301
+        ],
+        "worldWallMeanMsPerRun": [
+          19.523039867109635,
+          20.109176411960135
+        ]
+      },
+      "cells-4096": {
+        "worldWallMeanMs": 82.74991169935038,
+        "worldCpuMeanMs": 78.63868693461234,
+        "processCpuMsPerTick": 96.46096738206545,
+        "allocatedBytesPerTick": 24732306.438346185,
+        "nativePoiQueriesPerTick": 0.0,
+        "memoHitsPerTick": 453.67444296035455,
+        "memoMissesPerTick": 0.0,
+        "observedWorldTicksPerSecond": 12.07484277389598,
+        "samplesPerRun": [
+          181,
+          182
+        ],
+        "worldWallMeanMsPerRun": [
+          83.10785856353591,
+          82.39196483516484
+        ]
+      },
+      "redstone-and-poi-churn-256": {
+        "worldWallMeanMs": 5.276461140642303,
+        "worldCpuMeanMs": 4.523030869324474,
+        "processCpuMsPerTick": 6.655246400885936,
+        "allocatedBytesPerTick": 1924957.1948172757,
+        "nativePoiQueriesPerTick": 5.708864894795127,
+        "memoHitsPerTick": 11.680503875968991,
+        "memoMissesPerTick": 5.708864894795127,
+        "observedWorldTicksPerSecond": 19.999080213787774,
+        "samplesPerRun": [
+          301,
+          300
+        ],
+        "worldWallMeanMsPerRun": [
+          5.348815614617941,
+          5.204106666666666
+        ]
+      },
+      "rooms-2x1-1024": {
+        "worldWallMeanMs": 36.10091083333333,
+        "worldCpuMeanMs": 32.994791666666664,
+        "processCpuMsPerTick": 40.36458333333333,
+        "allocatedBytesPerTick": 11432203.093333334,
+        "nativePoiQueriesPerTick": 69.63999999999999,
+        "memoHitsPerTick": 0.0,
+        "memoMissesPerTick": 69.63999999999999,
+        "observedWorldTicksPerSecond": 19.96399845076302,
+        "samplesPerRun": [
+          300,
+          300
+        ],
+        "worldWallMeanMsPerRun": [
+          36.414631,
+          35.78719066666667
+        ]
+      }
+    },
+    "vanilla": {
+      "cells-256": {
+        "worldWallMeanMs": 7.397179734219269,
+        "worldCpuMeanMs": 6.384966777408637,
+        "processCpuMsPerTick": 9.032392026578073,
+        "allocatedBytesPerTick": 3115770.710963455,
+        "nativePoiQueriesPerTick": 17.37375415282392,
+        "memoHitsPerTick": 0.0,
+        "memoMissesPerTick": 0.0,
+        "observedWorldTicksPerSecond": 19.99968086904485,
+        "samplesPerRun": [
+          301,
+          301
+        ],
+        "worldWallMeanMsPerRun": [
+          7.330409302325581,
+          7.463950166112957
+        ]
+      },
+      "cells-1024": {
+        "worldWallMeanMs": 34.73563783776301,
+        "worldCpuMeanMs": 31.32639465669989,
+        "processCpuMsPerTick": 32.49627976190476,
+        "allocatedBytesPerTick": 13107212.74015504,
+        "nativePoiQueriesPerTick": 69.43586378737541,
+        "memoHitsPerTick": 0.0,
+        "memoMissesPerTick": 0.0,
+        "observedWorldTicksPerSecond": 20.003472399136697,
+        "samplesPerRun": [
+          300,
+          301
+        ],
+        "worldWallMeanMsPerRun": [
+          33.41607833333333,
+          36.05519734219269
+        ]
+      },
+      "cells-4096": {
+        "worldWallMeanMs": 134.32812309151257,
+        "worldCpuMeanMs": 123.36637624466572,
+        "processCpuMsPerTick": 149.3876689189189,
+        "allocatedBytesPerTick": 56776360.35467046,
+        "nativePoiQueriesPerTick": 276.85229966808913,
+        "memoHitsPerTick": 0.0,
+        "memoMissesPerTick": 0.0,
+        "observedWorldTicksPerSecond": 7.440356137530157,
+        "samplesPerRun": [
+          111,
+          114
+        ],
+        "worldWallMeanMsPerRun": [
+          136.3001882882883,
+          132.35605789473684
+        ]
+      },
+      "redstone-and-poi-churn-256": {
+        "worldWallMeanMs": 7.099148338870432,
+        "worldCpuMeanMs": 5.891818936877076,
+        "processCpuMsPerTick": 7.604858803986711,
+        "allocatedBytesPerTick": 3359734.418604651,
+        "nativePoiQueriesPerTick": 17.388704318936878,
+        "memoHitsPerTick": 0.0,
+        "memoMissesPerTick": 0.0,
+        "observedWorldTicksPerSecond": 20.00154610739262,
+        "samplesPerRun": [
+          301,
+          301
+        ],
+        "worldWallMeanMsPerRun": [
+          6.920054817275747,
+          7.278241860465116
+        ]
+      },
+      "rooms-2x1-1024": {
+        "worldWallMeanMs": 33.4078396572536,
+        "worldCpuMeanMs": 30.72700373754153,
+        "processCpuMsPerTick": 33.24897909745294,
+        "allocatedBytesPerTick": 14120912.848372094,
+        "nativePoiQueriesPerTick": 69.44431893687708,
+        "memoHitsPerTick": 0.0,
+        "memoMissesPerTick": 0.0,
+        "observedWorldTicksPerSecond": 20.001145925981714,
+        "samplesPerRun": [
+          301,
+          300
+        ],
+        "worldWallMeanMsPerRun": [
+          35.59220564784053,
+          31.223473666666667
+        ]
+      }
+    }
+  },
+  "config": {
+    "status": "PASS",
+    "assertions": 57
+  },
+  "patch": {
+    "status": "PASS",
+    "files": [
+      "dev/tessera/x/ExperimentalOptions.java",
+      "dev/tessera/x/ShopPoiSearch.java",
+      "ca/spottedleaf/moonrise/patches/chunk_system/level/poi/PoiChunk.java",
+      "net/minecraft/world/entity/ai/behavior/AcquirePoi.java",
+      "net/minecraft/world/entity/ai/behavior/VillagerGoalPackages.java"
+    ],
+    "patchSha256": "7a44a363967cb82a23d79981416899c90167450a4f1c43e565b9d250063ee964",
+    "scope": "Forward application on pristine generated HEAD files; contents match compiled release source."
+  },
+  "runMetadata": {
+    "final-b1-baseline": {
+      "invocation": {
+        "mode": "baseline",
+        "exitCode": 0,
+        "seconds": 330.07964515686035,
+        "productionContacted": false,
+        "allProcessesStopped": true
+      },
+      "manifest": {
+        "vanillaSha256": "d052f14d7a173734fba553711e5b570162e2f2a313267ee31a21b975a679be64",
+        "tesseraSha256": "42720363bd3ed4f25d51855f52a1d084c1e9d2f06d3edeef21245f4b57186c37",
+        "scope": "Normal autonomous ticks; no replacement Brain/entity ticks, clocks or RNG. Lab observers and scene input only. No production contact.",
+        "sources": {
+          "src\\PatchShopLab.java": "1a780c1598c6ae7fbb45f668199de52230a2d05dc81180b868260d88ba0fcff8",
+          "src\\ShopPlugin.java": "2d460443e2cb3dab442c9286d47842de6f48ac31fdf712622ba1b00936f9489f",
+          "src\\shoplab\\ShopLab.java": "ccd406ded83676ea4f639cdf135905c2e8896280a3242b724570b60388d10b50"
+        }
+      }
+    },
+    "final-b2-baseline": {
+      "invocation": {
+        "mode": "baseline",
+        "exitCode": 0,
+        "seconds": 148.04017043113708,
+        "productionContacted": false,
+        "allProcessesStopped": true
+      },
+      "manifest": {
+        "vanillaSha256": "d052f14d7a173734fba553711e5b570162e2f2a313267ee31a21b975a679be64",
+        "tesseraSha256": "7693288e1d6cb73499b06f259cbdb12d67b13627c309aaefe749aa2bafc6ad8f",
+        "scope": "Normal autonomous ticks; no replacement Brain/entity ticks, clocks or RNG. Lab observers and scene input only. No production contact.",
+        "sources": {
+          "src\\PatchShopLab.java": "1a780c1598c6ae7fbb45f668199de52230a2d05dc81180b868260d88ba0fcff8",
+          "src\\ShopPlugin.java": "2d460443e2cb3dab442c9286d47842de6f48ac31fdf712622ba1b00936f9489f",
+          "src\\shoplab\\ShopLab.java": "ccd406ded83676ea4f639cdf135905c2e8896280a3242b724570b60388d10b50"
+        }
+      }
+    },
+    "final-b3-baseline": {
+      "invocation": {
+        "mode": "baseline",
+        "exitCode": 0,
+        "seconds": 146.04072499275208,
+        "productionContacted": false,
+        "allProcessesStopped": true
+      },
+      "manifest": {
+        "vanillaSha256": "d052f14d7a173734fba553711e5b570162e2f2a313267ee31a21b975a679be64",
+        "tesseraSha256": "7693288e1d6cb73499b06f259cbdb12d67b13627c309aaefe749aa2bafc6ad8f",
+        "scope": "Normal autonomous ticks; no replacement Brain/entity ticks, clocks or RNG. Lab observers and scene input only. No production contact.",
+        "sources": {
+          "src\\PatchShopLab.java": "1a780c1598c6ae7fbb45f668199de52230a2d05dc81180b868260d88ba0fcff8",
+          "src\\ShopPlugin.java": "2d460443e2cb3dab442c9286d47842de6f48ac31fdf712622ba1b00936f9489f",
+          "src\\shoplab\\ShopLab.java": "ccd406ded83676ea4f639cdf135905c2e8896280a3242b724570b60388d10b50"
+        }
+      }
+    },
+    "final-s2-shop": {
+      "invocation": {
+        "mode": "shop",
+        "exitCode": 0,
+        "seconds": 146.06193351745605,
+        "productionContacted": false,
+        "allProcessesStopped": true
+      },
+      "manifest": {
+        "vanillaSha256": "d052f14d7a173734fba553711e5b570162e2f2a313267ee31a21b975a679be64",
+        "tesseraSha256": "7693288e1d6cb73499b06f259cbdb12d67b13627c309aaefe749aa2bafc6ad8f",
+        "scope": "Normal autonomous ticks; no replacement Brain/entity ticks, clocks or RNG. Lab observers and scene input only. No production contact.",
+        "sources": {
+          "src\\PatchShopLab.java": "1a780c1598c6ae7fbb45f668199de52230a2d05dc81180b868260d88ba0fcff8",
+          "src\\ShopPlugin.java": "2d460443e2cb3dab442c9286d47842de6f48ac31fdf712622ba1b00936f9489f",
+          "src\\shoplab\\ShopLab.java": "ccd406ded83676ea4f639cdf135905c2e8896280a3242b724570b60388d10b50"
+        }
+      }
+    },
+    "final-s3-shop": {
+      "invocation": {
+        "mode": "shop",
+        "exitCode": 0,
+        "seconds": 330.0771677494049,
+        "productionContacted": false,
+        "allProcessesStopped": true
+      },
+      "manifest": {
+        "vanillaSha256": "d052f14d7a173734fba553711e5b570162e2f2a313267ee31a21b975a679be64",
+        "tesseraSha256": "7693288e1d6cb73499b06f259cbdb12d67b13627c309aaefe749aa2bafc6ad8f",
+        "scope": "Normal autonomous ticks; no replacement Brain/entity ticks, clocks or RNG. Lab observers and scene input only. No production contact.",
+        "sources": {
+          "src\\PatchShopLab.java": "1a780c1598c6ae7fbb45f668199de52230a2d05dc81180b868260d88ba0fcff8",
+          "src\\ShopPlugin.java": "2d460443e2cb3dab442c9286d47842de6f48ac31fdf712622ba1b00936f9489f",
+          "src\\shoplab\\ShopLab.java": "ccd406ded83676ea4f639cdf135905c2e8896280a3242b724570b60388d10b50"
+        }
+      }
+    },
+    "final-v2-vanilla": {
+      "invocation": {
+        "mode": "vanilla",
+        "exitCode": 0,
+        "seconds": 142.042142868042,
+        "productionContacted": false,
+        "allProcessesStopped": true
+      },
+      "manifest": {
+        "vanillaSha256": "d052f14d7a173734fba553711e5b570162e2f2a313267ee31a21b975a679be64",
+        "tesseraSha256": "7693288e1d6cb73499b06f259cbdb12d67b13627c309aaefe749aa2bafc6ad8f",
+        "scope": "Normal autonomous ticks; no replacement Brain/entity ticks, clocks or RNG. Lab observers and scene input only. No production contact.",
+        "sources": {
+          "src\\PatchShopLab.java": "1a780c1598c6ae7fbb45f668199de52230a2d05dc81180b868260d88ba0fcff8",
+          "src\\ShopPlugin.java": "2d460443e2cb3dab442c9286d47842de6f48ac31fdf712622ba1b00936f9489f",
+          "src\\shoplab\\ShopLab.java": "ccd406ded83676ea4f639cdf135905c2e8896280a3242b724570b60388d10b50"
+        }
+      }
+    },
+    "final-v3-vanilla": {
+      "invocation": {
+        "mode": "vanilla",
+        "exitCode": 0,
+        "seconds": 328.07882714271545,
+        "productionContacted": false,
+        "allProcessesStopped": true
+      },
+      "manifest": {
+        "vanillaSha256": "d052f14d7a173734fba553711e5b570162e2f2a313267ee31a21b975a679be64",
+        "tesseraSha256": "7693288e1d6cb73499b06f259cbdb12d67b13627c309aaefe749aa2bafc6ad8f",
+        "scope": "Normal autonomous ticks; no replacement Brain/entity ticks, clocks or RNG. Lab observers and scene input only. No production contact.",
+        "sources": {
+          "src\\PatchShopLab.java": "1a780c1598c6ae7fbb45f668199de52230a2d05dc81180b868260d88ba0fcff8",
+          "src\\ShopPlugin.java": "2d460443e2cb3dab442c9286d47842de6f48ac31fdf712622ba1b00936f9489f",
+          "src\\shoplab\\ShopLab.java": "ccd406ded83676ea4f639cdf135905c2e8896280a3242b724570b60388d10b50"
+        }
+      }
+    }
+  },
+  "disabledFunctionalBaselineClassCheck": {
+    "status": "PASS",
+    "classesIdentical": {
+      "dev/tessera/x/ExperimentalOptions.class": true,
+      "ca/spottedleaf/moonrise/patches/chunk_system/level/poi/PoiChunk.class": true,
+      "net/minecraft/world/entity/ai/behavior/AcquirePoi.class": true,
+      "net/minecraft/world/entity/ai/behavior/VillagerGoalPackages.class": true
+    }
+  },
+  "excluded": {
+    "final-b1-baseline performance": "Overlapped the last Gradle build; functional checks retained.",
+    "final-s1-shop": "Preceded the loaded-only geometry/noPhysics safety fix; artifact hash mismatch. Replaced by final-s3 on the exact release.",
+    "smoke1-shop": "Fixture lacked a floor; rejected.",
+    "full-b1-baseline": "No-player entity activation affected the escape check; rejected and fixture corrected.",
+    "active-b1-baseline": "Fixed-tick 4096 overload run ended cleanly but had no final result; rejected.",
+    "earlier measurements": "Superseded by the fully active, bounded-duration final protocol."
+  },
+  "productionContacted": false
+}

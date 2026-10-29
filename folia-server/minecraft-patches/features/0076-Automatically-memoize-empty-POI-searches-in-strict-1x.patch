@@ -1,0 +1,299 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tessera-X <experiments@tessera.invalid>
+Date: Thu, 29 Oct 2026 21:00:00 +0100
+Subject: [PATCH] Automatically memoize empty POI searches in strict 1x1 shop cells
+
+diff --git a/dev/tessera/x/ExperimentalOptions.java b/dev/tessera/x/ExperimentalOptions.java
+--- a/dev/tessera/x/ExperimentalOptions.java
++++ b/dev/tessera/x/ExperimentalOptions.java
+@@ -25,6 +25,7 @@
+         SENSOR_LOCAL_CONDITIONS("sensor-local-conditions", "sensor-local-conditions", "Fix targeting ranges shared between sensor callers and region threads."),
+         POI_SCRATCH("poi-scratch", "poi-scratch", "Reuse bounded primitive POI search buffers; queries and reservations remain fresh."),
+         POI_RESERVATION_CHECK("poi-reservation-check", "poi-reservation-check", "Save acquired POI memory only after the final reservation succeeds."),
++        AUTOMATIC_SHOP("automatic-shop", "automatic-shop", "Automatically memoize unchanged empty POI searches only in confirmed 1x1 villager cells. Native Brain, work and restocks remain active."),
+         WORK_TIMINGS("work-timings", "work-timings", "Process-wide inclusive diagnostics. Enable only while investigating workload.");
+ 
+         public final String key;
+diff --git a/dev/tessera/x/ShopPoiSearch.java b/dev/tessera/x/ShopPoiSearch.java
+new file mode 100644
+--- /dev/null
++++ b/dev/tessera/x/ShopPoiSearch.java
+@@ -0,0 +1,193 @@
++package dev.tessera.x;
++
++import ca.spottedleaf.moonrise.common.util.TickThread;
++import ca.spottedleaf.moonrise.patches.chunk_system.level.poi.PoiChunk;
++import ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkHolderManager;
++import ca.spottedleaf.moonrise.patches.poi_lookup.PoiAccess;
++import com.mojang.datafixers.util.Pair;
++import java.util.List;
++import java.util.function.Predicate;
++import net.minecraft.core.BlockPos;
++import net.minecraft.core.Direction;
++import net.minecraft.core.Holder;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.world.entity.PathfinderMob;
++import net.minecraft.world.entity.ai.attributes.Attributes;
++import net.minecraft.world.effect.MobEffects;
++import net.minecraft.world.entity.ai.behavior.AcquirePoi;
++import net.minecraft.world.entity.ai.memory.MemoryModuleType;
++import net.minecraft.world.entity.ai.village.poi.PoiManager;
++import net.minecraft.world.entity.ai.village.poi.PoiType;
++import net.minecraft.world.entity.npc.villager.Villager;
++import net.minecraft.world.level.block.TrapDoorBlock;
++import net.minecraft.world.level.block.state.BlockState;
++
++/** Per-behavior negative search memo. Never skips Brain ticks, retry scheduling or working. */
++public final class ShopPoiSearch {
++    public static final boolean ENABLED = ExperimentalOptions.enabled(ExperimentalOptions.Feature.AUTOMATIC_SHOP);
++    private final long[] identities = new long[49];
++    private final long[] versions = new long[49];
++    private final BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
++    private final double[] lower = new double[6];
++    private final double[] upper = new double[6];
++    private int barriers;
++    private long origin;
++    private boolean cached;
++    private boolean busy;
++    private boolean testedPosition;
++    private Predicate<BlockPos> delegate;
++    private final Predicate<BlockPos> trackingPredicate = pos -> {
++        this.testedPosition = true;
++        return this.delegate.test(pos);
++    };
++
++    public boolean find(final ServerLevel level, final PathfinderMob body, final PoiManager manager,
++                        final Predicate<Holder<PoiType>> type, final Predicate<BlockPos> predicate,
++                        final List<Pair<Holder<PoiType>, BlockPos>> output) {
++        if (this.busy) {
++            nativeFind(manager, body.blockPosition(), type, predicate, output);
++            return false;
++        }
++        this.busy = true;
++        try {
++            final BlockPos center = body.blockPosition();
++            final int minX = (center.getX() - AcquirePoi.SCAN_RANGE) >> 4;
++            final int minZ = (center.getZ() - AcquirePoi.SCAN_RANGE) >> 4;
++            final int maxX = (center.getX() + AcquirePoi.SCAN_RANGE) >> 4;
++            final int maxZ = (center.getZ() + AcquirePoi.SCAN_RANGE) >> 4;
++            // All reads, including snapshots of empty chunks, belong to this region owner.
++            if (!TickThread.isTickThreadFor(level, minX, minZ, maxX, maxZ) || !this.isOneBlockCell(level, body)) {
++                this.clear();
++                nativeFind(manager, center, type, predicate, output);
++                return false;
++            }
++            final ChunkHolderManager holders = level.moonrise$getChunkTaskScheduler().chunkHolderManager;
++            if (this.cached && this.origin == center.asLong()
++                && this.snapshot(holders, minX, minZ, maxX, maxZ, false)) {
++                return true;
++            }
++            this.clear();
++            this.testedPosition = false;
++            this.delegate = predicate;
++            final int initialSize = output.size();
++            nativeFind(manager, center, type, this.trackingPredicate, output);
++            // AcquirePoi's predicate can mutate retries and consume RNG. Never memoize that work.
++            if (!this.testedPosition && output.size() == initialSize
++                && this.snapshot(holders, minX, minZ, maxX, maxZ, true)) {
++                this.origin = center.asLong();
++                this.cached = true;
++            }
++            return false;
++        } catch (RuntimeException | Error failure) {
++            this.clear();
++            throw failure;
++        } finally {
++            this.delegate = null;
++            this.busy = false;
++        }
++    }
++
++    private static void nativeFind(final PoiManager manager, final BlockPos center,
++                                   final Predicate<Holder<PoiType>> type, final Predicate<BlockPos> predicate,
++                                   final List<Pair<Holder<PoiType>, BlockPos>> output) {
++        PoiAccess.findNearestPoiPositions(manager, type, predicate, center, AcquirePoi.SCAN_RANGE,
++            Double.MAX_VALUE, PoiManager.Occupancy.HAS_SPACE, PoiAccess.LOAD_FOR_SEARCHING, 5, output);
++    }
++
++    private boolean snapshot(final ChunkHolderManager holders, final int minX, final int minZ,
++                             final int maxX, final int maxZ, final boolean capture) {
++        int index = 0;
++        for (int z = minZ; z <= maxZ; ++z) {
++            for (int x = minX; x <= maxX; ++x) {
++                if (index >= this.identities.length) return false;
++                final PoiChunk chunk = holders.getPoiChunkIfLoaded(x, z, false);
++                if (chunk == null || !chunk.isLoaded() || chunk.tesseraXShopIdentity == 0L) return false;
++                if (capture) {
++                    this.identities[index] = chunk.tesseraXShopIdentity;
++                    this.versions[index] = chunk.tesseraXShopRevision;
++                } else if (this.identities[index] != chunk.tesseraXShopIdentity || this.versions[index] != chunk.tesseraXShopRevision) {
++                    return false;
++                }
++                ++index;
++            }
++        }
++        return index == this.identities.length;
++    }
++
++    /** One block column. Trapdoors are tested by their actual collision bounds, in either state. */
++    private boolean isOneBlockCell(final ServerLevel level, final PathfinderMob body) {
++        if (!(body instanceof Villager villager) || villager.isBaby() || !villager.isAlive()
++            || villager.isPassenger() || villager.isSleeping() || villager.isInWater() || !villager.onGround() || villager.isNoAi()
++            || villager.noPhysics || villager.isNoGravity()
++            || villager.hasEffect(MobEffects.JUMP_BOOST) || villager.hasEffect(MobEffects.LEVITATION)
++            || villager.getAttributeValue(Attributes.JUMP_STRENGTH) > 0.42
++            || villager.getAttributeValue(Attributes.GRAVITY) < 0.08
++            || villager.getBbHeight() < 1.9 || villager.getBbHeight() > 2.0
++            || !villager.getBrain().hasMemoryValue(MemoryModuleType.JOB_SITE)) return false;
++        final BlockPos p = body.blockPosition();
++        final var box = body.getBoundingBox();
++        if (box.minX < p.getX() || box.maxX > p.getX() + 1
++            || box.minZ < p.getZ() || box.maxZ > p.getZ() + 1) return false;
++        final BlockState feet = level.getBlockStateIfLoaded(p);
++        if (feet == null || !feet.isAir()
++            || !this.full(level, p.getX(), p.getY() - 1, p.getZ())) return false;
++        final int x = p.getX(), y = p.getY(), z = p.getZ();
++        final BlockState head = level.getBlockStateIfLoaded(this.cursor.set(x, y + 1, z));
++        if (head == null || !head.isAir() && !(head.getBlock() instanceof TrapDoorBlock)) return false;
++        for (Direction side : Direction.Plane.HORIZONTAL) {
++            final int nx = x + side.getStepX(), nz = z + side.getStepZ();
++            this.barriers = 0;
++            // Conservative configuration-space proof for every height in a normal villager jump.
++            for (int dy = 0; dy <= 2; ++dy) {
++                this.addBarrier(level, nx, y + dy, nz, p, side, body.getBbWidth(), body.getBbHeight());
++                this.addBarrier(level, x, y + dy, z, p, side, body.getBbWidth(), body.getBbHeight());
++            }
++            double covered = -1.0E-7;
++            for (int pass = 0; pass < this.barriers; ++pass) {
++                final double previous = covered;
++                for (int i = 0; i < this.barriers; ++i) {
++                    if (this.lower[i] < covered && this.upper[i] > covered) covered = this.upper[i];
++                }
++                if (covered > 1.5) break;
++                if (covered == previous) return false;
++            }
++            if (covered <= 1.5) return false;
++        }
++        return true;
++    }
++
++    private void addBarrier(final ServerLevel level, final int x, final int y, final int z,
++                            final BlockPos cell, final Direction side, final double width, final double height) {
++        this.cursor.set(x, y, z);
++        final BlockState state = level.getBlockStateIfLoaded(this.cursor);
++        if (state == null || !state.getFluidState().isEmpty() || (!(state.getBlock() instanceof TrapDoorBlock)
++            && !state.isCollisionShapeFullBlock(level, this.cursor))) return;
++        // Full blocks and TrapDoorBlock's native shapes are single cuboids, including OPEN.
++        final var bounds = state.getCollisionShape(level, this.cursor).bounds();
++        final double halfWidth = width * 0.5;
++        final boolean intersects;
++        if (side.getAxis() == Direction.Axis.X) {
++            final double plane = cell.getX() + (side == Direction.EAST ? 1 : 0);
++            intersects = z + bounds.minZ <= cell.getZ() && z + bounds.maxZ >= cell.getZ() + 1
++                && x + bounds.minX < plane + halfWidth && x + bounds.maxX > plane - halfWidth;
++        } else {
++            final double plane = cell.getZ() + (side == Direction.SOUTH ? 1 : 0);
++            intersects = x + bounds.minX <= cell.getX() && x + bounds.maxX >= cell.getX() + 1
++                && z + bounds.minZ < plane + halfWidth && z + bounds.maxZ > plane - halfWidth;
++        }
++        if (intersects) {
++            this.lower[this.barriers] = y + bounds.minY - cell.getY() - height;
++            this.upper[this.barriers++] = y + bounds.maxY - cell.getY();
++        }
++    }
++
++    private boolean full(final ServerLevel level, final int x, final int y, final int z) {
++        this.cursor.set(x, y, z);
++        final var state = level.getBlockStateIfLoaded(this.cursor);
++        return state != null && !state.hasLargeCollisionShape() && state.isCollisionShapeFullBlock(level, this.cursor);
++    }
++
++    private void clear() {
++        this.cached = false;
++    }
++}
+diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/level/poi/PoiChunk.java b/ca/spottedleaf/moonrise/patches/chunk_system/level/poi/PoiChunk.java
+--- a/ca/spottedleaf/moonrise/patches/chunk_system/level/poi/PoiChunk.java
++++ b/ca/spottedleaf/moonrise/patches/chunk_system/level/poi/PoiChunk.java
+@@ -19,6 +19,7 @@
+ public final class PoiChunk {
+ 
+     private static final Logger LOGGER = LoggerFactory.getLogger(PoiChunk.class);
++    private static final java.util.concurrent.atomic.AtomicLong TESSERA_X_SHOP_IDENTITIES = new java.util.concurrent.atomic.AtomicLong();
+ 
+     public final ServerLevel world;
+     public final int chunkX;
+@@ -30,6 +31,8 @@
+ 
+     private boolean isDirty;
+     private boolean loaded;
++    public long tesseraXShopRevision;
++    public final long tesseraXShopIdentity = dev.tessera.x.ShopPoiSearch.ENABLED ? TESSERA_X_SHOP_IDENTITIES.incrementAndGet() : 0L;
+ 
+     public PoiChunk(final ServerLevel world, final int chunkX, final int chunkZ, final int minSection, final int maxSection) {
+         this(world, chunkX, chunkZ, minSection, maxSection, new PoiSection[maxSection - minSection + 1]);
+@@ -108,6 +111,7 @@
+     }
+ 
+     public void setDirty(final boolean dirty) {
++        if (dirty && dev.tessera.x.ShopPoiSearch.ENABLED) ++this.tesseraXShopRevision;
+         this.isDirty = dirty;
+     }
+ 
+diff --git a/net/minecraft/world/entity/ai/behavior/AcquirePoi.java b/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
+--- a/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
++++ b/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
+@@ -55,10 +55,29 @@
+         final Optional<Byte> onPoiAcquisitionEvent,
+         final BiPredicate<ServerLevel, BlockPos> validPoi
+     ) {
++        return createInternal(poiType, memoryToValidate, memoryToAcquire, onlyIfAdult, onPoiAcquisitionEvent, validPoi, false);
++    }
++
++    // Only the native pure HOME/MEETING type predicates opt in. Public/custom predicates remain native.
++    static BehaviorControl<PathfinderMob> createForShop(
++        final Predicate<Holder<PoiType>> poiType, final MemoryModuleType<GlobalPos> memoryToAcquire,
++        final boolean onlyIfAdult, final Optional<Byte> onPoiAcquisitionEvent,
++        final BiPredicate<ServerLevel, BlockPos> validPoi
++    ) {
++        return createInternal(poiType, memoryToAcquire, memoryToAcquire, onlyIfAdult, onPoiAcquisitionEvent, validPoi, true);
++    }
++
++    private static BehaviorControl<PathfinderMob> createInternal(
++        final Predicate<Holder<PoiType>> poiType, final MemoryModuleType<GlobalPos> memoryToValidate,
++        final MemoryModuleType<GlobalPos> memoryToAcquire, final boolean onlyIfAdult,
++        final Optional<Byte> onPoiAcquisitionEvent, final BiPredicate<ServerLevel, BlockPos> validPoi,
++        final boolean shopSafeTypePredicate
++    ) {
+         int batchSize = 5;
+         int rate = 20;
+         MutableLong nextScheduledStart = new MutableLong(0L);
+         Long2ObjectMap<AcquirePoi.JitteredLinearRetry> batchCache = new Long2ObjectOpenHashMap<>();
++        dev.tessera.x.ShopPoiSearch shopSearch = shopSafeTypePredicate && dev.tessera.x.ShopPoiSearch.ENABLED ? new dev.tessera.x.ShopPoiSearch() : null;
+         OneShot<PathfinderMob> acquirePoi = BehaviorBuilder.create(
+             i -> i.group(i.absent(memoryToAcquire))
+                 .apply(
+@@ -100,7 +119,8 @@
+                         long tesseraXTiming = dev.tessera.x.WorkTimings.start();
+                         long tesseraXPoiAllocated = dev.tessera.x.WorkTimings.allocatedStart();
+                         try {
+-                            ca.spottedleaf.moonrise.patches.poi_lookup.PoiAccess.findNearestPoiPositions(poiManager, poiType, cacheTest, body.blockPosition(), SCAN_RANGE, Double.MAX_VALUE, PoiManager.Occupancy.HAS_SPACE, ca.spottedleaf.moonrise.patches.poi_lookup.PoiAccess.LOAD_FOR_SEARCHING, 5, poiPositionsRaw);
++                            if (shopSearch != null) shopSearch.find(level, body, poiManager, poiType, cacheTest, poiPositionsRaw);
++                            else ca.spottedleaf.moonrise.patches.poi_lookup.PoiAccess.findNearestPoiPositions(poiManager, poiType, cacheTest, body.blockPosition(), SCAN_RANGE, Double.MAX_VALUE, PoiManager.Occupancy.HAS_SPACE, ca.spottedleaf.moonrise.patches.poi_lookup.PoiAccess.LOAD_FOR_SEARCHING, 5, poiPositionsRaw);
+                         } finally {
+                             dev.tessera.x.WorkTimings.stop("poi.query", tesseraXTiming);
+                             dev.tessera.x.WorkTimings.allocatedStop("poi.query", tesseraXPoiAllocated);
+diff --git a/net/minecraft/world/entity/ai/behavior/VillagerGoalPackages.java b/net/minecraft/world/entity/ai/behavior/VillagerGoalPackages.java
+--- a/net/minecraft/world/entity/ai/behavior/VillagerGoalPackages.java
++++ b/net/minecraft/world/entity/ai/behavior/VillagerGoalPackages.java
+@@ -59,8 +59,8 @@
+             ),
+             Pair.of(7, new GoToPotentialJobSite(speedModifier)),
+             Pair.of(8, YieldJobSite.create(speedModifier)),
+-            Pair.of(10, AcquirePoi.create(p -> p.is(PoiTypes.HOME), MemoryModuleType.HOME, false, Optional.of((byte)14), VillagerGoalPackages::validateBedPoi)),
+-            Pair.of(10, AcquirePoi.create(p -> p.is(PoiTypes.MEETING), MemoryModuleType.MEETING_POINT, true, Optional.of((byte)14))),
++            Pair.of(10, AcquirePoi.createForShop(p -> p.is(PoiTypes.HOME), MemoryModuleType.HOME, false, Optional.of((byte)14), VillagerGoalPackages::validateBedPoi)),
++            Pair.of(10, AcquirePoi.createForShop(p -> p.is(PoiTypes.MEETING), MemoryModuleType.MEETING_POINT, true, Optional.of((byte)14), (l, p) -> true)),
+             Pair.of(10, AssignProfessionFromJobSite.create()),
+             Pair.of(10, ResetProfession.create())
+         );

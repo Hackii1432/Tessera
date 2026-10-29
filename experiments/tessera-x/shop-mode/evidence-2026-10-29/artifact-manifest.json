@@ -1,0 +1,10 @@
+{
+  "vanillaSha256": "d052f14d7a173734fba553711e5b570162e2f2a313267ee31a21b975a679be64",
+  "tesseraSha256": "7693288e1d6cb73499b06f259cbdb12d67b13627c309aaefe749aa2bafc6ad8f",
+  "scope": "Normal autonomous ticks; no replacement Brain/entity ticks, clocks or RNG. Lab observers and scene input only. No production contact.",
+  "sources": {
+    "src\\PatchShopLab.java": "1a780c1598c6ae7fbb45f668199de52230a2d05dc81180b868260d88ba0fcff8",
+    "src\\ShopPlugin.java": "2d460443e2cb3dab442c9286d47842de6f48ac31fdf712622ba1b00936f9489f",
+    "src\\shoplab\\ShopLab.java": "ccd406ded83676ea4f639cdf135905c2e8896280a3242b724570b60388d10b50"
+  }
+}

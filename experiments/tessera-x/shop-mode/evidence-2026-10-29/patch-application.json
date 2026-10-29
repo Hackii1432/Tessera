@@ -1,0 +1,12 @@
+{
+  "status": "PASS",
+  "files": [
+    "dev/tessera/x/ExperimentalOptions.java",
+    "dev/tessera/x/ShopPoiSearch.java",
+    "ca/spottedleaf/moonrise/patches/chunk_system/level/poi/PoiChunk.java",
+    "net/minecraft/world/entity/ai/behavior/AcquirePoi.java",
+    "net/minecraft/world/entity/ai/behavior/VillagerGoalPackages.java"
+  ],
+  "patchSha256": "7a44a363967cb82a23d79981416899c90167450a4f1c43e565b9d250063ee964",
+  "scope": "Forward application on pristine generated HEAD files; contents match compiled release source."
+}

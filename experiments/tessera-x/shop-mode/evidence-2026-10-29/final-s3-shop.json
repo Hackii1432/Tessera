@@ -1,0 +1,171 @@
+{
+  "status": "PASS",
+  "mode": "shop",
+  "smoke": false,
+  "benchOnly": false,
+  "assertions": 20019,
+  "observations": [
+    {
+      "photoCell": "32, 1, 8",
+      "assertions": 29,
+      "case": "controlled-poi-tickets-cell-transitions-trapdoors"
+    },
+    {
+      "case": "workstation-replaced",
+      "frame": 100
+    },
+    {
+      "frame": 114,
+      "profession": "armorer",
+      "case": "native-profession-change"
+    },
+    {
+      "case": "autonomous-walk-after-trapdoor-removal",
+      "position": "(44.815293960010706, 1.0, 8.484153448413474)"
+    },
+    {
+      "case": "autonomous-functional",
+      "restocks": 3,
+      "professionChanged": true,
+      "ticks": 3700
+    }
+  ],
+  "restocks": [
+    {
+      "frame": 193,
+      "uses": 0,
+      "demand": 16,
+      "number": 1,
+      "who": "solid-cell",
+      "gameTime": 300
+    },
+    {
+      "frame": 194,
+      "uses": 0,
+      "demand": 16,
+      "number": 1,
+      "who": "trapdoor-cell",
+      "gameTime": 301
+    },
+    {
+      "frame": 2615,
+      "uses": 0,
+      "demand": 32,
+      "number": 2,
+      "who": "trapdoor-cell",
+      "gameTime": 2722
+    },
+    {
+      "frame": 2617,
+      "uses": 0,
+      "demand": 32,
+      "number": 2,
+      "who": "solid-cell",
+      "gameTime": 2724
+    },
+    {
+      "frame": 3223,
+      "uses": 0,
+      "demand": 48,
+      "number": 3,
+      "who": "solid-cell",
+      "gameTime": 3330
+    },
+    {
+      "frame": 3223,
+      "uses": 0,
+      "demand": 48,
+      "number": 3,
+      "who": "trapdoor-cell",
+      "gameTime": 3330
+    }
+  ],
+  "benchmarks": [
+    {
+      "scenario": "cells-256",
+      "villagers": 256,
+      "ticks": 301,
+      "worldWallMeanMs": 4.243050830564784,
+      "worldWallP95Ms": 6.3966,
+      "worldWallP99Ms": 7.3778,
+      "worldCpuMeanMs": 3.1665282392026577,
+      "allocatedBytesPerTick": 1520972.9169435217,
+      "processCpuMsPerTick": 4.82765780730897,
+      "measurementSeconds": 15.0494064,
+      "observedWorldTicksPerSecond": 20.000785811604676,
+      "nativePoiQueriesPerTick": 0.0,
+      "memoHitsPerTick": 17.365448504983387,
+      "memoMissesPerTick": 0.0,
+      "livingVillagers": 256
+    },
+    {
+      "scenario": "cells-1024",
+      "villagers": 1024,
+      "ticks": 301,
+      "worldWallMeanMs": 20.109176411960135,
+      "worldWallP95Ms": 26.6484,
+      "worldWallP99Ms": 29.1098,
+      "worldCpuMeanMs": 18.116694352159467,
+      "allocatedBytesPerTick": 6164638.086378737,
+      "processCpuMsPerTick": 20.245016611295682,
+      "measurementSeconds": 15.0487885,
+      "observedWorldTicksPerSecond": 20.001609564740455,
+      "nativePoiQueriesPerTick": 0.0,
+      "memoHitsPerTick": 69.35548172757476,
+      "memoMissesPerTick": 0.0,
+      "livingVillagers": 1024
+    },
+    {
+      "scenario": "cells-4096",
+      "villagers": 4096,
+      "ticks": 182,
+      "worldWallMeanMs": 82.39196483516484,
+      "worldWallP95Ms": 108.949,
+      "worldWallP99Ms": 123.9076,
+      "worldCpuMeanMs": 79.67032967032966,
+      "allocatedBytesPerTick": 2.488430931868132E7,
+      "processCpuMsPerTick": 96.7548076923077,
+      "measurementSeconds": 15.0068989,
+      "observedWorldTicksPerSecond": 12.127754889490964,
+      "nativePoiQueriesPerTick": 0.0,
+      "memoHitsPerTick": 451.85164835164835,
+      "memoMissesPerTick": 0.0,
+      "livingVillagers": 4096
+    },
+    {
+      "scenario": "redstone-and-poi-churn-256",
+      "villagers": 256,
+      "ticks": 300,
+      "worldWallMeanMs": 5.204106666666666,
+      "worldWallP95Ms": 6.6604,
+      "worldWallP99Ms": 7.1337,
+      "worldCpuMeanMs": 4.114583333333333,
+      "allocatedBytesPerTick": 1935967.28,
+      "processCpuMsPerTick": 6.458333333333333,
+      "measurementSeconds": 15.0010064,
+      "observedWorldTicksPerSecond": 19.998657956726717,
+      "nativePoiQueriesPerTick": 5.736666666666666,
+      "memoHitsPerTick": 11.663333333333334,
+      "memoMissesPerTick": 5.736666666666666,
+      "livingVillagers": 256
+    },
+    {
+      "scenario": "rooms-2x1-1024",
+      "villagers": 1024,
+      "ticks": 300,
+      "worldWallMeanMs": 35.78719066666667,
+      "worldWallP95Ms": 43.1154,
+      "worldWallP99Ms": 57.6289,
+      "worldCpuMeanMs": 32.604166666666664,
+      "allocatedBytesPerTick": 1.15186784E7,
+      "processCpuMsPerTick": 42.291666666666664,
+      "measurementSeconds": 15.0483284,
+      "observedWorldTicksPerSecond": 19.935768813554485,
+      "nativePoiQueriesPerTick": 69.82,
+      "memoHitsPerTick": 0.0,
+      "memoMissesPerTick": 69.82,
+      "livingVillagers": 1024
+    }
+  ],
+  "productionContacted": false
+}

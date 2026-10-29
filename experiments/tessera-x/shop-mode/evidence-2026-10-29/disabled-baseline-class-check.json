@@ -1,0 +1,9 @@
+{
+  "status": "PASS",
+  "classesIdentical": {
+    "dev/tessera/x/ExperimentalOptions.class": true,
+    "ca/spottedleaf/moonrise/patches/chunk_system/level/poi/PoiChunk.class": true,
+    "net/minecraft/world/entity/ai/behavior/AcquirePoi.class": true,
+    "net/minecraft/world/entity/ai/behavior/VillagerGoalPackages.class": true
+  }
+}

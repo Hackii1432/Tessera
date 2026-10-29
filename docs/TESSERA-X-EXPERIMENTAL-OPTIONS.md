@@ -47,6 +47,7 @@ experimental-options:
   sensor-local-conditions: true
   poi-scratch: true
   poi-reservation-check: true
+  automatic-shop: false
   work-timings: false
 ```
 
@@ -63,6 +64,37 @@ The region interval accepts 100–60000 ms and is used only when
 Earlier cleanup does not expire active tickets or separate live connected
 sections. POI scratch does not cache beds, occupancy or query results. The
 reservation guard protects the final state change after a reentrant callback.
+
+## Automatic 1x1 shop cells
+
+`automatic-shop: true` enables automatic per-villager recognition; names, tags and
+manual assignments are not required. The master switch must also be enabled.
+The option defaults to false and requires a restart when changed.
+
+This experiment leaves the entire native Brain, work, trades, restock timing,
+profession changes, pathfinding decisions and POI retry scheduling running.
+It avoids repeating an empty `AcquirePoi` search only when that search did not
+evaluate any position predicate and its POI chunk identities and revisions are
+unchanged. Searches with available candidates or retry predicates remain native.
+
+Recognition is conservative: an ordinary adult must be on a full floor, contained
+in one block column, with a job-site memory and collision barriers on all
+four sides. Full blocks and native trapdoor collision cuboids are supported.
+An open-front cell with an upper trapdoor and a workstation under the villager
+is included; OPEN is not itself the criterion. Closed and open trapdoors count
+only where their actual shape blocks the exit. A genuinely larger or passable
+room is not classified as a 1x1 cell. Nonstandard jump/gravity, babies, vehicles,
+water and uncertain shapes use the native path.
+
+Cell geometry and region ownership are checked at the next regular POI attempt,
+not by an extra per-tick cage scan. No Brain is put to sleep. Block/piston/trapdoor
+changes are therefore observed before skipping a subsequent search. Every POI
+mutation, including ticket acquisition/release, changes its chunk revision;
+unloaded/replaced chunks invalidate by identity. No global block-event broadcast
+or scan over all villagers is added. All search chunks must belong to the current
+region and be loaded before a result can be reused.
+
+See the native laboratory and evidence in `experiments/tessera-x/shop-mode/`.
 
 ## Validation
 
